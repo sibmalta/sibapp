@@ -1,0 +1,27 @@
+{
+  "brandKit": {
+    "id": "3eb45398-ef2f-4e74-b8fb-d6e896823aac",
+    "name": "Brand Kit - 3/27/2026",
+    "colors": [
+      {
+        "id": "4ba3bd59-5184-49bd-94b9-4f864692347a",
+        "hex": "#B59A1B",
+        "rgb": {
+          "b": 27,
+          "g": 154,
+          "r": 181
+        },
+        "hsl": {
+          "h": 49,
+          "l": 41,
+          "s": 74
+        },
+        "name": "Yellow",
+        "role": null,
+        "prominence": null,
+        "pixelPercentage": null
+      }
+    ],
+    "assets": []
+  }
+}
