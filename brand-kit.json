@@ -1,0 +1,107 @@
+{
+  "brandKit": {
+    "id": "81fb5e2a-3769-46e5-a440-886da3a6d504",
+    "name": "Brand Kit - 3/29/2026",
+    "colors": [],
+    "assets": [
+      {
+        "id": "edafae45-1ec5-4535-bf94-c271bc7646cd",
+        "fileName": "sib-3.png",
+        "assetType": "logo",
+        "mimeType": "image/png",
+        "metadata": {
+          "kind": "logo",
+          "aspectRatio": "square",
+          "variants": [
+            {
+              "width": 500,
+              "height": 500,
+              "purpose": "original",
+              "fileName": "sib-3-original.png",
+              "mimeType": "image/png",
+              "storageKey": "brand-kits/8d50da90-024a-48b6-99b8-7de82961bd56/81fb5e2a-3769-46e5-a440-886da3a6d504/sib-3-original.png",
+              "fileSizeBytes": 2247
+            },
+            {
+              "width": 16,
+              "height": 16,
+              "purpose": "favicon",
+              "fileName": "favicon-16.png",
+              "mimeType": "image/png",
+              "storageKey": "brand-kits/8d50da90-024a-48b6-99b8-7de82961bd56/81fb5e2a-3769-46e5-a440-886da3a6d504/favicon-16.png",
+              "fileSizeBytes": 257
+            },
+            {
+              "width": 32,
+              "height": 32,
+              "purpose": "favicon",
+              "fileName": "favicon-32.png",
+              "mimeType": "image/png",
+              "storageKey": "brand-kits/8d50da90-024a-48b6-99b8-7de82961bd56/81fb5e2a-3769-46e5-a440-886da3a6d504/favicon-32.png",
+              "fileSizeBytes": 556
+            },
+            {
+              "width": 64,
+              "height": 64,
+              "purpose": "favicon",
+              "fileName": "favicon-64.png",
+              "mimeType": "image/png",
+              "storageKey": "brand-kits/8d50da90-024a-48b6-99b8-7de82961bd56/81fb5e2a-3769-46e5-a440-886da3a6d504/favicon-64.png",
+              "fileSizeBytes": 1240
+            },
+            {
+              "width": 128,
+              "height": 128,
+              "purpose": "favicon",
+              "fileName": "favicon-128.png",
+              "mimeType": "image/png",
+              "storageKey": "brand-kits/8d50da90-024a-48b6-99b8-7de82961bd56/81fb5e2a-3769-46e5-a440-886da3a6d504/favicon-128.png",
+              "fileSizeBytes": 2932
+            },
+            {
+              "width": 256,
+              "height": 256,
+              "purpose": "favicon",
+              "fileName": "favicon-256.png",
+              "mimeType": "image/png",
+              "storageKey": "brand-kits/8d50da90-024a-48b6-99b8-7de82961bd56/81fb5e2a-3769-46e5-a440-886da3a6d504/favicon-256.png",
+              "fileSizeBytes": 6762
+            },
+            {
+              "width": 32,
+              "height": 32,
+              "purpose": "favicon",
+              "fileName": "favicon.ico",
+              "mimeType": "image/x-icon",
+              "storageKey": "brand-kits/8d50da90-024a-48b6-99b8-7de82961bd56/81fb5e2a-3769-46e5-a440-886da3a6d504/favicon.ico",
+              "fileSizeBytes": 556
+            }
+          ],
+          "aiAnalysis": {
+            "hasText": true,
+            "description": "A compact logo featuring the bold italic text 'SIB' in a warm terracotta/burnt orange color, accompanied by stylized sun ray lines radiating from the upper right of the letters. The rays consist of 4-5 short diagonal lines suggesting a sunburst or light burst effect. The overall style is energetic and modern with a hand-crafted feel. The background is fully transparent.",
+            "textContent": "SIB",
+            "dominantColors": [
+              "#D4673A",
+              "#C85E32",
+              "#E07848"
+            ],
+            "recommendations": {
+              "bestFor": [
+                "favicon",
+                "navbar",
+                "app-icon"
+              ],
+              "usageNotes": "This logo has full transparency and uses warm orange tones, making it ideal for light or white backgrounds. For navbar use, ensure sufficient padding around the mark. Avoid placing on dark backgrounds as the orange may lose contrast. For favicon use, the square format and bold letterforms work well at small sizes (32x32, 16x16). Consider adding a white drop shadow or container if used over colorful or image-heavy backgrounds. Do not invert colors as the warm palette is core to brand identity.",
+              "themeVariant": "neutral",
+              "notSuitableFor": [
+                "background",
+                "dark"
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }
+}
