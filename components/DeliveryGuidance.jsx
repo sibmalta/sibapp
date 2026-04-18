@@ -1,0 +1,104 @@
+import React, { useState } from 'react'
+import { Truck, Package, AlertTriangle, ChevronDown, ChevronUp, XCircle, CheckCircle2 } from 'lucide-react'
+
+/**
+ * DeliveryGuidance — collapsible panel explaining delivery tiers and limits.
+ *
+ * Props
+ *  - variant: 'full' (default) | 'compact'
+ *      full    → always-visible card with all sections (SellPage)
+ *      compact → expandable inline block (ListingPage)
+ *  - defaultOpen: boolean (compact only, default false)
+ */
+export default function DeliveryGuidance({ variant = 'full', defaultOpen = false }) {
+  const [open, setOpen] = useState(variant === 'full' ? true : defaultOpen)
+
+  /* ── Compact trigger for ListingPage ── */
+  if (variant === 'compact') {
+    return (
+      <div className="rounded-2xl border border-sib-stone bg-white overflow-hidden mb-3">
+        <button
+          onClick={() => setOpen(o => !o)}
+          className="w-full flex items-center justify-between px-3.5 py-3 text-left active:bg-sib-sand/40 transition-colors"
+        >
+          <div className="flex items-center gap-2.5">
+            <Truck size={15} className="text-sib-primary flex-shrink-0" />
+            <span className="text-sm font-semibold text-sib-text">Delivery information</span>
+          </div>
+          {open
+            ? <ChevronUp size={16} className="text-sib-muted flex-shrink-0" />
+            : <ChevronDown size={16} className="text-sib-muted flex-shrink-0" />}
+        </button>
+
+        {open && <GuidanceBody />}
+      </div>
+    )
+  }
+
+  /* ── Full variant for SellPage ── */
+  return (
+    <div className="rounded-2xl border border-amber-200 bg-amber-50/40 overflow-hidden mb-5">
+      <div className="px-4 pt-3.5 pb-1 flex items-center gap-2">
+        <Truck size={15} className="text-amber-600 flex-shrink-0" />
+        <h3 className="text-sm font-bold text-sib-text">Delivery information</h3>
+      </div>
+      <GuidanceBody />
+    </div>
+  )
+}
+
+/* ── Shared inner content ── */
+function GuidanceBody() {
+  return (
+    <div className="px-4 pb-4 pt-2 space-y-3.5">
+      {/* Standard */}
+      <div className="flex gap-2.5">
+        <Package size={14} className="text-sib-primary flex-shrink-0 mt-0.5" />
+        <div>
+          <p className="text-xs font-bold text-sib-text mb-0.5">Standard delivery</p>
+          <ul className="text-[11px] text-sib-muted leading-relaxed space-y-0.5">
+            <li>Items that fit in a car</li>
+            <li>Can be carried by one person</li>
+          </ul>
+        </div>
+      </div>
+
+      {/* Bulky */}
+      <div className="flex gap-2.5">
+        <Truck size={14} className="text-amber-600 flex-shrink-0 mt-0.5" />
+        <div>
+          <p className="text-xs font-bold text-sib-text mb-0.5">Bulky delivery</p>
+          <ul className="text-[11px] text-sib-muted leading-relaxed space-y-0.5">
+            <li>Furniture, appliances, treadmills</li>
+            <li>Delivered by Sib drivers (1–2 people)</li>
+          </ul>
+        </div>
+      </div>
+
+      {/* Limits */}
+      <div className="flex gap-2.5">
+        <AlertTriangle size={14} className="text-sib-muted flex-shrink-0 mt-0.5" />
+        <div>
+          <p className="text-xs font-bold text-sib-text mb-0.5">Limits</p>
+          <ul className="text-[11px] text-sib-muted leading-relaxed space-y-0.5">
+            <li>Maximum approx weight: 100 kg</li>
+            <li>Must fit through standard doors</li>
+            <li>Must be movable without specialist equipment</li>
+          </ul>
+        </div>
+      </div>
+
+      {/* Not supported */}
+      <div className="flex gap-2.5">
+        <XCircle size={14} className="text-red-400 flex-shrink-0 mt-0.5" />
+        <div>
+          <p className="text-xs font-bold text-sib-text mb-0.5">Not supported</p>
+          <ul className="text-[11px] text-sib-muted leading-relaxed space-y-0.5">
+            <li>Items requiring cranes or specialist transport</li>
+            <li>Extremely large or commercial equipment</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  )
+}
