@@ -1,0 +1,331 @@
+import React, { useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
+import {
+  Wallet, Package, Clock, CheckCircle, AlertCircle,
+  ChevronRight, ShieldCheck, Banknote, Calendar, Truck, Send,
+  ChevronDown, ChevronUp, ArrowUpRight, TrendingUp,
+} from 'lucide-react'
+import { useApp } from '../context/AppContext'
+import { ShipmentStatusBadge } from '../components/ShipmentTracker'
+
+const PAYOUT_STATUS_MAP = {
+  held: { label: 'Pending', desc: 'Waiting for delivery confirmation', color: 'bg-amber-50 text-amber-700', dot: 'bg-amber-400', icon: Clock },
+  available: { label: 'Available', desc: 'Ready for next payout', color: 'bg-emerald-50 text-emerald-700', dot: 'bg-emerald-400', icon: CheckCircle },
+  released: { label: 'Paid out', desc: 'Sent to your bank', color: 'bg-sky-50 text-sky-700', dot: 'bg-sky-400', icon: Banknote },
+  refunded: { label: 'Refunded', desc: 'Returned to buyer', color: 'bg-red-50 text-red-500', dot: 'bg-red-400', icon: AlertCircle },
+}
+
+// Payout days: Tuesday (2) and Friday (5)
+const PAYOUT_DAYS = [2, 5]
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+function getNextPayoutDay() {
+  const now = new Date()
+  const today = now.getDay()
+  const currentHour = now.getHours()
+
+  for (const day of PAYOUT_DAYS) {
+    if (day === today && currentHour < 17) {
+      return { dayName: DAY_NAMES[day], daysAway: 0, isToday: true }
+    }
+  }
+
+  let minDays = 8
+  let nextDay = PAYOUT_DAYS[0]
+  for (const day of PAYOUT_DAYS) {
+    let diff = day - today
+    if (diff <= 0) diff += 7
+    if (diff < minDays) {
+      minDays = diff
+      nextDay = day
+    }
+  }
+
+  return { dayName: DAY_NAMES[nextDay], daysAway: minDays, isToday: false }
+}
+
+export default function SellerDashboardPage() {
+  const navigate = useNavigate()
+  const {
+    currentUser, orders, getUserSales, getListingById, getPayoutProfile,
+    getShipmentByOrderId,
+  } = useApp()
+  const [filter, setFilter] = useState('all')
+  const [escrowOpen, setEscrowOpen] = useState(false)
+
+  if (!currentUser) {
+    navigate('/auth')
+    return null
+  }
+
+  const sales = getUserSales(currentUser.id)
+  const payoutProfile = getPayoutProfile(currentUser.id)
+  const nextPayout = useMemo(() => getNextPayoutDay(), [])
+
+  // Compute totals
+  const totalEarnings = sales.reduce((sum, o) => sum + (o.sellerPayout || o.itemPrice || 0), 0)
+  const heldAmount = sales
+    .filter(o => o.payoutStatus === 'held')
+    .reduce((sum, o) => sum + (o.sellerPayout || o.itemPrice || 0), 0)
+  const availableAmount = sales
+    .filter(o => o.payoutStatus === 'available')
+    .reduce((sum, o) => sum + (o.sellerPayout || o.itemPrice || 0), 0)
+  const releasedAmount = sales
+    .filter(o => o.payoutStatus === 'released')
+    .reduce((sum, o) => sum + (o.sellerPayout || o.itemPrice || 0), 0)
+
+  const filteredSales = filter === 'all'
+    ? sales
+    : sales.filter(o => o.payoutStatus === filter)
+
+  const filters = [
+    { id: 'all', label: 'All' },
+    { id: 'held', label: 'Pending' },
+    { id: 'available', label: 'Available' },
+    { id: 'released', label: 'Paid' },
+  ]
+
+  return (
+    <div className="pb-10 bg-white min-h-screen">
+      {/* Header — clean, minimal */}
+      <div className="px-4 pt-5 pb-1">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-sib-text tracking-tight">Seller Dashboard</h1>
+            <p className="text-xs text-sib-muted mt-0.5">Earnings &amp; payouts</p>
+          </div>
+          <button
+            onClick={() => navigate('/seller/payout-settings')}
+            className={`text-xs px-3.5 py-1.5 rounded-full font-semibold transition-all ${
+              payoutProfile
+                ? 'text-sib-muted bg-sib-sand border border-sib-stone hover:border-sib-muted'
+                : 'text-white bg-sib-secondary shadow-sm hover:opacity-90'
+            }`}
+          >
+            {payoutProfile ? 'Payout settings' : 'Set up payouts'}
+          </button>
+        </div>
+      </div>
+
+      {/* Primary: Balance overview — compact stat card */}
+      <div className="px-4 mt-3">
+        <div className="bg-sib-sand rounded-2xl p-4 border border-sib-stone/60">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-[11px] uppercase tracking-wider text-sib-muted font-semibold">Total Earnings</p>
+              <p className="text-3xl font-bold text-sib-text mt-0.5 tracking-tight">€{totalEarnings.toFixed(2)}</p>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-sib-primary/10 flex items-center justify-center">
+              <TrendingUp size={18} className="text-sib-primary" />
+            </div>
+          </div>
+
+          {/* Breakdown row */}
+          <div className="grid grid-cols-3 gap-2 pt-3 border-t border-sib-stone/60">
+            <div>
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <p className="text-[10px] text-sib-muted font-medium uppercase tracking-wide">Available</p>
+              </div>
+              <p className="text-base font-bold text-sib-text">€{availableAmount.toFixed(2)}</p>
+              {availableAmount > 0 && (
+                <p className="text-[10px] text-emerald-600 font-medium mt-0.5">
+                  {nextPayout.isToday ? 'Payout today' : `Next ${nextPayout.dayName}`}
+                </p>
+              )}
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                <p className="text-[10px] text-sib-muted font-medium uppercase tracking-wide">Pending</p>
+              </div>
+              <p className="text-base font-bold text-sib-text">€{heldAmount.toFixed(2)}</p>
+              {heldAmount > 0 && (
+                <p className="text-[10px] text-sib-muted mt-0.5">In escrow</p>
+              )}
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+                <p className="text-[10px] text-sib-muted font-medium uppercase tracking-wide">Paid out</p>
+              </div>
+              <p className="text-base font-bold text-sib-text">€{releasedAmount.toFixed(2)}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Secondary: Payout setup CTA — only when not configured */}
+      {!payoutProfile && (
+        <div className="px-4 mt-3">
+          <button
+            onClick={() => navigate('/seller/payout-settings')}
+            className="w-full flex items-center gap-3 p-3.5 rounded-2xl border border-sib-stone bg-white hover:bg-sib-sand transition-colors group"
+          >
+            <div className="w-9 h-9 rounded-xl bg-sib-secondary/10 flex items-center justify-center flex-shrink-0">
+              <Banknote size={16} className="text-sib-secondary" />
+            </div>
+            <div className="flex-1 text-left">
+              <p className="text-sm font-semibold text-sib-text">Add your payout method</p>
+              <p className="text-[11px] text-sib-muted mt-0.5">Connect your bank to receive earnings</p>
+            </div>
+            <ArrowUpRight size={16} className="text-sib-muted group-hover:text-sib-secondary transition-colors flex-shrink-0" />
+          </button>
+        </div>
+      )}
+
+      {/* Payout schedule — subtle inline note */}
+      <div className="px-4 mt-3">
+        <div className="flex items-center gap-2.5 py-2.5 px-3.5 rounded-xl bg-sib-sand/80 border border-sib-stone/40">
+          <Calendar size={13} className="text-sib-primary flex-shrink-0" />
+          <p className="text-[11px] text-sib-muted leading-relaxed">
+            Payouts sent every <span className="font-semibold text-sib-text">Tuesday</span> &amp; <span className="font-semibold text-sib-text">Friday</span>
+            {availableAmount > 0 && (
+              <span className="text-sib-primary font-semibold"> · Next: {nextPayout.isToday ? 'Today' : nextPayout.dayName}</span>
+            )}
+          </p>
+        </div>
+      </div>
+
+      {/* Tertiary: How escrow works — collapsible, lightweight */}
+      <div className="px-4 mt-2.5">
+        <button
+          onClick={() => setEscrowOpen(!escrowOpen)}
+          className="w-full flex items-center justify-between py-2.5 px-3.5 rounded-xl border border-sib-stone/40 bg-white hover:bg-sib-sand/50 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <ShieldCheck size={13} className="text-sib-primary" />
+            <span className="text-[11px] font-semibold text-sib-muted">How Sib Escrow works</span>
+          </div>
+          {escrowOpen
+            ? <ChevronUp size={14} className="text-sib-muted" />
+            : <ChevronDown size={14} className="text-sib-muted" />
+          }
+        </button>
+        {escrowOpen && (
+          <div className="px-3.5 pb-3 pt-2.5 rounded-b-xl border border-t-0 border-sib-stone/40 bg-sib-sand/30 -mt-px">
+            <div className="space-y-2">
+              {[
+                { text: 'Buyer pays — money held securely', tag: 'Pending', tagColor: 'bg-amber-100 text-amber-700' },
+                { text: 'You ship via Sib Tracked Delivery', tag: null },
+                { text: 'Buyer confirms or 48h passes — funds unlocked', tag: 'Available', tagColor: 'bg-emerald-100 text-emerald-700' },
+                { text: 'Payout on next Tuesday or Friday', tag: 'Paid', tagColor: 'bg-sky-100 text-sky-700' },
+              ].map((step, i) => (
+                <div key={i} className="flex items-center gap-2.5">
+                  <span className="text-[10px] font-bold text-sib-primary/70 w-4 text-center flex-shrink-0">{i + 1}</span>
+                  <p className="text-[11px] text-sib-muted leading-snug flex-1">{step.text}</p>
+                  {step.tag && (
+                    <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${step.tagColor}`}>{step.tag}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Divider */}
+      <div className="h-px bg-sib-stone/50 mx-4 mt-4 mb-3" />
+
+      {/* Filter tabs */}
+      <div className="flex gap-1.5 px-4 mb-3 overflow-x-auto">
+        {filters.map(f => (
+          <button
+            key={f.id}
+            onClick={() => setFilter(f.id)}
+            className={`px-3 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap transition-all ${
+              filter === f.id
+                ? 'bg-sib-text text-white'
+                : 'bg-transparent text-sib-muted hover:bg-sib-sand'
+            }`}
+          >
+            {f.label}
+            {f.id !== 'all' && (
+              <span className="ml-1 opacity-60">
+                {sales.filter(o => o.payoutStatus === f.id).length}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Sales list */}
+      <div className="px-4 space-y-1.5">
+        <p className="text-[10px] text-sib-muted font-medium uppercase tracking-wider mb-1">
+          {filteredSales.length} sale{filteredSales.length !== 1 ? 's' : ''}
+        </p>
+
+        {filteredSales.length === 0 && (
+          <div className="text-center py-14">
+            <Package size={28} className="mx-auto text-sib-stone mb-2" />
+            <p className="text-sm text-sib-muted">
+              {filter === 'all' ? 'No sales yet. List something to get started.' : 'No orders with this status.'}
+            </p>
+            {filter === 'all' && (
+              <button
+                onClick={() => navigate('/sell')}
+                className="mt-3 bg-sib-secondary text-white px-5 py-2 rounded-full text-xs font-semibold hover:opacity-90 transition-opacity"
+              >
+                List something
+              </button>
+            )}
+          </div>
+        )}
+
+        {filteredSales.map(order => {
+          const listing = getListingById(order.listingId)
+          const ps = PAYOUT_STATUS_MAP[order.payoutStatus] || PAYOUT_STATUS_MAP.held
+          const StatusIcon = ps.icon
+          const shipment = getShipmentByOrderId(order.id)
+          const needsShipping = shipment?.status === 'awaiting_shipment'
+          return (
+            <div
+              key={order.id}
+              className={`p-3 rounded-xl border transition-colors cursor-pointer active:bg-sib-sand/80 ${
+                needsShipping ? 'border-blue-200 bg-blue-50/20' : 'border-sib-stone/50 bg-white'
+              }`}
+            >
+              <div className="flex items-center gap-3" onClick={() => navigate(`/orders/${order.id}`)}>
+                <img
+                  src={listing?.images?.[0] || ''}
+                  alt={listing?.title}
+                  className="w-12 h-12 rounded-lg object-cover flex-shrink-0 bg-sib-sand"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-semibold text-sib-text line-clamp-1">{listing?.title || 'Item'}</p>
+                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5 ${ps.color}`}>
+                      <StatusIcon size={9} />
+                      {ps.label}
+                    </span>
+                    {shipment && <ShipmentStatusBadge status={shipment.status} />}
+                    {order.payoutStatus === 'available' && (
+                      <span className="text-[9px] text-emerald-600 font-medium flex items-center gap-0.5">
+                        <Calendar size={8} />
+                        {nextPayout.isToday ? 'Today' : nextPayout.dayName}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="text-right flex-shrink-0 pl-2">
+                  <p className="text-sm font-bold text-sib-text">€{(order.sellerPayout || order.itemPrice || 0).toFixed(2)}</p>
+                  <p className="text-[9px] text-sib-muted mt-0.5">
+                    {new Date(order.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                  </p>
+                </div>
+              </div>
+              {needsShipping && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); navigate(`/orders/${order.id}`) }}
+                  className="mt-2 w-full py-2 rounded-lg bg-blue-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-blue-700 transition-colors"
+                >
+                  <Truck size={12} /> Ship now
+                </button>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
