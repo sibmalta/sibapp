@@ -398,7 +398,10 @@ export default function SellPage() {
                   {uploading ? <span className="text-[10px]">Loading...</span> : <><Camera size={20} /><span className="text-[10px]">Add photo</span></>}
                 </button>
               )}
-              <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/heic" capture="environment" multiple onChange={handleImageSelect} className="hidden" />
+              <input ref={fileInputRef} type="file"
+accept="image/jpeg,image/png,image/webp,image/heic"
+multiple
+onChange={handleImageSelect} className="hidden" />
             </div>
             {PHOTO_GUIDANCE[form.category] && (
               <p className="text-[11px] text-sib-muted mt-1.5 leading-relaxed">{PHOTO_GUIDANCE[form.category]}</p>
