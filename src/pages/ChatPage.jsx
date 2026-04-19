@@ -109,6 +109,8 @@ export default function ChatPage() {
   const [warning, setWarning] = useState(null)
   const [restriction, setRestriction] = useState(getRestriction())
   const bottomRef = useRef(null)
+  const messagesContainerRef = useRef(null)
+  const inputRef = useRef(null)
   const restrictionTimerRef = useRef(null)
 
   if (!currentUser) { navigate('/auth'); return null }
@@ -132,9 +134,18 @@ export default function ChatPage() {
     }
   }, [restriction])
 
+  // Scroll the messages container (not the page) to the bottom
+  const scrollToBottom = useCallback((behavior = 'smooth') => {
+    const el = messagesContainerRef.current
+    if (!el) return
+    requestAnimationFrame(() => {
+      el.scrollTo({ top: el.scrollHeight, behavior })
+    })
+  }, [])
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [conv?.messages?.length])
+    scrollToBottom('smooth')
+  }, [conv?.messages?.length, scrollToBottom])
 
   const analysis = text.trim() ? analyseMessage(text) : null
   const isRestricted = !!restriction
@@ -158,6 +169,10 @@ export default function ChatPage() {
     }
     sendMessage(conv.id, currentUser.id, msg, false)
     setText('')
+    // Re-focus input without letting the browser scroll the page
+    requestAnimationFrame(() => {
+      inputRef.current?.focus({ preventScroll: true })
+    })
   }, [text, isRestricted, conv?.id, currentUser?.id, sendMessage])
 
   const dismissWarning = () => {
@@ -181,7 +196,7 @@ export default function ChatPage() {
         />
       )}
 
-      <div className="flex flex-col h-[calc(100dvh-8.5rem)] min-h-0">
+      <div className="flex flex-col h-[calc(100vh-8.5rem)] overflow-hidden">
         {/* Listing preview */}
         {listing && (
           <div
@@ -208,7 +223,7 @@ export default function ChatPage() {
         )}
 
         {/* Messages */}
-        <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-3">
+        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
           {conv.messages.length === 0 && (
             <div className="text-center py-8">
               <UserAvatar user={other} size="lg" className="mx-auto mb-3" />
@@ -251,6 +266,7 @@ export default function ChatPage() {
         {/* Input */}
         <div className="border-t border-sib-stone bg-white px-4 py-3 flex items-end gap-3">
           <textarea
+            ref={inputRef}
             value={text}
             onChange={e => !isRestricted && setText(e.target.value)}
             onKeyDown={handleKeyDown}
