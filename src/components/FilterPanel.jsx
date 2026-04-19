@@ -201,7 +201,7 @@ function CollapsibleSection({ title, defaultOpen = true, count = 0, children }) 
           className={`text-sib-muted transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
         />
       </button>
-      <div className={`transition-all duration-200 ${open ? 'max-h-[80vh] overflow-y-auto opacity-100 mt-2' : 'max-h-0 overflow-hidden opacity-0'}`}>
+      <div className={`transition-all duration-200 ${open ? 'max-h-[80vh] overflow-y-auto overflow-x-hidden scroll-smooth pr-1 pb-1 opacity-100 mt-2' : 'max-h-0 overflow-hidden opacity-0'}`}>
         {children}
       </div>
     </section>
