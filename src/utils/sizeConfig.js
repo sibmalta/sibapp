@@ -154,3 +154,19 @@ export const TROUSER_SUBCATEGORIES = ['jeans', 'trousers', 'shorts']
  * Subcategories that should show ONLY clothing sizes (no waist/length).
  */
 export const CLOTHING_ONLY_SUBCATEGORIES = ['dresses', 'tops', 'shirts', 'coats', 'hoodies', 'skirts', 'activewear', 'swimwear', 'lingerie', 'suits']
+
+/**
+ * Subcategories that have NO size at all (bags, jewellery, sunglasses, etc.).
+ */
+export const NO_SIZE_SUBCATEGORIES = ['bags', 'jewellery', 'sunglasses', 'wallets', 'scarves', 'hats']
+
+/**
+ * Belt subcategory uses its own XS–XL range.
+ */
+export const BELT_SUBCATEGORIES = ['belts']
+export const BELT_SIZES = ['XS', 'S', 'M', 'L', 'XL']
+
+/**
+ * Watches are "One Size" — no selectable size.
+ */
+export const WATCH_SUBCATEGORIES = ['watches']

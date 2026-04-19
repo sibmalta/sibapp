@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Send, ShieldCheck, AlertTriangle, Lock, Ban } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import UserAvatar from '../components/UserAvatar'
+import OfficialBadge from '../components/OfficialBadge'
 import { analyseMessage, recordViolation, getRestriction, getViolationCount } from '../utils/circumventionDetector'
 import { moderateContent } from '../lib/moderation'
 
@@ -104,7 +105,7 @@ function RestrictionBanner({ restriction }) {
 export default function ChatPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { currentUser, getConversation, getUserById, getListingById, sendMessage } = useApp()
+  const { currentUser, getConversation, getUserById, getListingById, sendMessage, markConversationRead } = useApp()
   const [text, setText] = useState('')
   const [warning, setWarning] = useState(null)
   const [restriction, setRestriction] = useState(getRestriction())
@@ -133,6 +134,11 @@ export default function ChatPage() {
       return () => clearInterval(restrictionTimerRef.current)
     }
   }, [restriction])
+
+  // Mark conversation as read when opened and when new messages arrive
+  useEffect(() => {
+    if (conv?.id) markConversationRead(conv.id)
+  }, [conv?.id, conv?.messages?.length, markConversationRead])
 
   // Scroll the messages container (not the page) to the bottom
   const scrollToBottom = useCallback((behavior = 'smooth') => {
@@ -227,7 +233,10 @@ export default function ChatPage() {
           {conv.messages.length === 0 && (
             <div className="text-center py-8">
               <UserAvatar user={other} size="lg" className="mx-auto mb-3" />
-              <p className="text-sm font-semibold text-sib-text">@{other?.username}</p>
+              <div className="flex items-center justify-center gap-1.5">
+                <p className="text-sm font-semibold text-sib-text">@{other?.username}</p>
+                <OfficialBadge user={other} size="sm" />
+              </div>
               <p className="text-xs text-sib-muted mt-1">Say hi to start the conversation!</p>
             </div>
           )}

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import BottomNav from './BottomNav'
 import TopBar from './TopBar'
 import DesktopNav from './DesktopNav'
@@ -7,6 +7,9 @@ import BundleFloater from './BundleFloater'
 import Footer from './Footer'
 
 export default function Layout() {
+  const { pathname } = useLocation()
+  const isMessagesRoot = pathname === '/messages' || pathname === '/messages/'
+
   return (
     <div className="min-h-screen bg-sib-warm">
       <DesktopNav />
@@ -16,9 +19,9 @@ export default function Layout() {
           <TopBar />
         </div>
 
-        <main className="pb-24 lg:pb-12">
+        <main className={isMessagesRoot ? '' : 'pb-24 lg:pb-12'}>
           <Outlet />
-          <Footer />
+          {!isMessagesRoot && <Footer />}
         </main>
 
         <BundleFloater />

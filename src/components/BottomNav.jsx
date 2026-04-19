@@ -20,20 +20,27 @@ const guestRight = [
   { path: '/auth', icon: LogIn, label: 'Sign In' },
 ]
 
-function NavItem({ item }) {
+function NavItem({ item, badge }) {
   return (
     <NavLink
       to={item.path}
       end={item.path === '/'}
       className={({ isActive }) =>
-        `flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors duration-150 ${
+        `flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors duration-150 relative ${
           isActive ? 'text-sib-secondary' : 'text-sib-muted'
         }`
       }
     >
       {({ isActive }) => (
         <>
-          <item.icon size={22} strokeWidth={isActive ? 2.5 : 1.8} />
+          <div className="relative">
+            <item.icon size={22} strokeWidth={isActive ? 2.5 : 1.8} />
+            {badge > 0 && (
+              <span className="absolute -top-1 -right-1.5 min-w-[16px] h-4 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold px-1 leading-none">
+                {badge > 99 ? '99+' : badge}
+              </span>
+            )}
+          </div>
           <span className="text-[10px] font-medium leading-none">{item.label}</span>
         </>
       )}
@@ -42,11 +49,12 @@ function NavItem({ item }) {
 }
 
 export default function BottomNav() {
-  const { currentUser } = useApp()
+  const { currentUser, getUnreadConversationCount } = useApp()
   const navigate = useNavigate()
 
   const left = useMemo(() => (currentUser ? authLeft : guestLeft), [currentUser])
   const right = useMemo(() => (currentUser ? authRight : guestRight), [currentUser])
+  const unreadMessages = currentUser ? getUnreadConversationCount(currentUser.id) : 0
 
   const handleSellClick = (e) => {
     if (!currentUser) {
@@ -70,7 +78,13 @@ export default function BottomNav() {
 
           {/* Right section */}
           <div className="flex flex-1 items-center justify-evenly h-full">
-            {right.map(item => <NavItem key={item.path} item={item} />)}
+            {right.map(item => (
+              <NavItem
+                key={item.path}
+                item={item}
+                badge={item.path === '/messages' ? unreadMessages : 0}
+              />
+            ))}
           </div>
         </div>
       </div>

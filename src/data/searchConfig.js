@@ -353,12 +353,18 @@ export function parseSearchIntent(raw) {
  * @param {string} query - The current search input
  * @param {Array} listings - Active listings for title/product matching
  * @param {number} maxResults - Maximum number of suggestions to return
+ * @param {Array} users - User profiles for username search
+ * @param {object} options - Additional options
+ * @param {boolean} options.isAuthenticated - Whether the current user is logged in (gates user/profile results)
  * @returns {Array} Suggestion objects
  */
-export function generateSuggestions(query, listings = [], maxResults = 8) {
+export function generateSuggestions(query, listings = [], maxResults = 8, users = [], { isAuthenticated = true } = {}) {
   if (!query || query.trim().length < 2) return []
 
   const q = query.toLowerCase().trim()
+  // Strip leading @ for username searches
+  const isAtQuery = q.startsWith('@')
+  const cleanQ = isAtQuery ? q.slice(1) : q
   const results = []
   const seenLabels = new Set()
 
@@ -371,98 +377,134 @@ export function generateSuggestions(query, listings = [], maxResults = 8) {
     return true
   }
 
-  // 1. Curated suggestions — exact key match or prefix
-  for (const [key, suggestions] of Object.entries(CURATED_SUGGESTIONS)) {
-    // Exact match: show all curated for this keyword
-    if (q === key || q === key.replace(/&/g, 'and')) {
-      for (const s of suggestions) {
-        addIfNew({ type: 'smart', ...s })
-      }
-    }
-    // Prefix match on the curated key
-    else if (key.startsWith(q) || key.replace(/&/g, 'and').startsWith(q)) {
-      // The user is typing toward this keyword — suggest the keyword itself first
-      const brandName = resolveBrand(key)
-      if (brandName) {
-        addIfNew({ type: 'smart', label: brandName, brand: brandName, query: '' })
-      } else {
-        // Non-brand keyword (like "golf", "football")
-        const firstSuggestion = suggestions[0]
-        if (firstSuggestion) {
-          addIfNew({ type: 'smart', label: key.charAt(0).toUpperCase() + key.slice(1), category: firstSuggestion.category, query: key })
-        }
-      }
-    }
-  }
-
-  // Also match when user types "brand + partial item" e.g. "nike ja" → "Nike jacket"
-  if (results.length < maxResults) {
+  // If query starts with @, skip product/brand suggestions and only search users
+  if (!isAtQuery) {
+    // 1. Curated suggestions — exact key match or prefix
     for (const [key, suggestions] of Object.entries(CURATED_SUGGESTIONS)) {
-      for (const s of suggestions) {
-        if (s.label.toLowerCase().startsWith(q) || s.label.toLowerCase().includes(q)) {
+      // Exact match: show all curated for this keyword
+      if (q === key || q === key.replace(/&/g, 'and')) {
+        for (const s of suggestions) {
           addIfNew({ type: 'smart', ...s })
         }
       }
+      // Prefix match on the curated key
+      else if (key.startsWith(q) || key.replace(/&/g, 'and').startsWith(q)) {
+        const brandName = resolveBrand(key)
+        if (brandName) {
+          addIfNew({ type: 'smart', label: brandName, brand: brandName, query: '' })
+        } else {
+          const firstSuggestion = suggestions[0]
+          if (firstSuggestion) {
+            addIfNew({ type: 'smart', label: key.charAt(0).toUpperCase() + key.slice(1), category: firstSuggestion.category, query: key })
+          }
+        }
+      }
     }
-  }
 
-  // 2. Dynamic brand + item type suggestions
-  //    If user typed a brand (possibly partial), suggest brand + common item types
-  if (results.length < maxResults) {
-    const intent = parseSearchIntent(q)
-    if (intent.brand && !CURATED_SUGGESTIONS[intent.brand.toLowerCase()]) {
-      // Brand found but no curated map — generate dynamic suggestions
-      const commonItems = ['tops', 'shoes', 'jacket', 'bag', 'jeans']
-      for (const item of commonItems) {
-        const mapping = ITEM_TYPE_MAP[item]
-        if (mapping) {
-          addIfNew({
-            type: 'smart',
-            label: `${intent.brand} ${item}`,
-            brand: intent.brand,
-            category: mapping.category,
-            subcategory: mapping.subcategory,
-            query: item,
-          })
+    // Also match when user types "brand + partial item" e.g. "nike ja" → "Nike jacket"
+    if (results.length < maxResults) {
+      for (const [key, suggestions] of Object.entries(CURATED_SUGGESTIONS)) {
+        for (const s of suggestions) {
+          if (s.label.toLowerCase().startsWith(q) || s.label.toLowerCase().includes(q)) {
+            addIfNew({ type: 'smart', ...s })
+          }
+        }
+      }
+    }
+
+    // 2. Dynamic brand + item type suggestions
+    if (results.length < maxResults) {
+      const intent = parseSearchIntent(q)
+      if (intent.brand && !CURATED_SUGGESTIONS[intent.brand.toLowerCase()]) {
+        const commonItems = ['tops', 'shoes', 'jacket', 'bag', 'jeans']
+        for (const item of commonItems) {
+          const mapping = ITEM_TYPE_MAP[item]
+          if (mapping) {
+            addIfNew({
+              type: 'smart',
+              label: `${intent.brand} ${item}`,
+              brand: intent.brand,
+              category: mapping.category,
+              subcategory: mapping.subcategory,
+              query: item,
+            })
+          }
         }
       }
     }
   }
 
-  // 3. Category / subcategory matches
-  if (results.length < maxResults) {
-    for (const cat of CATEGORY_TREE) {
-      if (cat.label.toLowerCase().includes(q) || cat.id.includes(q)) {
-        addIfNew({ type: 'category', label: cat.label, category: cat.id, query: '' })
-      }
-    }
-    for (const sub of ALL_SUBCATEGORIES) {
-      if (sub.label.toLowerCase().includes(q) || sub.id.includes(q)) {
+  // 2.5. User / seller matches — search by username or display name
+  // Only show user results for authenticated users to prevent off-platform username discovery
+  if (isAuthenticated && results.length < maxResults && users.length > 0) {
+    const userQuery = isAtQuery ? cleanQ : q
+    if (userQuery.length >= 2) {
+      const userMatches = users
+        .filter(u => {
+          if (u.status === 'banned' || u.status === 'suspended') return false
+          const uname = (u.username || '').toLowerCase()
+          const dname = (u.displayName || u.name || '').toLowerCase()
+          return uname.includes(userQuery) || dname.includes(userQuery)
+        })
+        .slice(0, Math.min(isAtQuery ? 8 : 3, maxResults - results.length))
+      for (const u of userMatches) {
         addIfNew({
-          type: 'subcategory',
-          label: sub.label,
-          category: sub.categoryId,
-          subcategory: sub.id,
-          query: '',
+          type: 'user',
+          label: u.username || u.displayName || u.name || 'User',
+          username: u.username,
+          displayName: u.displayName || u.name || null,
+          avatar: u.avatar || u.avatarUrl || null,
+          userId: u.id,
         })
       }
     }
   }
 
-  // 4. Listing title matches (limited, for product discovery)
-  if (results.length < maxResults) {
-    const activeListings = listings.filter(l => l.status === 'active')
-    const titleMatches = activeListings
-      .filter(l => l.title.toLowerCase().includes(q))
-      .slice(0, Math.min(4, maxResults - results.length))
-    for (const l of titleMatches) {
-      addIfNew({
-        type: 'item',
-        label: l.title,
-        id: l.id,
-        price: l.price,
-        image: l.images?.[0],
-      })
+  // For logged-out users typing an @-query, inject a sign-up prompt instead of user results
+  if (!isAuthenticated && isAtQuery && cleanQ.length >= 1) {
+    addIfNew({
+      type: 'auth_prompt',
+      label: 'Sign up to search sellers and message users on Sib',
+    })
+  }
+
+  // Skip product/category results for @-prefixed queries
+  if (!isAtQuery) {
+    // 3. Category / subcategory matches
+    if (results.length < maxResults) {
+      for (const cat of CATEGORY_TREE) {
+        if (cat.label.toLowerCase().includes(q) || cat.id.includes(q)) {
+          addIfNew({ type: 'category', label: cat.label, category: cat.id, query: '' })
+        }
+      }
+      for (const sub of ALL_SUBCATEGORIES) {
+        if (sub.label.toLowerCase().includes(q) || sub.id.includes(q)) {
+          addIfNew({
+            type: 'subcategory',
+            label: sub.label,
+            category: sub.categoryId,
+            subcategory: sub.id,
+            query: '',
+          })
+        }
+      }
+    }
+
+    // 4. Listing title matches (limited, for product discovery)
+    if (results.length < maxResults) {
+      const activeListings = listings.filter(l => l.status === 'active')
+      const titleMatches = activeListings
+        .filter(l => l.title.toLowerCase().includes(q))
+        .slice(0, Math.min(4, maxResults - results.length))
+      for (const l of titleMatches) {
+        addIfNew({
+          type: 'item',
+          label: l.title,
+          id: l.id,
+          price: l.price,
+          image: l.images?.[0],
+        })
+      }
     }
   }
 

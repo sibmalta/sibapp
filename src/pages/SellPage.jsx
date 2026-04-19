@@ -57,6 +57,39 @@ const KIDS_AGE_SIZES = [
 
 const SHOE_SIZES = Array.from({ length: 17 }, (_, i) => String(i + 34))
 
+const WAIST_SIZES = ['W24', 'W25', 'W26', 'W27', 'W28', 'W29', 'W30', 'W31', 'W32', 'W33', 'W34', 'W36', 'W38', 'W40']
+
+const BELT_SIZES = ['XS', 'S', 'M', 'L', 'XL']
+
+const LENGTH_SIZES = ['L28', 'L29', 'L30', 'L31', 'L32', 'L33', 'L34', 'L36']
+
+const WOMEN_EU_SIZES_SELL = ['34', '36', '38', '40', '42', '44', '46']
+
+// Subcategories that use waist sizing (+ length)
+const WAIST_SUBCATEGORIES = ['jeans', 'trousers']
+// Subcategories that use shoe sizing
+const SHOE_SUBCATEGORIES_SELL = ['shoes']
+// Subcategories with NO size at all
+const NO_SIZE_SUBCATEGORIES = ['bags', 'jewellery', 'sunglasses', 'wallets', 'scarves', 'hats']
+// Belt has its own sizing (XS–XL)
+const BELT_SUBCATEGORIES = ['belts']
+// Watches keep "One Size" (they genuinely are)
+const WATCH_SUBCATEGORIES = ['watches']
+
+/**
+ * Determine which size group to show for a fashion subcategory.
+ * Returns: 'clothing' | 'shoe' | 'waist' | 'no_size' | 'belt' | 'watch'
+ */
+function getFashionSizeType(subcategory) {
+  if (!subcategory) return 'clothing'
+  if (SHOE_SUBCATEGORIES_SELL.includes(subcategory)) return 'shoe'
+  if (WAIST_SUBCATEGORIES.includes(subcategory)) return 'waist'
+  if (NO_SIZE_SUBCATEGORIES.includes(subcategory)) return 'no_size'
+  if (BELT_SUBCATEGORIES.includes(subcategory)) return 'belt'
+  if (WATCH_SUBCATEGORIES.includes(subcategory)) return 'watch'
+  return 'clothing'
+}
+
 const SPORTS_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'One Size']
 
 const AGE_GROUPS = ['0-2', '3-5', '6-8', '9-12', '13+', 'Adult']
@@ -99,6 +132,17 @@ const PHOTO_GUIDANCE = {
   furniture: 'Show the full piece, close-ups of material/finish, and any scratches or damage. Include a size reference if possible.',
   toys: 'Show the item and all included pieces. Highlight the box if available and any wear.',
   kids: 'Show the full item, any labels with size/age, and close-ups of any stains or wear.',
+}
+
+const BRAND_PLACEHOLDERS = {
+  fashion: "e.g. Zara, Nike, Levi's, No Brand...",
+  electronics: 'e.g. Apple, Samsung, Sony, Dell...',
+  sports: 'e.g. Nike, Adidas, Wilson, Decathlon...',
+  home: 'e.g. IKEA, Villeroy & Boch, Le Creuset...',
+  furniture: 'e.g. IKEA, Habitat, Maisons du Monde...',
+  toys: 'e.g. LEGO, Playmobil, Fisher-Price, Hasbro...',
+  kids: "e.g. Next, H&M, Zara Kids, Carter's...",
+  books: 'e.g. Penguin, HarperCollins, Self-Published...',
 }
 
 /* ── Image resize helper ────────────────────────────────────── */
@@ -219,7 +263,7 @@ export default function SellPage() {
   const [form, setForm] = useState({
     title: '', description: '', price: '',
     category: '', subcategory: '',
-    gender: '', size: '', brand: '', condition: '',
+    gender: '', size: '', trouser_length: '', brand: '', condition: '',
     colors: [], images: [],
     model: '', material: '', author: '',
     isbn: '', language: '', sport: '', age_group: '', dimensions: '',
@@ -242,7 +286,7 @@ export default function SellPage() {
   const handleCategoryChange = (catId) => {
     const forceBulky = isForceBulky(catId, '')
     setForm(prev => ({
-      ...prev, category: catId, subcategory: '', size: '', gender: '',
+      ...prev, category: catId, subcategory: '', size: '', trouser_length: '', gender: '',
       brand: '', model: '', material: '', author: '',
       isbn: '', language: '', sport: '', age_group: '', dimensions: '',
       format: '', power_info: '', assembly_required: '', colors: [],
@@ -255,12 +299,14 @@ export default function SellPage() {
   const handleTypeChange = (subId) => {
     set('subcategory', subId)
     set('size', '')
+    set('trouser_length', '')
     const forceBulky = isForceBulky(form.category, subId)
     const newDefault = getDefaultDeliverySize(form.category, subId)
     setForm(prev => ({
       ...prev,
       subcategory: subId,
       size: '',
+      trouser_length: '',
       deliverySize: newDefault,
       onePersonCarry: forceBulky ? false : prev.onePersonCarry,
     }))
@@ -271,8 +317,11 @@ export default function SellPage() {
   const deliveryEligible = form.category ? isDeliveryEligible(form.category) : true
 
   const isKidsCategory = form.category === 'kids'
-  const needsShoeSize = attributes.includes('shoe_size') && form.subcategory === 'shoes'
-  const needsClothingSize = attributes.includes('size') && !needsShoeSize && form.category !== 'sports'
+  const isFashionCategory = form.category === 'fashion'
+  const fashionSizeType = isFashionCategory ? getFashionSizeType(form.subcategory) : null
+  const needsFashionSize = isFashionCategory && attributes.includes('size') && !!form.subcategory
+  const needsShoeSize = !isFashionCategory && attributes.includes('shoe_size') && form.subcategory === 'shoes'
+  const needsClothingSize = !isFashionCategory && attributes.includes('size') && !needsShoeSize && form.category !== 'sports'
   const needsKidsSize = attributes.includes('kids_size')
   const needsKidsGender = attributes.includes('kids_gender')
 
@@ -318,6 +367,15 @@ export default function SellPage() {
     if (form.images.length === 0) e.images = 'Add at least one photo'
     if (!form.condition) e.condition = 'Required'
     if (attributes.includes('brand') && !form.brand.trim()) e.brand = 'Required'
+    if (needsFashionSize && !form.size) {
+      const sizeType = getFashionSizeType(form.subcategory)
+      if (sizeType === 'no_size' || sizeType === 'watch') {
+        // no_size subcategories don't require size; watch auto-sets to 'One Size'
+      } else if (sizeType === 'shoe') e.size = 'Select a shoe size'
+      else if (sizeType === 'waist') e.size = 'Select a waist size'
+      else if (sizeType === 'belt') e.size = 'Select a belt size'
+      else e.size = 'Select a size'
+    }
     if (needsClothingSize && !form.size) e.size = 'Select a size'
     if (needsKidsSize && !form.size) e.size = 'Select an age/size'
     if (needsShoeSize && !form.size) e.size = 'Select a shoe size'
@@ -344,6 +402,11 @@ export default function SellPage() {
       for (const key of ATTR_KEYS) {
         if (form[key]) attrs[key] = form[key]
       }
+      if (form.trouser_length) attrs.trouser_length = form.trouser_length
+
+      // Determine final size — watches auto 'One Size', no_size items get empty
+      const sizeType = isFashionCategory ? getFashionSizeType(form.subcategory) : null
+      const finalSize = sizeType === 'watch' ? 'One Size' : form.size
 
       const listing = await createListing({
         title: form.title,
@@ -353,7 +416,7 @@ export default function SellPage() {
         subcategory: form.subcategory,
         attributes: attrs,
         gender: form.gender,
-        size: form.size,
+        size: finalSize,
         brand: normalizeBrand(form.brand) || form.brand,
         condition: form.condition,
         colors: form.colors,
@@ -463,7 +526,7 @@ export default function SellPage() {
           {attributes.includes('brand') && (
             <div className="mb-4">
               <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">Brand</label>
-              <BrandInput value={form.brand} onChange={val => set('brand', val)} error={errors.brand} />
+              <BrandInput value={form.brand} onChange={val => set('brand', val)} error={errors.brand} placeholder={BRAND_PLACEHOLDERS[form.category] || "e.g. Zara, Nike, Levi's, No Brand..."} />
               {errors.brand && <p className="text-red-500 text-xs mt-1">{errors.brand}</p>}
             </div>
           )}
@@ -504,7 +567,108 @@ export default function SellPage() {
             </div>
           )}
 
-          {/* Adult clothing sizes */}
+          {/* ── Fashion Size — clothing (tops, dresses, coats, etc.) ── */}
+          {needsFashionSize && fashionSizeType === 'clothing' && (
+            <div className="mb-4">
+              <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">
+                Size {form.gender ? <span className="ml-1.5 text-sib-muted font-normal normal-case capitalize">({form.gender})</span> : <span className="ml-1.5 text-sib-muted font-normal normal-case">(select gender above for specific sizing)</span>}
+              </label>
+              {/* Letter sizes */}
+              <div className="flex flex-wrap gap-2">
+                {(CLOTHING_SIZES[form.gender] || CLOTHING_SIZES.unisex).map(s => (
+                  <button key={s} type="button" onClick={() => set('size', s)}
+                    className={`px-3.5 py-2 rounded-xl text-sm font-medium transition-colors ${form.size === s ? 'bg-sib-primary text-white' : 'bg-sib-sand text-sib-muted'}`}>{s}</button>
+                ))}
+              </div>
+              {/* EU numeric sizes for women */}
+              {form.gender === 'women' && (
+                <>
+                  <p className="text-[11px] text-sib-muted mt-2 mb-1.5">Or pick an EU numeric size</p>
+                  <div className="flex flex-wrap gap-2">
+                    {WOMEN_EU_SIZES_SELL.map(s => (
+                      <button key={s} type="button" onClick={() => set('size', `EU ${s}`)}
+                        className={`px-3.5 py-2 rounded-xl text-sm font-medium transition-colors ${form.size === `EU ${s}` ? 'bg-sib-primary text-white' : 'bg-sib-sand text-sib-muted'}`}>EU {s}</button>
+                    ))}
+                  </div>
+                </>
+              )}
+              {errors.size && <p className="text-red-500 text-xs mt-1">{errors.size}</p>}
+            </div>
+          )}
+
+          {/* ── Fashion Size — shoes ── */}
+          {needsFashionSize && fashionSizeType === 'shoe' && (
+            <div className="mb-4">
+              <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">
+                Shoe Size <span className="text-sib-muted font-normal normal-case">(EU)</span>
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {SHOE_SIZES.map(s => (
+                  <button key={s} type="button" onClick={() => set('size', s)}
+                    className={`px-3.5 py-2 rounded-xl text-sm font-medium transition-colors ${form.size === s ? 'bg-sib-primary text-white' : 'bg-sib-sand text-sib-muted'}`}>{s}</button>
+                ))}
+              </div>
+              {errors.size && <p className="text-red-500 text-xs mt-1">{errors.size}</p>}
+            </div>
+          )}
+
+          {/* ── Fashion Size — waist + length (jeans, trousers) ── */}
+          {needsFashionSize && fashionSizeType === 'waist' && (
+            <>
+              <div className="mb-4">
+                <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">
+                  Waist Size
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {WAIST_SIZES.map(s => (
+                    <button key={s} type="button" onClick={() => set('size', s)}
+                      className={`px-3.5 py-2 rounded-xl text-sm font-medium transition-colors ${form.size === s ? 'bg-sib-primary text-white' : 'bg-sib-sand text-sib-muted'}`}>{s}</button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-sib-muted mt-1.5">If your exact waist size isn't listed, pick the nearest match.</p>
+                {errors.size && <p className="text-red-500 text-xs mt-1">{errors.size}</p>}
+              </div>
+              <div className="mb-4">
+                <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">
+                  Length <span className="font-normal normal-case text-sib-muted">(optional)</span>
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {LENGTH_SIZES.map(s => (
+                    <button key={s} type="button" onClick={() => set('trouser_length', form.trouser_length === s ? '' : s)}
+                      className={`px-3.5 py-2 rounded-xl text-sm font-medium transition-colors ${form.trouser_length === s ? 'bg-sib-primary text-white' : 'bg-sib-sand text-sib-muted'}`}>{s}</button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-sib-muted mt-1.5">Tap again to deselect if you don't know the length.</p>
+              </div>
+            </>
+          )}
+
+          {/* ── Fashion Size — belts (XS–XL) ── */}
+          {needsFashionSize && fashionSizeType === 'belt' && (
+            <div className="mb-4">
+              <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">
+                Belt Size
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {BELT_SIZES.map(s => (
+                  <button key={s} type="button" onClick={() => set('size', s)}
+                    className={`px-3.5 py-2 rounded-xl text-sm font-medium transition-colors ${form.size === s ? 'bg-sib-primary text-white' : 'bg-sib-sand text-sib-muted'}`}>{s}</button>
+                ))}
+              </div>
+              {errors.size && <p className="text-red-500 text-xs mt-1">{errors.size}</p>}
+            </div>
+          )}
+
+          {/* ── Fashion — no_size subcategories (bags, jewellery, etc.) — no size field shown ── */}
+
+          {/* ── Fashion — watches (auto One Size) ── */}
+          {needsFashionSize && fashionSizeType === 'watch' && (
+            <div className="mb-4">
+              <p className="text-[11px] text-sib-muted italic">Size: One Size (watches don't require a size selection)</p>
+            </div>
+          )}
+
+          {/* Non-fashion adult clothing sizes */}
           {needsClothingSize && (attributes.includes('gender') ? form.gender : true) && (
             <div className="mb-4">
               <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">
@@ -536,6 +700,7 @@ export default function SellPage() {
             </div>
           )}
 
+          {/* Non-fashion shoe sizes */}
           {needsShoeSize && (
             <div className="mb-4">
               <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">

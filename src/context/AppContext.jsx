@@ -481,6 +481,30 @@ export function AppProvider({ children }) {
     return newMsg
   }, [currentUser])
 
+  // Mark all messages from other participants as read in a conversation
+  const markConversationRead = useCallback((conversationId) => {
+    if (!currentUser) return
+    setConversations(prev => prev.map(c => {
+      if (c.id !== conversationId) return c
+      const updated = c.messages.map(m =>
+        m.senderId !== currentUser.id && !m.read ? { ...m, read: true } : m
+      )
+      // Only create new object if something changed
+      if (updated === c.messages || updated.every((m, i) => m === c.messages[i])) return c
+      return { ...c, messages: updated }
+    }))
+  }, [currentUser])
+
+  // Count conversations with unread messages for a given user
+  const getUnreadConversationCount = useCallback((userId) => {
+    if (!userId) return 0
+    return conversations.filter(c => {
+      if (!c.participants.includes(userId)) return false
+      const last = c.messages[c.messages.length - 1]
+      return last && last.senderId !== userId && !last.read
+    }).length
+  }, [conversations])
+
   const markNotificationRead = useCallback((notifId) => {
     setNotifications(prev => prev.map(n => n.id === notifId ? { ...n, read: true } : n))
   }, [])
@@ -1511,7 +1535,7 @@ export function AppProvider({ children }) {
       PROTECTION_WINDOW_MS, SHIPPING_DEADLINE_MS,
       login, signup, register, logout, requestPasswordReset, validateResetToken, resetPassword, updateProfile,
       createListing, deleteListing, boostListing, unboostListing, flagListing, approveListing, hideListing, updateStyleTags, updateCollectionTags, adminUpdateListingMeta, toggleLike,
-      placeOrder, getOrCreateConversation, sendMessage, updateOrderStatus,
+      placeOrder, getOrCreateConversation, sendMessage, markConversationRead, getUnreadConversationCount, updateOrderStatus,
       confirmDelivery, openDispute, adminOpenDispute, flagOrderOverdue, DISPUTE_REASONS,
       addNotification, markNotificationRead, markAllNotificationsRead, getUserNotifications,
       createOffer, acceptOffer, declineOffer, counterOffer, getOfferById, getListingOffers, getUserActiveOfferOnListing,

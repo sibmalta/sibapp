@@ -1,4 +1,7 @@
 import React from 'react'
+import { isOfficialAccount } from '../utils/officialAccount'
+
+const LOGO_SIZES = { xs: 'w-4 h-4', sm: 'w-5 h-5', md: 'w-7 h-7', lg: 'w-9 h-9', xl: 'w-12 h-12' }
 
 export default function UserAvatar({ user, size = 'md', className = '' }) {
   const sizes = {
@@ -15,6 +18,20 @@ export default function UserAvatar({ user, size = 'md', className = '' }) {
       <span className="text-sib-muted font-bold">?</span>
     </div>
   )
+
+  // Official Sib account — show brand logo instead of initials/placeholder
+  if (isOfficialAccount(user)) {
+    const logoSize = LOGO_SIZES[size] || LOGO_SIZES.md
+    return (
+      <div className={`${sizeClass} rounded-full bg-sib-primary/10 border border-sib-primary/20 flex items-center justify-center ${className}`}>
+        <img
+          src={`${import.meta.env.BASE_URL}assets/sib-3.png`}
+          alt="Sib"
+          className={`${logoSize} object-contain`}
+        />
+      </div>
+    )
+  }
 
   if (user.avatar) {
     return (

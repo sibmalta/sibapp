@@ -10,7 +10,7 @@ import { BRAND_LIST, normalizeBrand } from '../lib/brands'
  * - Allows custom brands not in the dictionary
  * - Keyboard navigation (arrow keys + enter)
  */
-export default function BrandInput({ value, onChange, error, className = '' }) {
+export default function BrandInput({ value, onChange, error, className = '', placeholder = "e.g. Zara, Nike, Levi's, No Brand..." }) {
   const [query, setQuery] = useState(value || '')
   const [open, setOpen] = useState(false)
   const [activeIdx, setActiveIdx] = useState(-1)
@@ -157,7 +157,7 @@ export default function BrandInput({ value, onChange, error, className = '' }) {
         onFocus={() => { if (query.length >= 1) setOpen(true) }}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
-        placeholder="e.g. Zara, Nike, Levi's, No Brand..."
+        placeholder={placeholder}
         autoComplete="off"
         className={`w-full border rounded-xl px-4 py-3 text-sm outline-none text-sib-text placeholder-sib-muted ${error ? 'border-red-400' : 'border-sib-stone'} ${className}`}
       />

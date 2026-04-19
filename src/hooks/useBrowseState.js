@@ -31,7 +31,7 @@ export default function useBrowseState(defaults = {}) {
     saved.current?.query ?? defaults.query ?? ''
   )
   const [category, setCategoryRaw] = useState(
-    saved.current?.category ?? ''
+    saved.current?.category ?? 'fashion'
   )
   const [subcategory, setSubcategoryRaw] = useState(
     saved.current?.subcategory ?? ''

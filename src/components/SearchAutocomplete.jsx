@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react'
-import { Search, Tag, Grid3X3, ShoppingBag, Sparkles, ArrowUpRight } from 'lucide-react'
+import { Search, Tag, Grid3X3, ShoppingBag, Sparkles, ArrowUpRight, User, LogIn } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { generateSuggestions } from '../data/searchConfig'
 
@@ -16,7 +16,8 @@ const SearchAutocomplete = forwardRef(function SearchAutocomplete(
   { query, onSelect, onActiveIndexChange, className = '', renderInline = false },
   ref
 ) {
-  const { listings } = useApp()
+  const { listings, users, currentUser } = useApp()
+  const isAuthenticated = !!currentUser
   const debouncedQuery = useDebounce(query, 150)
   const [activeIndex, setActiveIndex] = useState(-1)
   const listRef = useRef(null)
@@ -24,8 +25,8 @@ const SearchAutocomplete = forwardRef(function SearchAutocomplete(
 
   const suggestions = useMemo(() => {
     if (!debouncedQuery || debouncedQuery.trim().length < 2) return []
-    return generateSuggestions(debouncedQuery, listings, 8)
-  }, [debouncedQuery, listings])
+    return generateSuggestions(debouncedQuery, listings, 8, users, { isAuthenticated })
+  }, [debouncedQuery, listings, users, isAuthenticated])
 
   // Keep ref in sync for imperative access
   suggestionsRef.current = suggestions
@@ -121,6 +122,7 @@ function SuggestionIcon({ type }) {
     case 'brand':       return <Tag size={14} className="text-sib-primary flex-shrink-0" />
     case 'category':
     case 'subcategory': return <Grid3X3 size={14} className="text-sib-accent flex-shrink-0" />
+    case 'user':        return <User size={14} className="text-sib-primary flex-shrink-0" />
     default:            return <ShoppingBag size={14} className="text-sib-muted flex-shrink-0" />
   }
 }
@@ -137,22 +139,26 @@ function getSubtext(item) {
   }
   if (item.type === 'category') return 'Category'
   if (item.type === 'subcategory') return 'Subcategory'
+  if (item.type === 'user') {
+    if (item.displayName && item.displayName !== item.label) return item.displayName
+    return 'Seller'
+  }
   return null
 }
 
 function getSectionHeader(suggestions, item, i) {
-  const hasSmart = suggestions.some(s => s.type === 'smart')
   if (i === 0 && item.type === 'smart') return 'Suggestions'
+  if (i === 0 && item.type === 'user') return 'Sellers'
   if (i === 0 && item.type === 'item') return 'Items'
   if (i === 0 && (item.type === 'category' || item.type === 'subcategory')) return 'Categories'
 
   const prev = suggestions[i - 1]
-  if (prev.type === 'smart' && item.type !== 'smart') {
+  if (prev.type !== item.type) {
+    if (item.type === 'user') return 'Sellers'
     if (item.type === 'item') return 'Items'
     if (item.type === 'category' || item.type === 'subcategory') return 'Categories'
+    if (item.type === 'smart') return 'Suggestions'
   }
-  if (prev.type === 'item' && (item.type === 'category' || item.type === 'subcategory')) return 'Categories'
-  if (!hasSmart && prev.type !== 'item' && item.type === 'item') return 'Items'
   return null
 }
 
@@ -161,6 +167,31 @@ function renderSuggestionList(suggestions, activeIndex, setActiveIndex, onSelect
     const isActive = i === activeIndex
     const sectionHeader = getSectionHeader(suggestions, item, i)
     const subtext = getSubtext(item)
+
+    // Special rendering for auth_prompt (sign-up nudge for logged-out @-queries)
+    if (item.type === 'auth_prompt') {
+      return (
+        <React.Fragment key={`${item.type}-${i}`}>
+          <button
+            data-index={i}
+            onMouseEnter={() => setActiveIndex(i)}
+            onClick={() => onSelect(item)}
+            className={`w-full flex items-center gap-3 px-3 py-3.5 text-left transition-colors ${
+              isActive ? 'bg-sib-primary/5' : 'hover:bg-sib-sand/50'
+            }`}
+          >
+            <div className="w-8 h-8 rounded-full bg-sib-primary/10 flex items-center justify-center flex-shrink-0">
+              <LogIn size={14} className="text-sib-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] text-sib-text font-medium leading-snug">{item.label}</p>
+              <p className="text-[11px] text-sib-primary font-semibold mt-0.5">Sign up free</p>
+            </div>
+            <ArrowUpRight size={12} className="text-sib-primary/50 flex-shrink-0" />
+          </button>
+        </React.Fragment>
+      )
+    }
 
     return (
       <React.Fragment key={`${item.type}-${item.label}-${i}`}>
@@ -177,7 +208,13 @@ function renderSuggestionList(suggestions, activeIndex, setActiveIndex, onSelect
             isActive ? 'bg-sib-sand' : 'hover:bg-sib-sand/50'
           }`}
         >
-          {item.image ? (
+          {item.type === 'user' && item.avatar ? (
+            <img src={item.avatar} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+          ) : item.type === 'user' ? (
+            <div className="w-8 h-8 rounded-full bg-sib-primary/10 flex items-center justify-center flex-shrink-0">
+              <User size={14} className="text-sib-primary" />
+            </div>
+          ) : item.image ? (
             <img src={item.image} alt="" className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
           ) : (
             <div className="w-8 h-8 rounded-lg bg-sib-sand flex items-center justify-center flex-shrink-0">
@@ -186,7 +223,11 @@ function renderSuggestionList(suggestions, activeIndex, setActiveIndex, onSelect
           )}
           <div className="flex-1 min-w-0">
             <p className="text-sm text-sib-text truncate">
-              {highlightMatch(item.label, query)}
+              {item.type === 'user' ? (
+                <>@{highlightMatch(item.label, query.replace(/^@/, ''))}</>
+              ) : (
+                highlightMatch(item.label, query)
+              )}
             </p>
             {subtext && (
               <p className="text-[11px] text-sib-muted truncate">{subtext}</p>

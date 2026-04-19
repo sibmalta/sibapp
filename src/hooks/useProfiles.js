@@ -7,7 +7,7 @@
  * Exposes the same shape and function names that AppContext currently
  * provides for `users`, `getUserById`, `getUserByUsername`, `updateProfile`.
  */
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useSupabase } from '../lib/useSupabase'
 import { useAuth } from '../lib/auth-context'
 import {
@@ -18,6 +18,7 @@ import {
   incrementSalesCount,
 } from '../lib/db/profiles'
 import { uploadAvatar, dataUrlToFile } from '../lib/storage'
+import { SEED_USERS as FALLBACK_SEED_USERS } from '../data/seedData'
 
 const SUPABASE_ENABLED = true
 
@@ -166,12 +167,28 @@ export function useProfiles(localUsers, currentUser) {
     if (dbAvailable) await adminUpdateProfile(supabase, userId, { adminRole: role, isAdmin: !!role })
   }, [supabase, dbAvailable])
 
-  // ── Lookups (sync, in-memory) ──────────────────────────────────────────────
-  const getUserById = useCallback((id) => users.find(u => u.id === id), [users])
-  const getUserByUsername = useCallback((username) =>
-    users.find(u => u.username?.toLowerCase() === username?.toLowerCase()),
-    [users]
-  )
+  // ── Seed-user index for fallback lookups (keyed by id and username) ────────
+  const seedIndex = useMemo(() => {
+    const byId = {}
+    const byUsername = {}
+    for (const u of FALLBACK_SEED_USERS) {
+      byId[u.id] = u
+      if (u.username) byUsername[u.username.toLowerCase()] = u
+    }
+    return { byId, byUsername }
+  }, [])
+
+  // ── Lookups (sync, in-memory) — fall back to seed users for legacy IDs ────
+  const getUserById = useCallback((id) => {
+    if (!id) return undefined
+    return users.find(u => u.id === id) || seedIndex.byId[id]
+  }, [users, seedIndex])
+
+  const getUserByUsername = useCallback((username) => {
+    if (!username) return undefined
+    const lc = username.toLowerCase()
+    return users.find(u => u.username?.toLowerCase() === lc) || seedIndex.byUsername[lc]
+  }, [users, seedIndex])
 
   return {
     users,

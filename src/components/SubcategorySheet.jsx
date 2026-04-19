@@ -48,18 +48,7 @@ export default function SubcategorySheet({
         </div>
 
         {/* List */}
-        <div className="flex-1 min-h-0 overflow-y-auto px-5 pb-5">
-          {/* All option */}
-          <button
-            onClick={() => { onSelect(''); onClose() }}
-            className={`w-full flex items-center justify-between py-3 border-b border-gray-100 transition-colors ${
-              !selected ? 'text-sib-primary font-semibold' : 'text-sib-text'
-            }`}
-          >
-            <span className="text-[14px]">All</span>
-            {!selected && <Check size={16} className="text-sib-primary" />}
-          </button>
-
+        <div className="flex-1 overflow-y-auto px-5 pb-5">
           {subcategories.map(sub => {
             const isActive = selected === sub.id
             return (

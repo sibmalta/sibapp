@@ -21,7 +21,7 @@ function DesktopNotifBell({ onClick, className, size = 18 }) {
 }
 
 export default function DesktopNav() {
-  const { currentUser } = useApp()
+  const { currentUser, getUnreadConversationCount } = useApp()
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
@@ -36,7 +36,11 @@ export default function DesktopNav() {
   }
 
   const handleSuggestionSelect = useCallback((suggestion) => {
-    if (suggestion.type === 'item' && suggestion.id) {
+    if (suggestion.type === 'auth_prompt') {
+      navigate('/auth')
+    } else if (suggestion.type === 'user' && suggestion.username) {
+      navigate(`/profile/${suggestion.username}`)
+    } else if (suggestion.type === 'item' && suggestion.id) {
       navigate(`/listing/${suggestion.id}`)
     } else {
       const params = new URLSearchParams()
@@ -137,9 +141,19 @@ export default function DesktopNav() {
               <>
                 <button
                   onClick={() => navigate('/messages')}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-sib-muted hover:text-sib-text hover:bg-sib-sand transition-colors"
+                  className="relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-sib-muted hover:text-sib-text hover:bg-sib-sand transition-colors"
                 >
-                  <MessageCircle size={18} />
+                  <div className="relative">
+                    <MessageCircle size={18} />
+                    {(() => {
+                      const unread = getUnreadConversationCount(currentUser.id)
+                      return unread > 0 ? (
+                        <span className="absolute -top-1 -right-1.5 min-w-[16px] h-4 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-1 leading-none">
+                          {unread > 99 ? '99+' : unread}
+                        </span>
+                      ) : null
+                    })()}
+                  </div>
                   <span className="hidden xl:inline">Messages</span>
                 </button>
 

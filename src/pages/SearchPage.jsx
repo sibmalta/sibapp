@@ -11,7 +11,7 @@ export default function SearchPage() {
   const navigate = useNavigate()
   const [showFilters, setShowFilters] = useState(false)
   const [filters, setFilters] = useState({
-    category: 'all',
+    category: '',
     condition: 'all',
     location: 'all',
     minPrice: '',
@@ -31,7 +31,7 @@ export default function SearchPage() {
       )
     }
 
-    if (filters.category !== 'all') items = items.filter(l => l.category === filters.category)
+    if (filters.category) items = items.filter(l => l.category === filters.category)
     if (filters.condition !== 'all') items = items.filter(l => l.condition === filters.condition)
     if (filters.location !== 'all') items = items.filter(l => l.location === filters.location)
     if (filters.minPrice) items = items.filter(l => l.price >= Number(filters.minPrice))
@@ -60,7 +60,7 @@ export default function SearchPage() {
     trackFilter({ category: filters.category })
   }, [filters.category])
 
-  const resetFilters = () => setFilters({ category: 'all', condition: 'all', location: 'all', minPrice: '', maxPrice: '', sortBy: 'newest' })
+  const resetFilters = () => setFilters({ category: '', condition: 'all', location: 'all', minPrice: '', maxPrice: '', sortBy: 'newest' })
 
   return (
     <div>
@@ -105,6 +105,7 @@ export default function SearchPage() {
                 onChange={e => setFilters(f => ({ ...f, category: e.target.value }))}
                 className="w-full px-3 py-2 border border-sib-stone rounded-xl text-sm bg-white text-sib-text"
               >
+                <option value="">Any category</option>
                 {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>

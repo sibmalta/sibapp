@@ -5,7 +5,7 @@
  */
 import { CATEGORY_TREE, getCategoryOptions } from '../data/categories'
 
-export const CATEGORIES = getCategoryOptions({ includeAll: true })
+export const CATEGORIES = getCategoryOptions({ includeAll: false })
 
 export const SELL_CATEGORIES = CATEGORY_TREE.map(c => ({
   id: c.id,

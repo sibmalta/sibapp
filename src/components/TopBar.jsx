@@ -58,7 +58,11 @@ export default function TopBar() {
   }, [])
 
   const handleSuggestionSelect = useCallback((suggestion) => {
-    if (suggestion.type === 'item' && suggestion.id) {
+    if (suggestion.type === 'auth_prompt') {
+      navigate('/auth', { state: { from: location.pathname } })
+    } else if (suggestion.type === 'user' && suggestion.username) {
+      navigate(`/profile/${suggestion.username}`)
+    } else if (suggestion.type === 'item' && suggestion.id) {
       navigate(`/listing/${suggestion.id}`)
     } else {
       const params = new URLSearchParams()
@@ -72,7 +76,7 @@ export default function TopBar() {
       navigate(`/browse?${params.toString()}`)
     }
     closeAndReset()
-  }, [navigate, closeAndReset])
+  }, [navigate, closeAndReset, location.pathname])
 
   // Called by SearchAutocomplete whenever activeIndex changes
   const handleActiveIndexChange = useCallback((idx) => {
@@ -136,7 +140,7 @@ export default function TopBar() {
         </div>
 
         {/* Suggestions list */}
-        <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto">
           <SearchAutocomplete
             ref={autocompleteRef}
             query={query}

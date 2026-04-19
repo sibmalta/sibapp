@@ -10,8 +10,7 @@ body {
   font-family: 'Quicksand', system-ui, sans-serif;
   font-weight: 500;
   background-color: #FAFAF6;
-  overscroll-behavior-x: none;
-  overscroll-behavior-y: auto;
+  overscroll-behavior: none;
 }
 
 h1, h2, h3, h4, h5, h6 {

@@ -3,6 +3,7 @@ import { X, Tag, Sparkles, Star, ThumbsUp, Eye, Search, RotateCcw, Truck, MapPin
 import {
   WOMEN_LETTER_SIZES, WOMEN_EU_SIZES, MEN_LETTER_SIZES, KIDS_SIZES,
   SHOE_SIZES, SHOE_SUBCATEGORIES, TROUSER_SUBCATEGORIES, CLOTHING_ONLY_SUBCATEGORIES,
+  NO_SIZE_SUBCATEGORIES, BELT_SUBCATEGORIES, BELT_SIZES, WATCH_SUBCATEGORIES,
   getWaistFilterSizes, getLengthFilterSizes,
   getSizesForCategory,
 } from '../utils/sizeConfig'
@@ -147,24 +148,35 @@ function resolveSizeCategory(category) {
  * Determine which size sections to show based on gender + subcategory.
  */
 function getSizeSections(genderFilter, subcategory) {
+  const NONE = { showClothing: false, showShoe: false, showWaist: false, showLength: false, showBelt: false }
+
   // Subcategory-specific overrides (regardless of gender)
+  if (subcategory && NO_SIZE_SUBCATEGORIES.includes(subcategory)) {
+    return NONE // bags, jewellery, sunglasses, wallets, scarves, hats — no size
+  }
+  if (subcategory && WATCH_SUBCATEGORIES.includes(subcategory)) {
+    return NONE // watches — One Size, no picker
+  }
+  if (subcategory && BELT_SUBCATEGORIES.includes(subcategory)) {
+    return { ...NONE, showBelt: true }
+  }
   if (subcategory && SHOE_SUBCATEGORIES.includes(subcategory)) {
-    return { showClothing: false, showShoe: true, showWaist: false, showLength: false }
+    return { ...NONE, showShoe: true }
   }
   if (subcategory && TROUSER_SUBCATEGORIES.includes(subcategory)) {
-    return { showClothing: false, showShoe: false, showWaist: true, showLength: true }
+    return { ...NONE, showWaist: true, showLength: true }
   }
   if (subcategory && CLOTHING_ONLY_SUBCATEGORIES.includes(subcategory)) {
-    return { showClothing: true, showShoe: false, showWaist: false, showLength: false }
+    return { ...NONE, showClothing: true }
   }
 
   // Gender-based defaults (no specific subcategory or generic subcategory)
   if (genderFilter === 'kids') {
-    return { showClothing: true, showShoe: true, showWaist: false, showLength: false }
+    return { ...NONE, showClothing: true, showShoe: true }
   }
 
   // Women & Men: show clothing + shoe sizes; also waist/length for trousers
-  return { showClothing: true, showShoe: true, showWaist: true, showLength: true }
+  return { showClothing: true, showShoe: true, showWaist: true, showLength: true, showBelt: false }
 }
 
 /**
@@ -201,7 +213,7 @@ function CollapsibleSection({ title, defaultOpen = true, count = 0, children }) 
           className={`text-sib-muted transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
         />
       </button>
-      <div className={`transition-all duration-200 ${open ? 'max-h-[80vh] overflow-y-auto overflow-x-hidden scroll-smooth pr-1 pb-1 opacity-100 mt-2' : 'max-h-0 overflow-hidden opacity-0'}`}>
+      <div className={`overflow-hidden transition-all duration-200 ${open ? 'max-h-[800px] opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
         {children}
       </div>
     </section>
@@ -495,51 +507,8 @@ export default function FilterPanel({
         </section>
       )}
 
-      {/* ── Condition (context-aware labels) ── */}
-      {show('condition') && (() => {
-        const condConfig = getConditionConfig(category)
-        return (
-          <CollapsibleSection title="Condition" count={conditions.length}>
-            <div className="space-y-1.5">
-              {condConfig.conditions.map(c => {
-                const active = conditions.includes(c.value)
-                return (
-                  <button
-                    key={c.value}
-                    onClick={() => toggleCondition(c.value)}
-                    className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-left transition-all duration-150 ${
-                      active
-                        ? 'bg-sib-primary/10 border border-sib-primary/30'
-                        : 'bg-white border border-sib-stone hover:border-sib-primary/30 hover:bg-sib-warm'
-                    }`}
-                  >
-                    <div className={`w-4.5 h-4.5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                      active ? 'border-sib-primary bg-sib-primary' : 'border-sib-stone'
-                    }`}>
-                      {active && (
-                        <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                          <path d="M1.5 4L3 5.5L6.5 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-xs font-semibold ${active ? 'text-sib-primary' : 'text-sib-text'}`}>
-                        {c.label}
-                      </p>
-                      <p className="text-[10px] text-sib-muted leading-tight mt-0.5">
-                        {condConfig.descriptions[c.value]}
-                      </p>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          </CollapsibleSection>
-        )
-      })()}
-
       {/* ── Fashion Sizes (dynamic by gender + subcategory) ── */}
-      {isFashion && show('size') && (
+      {isFashion && show('size') && (sizeSections.showClothing || sizeSections.showShoe || sizeSections.showWaist || sizeSections.showLength || sizeSections.showBelt) && (
         <CollapsibleSection title="Size" count={sizes.length}>
           {/* Clothing sizes */}
           {sizeSections.showClothing && (
@@ -613,6 +582,16 @@ export default function FilterPanel({
               </div>
             </div>
           )}
+
+          {/* Belt sizes (XS–XL) */}
+          {sizeSections.showBelt && (
+            <div className="mt-3">
+              <p className="text-[10px] text-sib-muted mb-1.5 font-semibold uppercase tracking-wide">Belt size</p>
+              <div className="flex flex-wrap gap-1.5">
+                {BELT_SIZES.map(s => <SizePill key={`belt-${s}`} size={s} />)}
+              </div>
+            </div>
+          )}
         </CollapsibleSection>
       )}
 
@@ -640,106 +619,6 @@ export default function FilterPanel({
         <CollapsibleSection title="Size" count={sizes.length}>
           <div className="flex flex-wrap gap-1.5">
             {KIDS_AGE_SIZES.map(s => <SizePill key={s} size={s} small />)}
-          </div>
-        </CollapsibleSection>
-      )}
-
-      {/* ── Age Group (toys, kids) ── */}
-      {show('age_group') && (
-        <CollapsibleSection title="Age Group">
-          <div className="flex flex-wrap gap-2">
-            {AGE_GROUPS.map(a => {
-              const active = conditions.includes(`age:${a.value}`)
-              return (
-                <Pill key={a.value} active={active} onClick={() => toggleCondition(`age:${a.value}`)}>
-                  {a.label}
-                </Pill>
-              )
-            })}
-          </div>
-        </CollapsibleSection>
-      )}
-
-      {/* ── Language (books) ── */}
-      {show('language') && (
-        <CollapsibleSection title="Language">
-          <div className="flex flex-wrap gap-2">
-            {LANGUAGES.map(l => {
-              const active = brands.includes(`lang:${l.value}`)
-              return (
-                <Pill key={l.value} active={active} onClick={() => toggleBrand(`lang:${l.value}`)}>
-                  {l.label}
-                </Pill>
-              )
-            })}
-          </div>
-        </CollapsibleSection>
-      )}
-
-      {/* ── Colour ── */}
-      {show('colour') && (
-        <CollapsibleSection title="Colour" count={colors.length}>
-          <div className="flex flex-wrap gap-2.5">
-            {COLOURS.map(c => {
-              const active = colors.includes(c.value)
-              return (
-                <button
-                  key={c.value}
-                  onClick={() => toggleColor(c.value)}
-                  className="flex flex-col items-center gap-1 group"
-                  title={c.label}
-                >
-                  <div
-                    className={`w-7 h-7 rounded-full transition-all duration-150 ${
-                      active
-                        ? 'ring-2 ring-sib-primary ring-offset-2 scale-110'
-                        : c.border
-                          ? 'border border-gray-300 hover:scale-105'
-                          : 'hover:scale-105'
-                    }`}
-                    style={{ background: c.hex }}
-                  />
-                  <span className={`text-[9px] font-medium transition-colors ${
-                    active ? 'text-sib-primary' : 'text-sib-muted group-hover:text-sib-text'
-                  }`}>
-                    {c.label}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        </CollapsibleSection>
-      )}
-
-      {/* ── Price ── */}
-      {show('price') && (
-        <CollapsibleSection title="Price" count={maxPrice < 500 ? 1 : 0}>
-          <div className="flex items-center gap-3 mb-2">
-            <span className="text-sm font-bold text-sib-primary">Up to</span>
-            <div className="relative">
-              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-sib-muted font-medium">€</span>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={priceInput}
-                onChange={handlePriceInput}
-                onBlur={handlePriceBlur}
-                className="w-20 pl-6 pr-2 py-1.5 text-sm font-bold text-sib-text bg-white border border-sib-stone rounded-lg outline-none focus:border-sib-primary transition-colors"
-              />
-            </div>
-          </div>
-          <input
-            type="range"
-            min={5}
-            max={500}
-            step={5}
-            value={maxPrice}
-            onChange={handleSlider}
-            className="w-full accent-sib-primary h-1.5"
-          />
-          <div className="flex justify-between text-[10px] text-sib-muted mt-1">
-            <span>€5</span>
-            <span>€500</span>
           </div>
         </CollapsibleSection>
       )}
@@ -819,6 +698,149 @@ export default function FilterPanel({
               Show less
             </button>
           )}
+        </CollapsibleSection>
+      )}
+
+      {/* ── Age Group (toys, kids) ── */}
+      {show('age_group') && (
+        <CollapsibleSection title="Age Group">
+          <div className="flex flex-wrap gap-2">
+            {AGE_GROUPS.map(a => {
+              const active = conditions.includes(`age:${a.value}`)
+              return (
+                <Pill key={a.value} active={active} onClick={() => toggleCondition(`age:${a.value}`)}>
+                  {a.label}
+                </Pill>
+              )
+            })}
+          </div>
+        </CollapsibleSection>
+      )}
+
+      {/* ── Language (books) ── */}
+      {show('language') && (
+        <CollapsibleSection title="Language">
+          <div className="flex flex-wrap gap-2">
+            {LANGUAGES.map(l => {
+              const active = brands.includes(`lang:${l.value}`)
+              return (
+                <Pill key={l.value} active={active} onClick={() => toggleBrand(`lang:${l.value}`)}>
+                  {l.label}
+                </Pill>
+              )
+            })}
+          </div>
+        </CollapsibleSection>
+      )}
+
+      {/* ── Colour ── */}
+      {show('colour') && (
+        <CollapsibleSection title="Colour" count={colors.length}>
+          <div className="flex flex-wrap gap-2.5">
+            {COLOURS.map(c => {
+              const active = colors.includes(c.value)
+              return (
+                <button
+                  key={c.value}
+                  onClick={() => toggleColor(c.value)}
+                  className="flex flex-col items-center gap-1 group"
+                  title={c.label}
+                >
+                  <div
+                    className={`w-7 h-7 rounded-full transition-all duration-150 ${
+                      active
+                        ? 'ring-2 ring-sib-primary ring-offset-2 scale-110'
+                        : c.border
+                          ? 'border border-gray-300 hover:scale-105'
+                          : 'hover:scale-105'
+                    }`}
+                    style={{ background: c.hex }}
+                  />
+                  <span className={`text-[9px] font-medium transition-colors ${
+                    active ? 'text-sib-primary' : 'text-sib-muted group-hover:text-sib-text'
+                  }`}>
+                    {c.label}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </CollapsibleSection>
+      )}
+
+      {/* ── Condition (context-aware labels) ── */}
+      {show('condition') && (() => {
+        const condConfig = getConditionConfig(category)
+        return (
+          <CollapsibleSection title="Condition" count={conditions.length}>
+            <div className="space-y-1.5">
+              {condConfig.conditions.map(c => {
+                const active = conditions.includes(c.value)
+                return (
+                  <button
+                    key={c.value}
+                    onClick={() => toggleCondition(c.value)}
+                    className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-left transition-all duration-150 ${
+                      active
+                        ? 'bg-sib-primary/10 border border-sib-primary/30'
+                        : 'bg-white border border-sib-stone hover:border-sib-primary/30 hover:bg-sib-warm'
+                    }`}
+                  >
+                    <div className={`w-4.5 h-4.5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                      active ? 'border-sib-primary bg-sib-primary' : 'border-sib-stone'
+                    }`}>
+                      {active && (
+                        <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                          <path d="M1.5 4L3 5.5L6.5 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-xs font-semibold ${active ? 'text-sib-primary' : 'text-sib-text'}`}>
+                        {c.label}
+                      </p>
+                      <p className="text-[10px] text-sib-muted leading-tight mt-0.5">
+                        {condConfig.descriptions[c.value]}
+                      </p>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </CollapsibleSection>
+        )
+      })()}
+
+      {/* ── Price ── */}
+      {show('price') && (
+        <CollapsibleSection title="Price" count={maxPrice < 500 ? 1 : 0}>
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-sm font-bold text-sib-primary">Up to</span>
+            <div className="relative">
+              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-sib-muted font-medium">€</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={priceInput}
+                onChange={handlePriceInput}
+                onBlur={handlePriceBlur}
+                className="w-20 pl-6 pr-2 py-1.5 text-sm font-bold text-sib-text bg-white border border-sib-stone rounded-lg outline-none focus:border-sib-primary transition-colors"
+              />
+            </div>
+          </div>
+          <input
+            type="range"
+            min={5}
+            max={500}
+            step={5}
+            value={maxPrice}
+            onChange={handleSlider}
+            className="w-full accent-sib-primary h-1.5"
+          />
+          <div className="flex justify-between text-[10px] text-sib-muted mt-1">
+            <span>€5</span>
+            <span>€500</span>
+          </div>
         </CollapsibleSection>
       )}
 

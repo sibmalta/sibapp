@@ -21,10 +21,7 @@ import { getSportChildren, getSportBrands } from '../data/sportsFilters'
 import { getShoeChildren } from '../data/shoeFilters'
 import { getSubcategoryChildren } from '../data/subcategoryChildren'
 
-const CATEGORIES = [
-  { label: 'All', value: '' },
-  ...CATEGORY_TREE.map(c => ({ label: c.label, value: c.id })),
-]
+const CATEGORIES = CATEGORY_TREE.map(c => ({ label: c.label, value: c.id }))
 
 const SORT_OPTIONS = [
   { label: 'Newest first', value: 'newest' },
@@ -195,11 +192,23 @@ export default function BrowsePage() {
 
     if (sizes.length) {
       filtered = filtered.filter(l => {
+        // Direct match (letter sizes, belt sizes, shoe sizes, etc.)
         if (sizes.includes(l.size)) return true
+        // EU-prefix match: SellPage stores "EU 38", filter has "38" or "46+" (from WOMEN_EU_SIZES)
+        if (l.size && l.size.startsWith('EU ')) {
+          const euNum = l.size.slice(3) // "EU 38" → "38"
+          if (sizes.includes(euNum)) return true
+          // Handle "46+" filter matching "EU 46"
+          if (sizes.some(s => s.endsWith('+') && parseInt(euNum) >= parseInt(s))) return true
+        }
+        // Waist match: listing.size is "W30", filter has "W30"
         if (l.size && l.size.startsWith('W')) {
           const waistPart = l.size.split('/')[0]
-          return sizes.includes(waistPart)
+          if (sizes.includes(waistPart)) return true
         }
+        // Length match: listing.attributes.trouser_length is "L32", filter has "L32"
+        const trouserLen = l.attributes?.trouser_length || l.trouser_length
+        if (trouserLen && sizes.includes(trouserLen)) return true
         return false
       })
     }
@@ -428,7 +437,11 @@ export default function BrowsePage() {
               <SearchAutocomplete
                 query={query}
                 onSelect={(suggestion) => {
-                  if (suggestion.type === 'item' && suggestion.id) {
+                  if (suggestion.type === 'auth_prompt') {
+                    navigate('/auth', { state: { from: '/browse' } })
+                  } else if (suggestion.type === 'user' && suggestion.username) {
+                    navigate(`/profile/${suggestion.username}`)
+                  } else if (suggestion.type === 'item' && suggestion.id) {
                     navigate(`/listing/${suggestion.id}`)
                   } else {
                     if (suggestion.category) setCategory(suggestion.category)
@@ -478,16 +491,6 @@ export default function BrowsePage() {
             <div className="border-t border-gray-100 pt-2 pb-2.5">
               <div className="overflow-x-auto scrollbar-none">
                 <div className="flex gap-1.5 px-3 lg:px-8 lg:flex-wrap">
-                  <button
-                    onClick={() => { setSubcategory(''); setSportDetail(''); }}
-                    className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all duration-150 ${
-                      !subcategory
-                        ? 'bg-sib-primary/12 text-sib-primary border border-sib-primary/25'
-                        : 'bg-white text-gray-500 border border-gray-200 hover:border-gray-300 hover:text-gray-700'
-                    }`}
-                  >
-                    All
-                  </button>
                   {displaySubs.map(sub => sub && (
                     <button
                       key={sub.id}

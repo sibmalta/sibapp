@@ -63,7 +63,7 @@ export default function EmptyBrowseState({
     clearFilters()
     setQuickFilter('')
     setQuery('')
-    setCategory(overrides.category || '')
+    setCategory(overrides.category || 'fashion')
     setSubcategory(overrides.subcategory || '')
     setBrands(overrides.brands || [])
     setStyleTag('')
@@ -103,10 +103,10 @@ export default function EmptyBrowseState({
       }
     }
 
-    // Always include "Browse all" as final escape hatch
+    // Always include "Browse Fashion" as final escape hatch (default category)
     items.push({
       key: 'browse-all',
-      label: 'Browse all',
+      label: 'Browse Fashion',
       action: () => resetAll(),
     })
 
