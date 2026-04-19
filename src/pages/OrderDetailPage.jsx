@@ -97,7 +97,7 @@ export default function OrderDetailPage() {
 
   const handleConfirm = () => {
     confirmDelivery(order.id)
-    showToast('Order confirmed. Seller will be paid.')
+    showToast('Order confirmed — payment released to seller.')
   }
 
   const handleDispute = () => {
@@ -136,14 +136,14 @@ export default function OrderDetailPage() {
                 <h2 className="text-sm font-bold text-sib-text">Confirm your order</h2>
               </div>
               <p className="text-xs text-sib-muted leading-relaxed mb-3">
-                Your item has been delivered. Please confirm everything is OK.
+                Your item has been delivered. Please check everything is as described before confirming.
               </p>
 
               {/* Trust message */}
               <div className="flex items-start gap-2 p-2.5 rounded-xl bg-green-50 border border-green-100 mb-3">
                 <ShieldCheck size={14} className="text-green-600 flex-shrink-0 mt-0.5" />
                 <p className="text-[11px] text-green-700 leading-relaxed">
-                  Your payment is protected until you confirm your order
+                  Your payment is held securely. Confirming will release payment to the seller immediately.
                 </p>
               </div>
 
@@ -152,7 +152,7 @@ export default function OrderDetailPage() {
                 <div className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-50 border border-amber-100 mb-4">
                   <Timer size={14} className="text-amber-600 flex-shrink-0" />
                   <div>
-                    <p className="text-[11px] text-amber-700 font-medium">You have 48 hours to report an issue</p>
+                    <p className="text-[11px] text-amber-700 font-medium">Protection window active</p>
                     <p className="text-sm font-bold text-amber-800 font-mono mt-0.5">
                       Auto-confirm in {formatCountdown(countdown)}
                     </p>
@@ -160,19 +160,26 @@ export default function OrderDetailPage() {
                 </div>
               )}
 
-              {/* Action buttons */}
+              {/* Primary CTA — Confirm delivery */}
               <button
                 onClick={handleConfirm}
-                className="w-full py-3.5 rounded-2xl bg-sib-primary text-white font-bold text-sm flex items-center justify-center gap-2 active:opacity-90 mb-2"
+                className="w-full py-3.5 rounded-2xl bg-sib-primary text-white font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-sm mb-2"
               >
                 <ThumbsUp size={16} /> Confirm item received
               </button>
+
+              {/* Secondary CTA — Report issue */}
               <button
                 onClick={() => setDisputeOpen(true)}
                 className="w-full py-3 rounded-2xl border border-red-200 text-red-600 font-semibold text-sm flex items-center justify-center gap-2 active:bg-red-50"
               >
                 <AlertTriangle size={14} /> Report an issue
               </button>
+
+              {/* Helper text */}
+              <p className="text-[11px] text-sib-muted text-center mt-3 leading-snug">
+                Confirm early to release payment instantly, or report an issue within 48 hours.
+              </p>
             </div>
           </div>
         )}
@@ -235,7 +242,7 @@ export default function OrderDetailPage() {
               <h2 className="text-sm font-bold text-amber-800">Waiting for buyer confirmation (48h)</h2>
             </div>
             <p className="text-xs text-amber-700 leading-relaxed mb-2">
-              The buyer has 48 hours to confirm the item or report an issue. If no action is taken, the order will be auto-confirmed and your payout released.
+              The buyer has 48 hours after delivery to confirm or report an issue. If no action is taken, the order is auto-confirmed and your payout is released to your bank on the next payout day (Tuesday or Friday).
             </p>
             {countdown !== null && countdown > 0 && (
               <div className="flex items-center gap-2 mt-1">

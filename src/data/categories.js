@@ -190,8 +190,8 @@ const CATEGORY_TREE = [
       { id: 'maternity', label: 'Maternity' },
       { id: 'other_kids', label: 'Other' },
     ],
-    attributes: ['brand', 'size', 'condition', 'age_group', 'gender'],
-    filters: ['condition', 'price', 'size', 'age_group'],
+    attributes: ['brand', 'kids_size', 'condition', 'age_group', 'kids_gender'],
+    filters: ['condition', 'price', 'kids_size', 'age_group', 'kids_gender'],
   },
 ]
 

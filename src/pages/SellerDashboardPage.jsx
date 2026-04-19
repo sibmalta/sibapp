@@ -9,7 +9,7 @@ import { useApp } from '../context/AppContext'
 import { ShipmentStatusBadge } from '../components/ShipmentTracker'
 
 const PAYOUT_STATUS_MAP = {
-  held: { label: 'Pending', desc: 'Waiting for delivery confirmation', color: 'bg-amber-50 text-amber-700', dot: 'bg-amber-400', icon: Clock },
+  held: { label: 'Pending', desc: 'Held until buyer confirms (48h window)', color: 'bg-amber-50 text-amber-700', dot: 'bg-amber-400', icon: Clock },
   available: { label: 'Available', desc: 'Ready for next payout', color: 'bg-emerald-50 text-emerald-700', dot: 'bg-emerald-400', icon: CheckCircle },
   released: { label: 'Paid out', desc: 'Sent to your bank', color: 'bg-sky-50 text-sky-700', dot: 'bg-sky-400', icon: Banknote },
   refunded: { label: 'Refunded', desc: 'Returned to buyer', color: 'bg-red-50 text-red-500', dot: 'bg-red-400', icon: AlertCircle },

@@ -11,13 +11,13 @@
 export const SHOE_CHILDREN = [
   { id: 'trainers', label: 'Trainers / Sneakers' },
   { id: 'boots', label: 'Boots' },
+  { id: 'sandals', label: 'Sandals & Sliders' },
   { id: 'heels', label: 'Heels' },
-  { id: 'sandals', label: 'Sandals' },
-  { id: 'flats', label: 'Flats' },
+  { id: 'formal_shoes', label: 'Formal Shoes' },
+  { id: 'flats', label: 'Flats & Loafers' },
+  { id: 'platforms', label: 'Platforms & Wedges' },
   { id: 'slippers', label: 'Slippers' },
   { id: 'sports_shoes', label: 'Sports Shoes' },
-  { id: 'loafers', label: 'Loafers' },
-  { id: 'platforms', label: 'Platforms' },
   { id: 'other_shoes', label: 'Other' },
 ]
 

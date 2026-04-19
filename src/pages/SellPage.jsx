@@ -39,12 +39,21 @@ const COLOURS = [
 
 const GENDERS = ['women', 'men', 'unisex']
 
+const KIDS_GENDERS = ['boy', 'girl', 'unisex']
+
 const CLOTHING_SIZES = {
   women: ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL'],
   men: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'],
   kids: ['2-3Y', '3-4Y', '4-5Y', '5-6Y', '6-7Y', '7-8Y', '8-9Y', '9-10Y', '10-11Y', '11-12Y', '12-13Y', '13-14Y'],
   unisex: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
 }
+
+const KIDS_AGE_SIZES = [
+  '0-3 months', '3-6 months', '6-9 months', '9-12 months',
+  '1-2 years', '2-3 years', '3-4 years', '4-5 years',
+  '5-6 years', '6-7 years', '7-8 years', '8-9 years',
+  '9-10 years', '10-12 years', '12-14 years',
+]
 
 const SHOE_SIZES = Array.from({ length: 17 }, (_, i) => String(i + 34))
 
@@ -261,8 +270,11 @@ export default function SellPage() {
   const attributes = form.category ? getCategoryAttributes(form.category) : []
   const deliveryEligible = form.category ? isDeliveryEligible(form.category) : true
 
+  const isKidsCategory = form.category === 'kids'
   const needsShoeSize = attributes.includes('shoe_size') && form.subcategory === 'shoes'
   const needsClothingSize = attributes.includes('size') && !needsShoeSize && form.category !== 'sports'
+  const needsKidsSize = attributes.includes('kids_size')
+  const needsKidsGender = attributes.includes('kids_gender')
 
   const categoryOptions = useMemo(() => CATEGORY_TREE.map(c => ({ value: c.id, label: c.label })), [])
   const typeOptions = useMemo(() => subcategories.map(s => ({ value: s.id, label: s.label })), [subcategories])
@@ -307,8 +319,9 @@ export default function SellPage() {
     if (!form.condition) e.condition = 'Required'
     if (attributes.includes('brand') && !form.brand.trim()) e.brand = 'Required'
     if (needsClothingSize && !form.size) e.size = 'Select a size'
+    if (needsKidsSize && !form.size) e.size = 'Select an age/size'
     if (needsShoeSize && !form.size) e.size = 'Select a shoe size'
-    if (attributes.includes('gender') && !form.gender) e.gender = 'Select a gender'
+    if ((attributes.includes('gender') || needsKidsGender) && !form.gender) e.gender = 'Select a gender'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -463,6 +476,7 @@ export default function SellPage() {
             </div>
           )}
 
+          {/* Adult gender (fashion only, NOT kids) */}
           {attributes.includes('gender') && (
             <div className="mb-4">
               <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">Gender</label>
@@ -476,6 +490,21 @@ export default function SellPage() {
             </div>
           )}
 
+          {/* Kids gender (boy / girl / unisex) */}
+          {needsKidsGender && (
+            <div className="mb-4">
+              <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">Gender</label>
+              <div className="flex gap-2">
+                {KIDS_GENDERS.map(g => (
+                  <button key={g} onClick={() => { set('gender', g); set('size', '') }}
+                    className={`flex-1 py-2 rounded-xl text-sm font-medium capitalize transition-colors ${form.gender === g ? 'bg-sib-primary text-white' : 'bg-sib-sand text-sib-muted'}`}>{g}</button>
+                ))}
+              </div>
+              {errors.gender && <p className="text-red-500 text-xs mt-1">{errors.gender}</p>}
+            </div>
+          )}
+
+          {/* Adult clothing sizes */}
           {needsClothingSize && (attributes.includes('gender') ? form.gender : true) && (
             <div className="mb-4">
               <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">
@@ -485,6 +514,22 @@ export default function SellPage() {
                 {(CLOTHING_SIZES[form.gender] || CLOTHING_SIZES.unisex).map(s => (
                   <button key={s} onClick={() => set('size', s)}
                     className={`px-3.5 py-2 rounded-xl text-sm font-medium transition-colors ${form.size === s ? 'bg-sib-primary text-white' : 'bg-sib-sand text-sib-muted'}`}>{s}</button>
+                ))}
+              </div>
+              {errors.size && <p className="text-red-500 text-xs mt-1">{errors.size}</p>}
+            </div>
+          )}
+
+          {/* Kids age-based sizes */}
+          {needsKidsSize && (
+            <div className="mb-4">
+              <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">
+                Size <span className="ml-1 text-sib-muted font-normal normal-case">(age-based)</span>
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {KIDS_AGE_SIZES.map(s => (
+                  <button key={s} onClick={() => set('size', s)}
+                    className={`px-3 py-2 rounded-xl text-[13px] font-medium transition-colors ${form.size === s ? 'bg-sib-primary text-white' : 'bg-sib-sand text-sib-muted'}`}>{s}</button>
                 ))}
               </div>
               {errors.size && <p className="text-red-500 text-xs mt-1">{errors.size}</p>}

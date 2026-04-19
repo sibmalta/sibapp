@@ -1,11 +1,12 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { SlidersHorizontal, X, Search, Sparkles, Tag, TrendingUp, Gem, Clock, DollarSign, Plus } from 'lucide-react'
+import { SlidersHorizontal, X, Search, Sparkles, Tag, TrendingUp, Gem, Clock, DollarSign, Plus, ChevronRight } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import ListingCard from '../components/ListingCard'
 import SearchAutocomplete from '../components/SearchAutocomplete'
 import FilterPanel from '../components/FilterPanel'
 import FilterModal from '../components/FilterModal'
+import SubcategorySheet from '../components/SubcategorySheet'
 import EmptyBrowseState from '../components/EmptyBrowseState'
 import VintageVerifiedIcon from '../components/VintageVerifiedIcon'
 import useScrollRestore from '../hooks/useScrollRestore'
@@ -18,6 +19,7 @@ import { normalizeBrand } from '../lib/brands'
 import { CATEGORY_TREE, getSubcategories, resolveCategory, getCategoryById } from '../data/categories'
 import { getSportChildren, getSportBrands } from '../data/sportsFilters'
 import { getShoeChildren } from '../data/shoeFilters'
+import { getSubcategoryChildren } from '../data/subcategoryChildren'
 
 const CATEGORIES = [
   { label: 'All', value: '' },
@@ -39,6 +41,7 @@ export default function BrowsePage() {
   const navigate = useNavigate()
   const [searchFocused, setSearchFocused] = useState(false)
   const [filterModalOpen, setFilterModalOpen] = useState(false)
+  const [subcategorySheetOpen, setSubcategorySheetOpen] = useState(false)
   const authNav = useAuthNav()
 
   const {
@@ -131,24 +134,27 @@ export default function BrowsePage() {
       filtered = filtered.filter(l => l.subcategory === subcategory)
     }
 
-    // Third-level detail filter (sport children OR shoe types)
+    // Third-level detail filter (sport children, shoe types, OR generic subcategory children)
     if (sportDetail) {
       filtered = filtered.filter(l => {
-        // Check listing.sportDetail / shoeType field directly
+        // Check listing.sportDetail / shoeType / subcategoryDetail field directly
         if (l.sportDetail === sportDetail) return true
         if (l.sport_detail === sportDetail) return true
         if (l.shoeType === sportDetail) return true
         if (l.shoe_type === sportDetail) return true
-        // Fallback: resolve the children list (sport or shoe) and text-match
+        if (l.subcategoryDetail === sportDetail) return true
+        if (l.subcategory_detail === sportDetail) return true
+        // Fallback: resolve the children list (sport → shoe → generic) and text-match
         const sportKids = getSportChildren(subcategory || '')
         const shoeKids = subcategory === 'shoes' ? getShoeChildren() : []
-        const allChildren = sportKids.length > 0 ? sportKids : shoeKids
+        const genericKids = getSubcategoryChildren(category || '', subcategory || '')
+        const allChildren = sportKids.length > 0 ? sportKids : (shoeKids.length > 0 ? shoeKids : genericKids)
         const child = allChildren.find(c => c.id === sportDetail)
         if (child) {
           const text = `${l.title} ${l.description || ''} ${l.brand || ''}`.toLowerCase()
           // Match full label or the primary keyword (first word)
           if (text.includes(child.label.toLowerCase())) return true
-          const keyword = child.label.split(/[\s/]+/)[0].toLowerCase()
+          const keyword = child.label.split(/[\s&/]+/)[0].toLowerCase()
           if (keyword.length >= 4 && text.includes(keyword)) return true
         }
         return false
@@ -277,8 +283,16 @@ export default function BrowsePage() {
   const isShoes = category === 'fashion' && subcategory === 'shoes'
   const shoeChildren = useMemo(() => isShoes ? getShoeChildren() : [], [isShoes])
 
-  // Unified third-level children (sport OR shoe)
-  const thirdLevelChildren = sportChildren.length > 0 ? sportChildren : shoeChildren
+  // Generalized subcategory children (bags, tops, dresses, gaming, etc.)
+  const genericChildren = useMemo(() => {
+    if (!category || !subcategory) return []
+    // Skip shoes & sports — they use their own dedicated lists above
+    if (isShoes || isSports) return []
+    return getSubcategoryChildren(category, subcategory)
+  }, [category, subcategory, isShoes, isSports])
+
+  // Unified third-level children (sport → shoe → generic)
+  const thirdLevelChildren = sportChildren.length > 0 ? sportChildren : (shoeChildren.length > 0 ? shoeChildren : genericChildren)
   const hasThirdLevel = thirdLevelChildren.length > 0
 
   // Compute the active subcategory label for empty states
@@ -429,95 +443,136 @@ export default function BrowsePage() {
           </div>
         </div>
 
-        {/* ── Row 1: Main category chips — strongest emphasis ── */}
-        <div className="flex gap-1.5 overflow-x-auto px-3 pt-1.5 pb-2.5 scrollbar-none lg:px-8 lg:py-3">
-          {CATEGORIES.map(c => (
-            <button
-              key={c.value}
-              onClick={() => { setCategory(c.value); setSubcategory(''); setSportDetail(''); }}
-              className={`flex-shrink-0 px-4 py-2 rounded-full text-[13px] font-bold tracking-tight transition-all duration-150 ${
-                category === c.value
-                  ? 'bg-sib-text text-white shadow-sm'
-                  : 'bg-[#EDEDEB] text-gray-600 hover:text-sib-text hover:bg-gray-200/80'
-              }`}
-            >
-              {c.label}
-            </button>
-          ))}
-        </div>
-
-        {/* ── Row 2: Subcategory chips — medium emphasis, separated ── */}
-        {category && getSubcategories(category).length > 0 && (
-          <div className="border-t border-gray-100 pt-2 pb-2.5">
-            <div className="flex gap-1.5 overflow-x-auto px-3 scrollbar-none lg:px-8">
+        {/* ── Row 1: Main category chips — horizontal scroll ── */}
+        <div className="overflow-x-auto scrollbar-none">
+          <div className="flex gap-1.5 px-3 pt-1.5 pb-2.5 lg:px-8 lg:py-3 lg:flex-wrap">
+            {CATEGORIES.map(c => (
               <button
-                onClick={() => { setSubcategory(''); setSportDetail(''); }}
-                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all duration-150 ${
-                  !subcategory
-                    ? 'bg-sib-primary/12 text-sib-primary border border-sib-primary/25'
-                    : 'bg-white text-gray-500 border border-gray-200 hover:border-gray-300 hover:text-gray-700'
+                key={c.value}
+                onClick={() => { setCategory(c.value); setSubcategory(''); setSportDetail(''); }}
+                className={`flex-shrink-0 px-4 py-2 rounded-full text-[13px] font-bold tracking-tight transition-all duration-150 whitespace-nowrap ${
+                  category === c.value
+                    ? 'bg-sib-text text-white shadow-sm'
+                    : 'bg-[#EDEDEB] text-gray-600 hover:text-sib-text hover:bg-gray-200/80'
                 }`}
               >
-                All
+                {c.label}
               </button>
-              {getSubcategories(category).map(sub => (
-                <button
-                  key={sub.id}
-                  onClick={() => { setSubcategory(sub.id); setSportDetail(''); }}
-                  className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all duration-150 whitespace-nowrap ${
-                    subcategory === sub.id
-                      ? 'bg-sib-primary/12 text-sib-primary border border-sib-primary/25'
-                      : 'bg-white text-gray-500 border border-gray-200 hover:border-gray-300 hover:text-gray-700'
-                  }`}
-                >
-                  {sub.label}
-                </button>
-              ))}
-            </div>
+            ))}
           </div>
-        )}
+        </div>
+
+        {/* ── Row 2: Subcategory chips — horizontal scroll, max 6 visible on mobile ── */}
+        {category && getSubcategories(category).length > 0 && (() => {
+          const allSubs = getSubcategories(category)
+          const MAX_VISIBLE = 6
+          const visibleSubs = allSubs.slice(0, MAX_VISIBLE)
+          const hasOverflow = allSubs.length > MAX_VISIBLE
+          // If the selected sub is beyond the visible slice, swap it in
+          const selectedInOverflow = subcategory && !visibleSubs.find(s => s.id === subcategory)
+          const displaySubs = selectedInOverflow
+            ? [...visibleSubs.slice(0, MAX_VISIBLE - 1), allSubs.find(s => s.id === subcategory)]
+            : visibleSubs
+
+          return (
+            <div className="border-t border-gray-100 pt-2 pb-2.5">
+              <div className="overflow-x-auto scrollbar-none">
+                <div className="flex gap-1.5 px-3 lg:px-8 lg:flex-wrap">
+                  <button
+                    onClick={() => { setSubcategory(''); setSportDetail(''); }}
+                    className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all duration-150 ${
+                      !subcategory
+                        ? 'bg-sib-primary/12 text-sib-primary border border-sib-primary/25'
+                        : 'bg-white text-gray-500 border border-gray-200 hover:border-gray-300 hover:text-gray-700'
+                    }`}
+                  >
+                    All
+                  </button>
+                  {displaySubs.map(sub => sub && (
+                    <button
+                      key={sub.id}
+                      onClick={() => { setSubcategory(sub.id); setSportDetail(''); }}
+                      className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all duration-150 whitespace-nowrap ${
+                        subcategory === sub.id
+                          ? 'bg-sib-primary/12 text-sib-primary border border-sib-primary/25'
+                          : 'bg-white text-gray-500 border border-gray-200 hover:border-gray-300 hover:text-gray-700'
+                      }`}
+                    >
+                      {sub.label}
+                    </button>
+                  ))}
+                  {hasOverflow && (
+                    <button
+                      onClick={() => setSubcategorySheetOpen(true)}
+                      className="flex-shrink-0 flex items-center gap-0.5 px-3 py-1.5 rounded-full text-[12px] font-semibold bg-white text-gray-500 border border-gray-200 hover:border-gray-300 hover:text-gray-700 transition-all duration-150 whitespace-nowrap lg:hidden"
+                    >
+                      + More
+                    </button>
+                  )}
+                  {/* Desktop: show all subcategories inline */}
+                  {hasOverflow && allSubs.slice(MAX_VISIBLE).map(sub => (
+                    <button
+                      key={sub.id}
+                      onClick={() => { setSubcategory(sub.id); setSportDetail(''); }}
+                      className={`hidden lg:inline-flex flex-shrink-0 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all duration-150 whitespace-nowrap ${
+                        subcategory === sub.id
+                          ? 'bg-sib-primary/12 text-sib-primary border border-sib-primary/25'
+                          : 'bg-white text-gray-500 border border-gray-200 hover:border-gray-300 hover:text-gray-700'
+                      }`}
+                    >
+                      {sub.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )
+        })()}
       </div>
 
-      {/* ── Row 3: Third-level chips (sport children OR shoe types) — lighter style, distinct container ── */}
+      {/* ── Row 3: Third-level chips — horizontal scroll ── */}
       {hasThirdLevel && (
         <div className="bg-[#F5F5F4] border-b border-gray-200/40">
           <div className="px-3 pt-2.5 pb-2.5 lg:px-8 lg:max-w-7xl lg:mx-auto">
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Type</p>
-            <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
-              <button
-                onClick={() => setSportDetail('')}
-                className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all duration-150 ${
-                  !sportDetail
-                    ? 'bg-white text-sib-text border border-gray-300 shadow-sm'
-                    : 'bg-transparent text-gray-400 border border-gray-200/60 hover:border-gray-300 hover:text-gray-500'
-                }`}
-              >
-                All {isShoes ? 'shoes' : ''}
-              </button>
-              {thirdLevelChildren.map(child => {
-                const active = sportDetail === child.id
-                return (
-                  <button
-                    key={child.id}
-                    onClick={() => setSportDetail(active ? '' : child.id)}
-                    className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all duration-150 whitespace-nowrap ${
-                      active
-                        ? 'bg-white text-sib-text border border-gray-300 shadow-sm'
-                        : 'bg-transparent text-gray-400 border border-gray-200/60 hover:border-gray-300 hover:text-gray-500'
-                    }`}
-                  >
-                    {child.label}
-                  </button>
-                )
-              })}
+            <div className="overflow-x-auto scrollbar-none">
+              <div className="flex gap-1.5 lg:flex-wrap">
+                <button
+                  onClick={() => setSportDetail('')}
+                  className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all duration-150 whitespace-nowrap ${
+                    !sportDetail
+                      ? 'bg-white text-sib-text border border-gray-300 shadow-sm'
+                      : 'bg-transparent text-gray-400 border border-gray-200/60 hover:border-gray-300 hover:text-gray-500'
+                  }`}
+                >
+                  All{isShoes ? ' shoes' : (activeSubLabel && !isSports ? ` ${activeSubLabel.toLowerCase()}` : '')}
+                </button>
+                {thirdLevelChildren.map(child => {
+                  const active = sportDetail === child.id
+                  return (
+                    <button
+                      key={child.id}
+                      onClick={() => setSportDetail(active ? '' : child.id)}
+                      className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all duration-150 whitespace-nowrap ${
+                        active
+                          ? 'bg-white text-sib-text border border-gray-300 shadow-sm'
+                          : 'bg-transparent text-gray-400 border border-gray-200/60 hover:border-gray-300 hover:text-gray-500'
+                      }`}
+                    >
+                      {child.label}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Active filter chips + quick filter indicator ── */}
+      {/* ── Active filter chips + quick filter indicator — horizontal scroll ── */}
       {(activeChips.length > 0 || quickFilter) && (
-        <div className="flex gap-1.5 overflow-x-auto px-3 pt-2.5 pb-1.5 scrollbar-none lg:px-8">
+        <div className="overflow-x-auto scrollbar-none">
+        <div className="flex gap-1.5 px-3 pt-2.5 pb-1.5 lg:px-8 lg:flex-wrap">
           {quickFilter && (
             <span className="flex items-center gap-1 flex-shrink-0 px-2.5 py-1 bg-sib-secondary/10 text-sib-secondary rounded-full text-[11px] font-bold">
               {quickFilter === 'under25' && '€25'}
@@ -549,6 +604,7 @@ export default function BrowsePage() {
           >
             Clear all
           </button>
+        </div>
         </div>
       )}
 
@@ -728,6 +784,22 @@ export default function BrowsePage() {
         allBrands={allBrands}
         resultCount={results.length}
       />
+
+      {/* ── Subcategory bottom sheet — mobile only ── */}
+      {category && (
+        <SubcategorySheet
+          open={subcategorySheetOpen}
+          onClose={() => setSubcategorySheetOpen(false)}
+          subcategories={getSubcategories(category)}
+          selected={subcategory}
+          categoryLabel={getCategoryById(category)?.label || 'Subcategories'}
+          onSelect={(id) => {
+            setSubcategory(id)
+            setSportDetail('')
+            setSubcategorySheetOpen(false)
+          }}
+        />
+      )}
     </div>
   )
 }

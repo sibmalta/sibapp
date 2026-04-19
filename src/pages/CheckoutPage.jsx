@@ -550,10 +550,13 @@ export default function CheckoutPage() {
         )}
       </div>
 
-      {/* Trust */}
-      <div className="flex items-center gap-3 p-3 rounded-2xl bg-green-50 mb-3">
-        <ShieldCheck size={18} className="text-green-600 flex-shrink-0" />
-        <p className="text-xs text-green-800 font-semibold">You are fully protected when paying through Sib</p>
+      {/* Trust — buyer protection messaging */}
+      <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-green-50 mb-3">
+        <ShieldCheck size={18} className="text-green-600 flex-shrink-0 mt-0.5" />
+        <div>
+          <p className="text-xs text-green-800 font-semibold">Buyer Protection included</p>
+          <p className="text-[11px] text-green-700 leading-snug mt-0.5">Your payment is held securely until delivery is confirmed. After delivery, you have 48 hours to report an issue. If no issue is reported, the seller is paid automatically.</p>
+        </div>
       </div>
 
       <p className="text-[11px] text-sib-muted text-center mb-5 leading-relaxed">
@@ -590,9 +593,12 @@ export default function CheckoutPage() {
               <div className="flex justify-between font-bold text-sib-text pt-3 border-t border-sib-stone mt-2"><span>Total</span><span className="text-sib-primary text-xl">€{fees.total.toFixed(2)}</span></div>
             </div>
           </div>
-          <div className="flex items-center gap-3 p-3 rounded-2xl bg-green-50 mt-3">
-            <ShieldCheck size={16} className="text-green-600 flex-shrink-0" />
-            <p className="text-xs text-green-800 font-semibold">Buyer protection included</p>
+          <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-green-50 mt-3">
+            <ShieldCheck size={16} className="text-green-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-xs text-green-800 font-semibold">Buyer Protection included</p>
+              <p className="text-[10px] text-green-700 leading-snug mt-0.5">Payment held until confirmed. 48h to report issues after delivery.</p>
+            </div>
           </div>
         </div>
       </aside>

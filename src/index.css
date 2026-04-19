@@ -180,6 +180,20 @@ h1, h2, h3, h4, h5, h6 {
   animation: filter-slide-up 0.3s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
+/* Bottom sheet slide-up */
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+.animate-sheet-up {
+  animation: sheet-up 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Hide scrollbar for horizontal scroll rows */
+.scrollbar-none::-webkit-scrollbar { display: none; }
+.scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+
 input[type='range'] {
   -webkit-appearance: none;
   appearance: none;

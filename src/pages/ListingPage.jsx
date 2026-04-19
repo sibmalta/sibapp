@@ -346,19 +346,25 @@ export default function ListingPage() {
                   </>
                 )
               })()}
-              <Link to="/buyer-protection" className="flex items-center gap-2.5 px-3.5 py-3 rounded-2xl bg-green-50 mb-5 active:opacity-80 hover:bg-green-100/70 transition-colors">
-                <ShieldCheck size={16} className="text-green-600 flex-shrink-0" />
-                <p className="text-sm font-semibold text-green-800">Tracked delivery & buyer protection included</p>
-                <ChevronRight size={14} className="text-green-600 flex-shrink-0 ml-auto" />
+              <Link to="/buyer-protection" className="flex items-start gap-2.5 px-3.5 py-3 rounded-2xl bg-green-50 mb-5 active:opacity-80 hover:bg-green-100/70 transition-colors">
+                <ShieldCheck size={16} className="text-green-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-green-800">Buyer Protection included</p>
+                  <p className="text-[11px] text-green-700 leading-snug mt-0.5">Your payment is held securely until delivery is confirmed. You have 48 hours after delivery to report any issue.</p>
+                </div>
+                <ChevronRight size={14} className="text-green-600 flex-shrink-0 mt-0.5 ml-auto" />
               </Link>
             </>
           ) : (
             <>
               <DeliveryGuidance variant="compact" />
-              <Link to="/buyer-protection" className="flex items-center gap-2.5 px-3.5 py-3 rounded-2xl bg-green-50 mb-5 active:opacity-80 hover:bg-green-100/70 transition-colors">
-                <ShieldCheck size={16} className="text-green-600 flex-shrink-0" />
-                <p className="text-sm font-semibold text-green-800">Buyer protection included</p>
-                <ChevronRight size={14} className="text-green-600 flex-shrink-0 ml-auto" />
+              <Link to="/buyer-protection" className="flex items-start gap-2.5 px-3.5 py-3 rounded-2xl bg-green-50 mb-5 active:opacity-80 hover:bg-green-100/70 transition-colors">
+                <ShieldCheck size={16} className="text-green-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-green-800">Buyer Protection included</p>
+                  <p className="text-[11px] text-green-700 leading-snug mt-0.5">Your payment is held securely until delivery is confirmed. You have 48 hours after delivery to report any issue.</p>
+                </div>
+                <ChevronRight size={14} className="text-green-600 flex-shrink-0 mt-0.5 ml-auto" />
               </Link>
             </>
           )}

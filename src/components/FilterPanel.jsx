@@ -107,6 +107,21 @@ const GENDER_TABS = [
   { label: 'Kids', value: 'kids' },
 ]
 
+// Gender tabs for Kids & Baby category
+const KIDS_GENDER_TABS = [
+  { label: 'Boy', value: 'boy' },
+  { label: 'Girl', value: 'girl' },
+  { label: 'Unisex', value: 'unisex' },
+]
+
+// Kids age-based sizes (matching SellPage)
+const KIDS_AGE_SIZES = [
+  '0-3 months', '3-6 months', '6-9 months', '9-12 months',
+  '1-2 years', '2-3 years', '3-4 years', '4-5 years',
+  '5-6 years', '6-7 years', '7-8 years', '8-9 years',
+  '9-10 years', '10-12 years', '12-14 years',
+]
+
 const DEFAULT_FILTER_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
 
 /**
@@ -186,7 +201,7 @@ function CollapsibleSection({ title, defaultOpen = true, count = 0, children }) 
           className={`text-sib-muted transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
         />
       </button>
-      <div className={`overflow-hidden transition-all duration-200 ${open ? 'max-h-[800px] opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
+      <div className={`transition-all duration-200 ${open ? 'max-h-[80vh] overflow-y-auto opacity-100 mt-2' : 'max-h-0 overflow-hidden opacity-0'}`}>
         {children}
       </div>
     </section>
@@ -246,6 +261,7 @@ export default function FilterPanel({
 
   // Is this a fashion category?
   const isFashion = category === 'fashion' || ['women', 'men', 'shoes', 'accessories', 'vintage'].includes(category)
+  const isKids = category === 'kids'
   const isSports = category === 'sports'
 
   // Sport-specific data (third-level children + dynamic filter groups)
@@ -455,6 +471,30 @@ export default function FilterPanel({
         </section>
       )}
 
+      {/* ── Gender Switch (Kids & Baby — Boy / Girl / Unisex) ── */}
+      {isKids && show('kids_gender') && setGenderFilter && (
+        <section>
+          <div className="flex bg-sib-sand rounded-xl p-0.5">
+            {KIDS_GENDER_TABS.map(g => {
+              const active = genderFilter === g.value
+              return (
+                <button
+                  key={g.value}
+                  onClick={() => setGenderFilter(active ? '' : g.value)}
+                  className={`flex-1 py-2.5 rounded-[10px] text-xs font-bold text-center transition-all duration-200 ${
+                    active
+                      ? 'bg-white text-sib-text shadow-sm'
+                      : 'text-sib-muted hover:text-sib-text'
+                  }`}
+                >
+                  {g.label}
+                </button>
+              )
+            })}
+          </div>
+        </section>
+      )}
+
       {/* ── Condition (context-aware labels) ── */}
       {show('condition') && (() => {
         const condConfig = getConditionConfig(category)
@@ -591,6 +631,15 @@ export default function FilterPanel({
           <p className="text-[10px] text-sib-muted mb-2">EU sizing</p>
           <div className="flex flex-wrap gap-1.5">
             {SHOE_SIZES.map(s => <SizePill key={s} size={s} small />)}
+          </div>
+        </CollapsibleSection>
+      )}
+
+      {/* ── Kids Age-Based Size (Kids & Baby category) ── */}
+      {isKids && show('kids_size') && (
+        <CollapsibleSection title="Size" count={sizes.length}>
+          <div className="flex flex-wrap gap-1.5">
+            {KIDS_AGE_SIZES.map(s => <SizePill key={s} size={s} small />)}
           </div>
         </CollapsibleSection>
       )}
