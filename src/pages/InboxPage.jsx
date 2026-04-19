@@ -30,7 +30,7 @@ export default function InboxPage() {
     const updatedConv = conversations.find(c => c.id === selectedConv.id) || selectedConv
 
     return (
-      <div className="md:max-w-lg md:mx-auto flex flex-col h-[calc(100vh-5rem)] md:h-[calc(100vh-6rem)]">
+      <div className="md:max-w-lg md:mx-auto flex flex-col h-[calc(100dvh-5rem)] md:h-[calc(100dvh-6rem)] min-h-0">
         <div className="px-4 py-3 flex items-center gap-3 border-b border-sib-stone bg-white">
           <button onClick={() => setSelectedConv(null)} className="p-1">
             <ArrowLeft className="w-5 h-5 text-sib-text" />
@@ -41,7 +41,7 @@ export default function InboxPage() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-3">
           {updatedConv.messages.map(msg => {
             const isMe = msg.senderId === currentUser.id
             return (

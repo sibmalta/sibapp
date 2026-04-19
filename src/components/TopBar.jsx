@@ -136,7 +136,7 @@ export default function TopBar() {
         </div>
 
         {/* Suggestions list */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           <SearchAutocomplete
             ref={autocompleteRef}
             query={query}
