@@ -59,6 +59,9 @@ function friendlyIntentError(raw) {
   if (isConfigurationError(raw)) {
     return '__CONFIG_MISSING__'
   }
+  if (/invalid client secret/i.test(raw)) {
+    return 'The payment service returned an invalid payment secret. Please refresh and try again. If this keeps happening, the latest checkout or Supabase function changes may not be deployed yet.'
+  }
   const isTechnical = TECHNICAL_PATTERNS.some(p => p.test(raw))
   if (isTechnical) {
     return "We couldn't load payment options right now. Please try again in a moment."
@@ -265,6 +268,10 @@ export default function CheckoutPage() {
     const addrErrors = validateDelivery()
     setErrors(addrErrors)
     if (Object.keys(addrErrors).length > 0) return
+    if (!session?.access_token) {
+      setIntentError('Please log in again before continuing to payment.')
+      return
+    }
     setCreatingIntent(true)
     setIntentError('')
 
@@ -277,7 +284,7 @@ export default function CheckoutPage() {
       const result = await createPaymentIntent(amountCents, {
         sellerId: listing.sellerId,
         metadata: { listing_id: listing.id, listing_title: listing.title },
-      }, session?.access_token)
+      }, session.access_token)
       const nextClientSecret = result?.clientSecret || result?.client_secret || null
       if (!isValidClientSecret(nextClientSecret)) {
         console.error('[CheckoutPage] Missing or malformed Stripe client secret', {

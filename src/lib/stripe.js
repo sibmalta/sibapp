@@ -21,21 +21,23 @@ export function getStripe() {
   return stripePromise
 }
 
+function isValidSupabaseAccessToken(value) {
+  return typeof value === 'string'
+    && value !== SUPABASE_ANON_KEY
+    && value.split('.').length === 3
+}
+
 function getHeaders(accessToken) {
-  const headers = {
+  if (!isValidSupabaseAccessToken(accessToken)) {
+    throw new Error('Not authenticated. Please log in again to continue.')
+  }
+
+  return {
     'Content-Type': 'application/json',
     'apikey': SUPABASE_ANON_KEY,
+    'Authorization': `Bearer ${accessToken}`,
+    'x-user-token': accessToken,
   }
-  if (accessToken) {
-    // User JWT in Authorization satisfies Supabase gateway JWT verification
-    headers['Authorization'] = `Bearer ${accessToken}`
-    // Also pass as custom header — gateway may strip Authorization after validation
-    headers['x-user-token'] = accessToken
-  } else {
-    // Fallback: anon key if no user token (public endpoints only)
-    headers['Authorization'] = `Bearer ${SUPABASE_ANON_KEY}`
-  }
-  return headers
 }
 
 function getPayoutSettingsUrl() {
@@ -129,7 +131,7 @@ export async function createAccountLink(accountId, returnUrl, accessToken) {
  * Does not create a connected account when none exists.
  */
 export async function getStripeConnectStatus(accessToken) {
-  if (!accessToken) {
+  if (!isValidSupabaseAccessToken(accessToken)) {
     throw new Error('Not authenticated. Please log in to view payout setup.')
   }
 
@@ -146,19 +148,12 @@ export async function getStripeConnectStatus(accessToken) {
  * @returns {{ url: string, accountId?: string, alreadyOnboarded?: boolean, detailsSubmitted?: boolean, chargesEnabled?: boolean, payoutsEnabled?: boolean }}
  */
 export async function startStripeConnect(accessToken, returnUrl) {
-  if (!accessToken) {
+  if (!isValidSupabaseAccessToken(accessToken)) {
     throw new Error('Not authenticated. Please log in to set up payouts.')
   }
 
   const url = `${SUPABASE_URL}/functions/v1/stripe-connect`
-  const headers = {
-    'Content-Type': 'application/json',
-    'apikey': SUPABASE_ANON_KEY,
-    // User JWT in Authorization satisfies Supabase gateway JWT verification
-    'Authorization': `Bearer ${accessToken}`,
-    // Also pass as custom header — gateway may strip Authorization after validation
-    'x-user-token': accessToken,
-  }
+  const headers = getHeaders(accessToken)
   const safeReturnUrl = returnUrl || getPayoutSettingsUrl()
   const body = JSON.stringify({
     mode: 'start',
