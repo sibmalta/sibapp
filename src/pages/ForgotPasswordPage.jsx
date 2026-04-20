@@ -56,7 +56,10 @@ export default function ForgotPasswordPage() {
               </div>
               <h2 className="text-base font-bold text-sib-text mb-2">Check your email</h2>
               <p className="text-sm text-sib-muted leading-relaxed mb-6">
-                If an account exists for <strong className="text-sib-text">{email}</strong>, a reset link has been sent. Please check your inbox and spam folder.
+                We've sent you a password reset link. If it doesn't arrive within a minute, check your spam or junk folder.
+              </p>
+              <p className="text-[11px] text-sib-muted leading-relaxed mb-6">
+                Still not there? Try again or use a different email address.
               </p>
               <Link
                 to="/auth"
@@ -83,6 +86,9 @@ export default function ForgotPasswordPage() {
                     error ? 'border-red-400' : 'border-sib-stone'
                   } focus:border-sib-secondary transition-colors`}
                 />
+                <p className="text-[11px] text-sib-muted mt-1.5">
+                  Still not there? Try again or use a different email address.
+                </p>
                 {error && <p className="text-red-500 text-xs mt-1.5">{error}</p>}
               </div>
 

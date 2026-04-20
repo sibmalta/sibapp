@@ -143,7 +143,7 @@ export default function AuthPage() {
     if (resendCooldown) return
     try {
       await resendVerification(form.email.trim())
-      showToast('Verification email sent!')
+      showToast('Verification email sent. If you do not see it, check your spam or junk folder.')
       setResendCooldown(true)
       setTimeout(() => setResendCooldown(false), 60000)
     } catch (err) {
@@ -164,14 +164,17 @@ export default function AuthPage() {
             </div>
             <h2 className="text-base font-bold text-sib-text mb-2">Check your email</h2>
             <p className="text-sm text-sib-muted leading-relaxed mb-4">
-              We've sent a confirmation link to <strong className="text-sib-text">{form.email}</strong>. Please click the link to verify your account.
+              Check your email to verify your account. If you don't see it, check your spam or junk folder.
+            </p>
+            <p className="text-[11px] text-sib-muted leading-relaxed mb-4">
+              Still not there? Try again or use a different email address.
             </p>
             <button
               onClick={handleResendVerification}
               disabled={resendCooldown}
               className="text-sm text-sib-secondary font-medium disabled:text-sib-muted disabled:cursor-not-allowed"
             >
-              {resendCooldown ? 'Email sent — check your inbox' : 'Resend verification email'}
+              {resendCooldown ? 'Email sent. Check your spam or junk folder if needed.' : 'Resend verification email'}
             </button>
             <div className="mt-5 pt-4 border-t border-sib-sand">
               <button
