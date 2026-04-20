@@ -3,9 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, AlertCircle, ExternalLink, Loader2 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { useAuth } from '../lib/auth-context'
-import { startStripeConnect } from '../lib/stripe'
+import { getStripeConnectStatus, startStripeConnect } from '../lib/stripe'
 
-/* ── Friendly error mapping for payout flows ─────────────── */
 function friendlyPayoutError(raw) {
   if (!raw || typeof raw !== 'string') return null
   if (/not configured/i.test(raw) || /add it in/i.test(raw) || /STRIPE_SECRET_KEY/i.test(raw)) {
@@ -19,23 +18,63 @@ function friendlyPayoutError(raw) {
 
 export default function PayoutSettingsPage() {
   const navigate = useNavigate()
-  const { currentUser, showToast } = useApp()
+  const { currentUser, showToast, refreshCurrentProfile } = useApp()
   const { session } = useAuth()
 
   const [loading, setLoading] = useState(false)
   const [checking, setChecking] = useState(true)
-  const [stripeAccountId, setStripeAccountId] = useState(null)
-  const [onboardingComplete, setOnboardingComplete] = useState(false)
-  const [chargesEnabled, setChargesEnabled] = useState(false)
-  const [payoutsEnabled, setPayoutsEnabled] = useState(false)
+  const [stripeAccountId, setStripeAccountId] = useState(currentUser?.stripeAccountId || null)
+  const [detailsSubmitted, setDetailsSubmitted] = useState(!!currentUser?.detailsSubmitted)
+  const [chargesEnabled, setChargesEnabled] = useState(!!currentUser?.chargesEnabled)
+  const [payoutsEnabled, setPayoutsEnabled] = useState(!!currentUser?.payoutsEnabled)
   const [error, setError] = useState('')
 
-  if (!currentUser) { navigate('/auth'); return null }
+  if (!currentUser) {
+    navigate('/auth')
+    return null
+  }
 
-  // On mount, just finish checking — we don't hit the Edge Function until user clicks
   useEffect(() => {
-    setChecking(false)
-  }, [session?.access_token])
+    setStripeAccountId(currentUser?.stripeAccountId || null)
+    setDetailsSubmitted(!!currentUser?.detailsSubmitted)
+    setChargesEnabled(!!currentUser?.chargesEnabled)
+    setPayoutsEnabled(!!currentUser?.payoutsEnabled)
+  }, [
+    currentUser?.stripeAccountId,
+    currentUser?.detailsSubmitted,
+    currentUser?.chargesEnabled,
+    currentUser?.payoutsEnabled,
+  ])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadStatus() {
+      if (!session?.access_token) {
+        setChecking(false)
+        return
+      }
+
+      try {
+        const result = await getStripeConnectStatus(session.access_token)
+        if (cancelled) return
+        setStripeAccountId(result.accountId || null)
+        setDetailsSubmitted(!!result.detailsSubmitted)
+        setChargesEnabled(!!result.chargesEnabled)
+        setPayoutsEnabled(!!result.payoutsEnabled)
+        await refreshCurrentProfile?.()
+      } catch (err) {
+        if (!cancelled) {
+          console.warn('Failed to load Stripe status:', err)
+        }
+      } finally {
+        if (!cancelled) setChecking(false)
+      }
+    }
+
+    loadStatus()
+    return () => { cancelled = true }
+  }, [session?.access_token, refreshCurrentProfile])
 
   const handleStartOnboarding = async () => {
     setLoading(true)
@@ -52,15 +91,15 @@ export default function PayoutSettingsPage() {
         setStripeAccountId(result.accountId)
       }
 
+      setDetailsSubmitted(!!result.detailsSubmitted)
+      setChargesEnabled(!!result.chargesEnabled)
+      setPayoutsEnabled(!!result.payoutsEnabled)
+      await refreshCurrentProfile?.()
+
       if (result.alreadyOnboarded) {
-        setOnboardingComplete(true)
-        setChargesEnabled(result.chargesEnabled || false)
-        setPayoutsEnabled(result.payoutsEnabled || false)
-        // Open Stripe dashboard in new tab
         window.open(result.url, '_blank')
       } else {
-        // Redirect to Stripe onboarding
-        window.open(result.url, "_blank")
+        window.location.assign(result.url)
       }
     } catch (err) {
       console.error('Stripe Connect onboarding error:', err)
@@ -93,13 +132,11 @@ export default function PayoutSettingsPage() {
     }
   }
 
-  /* ── Derive status label ─────────────────────────────────── */
-  const isActive = onboardingComplete && chargesEnabled
+  const isActive = detailsSubmitted && chargesEnabled && payoutsEnabled
   const isPending = !!stripeAccountId && !isActive
 
   return (
     <div className="pb-10 bg-white min-h-screen">
-      {/* Header */}
       <div className="px-4 py-3 flex items-center gap-3 border-b border-gray-100">
         <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full bg-gray-50 flex items-center justify-center">
           <ArrowLeft size={18} className="text-gray-600" />
@@ -108,8 +145,6 @@ export default function PayoutSettingsPage() {
       </div>
 
       <div className="px-4 pt-6 pb-4 space-y-6">
-
-        {/* ── Status Section ───────────────────────────────── */}
         {checking ? (
           <div className="flex items-center justify-center py-10">
             <Loader2 size={20} className="animate-spin text-gray-400" />
@@ -117,27 +152,30 @@ export default function PayoutSettingsPage() {
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Status indicator */}
             <div>
               <div className="flex items-center gap-2.5 mb-1">
                 <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isActive ? 'bg-green-500' : 'bg-gray-300'}`} />
                 <span className="text-sm font-semibold text-gray-900">
-                  {isActive ? 'Payments active' : isPending ? 'Setup incomplete' : 'Not set up yet'}
+                  {isActive ? 'Payouts active' : isPending ? 'Stripe verification incomplete' : 'Not set up yet'}
                 </span>
               </div>
               <p className="text-[13px] text-gray-500 ml-[18px]">
                 {isActive
-                  ? 'Receive payouts when you sell, and pay securely when you buy.'
+                  ? 'Your Stripe payout account is ready to receive earnings.'
                   : isPending
-                    ? 'Finish setting up to start selling and buying on Sib.'
-                    : 'Receive payouts when you sell, and pay securely when you buy.'}
+                    ? 'Complete Stripe-hosted verification so Sib can send your payouts.'
+                    : 'Set up Stripe payouts so Sib can send your earnings to your bank account.'}
               </p>
             </div>
 
-            {/* ── Active state ──────────────────────────────── */}
             {isActive && (
               <>
                 <div className="border border-gray-100 rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] text-gray-500">Identity verification</span>
+                    <span className="text-[13px] font-medium text-green-600">Ready</span>
+                  </div>
+                  <div className="h-px bg-gray-50" />
                   <div className="flex items-center justify-between">
                     <span className="text-[13px] text-gray-500">Receiving payments</span>
                     <span className="text-[13px] font-medium text-green-600">Ready</span>
@@ -145,13 +183,6 @@ export default function PayoutSettingsPage() {
                   <div className="h-px bg-gray-50" />
                   <div className="flex items-center justify-between">
                     <span className="text-[13px] text-gray-500">Bank payouts</span>
-                    <span className={`text-[13px] font-medium ${payoutsEnabled ? 'text-green-600' : 'text-gray-400'}`}>
-                      {payoutsEnabled ? 'Ready' : 'Pending'}
-                    </span>
-                  </div>
-                  <div className="h-px bg-gray-50" />
-                  <div className="flex items-center justify-between">
-                    <span className="text-[13px] text-gray-500">Paying for items</span>
                     <span className="text-[13px] font-medium text-green-600">Ready</span>
                   </div>
                 </div>
@@ -164,15 +195,42 @@ export default function PayoutSettingsPage() {
                   {loading ? (
                     <Loader2 size={15} className="animate-spin" />
                   ) : (
-                    <><ExternalLink size={14} /> Manage payment account</>
+                    <><ExternalLink size={14} /> Manage Stripe account</>
                   )}
                 </button>
               </>
             )}
 
-            {/* ── Pending state ─────────────────────────────── */}
             {isPending && !isActive && (
               <>
+                <div className="border border-gray-100 rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] text-gray-500">Connected account</span>
+                    <span className="text-[13px] font-medium text-green-600">Created</span>
+                  </div>
+                  <div className="h-px bg-gray-50" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] text-gray-500">Details submitted</span>
+                    <span className={`text-[13px] font-medium ${detailsSubmitted ? 'text-green-600' : 'text-gray-400'}`}>
+                      {detailsSubmitted ? 'Ready' : 'Pending'}
+                    </span>
+                  </div>
+                  <div className="h-px bg-gray-50" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] text-gray-500">Charges enabled</span>
+                    <span className={`text-[13px] font-medium ${chargesEnabled ? 'text-green-600' : 'text-gray-400'}`}>
+                      {chargesEnabled ? 'Ready' : 'Pending'}
+                    </span>
+                  </div>
+                  <div className="h-px bg-gray-50" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] text-gray-500">Payouts enabled</span>
+                    <span className={`text-[13px] font-medium ${payoutsEnabled ? 'text-green-600' : 'text-gray-400'}`}>
+                      {payoutsEnabled ? 'Ready' : 'Pending'}
+                    </span>
+                  </div>
+                </div>
+
                 {error && error !== '__CONFIG_MISSING__' && (
                   <p className="text-[13px] text-red-500 flex items-center gap-1.5">
                     <AlertCircle size={13} className="flex-shrink-0" />
@@ -188,42 +246,40 @@ export default function PayoutSettingsPage() {
                   {loading ? (
                     <><Loader2 size={15} className="animate-spin" /> Redirecting…</>
                   ) : (
-                    'Continue setup'
+                    'Continue Stripe verification'
                   )}
                 </button>
               </>
             )}
 
-            {/* ── Not set up state ──────────────────────────── */}
             {!isActive && !isPending && (
               <>
                 {error === '__CONFIG_MISSING__' ? (
                   <div className="border border-gray-100 rounded-xl p-4">
                     <p className="text-[13px] text-gray-500 leading-relaxed">
-                      Payment setup is being configured. You'll be able to set up your account shortly.
+                      Payment setup is being configured. You&apos;ll be able to set up your account shortly.
                     </p>
                   </div>
                 ) : (
                   <>
-                    {/* Two-sided explanation: selling + buying */}
                     <div className="border border-gray-100 rounded-xl p-4 space-y-4">
                       <div>
-                        <p className="text-[13px] font-medium text-gray-700 mb-1">When you sell</p>
+                        <p className="text-[13px] font-medium text-gray-700 mb-1">Stripe-hosted onboarding</p>
                         <p className="text-[13px] text-gray-500 leading-relaxed">
-                          You receive the full listing price directly to your bank account after delivery is confirmed.
+                          Stripe collects your identity verification and payout details directly.
                         </p>
                       </div>
                       <div className="h-px bg-gray-100" />
                       <div>
-                        <p className="text-[13px] font-medium text-gray-700 mb-1">When you buy</p>
+                        <p className="text-[13px] font-medium text-gray-700 mb-1">Payouts when you sell</p>
                         <p className="text-[13px] text-gray-500 leading-relaxed">
-                          Pay securely by card. A small service fee is added at checkout.
+                          Once your Stripe account is ready, Sib can send your earnings to your bank account.
                         </p>
                       </div>
                     </div>
 
                     <p className="text-[12px] text-gray-400 leading-relaxed">
-                      Setup takes a few minutes and includes identity verification.
+                      Setup takes a few minutes and includes identity verification handled by Stripe.
                     </p>
 
                     {error && error !== '__CONFIG_MISSING__' && (
@@ -241,7 +297,7 @@ export default function PayoutSettingsPage() {
                       {loading ? (
                         <><Loader2 size={15} className="animate-spin" /> Setting up…</>
                       ) : (
-                        'Set up payments'
+                        'Set up payouts'
                       )}
                     </button>
                   </>
@@ -251,9 +307,8 @@ export default function PayoutSettingsPage() {
           </div>
         )}
 
-        {/* Security footnote */}
         <p className="text-[11px] text-gray-400 leading-relaxed pt-2">
-          Payments are handled by Stripe (PCI Level 1). Sib does not store your card or banking details.
+          Payments are handled by Stripe. Sib does not store your card or banking details.
         </p>
       </div>
     </div>

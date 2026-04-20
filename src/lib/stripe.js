@@ -38,6 +38,12 @@ function getHeaders(accessToken) {
   return headers
 }
 
+function getPayoutSettingsUrl() {
+  const base = import.meta.env.BASE_URL || '/'
+  const normalizedBase = base.endsWith('/') ? base : `${base}/`
+  return new URL('seller/payout-settings', window.location.origin + normalizedBase).toString()
+}
+
 async function callEdgeFunction(fnName, body, accessToken) {
   const res = await fetch(`${SUPABASE_URL}/functions/v1/${fnName}`, {
     method: 'POST',
@@ -83,7 +89,7 @@ export async function createConnectedAccount(accessToken) {
  * @param {string} accountId
  * @param {string} returnUrl
  * @param {string} accessToken
- * @returns {{ url: string, alreadyOnboarded: boolean, chargesEnabled: boolean, payoutsEnabled: boolean }}
+ * @returns {{ url: string, alreadyOnboarded: boolean, detailsSubmitted?: boolean, chargesEnabled: boolean, payoutsEnabled: boolean }}
  */
 export async function createAccountLink(accountId, returnUrl, accessToken) {
   return callEdgeFunction('create-account-link', {
@@ -94,11 +100,25 @@ export async function createAccountLink(accountId, returnUrl, accessToken) {
 }
 
 /**
+ * Fetch the seller's current Stripe Connect onboarding status.
+ * Does not create a connected account when none exists.
+ */
+export async function getStripeConnectStatus(accessToken) {
+  if (!accessToken) {
+    throw new Error('Not authenticated. Please log in to view payout setup.')
+  }
+
+  return callEdgeFunction('stripe-connect', {
+    mode: 'status',
+  }, accessToken)
+}
+
+/**
  * Call the unified stripe-connect Edge Function for Stripe Connect onboarding.
  * Returns a Stripe onboarding/dashboard URL to redirect the user to.
  * @param {string} accessToken - User's JWT for authentication
  * @param {string} returnUrl - URL to return to after Stripe onboarding
- * @returns {{ url: string, accountId?: string, alreadyOnboarded?: boolean, chargesEnabled?: boolean, payoutsEnabled?: boolean }}
+ * @returns {{ url: string, accountId?: string, alreadyOnboarded?: boolean, detailsSubmitted?: boolean, chargesEnabled?: boolean, payoutsEnabled?: boolean }}
  */
 export async function startStripeConnect(accessToken, returnUrl) {
   if (!accessToken) {
@@ -114,7 +134,12 @@ export async function startStripeConnect(accessToken, returnUrl) {
     // Also pass as custom header — gateway may strip Authorization after validation
     'x-user-token': accessToken,
   }
-  const body = JSON.stringify({ returnUrl })
+  const safeReturnUrl = returnUrl || getPayoutSettingsUrl()
+  const body = JSON.stringify({
+    mode: 'start',
+    returnUrl: safeReturnUrl,
+    refreshUrl: safeReturnUrl,
+  })
 
   console.log('[stripe-connect] POST', url)
   console.log('[stripe-connect] headers', {

@@ -8,6 +8,12 @@ const corsHeaders = {
 import Stripe from 'npm:stripe@14.14.0'
 import { createClient } from 'npm:@supabase/supabase-js@2.45.0'
 
+type StripeConnectBody = {
+  mode?: 'start' | 'status'
+  returnUrl?: string
+  refreshUrl?: string
+}
+
 function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -15,8 +21,78 @@ function jsonResponse(body: Record<string, unknown>, status = 200) {
   })
 }
 
+function getFallbackPayoutUrl() {
+  return `${Deno.env.get('APP_URL') || 'https://sib.mt'}/seller/payout-settings`
+}
+
+function sanitizeUrl(input: string | undefined, fallback: string) {
+  if (!input) return fallback
+  try {
+    const parsed = new URL(input)
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return parsed.toString()
+    }
+  } catch {
+    // Ignore invalid URLs and fall back below.
+  }
+  return fallback
+}
+
+function getServiceRoleClient() {
+  return createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  )
+}
+
+function parseUserToken(req: Request) {
+  const userToken = req.headers.get('x-user-token')
+    || req.headers.get('authorization')?.replace('Bearer ', '')
+
+  if (!userToken) {
+    return { error: 'Not authenticated. Please log in.' }
+  }
+
+  try {
+    const payloadBase64 = userToken.split('.')[1]
+    const payload = JSON.parse(atob(payloadBase64))
+    return {
+      userId: payload.sub as string,
+      userEmail: payload.email as string,
+    }
+  } catch {
+    return { error: 'Invalid authentication token.' }
+  }
+}
+
+async function syncStripeAccountStatus(
+  supabase: ReturnType<typeof getServiceRoleClient>,
+  stripe: Stripe,
+  userId: string,
+  accountId: string,
+) {
+  const account = await stripe.accounts.retrieve(accountId)
+  const updates = {
+    stripe_account_id: account.id,
+    details_submitted: account.details_submitted || false,
+    stripe_onboarding_complete: account.details_submitted || false,
+    charges_enabled: account.charges_enabled || false,
+    payouts_enabled: account.payouts_enabled || false,
+    stripe_status_updated_at: new Date().toISOString(),
+  }
+
+  await supabase
+    .from('profiles')
+    .update(updates)
+    .eq('id', userId)
+
+  return {
+    account,
+    updates,
+  }
+}
+
 Deno.serve(async (req) => {
-  // CORS preflight — must return 204 with full CORS headers
   if (req.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: corsHeaders })
   }
@@ -26,61 +102,49 @@ Deno.serve(async (req) => {
     if (!stripeKey) {
       return jsonResponse(
         { error: 'STRIPE_SECRET_KEY not configured. Add it in Environment Variables.' },
-        500
+        500,
       )
     }
 
+    const auth = parseUserToken(req)
+    if ('error' in auth) {
+      return jsonResponse({ error: auth.error }, 401)
+    }
+
+    const { userId, userEmail } = auth
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' })
+    const supabase = getServiceRoleClient()
 
-    // Extract user JWT — try x-user-token first (gateway may strip Authorization),
-    // then fall back to Authorization header
-    const userToken = req.headers.get('x-user-token')
-      || req.headers.get('authorization')?.replace('Bearer ', '')
-    console.log('[stripe-connect] x-user-token present:', !!req.headers.get('x-user-token'))
-    console.log('[stripe-connect] authorization present:', !!req.headers.get('authorization'))
-
-    if (!userToken) {
-      return jsonResponse({ error: 'Not authenticated. Please log in.' }, 401)
-    }
-
-    // Decode JWT to get user info
-    let userId: string
-    let userEmail: string
+    let body: StripeConnectBody = {}
     try {
-      const payloadBase64 = userToken.split('.')[1]
-      const payload = JSON.parse(atob(payloadBase64))
-      userId = payload.sub
-      userEmail = payload.email
-      console.log('[stripe-connect] decoded userId:', userId, 'email:', userEmail)
-    } catch (e) {
-      console.error('[stripe-connect] JWT decode error:', e)
-      return jsonResponse({ error: 'Invalid authentication token.' }, 401)
-    }
-
-    // Parse body — returnUrl is optional
-    let returnUrl = ''
-    try {
-      const body = await req.json()
-      returnUrl = body.returnUrl || ''
+      body = await req.json()
     } catch {
-      // empty body is fine
+      // Empty JSON body is fine.
     }
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    )
+    const mode = body.mode || 'start'
+    const fallbackUrl = getFallbackPayoutUrl()
+    const returnUrl = sanitizeUrl(body.returnUrl, fallbackUrl)
+    const refreshUrl = sanitizeUrl(body.refreshUrl, returnUrl)
 
-    // Step 1: Check if user already has a connected account
     const { data: profile } = await supabase
       .from('profiles')
-      .select('stripe_account_id, stripe_onboarding_complete, charges_enabled, payouts_enabled')
+      .select('stripe_account_id, details_submitted, stripe_onboarding_complete, charges_enabled, payouts_enabled')
       .eq('id', userId)
       .single()
 
-    let accountId = profile?.stripe_account_id
+    let accountId = profile?.stripe_account_id || null
 
-    // Step 2: Create Stripe Connect Express account if none exists
+    if (mode === 'status' && !accountId) {
+      return jsonResponse({
+        accountId: null,
+        detailsSubmitted: false,
+        chargesEnabled: false,
+        payoutsEnabled: false,
+        onboardingRequired: true,
+      })
+    }
+
     if (!accountId) {
       const account = await stripe.accounts.create({
         type: 'express',
@@ -96,49 +160,52 @@ Deno.serve(async (req) => {
       })
       accountId = account.id
 
-      // Save to profile
       await supabase
         .from('profiles')
         .update({
           stripe_account_id: accountId,
+          details_submitted: false,
           stripe_onboarding_complete: false,
           charges_enabled: false,
           payouts_enabled: false,
+          stripe_status_updated_at: new Date().toISOString(),
         })
         .eq('id', userId)
     }
 
-    // Step 3: Check current account status with Stripe
-    const account = await stripe.accounts.retrieve(accountId)
+    const { account } = await syncStripeAccountStatus(supabase, stripe, userId, accountId)
 
-    // Update profile with latest status
-    await supabase
-      .from('profiles')
-      .update({
-        stripe_onboarding_complete: account.details_submitted || false,
-        charges_enabled: account.charges_enabled || false,
-        payouts_enabled: account.payouts_enabled || false,
+    const detailsSubmitted = account.details_submitted || false
+    const chargesEnabled = account.charges_enabled || false
+    const payoutsEnabled = account.payouts_enabled || false
+    const fullyOnboarded = detailsSubmitted && chargesEnabled && payoutsEnabled
+
+    if (mode === 'status') {
+      return jsonResponse({
+        accountId,
+        detailsSubmitted,
+        chargesEnabled,
+        payoutsEnabled,
+        onboardingRequired: !fullyOnboarded,
       })
-      .eq('id', userId)
+    }
 
-    // Step 4: If fully onboarded, return dashboard link
-    if (account.details_submitted && account.charges_enabled) {
+    if (fullyOnboarded) {
       const loginLink = await stripe.accounts.createLoginLink(accountId)
       return jsonResponse({
         url: loginLink.url,
         accountId,
         alreadyOnboarded: true,
-        chargesEnabled: account.charges_enabled,
-        payoutsEnabled: account.payouts_enabled,
+        detailsSubmitted,
+        chargesEnabled,
+        payoutsEnabled,
       })
     }
 
-    // Step 5: Create onboarding link
-    const fallbackUrl = returnUrl || 'https://sib.mt/seller/payout-settings'
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
-      refresh_url: fallbackUrl,
-      return_url: fallbackUrl,
+      refresh_url: refreshUrl,
+      return_url: returnUrl,
       type: 'account_onboarding',
     })
 
@@ -146,14 +213,15 @@ Deno.serve(async (req) => {
       url: accountLink.url,
       accountId,
       alreadyOnboarded: false,
-      chargesEnabled: account.charges_enabled || false,
-      payoutsEnabled: account.payouts_enabled || false,
+      detailsSubmitted,
+      chargesEnabled,
+      payoutsEnabled,
     })
   } catch (error) {
     console.error('stripe-connect error:', error)
     return jsonResponse(
       { error: error.message || 'Failed to set up Stripe Connect' },
-      500
+      500,
     )
   }
 })

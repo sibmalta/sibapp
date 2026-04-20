@@ -53,11 +53,11 @@ Deno.serve(async (req) => {
       )
       const { data: profile } = await supabase
         .from('profiles')
-        .select('stripe_account_id, stripe_onboarding_complete, charges_enabled')
+        .select('stripe_account_id, details_submitted, charges_enabled, payouts_enabled')
         .eq('id', sellerId)
         .single()
 
-      if (profile?.stripe_account_id && profile?.charges_enabled) {
+      if (profile?.stripe_account_id && profile?.details_submitted && profile?.charges_enabled && profile?.payouts_enabled) {
         // We'll set up transfer_data for destination charge
         // The seller receives the item price, platform keeps the fees
         transferData = {

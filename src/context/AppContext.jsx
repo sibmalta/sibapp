@@ -135,7 +135,7 @@ export function AppProvider({ children }) {
   const { user: authUser, session: authSession, loading: authLoading, signOut: authSignOut } = useAuth()
 
   // Derive currentUser from Supabase auth — single source of truth
-  const currentUser = useMemo(() => buildAppUser(authUser), [authUser])
+  const authAppUser = useMemo(() => buildAppUser(authUser), [authUser])
 
   // Local seed state (used as fallback when DB is unavailable)
   const [localUsers]    = useState(() => getInitialUsers())
@@ -146,6 +146,7 @@ export function AppProvider({ children }) {
   const {
     users,
     dbAvailable: profilesDbAvailable,
+    refreshCurrentProfile,
     updateProfile: dbUpdateProfile,
     suspendUser: dbSuspendUser,
     banUser: dbBanUser,
@@ -156,7 +157,13 @@ export function AppProvider({ children }) {
     updateAdminRole,
     getUserById,
     getUserByUsername,
-  } = useProfilesHook(localUsers, currentUser)
+  } = useProfilesHook(localUsers, authAppUser)
+
+  const currentUser = useMemo(() => {
+    if (!authAppUser) return null
+    const profileUser = users.find(u => u.id === authAppUser.id)
+    return profileUser ? { ...authAppUser, ...profileUser } : authAppUser
+  }, [authAppUser, users])
 
   // ── Supabase-backed listings hook ──────────────────────────
   const {
@@ -767,8 +774,19 @@ export function AppProvider({ children }) {
   }, [])
 
   const getPayoutProfile = useCallback((userId) => {
+    const user = getUserById(userId)
+    if (user?.stripeAccountId) {
+      return {
+        provider: 'stripe',
+        stripeAccountId: user.stripeAccountId,
+        detailsSubmitted: !!user.detailsSubmitted,
+        chargesEnabled: !!user.chargesEnabled,
+        payoutsEnabled: !!user.payoutsEnabled,
+        createdAt: user.stripeStatusUpdatedAt || user.createdAt || null,
+      }
+    }
     return payoutProfiles[userId] || null
-  }, [payoutProfiles])
+  }, [payoutProfiles, getUserById])
 
   // ── Offers system ──────────────────────────────────────────────────
   const MAX_ACTIVE_OFFERS_PER_USER = 10
@@ -1677,6 +1695,7 @@ export function AppProvider({ children }) {
       createBundleOffer, acceptBundleOffer, declineBundleOffer, counterBundleOffer, getBundleOfferById, placeBundleOfferOrder,
       suspendUser, banUser, restoreUser, updateSellerBadges, updateTrustTags, updateAdminRole, holdPayout, releasePayout, refundOrder, resolveDispute, cancelOrder, addDisputeMessage,
       savePayoutProfile, getPayoutProfile,
+      refreshCurrentProfile,
       getShipmentByOrderId, getSellerShipments, getBuyerShipments, markShipmentShipped, updateShipmentStatus, adminUpdateShipment,
       getUserById, getUserByUsername, getListingById, getUserListings,
       getUserOrders, getUserSales,

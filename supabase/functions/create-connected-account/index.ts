@@ -70,9 +70,11 @@ Deno.serve(async (req) => {
         .from('profiles')
         .update({
           stripe_account_id: accountId,
+          details_submitted: false,
           stripe_onboarding_complete: false,
           charges_enabled: false,
           payouts_enabled: false,
+          stripe_status_updated_at: new Date().toISOString(),
         })
         .eq('id', userId)
 

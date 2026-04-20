@@ -55,19 +55,22 @@ Deno.serve(async (req) => {
     await supabase
       .from('profiles')
       .update({
+        details_submitted: account.details_submitted || false,
         stripe_onboarding_complete: account.details_submitted || false,
         charges_enabled: account.charges_enabled || false,
         payouts_enabled: account.payouts_enabled || false,
+        stripe_status_updated_at: new Date().toISOString(),
       })
       .eq('id', userId)
 
     // If already fully onboarded, return dashboard link instead
-    if (account.details_submitted && account.charges_enabled) {
+    if (account.details_submitted && account.charges_enabled && account.payouts_enabled) {
       const loginLink = await stripe.accounts.createLoginLink(accountId)
       return new Response(
         JSON.stringify({
           url: loginLink.url,
           alreadyOnboarded: true,
+          detailsSubmitted: account.details_submitted,
           chargesEnabled: account.charges_enabled,
           payoutsEnabled: account.payouts_enabled,
         }),
@@ -87,6 +90,7 @@ Deno.serve(async (req) => {
       JSON.stringify({
         url: accountLink.url,
         alreadyOnboarded: false,
+        detailsSubmitted: account.details_submitted,
         chargesEnabled: account.charges_enabled,
         payoutsEnabled: account.payouts_enabled,
       }),

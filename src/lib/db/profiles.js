@@ -39,6 +39,12 @@ export function rowToUser(row) {
     trustTags: row.trust_tags || [],
     // Admin permission level: 'super_admin' | 'moderator' | null
     adminRole: row.admin_role || null,
+    stripeAccountId: row.stripe_account_id || null,
+    detailsSubmitted: !!(row.details_submitted ?? row.stripe_onboarding_complete),
+    stripeOnboardingComplete: !!row.stripe_onboarding_complete,
+    chargesEnabled: !!row.charges_enabled,
+    payoutsEnabled: !!row.payouts_enabled,
+    stripeStatusUpdatedAt: row.stripe_status_updated_at || null,
     joinedDate: row.created_at ? row.created_at.split('T')[0] : '',
     createdAt: row.created_at || new Date().toISOString(),
   }
@@ -67,6 +73,12 @@ export function userToRow(user) {
   if (user.trustTags !== undefined) row.trust_tags = user.trustTags
   // Admin permission level
   if (user.adminRole !== undefined) row.admin_role = user.adminRole
+  if (user.stripeAccountId !== undefined) row.stripe_account_id = user.stripeAccountId
+  if (user.detailsSubmitted !== undefined) row.details_submitted = user.detailsSubmitted
+  if (user.stripeOnboardingComplete !== undefined) row.stripe_onboarding_complete = user.stripeOnboardingComplete
+  if (user.chargesEnabled !== undefined) row.charges_enabled = user.chargesEnabled
+  if (user.payoutsEnabled !== undefined) row.payouts_enabled = user.payoutsEnabled
+  if (user.stripeStatusUpdatedAt !== undefined) row.stripe_status_updated_at = user.stripeStatusUpdatedAt
   row.updated_at = new Date().toISOString()
   return row
 }

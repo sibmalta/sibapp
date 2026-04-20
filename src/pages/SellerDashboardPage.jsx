@@ -47,7 +47,7 @@ function getNextPayoutDay() {
 export default function SellerDashboardPage() {
   const navigate = useNavigate()
   const {
-    currentUser, orders, getUserSales, getListingById, getPayoutProfile,
+    currentUser, orders, getUserSales, getListingById,
     getShipmentByOrderId,
   } = useApp()
   const [filter, setFilter] = useState('all')
@@ -59,8 +59,10 @@ export default function SellerDashboardPage() {
   }
 
   const sales = getUserSales(currentUser.id)
-  const payoutProfile = getPayoutProfile(currentUser.id)
   const nextPayout = useMemo(() => getNextPayoutDay(), [])
+  const hasStripeAccount = !!currentUser?.stripeAccountId
+  const stripeReady = !!currentUser?.detailsSubmitted && !!currentUser?.chargesEnabled && !!currentUser?.payoutsEnabled
+  const needsStripeVerification = hasStripeAccount && !stripeReady
 
   // Compute totals
   const totalEarnings = sales.reduce((sum, o) => sum + (o.sellerPayout || o.itemPrice || 0), 0)
@@ -97,12 +99,12 @@ export default function SellerDashboardPage() {
           <button
             onClick={() => navigate('/seller/payout-settings')}
             className={`text-xs px-3.5 py-1.5 rounded-full font-semibold transition-all ${
-              payoutProfile
+              hasStripeAccount
                 ? 'text-sib-muted bg-sib-sand border border-sib-stone hover:border-sib-muted'
                 : 'text-white bg-sib-secondary shadow-sm hover:opacity-90'
             }`}
           >
-            {payoutProfile ? 'Payout settings' : 'Set up payouts'}
+            {needsStripeVerification ? 'Continue Stripe verification' : hasStripeAccount ? 'Payout settings' : 'Set up payouts'}
           </button>
         </div>
       </div>
@@ -156,7 +158,7 @@ export default function SellerDashboardPage() {
       </div>
 
       {/* Secondary: Payout setup CTA — only when not configured */}
-      {!payoutProfile && (
+      {!stripeReady && (
         <div className="px-4 mt-3">
           <button
             onClick={() => navigate('/seller/payout-settings')}
@@ -166,8 +168,12 @@ export default function SellerDashboardPage() {
               <Banknote size={16} className="text-sib-secondary" />
             </div>
             <div className="flex-1 text-left">
-              <p className="text-sm font-semibold text-sib-text">Add your payout method</p>
-              <p className="text-[11px] text-sib-muted mt-0.5">Connect your bank to receive earnings</p>
+              <p className="text-sm font-semibold text-sib-text">
+                {needsStripeVerification ? 'Continue Stripe verification' : 'Set up payouts'}
+              </p>
+              <p className="text-[11px] text-sib-muted mt-0.5">
+                {needsStripeVerification ? 'Finish onboarding to unlock payouts' : 'Connect your bank to receive earnings'}
+              </p>
             </div>
             <ArrowUpRight size={16} className="text-sib-muted group-hover:text-sib-secondary transition-colors flex-shrink-0" />
           </button>

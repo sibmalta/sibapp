@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
     // Get seller's connected account
     const { data: sellerProfile } = await supabase
       .from('profiles')
-      .select('stripe_account_id, charges_enabled')
+      .select('stripe_account_id, details_submitted, charges_enabled, payouts_enabled')
       .eq('id', sellerId)
       .single()
 
@@ -64,9 +64,9 @@ Deno.serve(async (req) => {
       )
     }
 
-    if (!sellerProfile.charges_enabled) {
+    if (!sellerProfile.details_submitted || !sellerProfile.charges_enabled || !sellerProfile.payouts_enabled) {
       return new Response(
-        JSON.stringify({ error: 'Seller Stripe account is not fully activated' }),
+        JSON.stringify({ error: 'Seller Stripe account is not fully ready for payouts' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
