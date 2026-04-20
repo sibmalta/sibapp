@@ -2,11 +2,19 @@
 // Source of truth for authentication. No localStorage user storage.
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { createClient } from '@supabase/supabase-js';
 
 const AuthContext = createContext(null);
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseAuthClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false,
+  },
+});
 
 // Session storage key
 const getStorageKey = () => `ew-auth-${SUPABASE_URL?.split('//')[1]?.split('.')[0] || 'default'}`;
@@ -42,6 +50,13 @@ function setCooldown(key, seconds) {
   try {
     localStorage.setItem(`sib_cooldown_${key}`, String(Date.now() + seconds * 1000));
   } catch {}
+}
+
+function getAppPath(path) {
+  const base = import.meta.env.BASE_URL || '/';
+  const normalizedBase = base.endsWith('/') ? base : `${base}/`;
+  const normalizedPath = path.replace(/^\/+/, '');
+  return new URL(normalizedPath, window.location.origin + normalizedBase).toString();
 }
 
 export function AuthProvider({ children }) {
@@ -108,6 +123,16 @@ export function AuthProvider({ children }) {
     }, delay);
   }, [refreshSessionFn]);
 
+  const applySession = useCallback((sessionData, { isRecovery = false } = {}) => {
+    storeSession(sessionData);
+    setSession(sessionData);
+    setUser(sessionData.user || null);
+    setRecoveryMode(isRecovery);
+    if (sessionData.refresh_token) {
+      scheduleRefresh(3600, sessionData.refresh_token);
+    }
+  }, [scheduleRefresh]);
+
   // ── Init: check hash callback or restore session ──
   useEffect(() => {
     let cancelled = false;
@@ -115,6 +140,49 @@ export function AuthProvider({ children }) {
     async function init() {
       try {
         const hash = window.location.hash;
+        const search = new URLSearchParams(window.location.search);
+        const code = search.get('code');
+        const searchType = search.get('type');
+        const tokenHash = search.get('token_hash');
+        const routeLooksLikeRecovery = window.location.pathname.endsWith('/reset-password');
+
+        if (code) {
+          const { data, error } = await supabaseAuthClient.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+          if (data?.session && !cancelled) {
+            const sessionData = {
+              access_token: data.session.access_token,
+              refresh_token: data.session.refresh_token,
+              user: data.session.user,
+            };
+            applySession(sessionData, { isRecovery: searchType === 'recovery' || routeLooksLikeRecovery });
+            window.history.replaceState(null, '', window.location.pathname);
+            setLoading(false);
+            return;
+          }
+          window.history.replaceState(null, '', window.location.pathname);
+        }
+
+        if (tokenHash && searchType === 'recovery') {
+          const { data, error } = await supabaseAuthClient.auth.verifyOtp({
+            token_hash: tokenHash,
+            type: 'recovery',
+          });
+          if (error) throw error;
+          if (data?.session && !cancelled) {
+            const sessionData = {
+              access_token: data.session.access_token,
+              refresh_token: data.session.refresh_token,
+              user: data.session.user,
+            };
+            applySession(sessionData, { isRecovery: true });
+            window.history.replaceState(null, '', window.location.pathname);
+            setLoading(false);
+            return;
+          }
+          window.history.replaceState(null, '', window.location.pathname);
+        }
+
         if (hash && hash.includes('access_token=')) {
           const params = new URLSearchParams(hash.substring(1));
           const accessToken = params.get('access_token');
@@ -129,16 +197,9 @@ export function AuthProvider({ children }) {
                 refresh_token: refreshToken,
                 user: userData,
               };
-              storeSession(sessionData);
-              setSession(sessionData);
-              setUser(userData);
-
-              if (type === 'recovery') {
-                setRecoveryMode(true);
-              }
+              applySession(sessionData, { isRecovery: type === 'recovery' || routeLooksLikeRecovery });
 
               window.history.replaceState(null, '', window.location.pathname + window.location.search);
-              scheduleRefresh(3600, refreshToken);
               setLoading(false);
               return;
             }
@@ -152,10 +213,7 @@ export function AuthProvider({ children }) {
           const userData = await fetchUser(stored.access_token);
           if (userData && !cancelled) {
             const restoredSession = { ...stored, user: userData };
-            storeSession(restoredSession);
-            setSession(restoredSession);
-            setUser(userData);
-            scheduleRefresh(3600, stored.refresh_token);
+            applySession(restoredSession, { isRecovery: false });
           } else if (stored.refresh_token) {
             const result = await refreshSessionFn(stored.refresh_token);
             if (result && !cancelled) {
@@ -164,10 +222,7 @@ export function AuthProvider({ children }) {
                 refresh_token: result.refresh_token,
                 user: result.user,
               };
-              storeSession(newSession);
-              setSession(newSession);
-              setUser(result.user);
-              scheduleRefresh(result.expires_in || 3600, result.refresh_token);
+              applySession(newSession, { isRecovery: false });
             } else {
               storeSession(null);
             }
@@ -188,11 +243,11 @@ export function AuthProvider({ children }) {
       cancelled = true;
       if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
     };
-  }, []);
+  }, [applySession, refreshSessionFn]);
 
   // ── Sign Up ──
   const signUp = useCallback(async (email, password, metadata = {}) => {
-    const redirectTo = import.meta.env.VITE_AUTH_REDIRECT_URL || (window.location.origin + (import.meta.env.BASE_URL || '/') + 'auth/callback');
+    const redirectTo = import.meta.env.VITE_AUTH_REDIRECT_URL || getAppPath('auth/callback');
     const res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
@@ -279,8 +334,8 @@ export function AuthProvider({ children }) {
       throw new Error(`Please wait ${remaining} seconds before requesting another reset link.`);
     }
 
-    const redirectTo = import.meta.env.VITE_AUTH_REDIRECT_URL
-      || (window.location.origin + (import.meta.env.BASE_URL || '/') + 'auth/callback');
+    const redirectTo = import.meta.env.VITE_PASSWORD_RESET_REDIRECT_URL
+      || getAppPath('reset-password');
 
     const res = await fetch(`${SUPABASE_URL}/auth/v1/recover`, {
       method: 'POST',
@@ -333,7 +388,7 @@ export function AuthProvider({ children }) {
       throw new Error(`Please wait ${remaining} seconds before requesting another verification email.`);
     }
 
-    const redirectTo = import.meta.env.VITE_AUTH_REDIRECT_URL || (window.location.origin + (import.meta.env.BASE_URL || '/') + 'auth/callback');
+    const redirectTo = import.meta.env.VITE_AUTH_REDIRECT_URL || getAppPath('auth/callback');
     const res = await fetch(`${SUPABASE_URL}/auth/v1/resend`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },

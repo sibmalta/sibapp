@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/auth-context'
 
 export default function ResetPasswordPage() {
-  const { recoveryMode, updatePassword, session } = useAuth()
+  const { recoveryMode, updatePassword, session, loading: authLoading } = useAuth()
   const navigate = useNavigate()
 
   const [password, setPassword] = useState('')
@@ -48,6 +48,22 @@ export default function ResetPasswordPage() {
   }
 
   // Invalid or expired token / no recovery session
+  if (authLoading) {
+    return (
+      <div className="flex flex-col items-center px-5 pt-3 pb-6">
+        <div className="w-full max-w-sm">
+          <div className="bg-white rounded-3xl p-6 shadow-sm text-center">
+            <div className="w-10 h-10 border-4 border-sib-sand border-t-sib-secondary rounded-full animate-spin mx-auto mb-4" />
+            <h2 className="text-base font-bold text-sib-text mb-2">Preparing reset</h2>
+            <p className="text-sm text-sib-muted leading-relaxed">
+              Verifying your reset link...
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (!isValidRecovery && !success) {
     return (
       <div className="flex flex-col items-center px-5 pt-3 pb-6">

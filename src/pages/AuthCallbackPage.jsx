@@ -10,9 +10,11 @@ export default function AuthCallbackPage() {
   // Capture hash presence ONCE on initial mount, before auth-context strips it.
   // auth-context's init() calls replaceState to remove the hash after processing,
   // so we cannot re-read it later.
-  const hadTokenRef = useRef(
-    !!(window.location.hash && window.location.hash.includes('access_token='))
-  )
+  const hadTokenRef = useRef((() => {
+    const hashHasToken = !!(window.location.hash && window.location.hash.includes('access_token='))
+    const searchParams = new URLSearchParams(window.location.search)
+    return hashHasToken || searchParams.has('code') || searchParams.has('token_hash')
+  })())
 
   // Once auth finishes loading, decide where to redirect
   useEffect(() => {

@@ -1,8 +1,9 @@
-import React from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import React, { useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { AppProvider } from './context/AppContext'
 import Layout from './components/Layout'
 import Toast from './components/Toast'
+import { useAuth } from './lib/auth-context'
 
 
 import HomePage from './pages/HomePage'
@@ -44,9 +45,25 @@ import DisputesRefundsPage from './pages/DisputesRefundsPage'
 import CookiePolicyPage from './pages/CookiePolicyPage'
 import DeliverySettingsPage from './pages/DeliverySettingsPage'
 
+function RecoveryRedirector() {
+  const { recoveryMode, session, loading } = useAuth()
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (loading) return
+    if (!recoveryMode || !session?.access_token) return
+    if (location.pathname === '/reset-password') return
+    navigate('/reset-password', { replace: true })
+  }, [loading, recoveryMode, session, location.pathname, navigate])
+
+  return null
+}
+
 function AppRoutes() {
   return (
     <>
+      <RecoveryRedirector />
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<HomePage />} />
