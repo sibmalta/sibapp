@@ -49,12 +49,12 @@ CREATE POLICY "profiles_owner_update" ON profiles
 
 -- ── updated_at helper ─────────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.set_updated_at()
-RETURNS TRIGGER LANGUAGE plpgsql AS $
+RETURNS trigger AS $$
 BEGIN
   NEW.updated_at = now();
   RETURN NEW;
 END;
-$;
+$$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS profiles_set_updated_at ON profiles;
 CREATE TRIGGER profiles_set_updated_at
@@ -70,7 +70,7 @@ CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER SET search_path = public
-AS $
+AS $$
 DECLARE
   _raw       TEXT;
   _base      TEXT;
@@ -155,7 +155,7 @@ EXCEPTION
     RAISE WARNING 'handle_new_user failed for %: %', NEW.id, SQLERRM;
     RETURN NEW;
 END;
-$;
+$$;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created

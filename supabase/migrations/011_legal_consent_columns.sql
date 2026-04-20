@@ -12,7 +12,7 @@ CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER SET search_path = public
-AS $
+AS $$
 DECLARE
   _raw       TEXT;
   _base      TEXT;
@@ -89,4 +89,4 @@ EXCEPTION
     RAISE WARNING 'handle_new_user failed for %: %', NEW.id, SQLERRM;
     RETURN NEW;
 END;
-$;
+$$;

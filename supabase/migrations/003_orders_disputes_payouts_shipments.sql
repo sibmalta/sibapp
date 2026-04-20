@@ -58,7 +58,7 @@ CREATE INDEX IF NOT EXISTS idx_orders_seller     ON orders(seller_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status     ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_listing    ON orders(listing_id);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_orders_stripe_pi  ON orders(stripe_payment_intent_id);
+-- CREATE INDEX IF NOT EXISTS idx_orders_stripe_pi ON orders(stripe_payment_intent_id);
 
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 

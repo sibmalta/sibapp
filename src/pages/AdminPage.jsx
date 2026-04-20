@@ -1072,7 +1072,7 @@ export default function AdminPage() {
             </div>
 
             <div className="flex gap-1.5 mb-3 overflow-x-auto no-scrollbar pb-1">
-              {['all', 'sent', 'failed'].map(s => (
+              {['all', 'success', 'failed'].map(s => (
                 <button key={s} onClick={() => setEmailFilter(s)}
                   className={`text-[10px] font-semibold px-2.5 py-1 rounded-full capitalize whitespace-nowrap border transition-colors ${
                     emailFilter === s ? 'bg-sib-primary text-white border-sib-primary' : 'bg-white text-sib-muted border-sib-ash'
@@ -1084,7 +1084,11 @@ export default function AdminPage() {
 
             {(() => {
               let filtered = emailLogs
-              if (emailFilter !== 'all') filtered = filtered.filter(e => e.status === emailFilter)
+              if (emailFilter !== 'all') {
+                filtered = filtered.filter(e => emailFilter === 'success'
+                  ? (e.status === 'success' || e.status === 'sent')
+                  : e.status === emailFilter)
+              }
               if (emailSearch.trim()) {
                 const q = emailSearch.toLowerCase()
                 filtered = filtered.filter(e =>
@@ -1094,7 +1098,7 @@ export default function AdminPage() {
                   e.resend_id?.toLowerCase().includes(q)
                 )
               }
-              const sentCount = emailLogs.filter(e => e.status === 'sent').length
+              const successCount = emailLogs.filter(e => e.status === 'success' || e.status === 'sent').length
               const failedCount = emailLogs.filter(e => e.status === 'failed').length
 
               return (
@@ -1102,7 +1106,7 @@ export default function AdminPage() {
                   <div className="flex items-center gap-3 mb-2">
                     <p className="text-[11px] text-sib-muted font-medium">{filtered.length} email{filtered.length !== 1 ? 's' : ''}</p>
                     <div className="flex gap-2 text-[10px]">
-                      <span className="text-green-600 font-semibold">{sentCount} sent</span>
+                      <span className="text-green-600 font-semibold">{successCount} success</span>
                       <span className="text-red-500 font-semibold">{failedCount} failed</span>
                     </div>
                   </div>
@@ -1124,7 +1128,7 @@ export default function AdminPage() {
 
                   <div className="space-y-2">
                     {filtered.map((log, idx) => {
-                      const isSent = log.status === 'sent'
+                      const isSent = log.status === 'success' || log.status === 'sent'
                       const typeLabel = (log.email_type || '').replace(/_/g, ' ')
                       return (
                         <div key={log.id || idx} className={`p-3 rounded-2xl border ${isSent ? 'border-sib-ash' : 'border-red-200 bg-red-50/30'}`}>

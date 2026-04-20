@@ -245,7 +245,12 @@ export function AppProvider({ children }) {
           })
           const seller = users.find(u => u.id === s.sellerId)
           if (seller?.email) {
-            sendShippingReminderEmail(seller.email, seller.name, 'item', s.orderRef || s.orderId, Math.round((Date.now() - new Date(s.createdAt).getTime()) / 86400000))
+            sendShippingReminderEmail(seller.email, seller.name, 'item', s.orderRef || s.orderId, Math.round((Date.now() - new Date(s.createdAt).getTime()) / 86400000), {
+              related_entity_type: 'order',
+              related_entity_id: s.orderId,
+              orderId: s.orderId,
+              sellerId: s.sellerId,
+            })
           }
         }
       }
@@ -431,13 +436,28 @@ export function AppProvider({ children }) {
 
     // Email: order confirmation + payment confirmation to buyer
     if (currentUser?.email) {
-      sendOrderConfirmedEmail(currentUser.email, currentUser.username, orderRef, listing.title, totalPrice.toFixed(2), deliveryLabel)
-      sendPaymentConfirmedEmail(currentUser.email, currentUser.username, orderRef, totalPrice.toFixed(2))
+      const emailMeta = {
+        related_entity_type: 'order',
+        related_entity_id: savedOrder.id,
+        orderId: savedOrder.id,
+        listingId: listing.id,
+        sellerId: listing.sellerId,
+        buyerId: currentUser.id,
+      }
+      sendOrderConfirmedEmail(currentUser.email, currentUser.username, orderRef, listing.title, totalPrice.toFixed(2), deliveryLabel, emailMeta)
+      sendPaymentConfirmedEmail(currentUser.email, currentUser.username, orderRef, totalPrice.toFixed(2), emailMeta)
     }
 
     // Email: item sold notification to seller
     if (seller?.email) {
-      sendItemSoldEmail(seller.email, seller.name, listing.title, orderRef, itemPrice.toFixed(2), currentUser.username)
+      sendItemSoldEmail(seller.email, seller.name, listing.title, orderRef, itemPrice.toFixed(2), currentUser.username, {
+        related_entity_type: 'order',
+        related_entity_id: savedOrder.id,
+        orderId: savedOrder.id,
+        listingId: listing.id,
+        sellerId: seller.id,
+        buyerId: currentUser.id,
+      })
     }
 
     return savedOrder
@@ -537,7 +557,14 @@ export function AppProvider({ children }) {
       const sellerUser = users.find(u => u.id === order.sellerId)
       const listing = listings.find(l => l.id === order.listingId)
       if (buyer?.email) {
-        sendItemShippedEmail(buyer.email, buyer.name, listing?.title || 'item', order.orderRef || order.id, sellerUser?.username || 'seller')
+        sendItemShippedEmail(buyer.email, buyer.name, listing?.title || 'item', order.orderRef || order.id, sellerUser?.username || 'seller', {
+          related_entity_type: 'order',
+          related_entity_id: order.id,
+          orderId: order.id,
+          listingId: order.listingId,
+          sellerId: order.sellerId,
+          buyerId: order.buyerId,
+        })
       }
     }
 
@@ -559,7 +586,14 @@ export function AppProvider({ children }) {
       const buyer = users.find(u => u.id === order.buyerId)
       const listing = listings.find(l => l.id === order.listingId)
       if (buyer?.email) {
-        sendItemDeliveredEmail(buyer.email, buyer.name, listing?.title || 'item', order.orderRef || order.id)
+        sendItemDeliveredEmail(buyer.email, buyer.name, listing?.title || 'item', order.orderRef || order.id, {
+          related_entity_type: 'order',
+          related_entity_id: order.id,
+          orderId: order.id,
+          listingId: order.listingId,
+          sellerId: order.sellerId,
+          buyerId: order.buyerId,
+        })
       }
     }
   }, [addNotification, orders, users, listings, dbPatchOrder, showToast])
@@ -594,11 +628,6 @@ export function AppProvider({ children }) {
         title: 'Order confirmed',
         message: 'Thank you for confirming. The seller will receive their payment.',
       })
-      const seller = users.find(u => u.id === order.sellerId)
-      const listing = listings.find(l => l.id === order.listingId)
-      if (seller?.email) {
-        sendPayoutReleasedEmail(seller.email, seller.name, order.orderRef || order.id, order.sellerPayout?.toFixed(2) || '0.00', listing?.title || 'item')
-      }
     }
   }, [orders, users, listings, addNotification, dbPatchOrder, showToast])
 
@@ -664,11 +693,27 @@ export function AppProvider({ children }) {
     // Email: dispute confirmation to buyer
     const buyer = users.find(u => u.id === order.buyerId)
     if (buyer?.email) {
-      sendDisputeOpenedEmail(buyer.email, buyer.name, order.orderRef || orderId, description, 'buyer')
+      sendDisputeOpenedEmail(buyer.email, buyer.name, order.orderRef || orderId, description, 'buyer', {
+        related_entity_type: 'dispute',
+        related_entity_id: newDispute.id,
+        disputeId: newDispute.id,
+        orderId: order.id,
+        listingId: order.listingId,
+        sellerId: order.sellerId,
+        buyerId: order.buyerId,
+      })
     }
     const seller = users.find(u => u.id === order.sellerId)
     if (seller?.email) {
-      sendDisputeOpenedEmail(seller.email, seller.name, order.orderRef || orderId, description, 'seller')
+      sendDisputeOpenedEmail(seller.email, seller.name, order.orderRef || orderId, description, 'seller', {
+        related_entity_type: 'dispute',
+        related_entity_id: newDispute.id,
+        disputeId: newDispute.id,
+        orderId: order.id,
+        listingId: order.listingId,
+        sellerId: order.sellerId,
+        buyerId: order.buyerId,
+      })
     }
 
     return newDispute
@@ -1004,11 +1049,27 @@ export function AppProvider({ children }) {
     })
 
     // Email buyer order confirmation
-    sendOrderConfirmedEmail(currentUser.email, currentUser.username, orderRef, `${items.length}-item bundle`, fees.total.toFixed(2), deliveryLabel)
+    sendOrderConfirmedEmail(currentUser.email, currentUser.username, orderRef, `${items.length}-item bundle`, fees.total.toFixed(2), deliveryLabel, {
+      related_entity_type: 'order',
+      related_entity_id: savedOrder.id,
+      orderId: savedOrder.id,
+      listingId: savedOrder.listingId,
+      sellerId: bundle.sellerId,
+      buyerId: currentUser.id,
+      bundle: true,
+    })
 
     // Email: item sold notification to seller
     if (seller?.email) {
-      sendItemSoldEmail(seller.email, seller.name, `${items.length}-item bundle`, orderRef, subtotal.toFixed(2), currentUser.username)
+      sendItemSoldEmail(seller.email, seller.name, `${items.length}-item bundle`, orderRef, subtotal.toFixed(2), currentUser.username, {
+        related_entity_type: 'order',
+        related_entity_id: savedOrder.id,
+        orderId: savedOrder.id,
+        listingId: savedOrder.listingId,
+        sellerId: bundle.sellerId,
+        buyerId: currentUser.id,
+        bundle: true,
+      })
     }
 
     // Clear bundle after order
@@ -1250,12 +1311,30 @@ export function AppProvider({ children }) {
     // Email buyer order confirmation
     const buyer = users.find(u => u.id === offer.buyerId)
     if (buyer) {
-      sendOrderConfirmedEmail(buyer.email, buyer.username, orderRef, `${items.length}-item bundle`, fees.total.toFixed(2), deliveryLabel)
+      sendOrderConfirmedEmail(buyer.email, buyer.username, orderRef, `${items.length}-item bundle`, fees.total.toFixed(2), deliveryLabel, {
+        related_entity_type: 'order',
+        related_entity_id: savedOrder.id,
+        orderId: savedOrder.id,
+        listingId: savedOrder.listingId,
+        sellerId: offer.sellerId,
+        buyerId: offer.buyerId,
+        bundle: true,
+        bundleOfferId: offerId,
+      })
     }
 
     // Email seller sold notification
     if (sellerUser?.email) {
-      sendItemSoldEmail(sellerUser.email, sellerUser.name, `${items.length}-item bundle`, orderRef, acceptedPrice.toFixed(2), buyer?.username || 'buyer')
+      sendItemSoldEmail(sellerUser.email, sellerUser.name, `${items.length}-item bundle`, orderRef, acceptedPrice.toFixed(2), buyer?.username || 'buyer', {
+        related_entity_type: 'order',
+        related_entity_id: savedOrder.id,
+        orderId: savedOrder.id,
+        listingId: savedOrder.listingId,
+        sellerId: offer.sellerId,
+        buyerId: offer.buyerId,
+        bundle: true,
+        bundleOfferId: offerId,
+      })
     }
 
     // Clear buyer's bundle if it matches
@@ -1312,7 +1391,16 @@ export function AppProvider({ children }) {
 
     const seller = users.find(u => u.id === order.sellerId)
     const listing = listings.find(l => l.id === order.listingId)
-    if (seller?.email) sendPayoutReleasedEmail(seller.email, seller.name, order.orderRef || order.id, order.sellerPayout?.toFixed(2) || '0.00', listing?.title || 'item')
+    if (seller?.email) {
+      sendPayoutReleasedEmail(seller.email, seller.name, order.orderRef || order.id, order.sellerPayout?.toFixed(2) || '0.00', listing?.title || 'item', {
+        related_entity_type: 'order',
+        related_entity_id: order.id,
+        orderId: order.id,
+        listingId: order.listingId,
+        sellerId: order.sellerId,
+        buyerId: order.buyerId,
+      })
+    }
   }, [orders, users, listings, authSession, refreshOrders, showToast])
 
   const refundOrder = useCallback(async (orderId) => {
@@ -1338,7 +1426,16 @@ export function AppProvider({ children }) {
     if (order) {
       const buyer = users.find(u => u.id === order.buyerId)
       const listing = listings.find(l => l.id === order.listingId)
-      if (buyer?.email) sendRefundConfirmedEmail(buyer.email, buyer.name, order.orderRef || orderId, order.totalPrice?.toFixed(2) || '0.00', listing?.title || 'item')
+      if (buyer?.email) {
+        sendRefundConfirmedEmail(buyer.email, buyer.name, order.orderRef || orderId, order.totalPrice?.toFixed(2) || '0.00', listing?.title || 'item', {
+          related_entity_type: 'order',
+          related_entity_id: order.id,
+          orderId: order.id,
+          listingId: order.listingId,
+          sellerId: order.sellerId,
+          buyerId: order.buyerId,
+        })
+      }
     }
   }, [orders, users, listings, authSession, refreshOrders, showToast])
 
@@ -1365,8 +1462,24 @@ export function AppProvider({ children }) {
       const buyer = users.find(u => u.id === dispute.buyerId)
       const seller = users.find(u => u.id === dispute.sellerId)
       const orderRef = order?.orderRef || order?.id || 'N/A'
-      if (buyer?.email) sendDisputeResolvedEmail(buyer.email, buyer.name, orderRef, resolution)
-      if (seller?.email) sendDisputeResolvedEmail(seller.email, seller.name, orderRef, resolution)
+      if (buyer?.email) sendDisputeResolvedEmail(buyer.email, buyer.name, orderRef, resolution, {
+        related_entity_type: 'dispute',
+        related_entity_id: dispute.id,
+        disputeId: dispute.id,
+        orderId: order?.id,
+        listingId: order?.listingId,
+        sellerId: dispute.sellerId,
+        buyerId: dispute.buyerId,
+      })
+      if (seller?.email) sendDisputeResolvedEmail(seller.email, seller.name, orderRef, resolution, {
+        related_entity_type: 'dispute',
+        related_entity_id: dispute.id,
+        disputeId: dispute.id,
+        orderId: order?.id,
+        listingId: order?.listingId,
+        sellerId: dispute.sellerId,
+        buyerId: dispute.buyerId,
+      })
     }
   }, [disputes, orders, users, listings, dbPatchDispute, refundOrder, releasePayout, showToast])
 
@@ -1390,7 +1503,14 @@ export function AppProvider({ children }) {
       const listing = listings.find(l => l.id === order.listingId)
       if (buyer?.email) {
         sendOrderCancelledEmail(buyer.email, buyer.name, order.orderRef || orderId, listing?.title || 'item', order.totalPrice?.toFixed(2) || '0.00')
-        sendRefundConfirmedEmail(buyer.email, buyer.name, order.orderRef || orderId, order.totalPrice?.toFixed(2) || '0.00', listing?.title || 'item')
+        sendRefundConfirmedEmail(buyer.email, buyer.name, order.orderRef || orderId, order.totalPrice?.toFixed(2) || '0.00', listing?.title || 'item', {
+          related_entity_type: 'order',
+          related_entity_id: order.id,
+          orderId: order.id,
+          listingId: order.listingId,
+          sellerId: order.sellerId,
+          buyerId: order.buyerId,
+        })
       }
       if (seller?.email) sendOrderCancelledSellerEmail(seller.email, seller.name, order.orderRef || orderId, listing?.title || 'item')
     }
@@ -1421,8 +1541,22 @@ export function AppProvider({ children }) {
       const buyer = users.find(u => u.id === dispute.buyerId)
       const seller = users.find(u => u.id === dispute.sellerId)
       const orderRef = order?.orderRef || dispute.orderId
-      if (buyer?.email) sendDisputeMessageEmail(buyer.email, buyer.name, orderRef, message)
-      if (seller?.email) sendDisputeMessageEmail(seller.email, seller.name, orderRef, message)
+      if (buyer?.email) sendDisputeMessageEmail(buyer.email, buyer.name, orderRef, message, {
+        related_entity_type: 'dispute',
+        related_entity_id: dispute.id,
+        disputeId: dispute.id,
+        orderId: order?.id,
+        sellerId: dispute.sellerId,
+        buyerId: dispute.buyerId,
+      })
+      if (seller?.email) sendDisputeMessageEmail(seller.email, seller.name, orderRef, message, {
+        related_entity_type: 'dispute',
+        related_entity_id: dispute.id,
+        disputeId: dispute.id,
+        orderId: order?.id,
+        sellerId: dispute.sellerId,
+        buyerId: dispute.buyerId,
+      })
     }
   }, [disputes, orders, users, addNotification, dbPatchDispute, showToast])
 

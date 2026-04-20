@@ -5,27 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Helper: log email send attempt to email_logs table (fire-and-forget)
-async function logEmail(payload: { type: string; to: string; data?: Record<string, any> }, subject: string, status: 'sent' | 'failed', resendId?: string, errorMessage?: string) {
-  try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SERVICE_ROLE_KEY')!
-    )
-    await supabase.from('email_logs').insert({
-      email_type: payload.type,
-      recipient: payload.to,
-      subject,
-      resend_id: resendId || null,
-      status,
-      error_message: errorMessage || null,
-      payload: payload.data || null,
-    })
-  } catch (e) {
-    console.error('[send-email] Failed to log email:', e)
-  }
-}
-
 // AUTH EMAILS (welcome, verification, password reset, password changed) are
 // handled by Supabase GoTrue's built-in mailer via Custom SMTP (Resend SMTP).
 // This edge function handles ONLY app transactional emails.
@@ -58,7 +37,65 @@ type EmailType =
 interface EmailPayload {
   type: EmailType
   to: string
-  data: Record<string, any>
+  data?: Record<string, any>
+  meta?: Record<string, any>
+  related_entity_type?: string
+  related_entity_id?: string
+}
+
+type EmailLogStatus = 'success' | 'failed'
+
+function getServiceRoleClient() {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')
+  const serviceRoleKey = Deno.env.get('SERVICE_ROLE_KEY')
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.error('[send-email] Email logging unavailable: missing SUPABASE_URL or SERVICE_ROLE_KEY')
+    return null
+  }
+
+  return createClient(supabaseUrl, serviceRoleKey)
+}
+
+// Helper: log email send attempt to email_logs table (fire-and-forget)
+async function logEmail(payload: { type: string; to: string; data?: Record<string, any>; meta?: Record<string, any>; related_entity_type?: string; related_entity_id?: string }, subject: string, status: EmailLogStatus, resendId?: string, errorMessage?: string) {
+  try {
+    const supabase = getServiceRoleClient()
+    if (!supabase) return
+
+    const row = {
+      email_type: payload.type,
+      recipient: payload.to,
+      subject,
+      resend_id: resendId || null,
+      status,
+      error_message: errorMessage || null,
+      related_entity_type: payload.related_entity_type || payload.meta?.related_entity_type || payload.meta?.relatedEntityType || null,
+      related_entity_id: payload.related_entity_id || payload.meta?.related_entity_id || payload.meta?.relatedEntityId || null,
+      payload: {
+        data: payload.data || {},
+        meta: payload.meta || {},
+      },
+      sent_at: new Date().toISOString(),
+    }
+
+    const { error } = await supabase.from('email_logs').insert(row)
+    if (error) {
+      // Older DBs may not have sent_at yet; retry without it so logging still works.
+      if (error.message?.includes('sent_at') || error.message?.includes('related_entity_')) {
+        const fallbackRow = { ...row }
+        delete fallbackRow.sent_at
+        delete fallbackRow.related_entity_type
+        delete fallbackRow.related_entity_id
+        const { error: fallbackError } = await supabase.from('email_logs').insert(fallbackRow)
+        if (fallbackError) throw fallbackError
+        return
+      }
+      throw error
+    }
+  } catch (e) {
+    console.error('[send-email] Failed to log email:', e)
+  }
 }
 
 // Strip HTML to plain text for multipart emails (improves deliverability)
@@ -84,7 +121,8 @@ function stripHtmlToText(html: string): string {
 }
 
 function buildEmail(payload: EmailPayload): { subject: string; html: string; preheader: string } {
-  const { type, data } = payload
+  const { type } = payload
+  const data = payload.data || {}
 
   const appUrl = Deno.env.get('APP_URL') || 'https://sibmalta.com'
   const logoUrl = `${appUrl}/assets/sib-3.png`
@@ -258,30 +296,33 @@ function buildEmail(payload: EmailPayload): { subject: string; html: string; pre
     }
 
     case 'dispute_opened': {
-      const { buyerName, orderRef, reason } = data
-      const ph = `We received your dispute for order ${orderRef}.`
+      const { buyerName, recipientName, orderRef, reason, role = 'buyer' } = data
+      const name = recipientName || buyerName || 'there'
+      const isSellerNotice = role === 'seller'
+      const ph = isSellerNotice
+        ? `A dispute was opened on order ${orderRef}.`
+        : `We received your dispute for order ${orderRef}.`
       return {
-        subject: `Dispute received — ${orderRef}`,
+        subject: isSellerNotice ? `Dispute opened — ${orderRef}` : `Dispute received — ${orderRef}`,
         preheader: ph,
         html: wrap(ph, `
-          <h2 style="font-size:18px;color:#1F2937;text-align:center;margin:14px 0 8px;">Dispute Received</h2>
+          <h2 style="font-size:18px;color:#1F2937;text-align:center;margin:14px 0 8px;">${isSellerNotice ? 'Dispute Opened' : 'Dispute Received'}</h2>
           <p style="font-size:14px;color:#4B5563;text-align:center;margin:0 0 14px;">
-            Hi ${buyerName || 'there'}, we received your dispute for order ${orderRef}.
+            ${isSellerNotice ? `Hi ${name}, a dispute was opened on order ${orderRef}.` : `Hi ${name}, we received your dispute for order ${orderRef}.`}
           </p>
           ${infoBox('#FFF7ED', `
             <p style="font-size:14px;color:#4B5563;margin:0 0 4px;"><strong>Reason:</strong> ${reason || 'Issue reported'}</p>
-            <p style="font-size:13px;color:#6B7280;margin:0;">Your payment remains protected while we review.</p>
+            <p style="font-size:13px;color:#6B7280;margin:0;">${isSellerNotice ? 'Your payout remains on hold while we review the order.' : 'Your payment remains protected while we review.'}</p>
           `)}
           <p style="font-size:13px;color:#6B7280;text-align:center;">
-            Our team will review and respond as soon as possible.
+            ${isSellerNotice ? 'Our team will review and contact both parties as soon as possible.' : 'Our team will review and respond as soon as possible.'}
           </p>
           ${btn('View Order', `${appUrl}/orders`)}
         `),
       }
     }
 
-    // ── SELLER EMAILS ─────────────────────────────────────────
-    case 'item_sold': {
+    // ── SELLER EMAILS ─────────────────────────────────────────    case 'item_sold': {
       const { sellerName, itemTitle, orderRef, salePrice, buyerName } = data
       const ph = `Your item "${itemTitle}" was purchased for EUR ${salePrice}.`
       return {
@@ -690,10 +731,19 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  let payload: EmailPayload | null = null
+  let subject = '(unknown)'
+
   try {
+    payload = await req.json()
+    console.log(`[send-email] type=${payload?.type}, to=${payload?.to}`)
+
     const resendKey = Deno.env.get('RESEND_API_KEY')
     if (!resendKey) {
       console.error('[send-email] RESEND_API_KEY not configured')
+      if (payload?.to && payload?.type) {
+        await logEmail(payload, `(${payload.type})`, 'failed', undefined, 'RESEND_API_KEY not configured')
+      }
       return new Response(
         JSON.stringify({ error: 'RESEND_API_KEY not configured. Add it in Environment Variables.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -703,17 +753,24 @@ Deno.serve(async (req) => {
     // Canonical sender — must match verified Resend domain
     const emailFrom = 'Sib <no-reply@sibmalta.com>'
 
-    const payload: EmailPayload = await req.json()
-    console.log(`[send-email] type=${payload.type}, to=${payload.to}`)
-
     if (!payload.to || !payload.type) {
+      if (payload?.type || payload?.to) {
+        await logEmail({
+          type: payload?.type || 'invalid_request',
+          to: payload?.to || 'unknown',
+          data: payload?.data || {},
+          meta: payload?.meta || {},
+        }, '(invalid payload)', 'failed', undefined, 'Missing required fields: to, type')
+      }
       return new Response(
         JSON.stringify({ error: 'Missing required fields: to, type' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    const { subject, html, preheader } = buildEmail(payload)
+    const builtEmail = buildEmail(payload)
+    subject = builtEmail.subject
+    const { html, preheader } = builtEmail
 
     // Plain-text fallback — critical for deliverability (multipart/alternative)
     const textBody = stripHtmlToText(html)
@@ -758,7 +815,7 @@ Deno.serve(async (req) => {
     }
 
     console.log(`[send-email] OK — ${payload.type} to ${payload.to} — ID: ${resendData.id}`)
-    await logEmail(payload, subject, 'sent', resendData.id)
+    await logEmail(payload, subject, 'success', resendData.id)
 
     return new Response(
       JSON.stringify({ success: true, id: resendData.id, subject }),
@@ -766,9 +823,13 @@ Deno.serve(async (req) => {
     )
   } catch (error) {
     console.error('[send-email] ERROR:', error)
+    if (payload?.to && payload?.type) {
+      await logEmail(payload, subject || `(${payload.type})`, 'failed', undefined, error.message || 'Unknown error')
+    }
     return new Response(
       JSON.stringify({ error: error.message || 'Unknown error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
 })
+
