@@ -60,6 +60,7 @@ export function rowToOrder(row) {
     // Stripe fields (written by Edge Functions / checkout pages)
     stripePaymentIntentId: row.stripe_payment_intent_id || null,
     paymentStatus: row.payment_status || null,
+    paymentFlowType: row.payment_flow_type || null,
     sellerPayoutStatus: row.seller_payout_status || null,
     refundedAt: row.refunded_at || null,
     stripeRefundId: row.stripe_refund_id || null,
@@ -115,6 +116,7 @@ export function orderToRow(order) {
   // Stripe fields
   if (order.stripePaymentIntentId !== undefined) row.stripe_payment_intent_id = order.stripePaymentIntentId
   if (order.paymentStatus !== undefined) row.payment_status = order.paymentStatus
+  if (order.paymentFlowType !== undefined) row.payment_flow_type = order.paymentFlowType
   if (order.sellerPayoutStatus !== undefined) row.seller_payout_status = order.sellerPayoutStatus
   if (order.refundedAt !== undefined) row.refunded_at = order.refundedAt
   if (order.stripeRefundId !== undefined) row.stripe_refund_id = order.stripeRefundId

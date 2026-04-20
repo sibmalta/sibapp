@@ -330,6 +330,7 @@ export default function AdminPage() {
                             <p className="text-[10px] text-sib-muted font-medium mb-0.5">Total paid</p>
                             <p className="font-semibold text-sib-text">€{order.totalPrice?.toFixed(2)}</p>
                             <p className="text-[10px] text-sib-muted">Payout: {order.payoutStatus || 'pending'}</p>
+                            <p className="text-[10px] text-sib-muted">Payment flow: {order.paymentFlowType || 'legacy / unknown'}</p>
                           </div>
                         </div>
 

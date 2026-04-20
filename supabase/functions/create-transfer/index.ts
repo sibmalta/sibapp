@@ -6,6 +6,8 @@ const corsHeaders = {
 import Stripe from 'npm:stripe@14.14.0'
 import { createClient } from 'npm:@supabase/supabase-js@2.45.0'
 
+const PROTECTION_WINDOW_MS = 48 * 60 * 60 * 1000
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -50,6 +52,8 @@ Deno.serve(async (req) => {
       Deno.env.get('SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
 
+    const blockingReasons: string[] = []
+
     // Get seller's connected account
     const { data: sellerProfile } = await supabase
       .from('profiles')
@@ -58,30 +62,68 @@ Deno.serve(async (req) => {
       .single()
 
     if (!sellerProfile?.stripe_account_id) {
-      return new Response(
-        JSON.stringify({ error: 'Seller has no Stripe connected account' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+      blockingReasons.push('Seller has no Stripe connected account.')
     }
 
-    if (!sellerProfile.details_submitted || !sellerProfile.charges_enabled || !sellerProfile.payouts_enabled) {
-      return new Response(
-        JSON.stringify({ error: 'Seller Stripe account is not fully ready for payouts' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    if (sellerProfile && !sellerProfile.details_submitted) {
+      blockingReasons.push('Seller has not completed Stripe identity verification.')
+    }
+    if (sellerProfile && !sellerProfile.charges_enabled) {
+      blockingReasons.push('Seller Stripe account is not enabled to receive charges.')
+    }
+    if (sellerProfile && !sellerProfile.payouts_enabled) {
+      blockingReasons.push('Seller Stripe account is not enabled for payouts.')
     }
 
-    // Get the order to find the payment intent (for source_transaction)
+    // Get the order to validate delayed release rules and find the payment intent
     const { data: order } = await supabase
       .from('orders')
-      .select('stripe_payment_intent_id, seller_payout_status')
+      .select('stripe_payment_intent_id, seller_payout_status, tracking_status, delivered_at, confirmed_at')
       .eq('id', orderId)
       .single()
+
+    if (!order) {
+      return new Response(
+        JSON.stringify({ error: 'Order not found.' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
 
     // Guard against double-payout: if already paid, bail out
     if (order?.seller_payout_status === 'paid') {
       return new Response(
         JSON.stringify({ error: 'Seller has already been paid for this order' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const nowMs = Date.now()
+    const deliveredAtMs = order.delivered_at ? new Date(order.delivered_at).getTime() : null
+    const protectionWindowExpired = !!deliveredAtMs && (nowMs - deliveredAtMs >= PROTECTION_WINDOW_MS)
+    const deliveredOrConfirmed = order.tracking_status === 'delivered' || order.tracking_status === 'confirmed' || !!order.confirmed_at
+
+    if (!deliveredOrConfirmed && !protectionWindowExpired) {
+      blockingReasons.push('Order is not marked delivered and the buyer protection window has not expired.')
+    }
+
+    const { data: openDispute } = await supabase
+      .from('disputes')
+      .select('id, status')
+      .eq('order_id', orderId)
+      .in('status', ['open', 'under_review', 'escalated'])
+      .limit(1)
+      .maybeSingle()
+
+    if (openDispute) {
+      blockingReasons.push(`Order has an active dispute (${openDispute.status}).`)
+    }
+
+    if (blockingReasons.length > 0) {
+      return new Response(
+        JSON.stringify({
+          error: 'Transfer blocked by payout release rules.',
+          blocking_reasons: blockingReasons,
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }

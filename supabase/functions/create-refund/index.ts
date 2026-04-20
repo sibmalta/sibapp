@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
     // Get the order and its payment intent
     const { data: order, error: orderErr } = await supabase
       .from('orders')
-      .select('stripe_payment_intent_id, total_price, payment_status')
+      .select('stripe_payment_intent_id, total_price, payment_status, payment_flow_type, seller_payout_status')
       .eq('id', orderId)
       .single()
 
@@ -77,6 +77,8 @@ Deno.serve(async (req) => {
       )
     }
 
+    const paymentFlowType = order.payment_flow_type || null
+
     // Create the refund
     const refundParams: Record<string, unknown> = {
       payment_intent: order.stripe_payment_intent_id,
@@ -84,7 +86,12 @@ Deno.serve(async (req) => {
         order_id: orderId,
         reason: reason || 'requested_by_customer',
         initiated_by: callerId,
+        payment_flow_type: paymentFlowType || 'legacy_unknown',
       },
+    }
+
+    if (paymentFlowType === 'destination_charge') {
+      refundParams.reverse_transfer = true
     }
 
     if (reason) {
@@ -124,6 +131,7 @@ Deno.serve(async (req) => {
         refundId: refund.id,
         amount: refund.amount,
         status: refund.status,
+        paymentFlowType: paymentFlowType || 'legacy_unknown',
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

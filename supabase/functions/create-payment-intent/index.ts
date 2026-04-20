@@ -44,28 +44,6 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Look up seller's connected account for destination charge
-    let transferData: Record<string, unknown> | undefined
-    if (sellerId) {
-      const supabase = createClient(
-        Deno.env.get('SUPABASE_URL')!,
-        Deno.env.get('SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-      )
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('stripe_account_id, details_submitted, charges_enabled, payouts_enabled')
-        .eq('id', sellerId)
-        .single()
-
-      if (profile?.stripe_account_id && profile?.details_submitted && profile?.charges_enabled && profile?.payouts_enabled) {
-        // We'll set up transfer_data for destination charge
-        // The seller receives the item price, platform keeps the fees
-        transferData = {
-          destination: profile.stripe_account_id,
-        }
-      }
-    }
-
     const intentParams: Stripe.PaymentIntentCreateParams = {
       amount: Math.round(amount), // amount in cents
       currency: currency || 'eur',
@@ -81,11 +59,6 @@ Deno.serve(async (req) => {
       // via the Payment Element on supported devices.
       // Bancontact, EPS, and other EU-specific methods are excluded.
       payment_method_types: ['card'],
-    }
-
-    // If seller has connected account, use destination charge
-    if (transferData) {
-      intentParams.transfer_data = transferData as Stripe.PaymentIntentCreateParams.TransferData
     }
 
     const paymentIntent = await stripe.paymentIntents.create(intentParams)

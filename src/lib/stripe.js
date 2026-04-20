@@ -52,7 +52,10 @@ async function callEdgeFunction(fnName, body, accessToken) {
   })
   const data = await res.json()
   if (!res.ok) {
-    throw new Error(data.error || `Edge function ${fnName} failed (${res.status})`)
+    const extra = Array.isArray(data.blocking_reasons) && data.blocking_reasons.length
+      ? ` ${data.blocking_reasons.join(' ')}`
+      : ''
+    throw new Error((data.error || `Edge function ${fnName} failed (${res.status})`) + extra)
   }
   return data
 }
