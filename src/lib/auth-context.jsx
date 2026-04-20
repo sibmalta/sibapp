@@ -306,6 +306,41 @@ export function AuthProvider({ children }) {
     return data;
   }, [scheduleRefresh]);
 
+  const checkEmailVerification = useCallback(async (email, password) => {
+    if (!email || !password) return { verified: false };
+
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const message = data.error_description || data.msg || data.message || 'Login failed';
+      if (
+        /email not confirmed/i.test(message) ||
+        /invalid login/i.test(message) ||
+        /invalid credentials/i.test(message)
+      ) {
+        return { verified: false, message };
+      }
+      throw new Error(message);
+    }
+
+    const sessionData = {
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      user: data.user,
+    };
+    storeSession(sessionData);
+    setSession(sessionData);
+    setUser(data.user);
+    scheduleRefresh(data.expires_in || 3600, data.refresh_token);
+
+    return { verified: true, user: data.user };
+  }, [scheduleRefresh]);
+
   // ── Sign Out ──
   const signOut = useCallback(async () => {
     const stored = getStoredSession();
@@ -441,6 +476,7 @@ export function AuthProvider({ children }) {
       resetPasswordForEmail,
       updatePassword,
       resendVerification,
+      checkEmailVerification,
       updateUserMetadata,
     }}>
       {children}

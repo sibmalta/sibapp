@@ -44,6 +44,10 @@ function friendlyIntentError(raw) {
   return raw
 }
 
+function isValidClientSecret(value) {
+  return typeof value === 'string' && /^pi_[^_]+_secret_.+/.test(value)
+}
+
 function friendlyPaymentError(raw) {
   if (!raw || typeof raw !== 'string') return null
   if (TECHNICAL_PATTERNS.some(p => p.test(raw))) {
@@ -242,7 +246,15 @@ export default function BundleCheckoutPage() {
         sellerId: bundle.sellerId,
         metadata: { bundle: 'true', item_count: String(items.length) },
       }, session?.access_token)
-      setClientSecret(result.clientSecret)
+      const nextClientSecret = result?.clientSecret || result?.client_secret || null
+      if (!isValidClientSecret(nextClientSecret)) {
+        console.error('[BundleCheckoutPage] Missing or malformed Stripe client secret', {
+          clientSecret: nextClientSecret,
+          paymentIntentId: result?.paymentIntentId || result?.payment_intent_id || null,
+        })
+        throw new Error('Payment service returned an invalid client secret.')
+      }
+      setClientSecret(nextClientSecret)
       setAddressConfirmed(true)
     } catch (err) {
       setIntentError(friendlyIntentError(err.message) || "We couldn't load payment options right now. Please try again in a moment.")

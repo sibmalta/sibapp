@@ -60,6 +60,10 @@ async function callEdgeFunction(fnName, body, accessToken) {
   return data
 }
 
+function isValidPaymentIntentClientSecret(value) {
+  return typeof value === 'string' && /^pi_[^_]+_secret_.+/.test(value)
+}
+
 /**
  * Create a PaymentIntent for an order.
  * @param {number} amountCents - Amount in cents (EUR)
@@ -68,7 +72,7 @@ async function callEdgeFunction(fnName, body, accessToken) {
  * @returns {{ clientSecret: string, paymentIntentId: string }}
  */
 export async function createPaymentIntent(amountCents, opts = {}, accessToken) {
-  return callEdgeFunction('create-payment-intent', {
+  const data = await callEdgeFunction('create-payment-intent', {
     amount: amountCents,
     currency: 'eur',
     orderId: opts.orderId || '',
@@ -76,6 +80,24 @@ export async function createPaymentIntent(amountCents, opts = {}, accessToken) {
     sellerId: opts.sellerId || '',
     metadata: opts.metadata || {},
   }, accessToken)
+
+  const clientSecret = data?.clientSecret || data?.client_secret || null
+  const paymentIntentId = data?.paymentIntentId || data?.payment_intent_id || null
+
+  if (!isValidPaymentIntentClientSecret(clientSecret)) {
+    console.error('[createPaymentIntent] Invalid client secret returned from backend', {
+      clientSecret,
+      paymentIntentId,
+      rawKeys: data ? Object.keys(data) : [],
+    })
+    throw new Error('Payment service returned an invalid client secret.')
+  }
+
+  return {
+    ...data,
+    clientSecret,
+    paymentIntentId,
+  }
 }
 
 /**

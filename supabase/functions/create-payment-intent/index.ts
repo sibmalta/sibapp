@@ -62,11 +62,22 @@ Deno.serve(async (req) => {
     }
 
     const paymentIntent = await stripe.paymentIntents.create(intentParams)
+    if (!paymentIntent.client_secret) {
+      console.error('create-payment-intent returned PaymentIntent without client_secret', {
+        paymentIntentId: paymentIntent.id,
+      })
+      return new Response(
+        JSON.stringify({ error: 'Stripe did not return a valid client secret.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
 
     return new Response(
       JSON.stringify({
         clientSecret: paymentIntent.client_secret,
+        client_secret: paymentIntent.client_secret,
         paymentIntentId: paymentIntent.id,
+        payment_intent_id: paymentIntent.id,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

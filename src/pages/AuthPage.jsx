@@ -7,7 +7,7 @@ import { moderateUsername, moderateContent } from '../lib/moderation'
 
 export default function AuthPage() {
   const { showToast, currentUser } = useApp()
-  const { signIn, signUp, resendVerification } = useAuth()
+  const { signIn, signUp, resendVerification, checkEmailVerification } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [searchParams] = useSearchParams()
@@ -20,6 +20,7 @@ export default function AuthPage() {
   const [success, setSuccess] = useState(false)
   const [verificationPending, setVerificationPending] = useState(false)
   const [resendCooldown, setResendCooldown] = useState(false)
+  const [checkingVerification, setCheckingVerification] = useState(false)
 
   // Determine where to redirect after login
   const getRedirectPath = () => {
@@ -151,6 +152,42 @@ export default function AuthPage() {
     }
   }
 
+  const handleVerificationCheck = async (manual = false) => {
+    const email = form.email.trim().toLowerCase()
+    const password = form.password
+    if (!email || !password || checkingVerification) return false
+
+    setCheckingVerification(true)
+    try {
+      const result = await checkEmailVerification(email, password)
+      if (result?.verified) {
+        setSuccess(true)
+        setVerificationPending(false)
+        showToast('Email verified. Redirecting...')
+        return true
+      }
+      if (manual) {
+        showToast('Your email is not verified yet. Please check your inbox and try again.', 'error')
+      }
+      return false
+    } catch (err) {
+      if (manual) {
+        showToast(err?.message || 'Could not refresh verification status.', 'error')
+      }
+      return false
+    } finally {
+      setCheckingVerification(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!verificationPending) return
+    const interval = setInterval(() => {
+      handleVerificationCheck(false)
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [verificationPending, form.email, form.password, checkEmailVerification, checkingVerification])
+
   // Verification pending state
   if (verificationPending) {
     return (
@@ -176,6 +213,15 @@ export default function AuthPage() {
             >
               {resendCooldown ? 'Email sent. Check your spam or junk folder if needed.' : 'Resend verification email'}
             </button>
+            <div className="mt-3">
+              <button
+                onClick={() => handleVerificationCheck(true)}
+                disabled={checkingVerification}
+                className="text-sm text-sib-text font-medium disabled:text-sib-muted disabled:cursor-not-allowed"
+              >
+                {checkingVerification ? 'Checking verification...' : "I've verified my email"}
+              </button>
+            </div>
             <div className="mt-5 pt-4 border-t border-sib-sand">
               <button
                 onClick={() => { setVerificationPending(false); setMode('login') }}
