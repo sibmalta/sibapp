@@ -1,12 +1,31 @@
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-user-token',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
 import Stripe from 'npm:stripe@14.14.0'
 import { createClient } from 'npm:@supabase/supabase-js@2.45.0'
 
 const PROTECTION_WINDOW_MS = 48 * 60 * 60 * 1000
+
+type JsonObject = Record<string, unknown>
+
+function jsonResponse(body: JsonObject, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  })
+}
+
+function getBearerToken(req: Request): string | null {
+  const authHeader = req.headers.get('authorization')
+  if (!authHeader) return null
+
+  const [scheme, token] = authHeader.split(' ')
+  if (scheme?.toLowerCase() !== 'bearer' || !token) return null
+
+  return token
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -15,98 +34,221 @@ Deno.serve(async (req) => {
 
   try {
     const stripeKey = Deno.env.get('STRIPE_SECRET_KEY')
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
+    const serviceRoleKey =
+      Deno.env.get('SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+
     if (!stripeKey) {
-      return new Response(
-        JSON.stringify({ error: 'STRIPE_SECRET_KEY not configured.' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      return jsonResponse({ error: 'STRIPE_SECRET_KEY not configured.' }, 500)
+    }
+
+    if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey) {
+      return jsonResponse(
+        { error: 'Supabase environment variables are not configured correctly.' },
+        500
       )
+    }
+
+    const token = getBearerToken(req)
+    if (!token) {
+      return jsonResponse({ error: 'Missing bearer token.' }, 401)
+    }
+
+    const authClient = createClient(supabaseUrl, supabaseAnonKey)
+    const {
+      data: { user },
+      error: authError,
+    } = await authClient.auth.getUser(token)
+
+    if (authError || !user) {
+      return jsonResponse({ error: 'Invalid or expired token.' }, 401)
     }
 
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' })
 
-    const userToken = req.headers.get('x-user-token')
-      || req.headers.get('authorization')?.replace('Bearer ', '')
-    if (!userToken) {
-      return new Response(
-        JSON.stringify({ error: 'Not authenticated' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    let body: { orderId?: string; payoutId?: string } = {}
+    try {
+      body = await req.json()
+    } catch {
+      return jsonResponse({ error: 'Invalid JSON body.' }, 400)
     }
 
-    // Decode JWT to verify admin or system caller
-    const payloadBase64 = userToken.split('.')[1]
-    const jwtPayload = JSON.parse(atob(payloadBase64))
-    const callerId = jwtPayload.sub
+    const { orderId, payoutId } = body
 
-    const { orderId, payoutId, amount, sellerId } = await req.json()
-
-    if (!orderId || !amount || !sellerId) {
-      return new Response(
-        JSON.stringify({ error: 'orderId, amount, and sellerId are required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    if (!orderId) {
+      return jsonResponse({ error: 'orderId is required.' }, 400)
     }
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    )
+    const supabase = createClient(supabaseUrl, serviceRoleKey)
 
-    const blockingReasons: string[] = []
-
-    // Get seller's connected account
-    const { data: sellerProfile } = await supabase
+    // Authorize caller.
+    // This function should be privileged. For now, only allow the sibadmin account.
+    // Adjust this query if you use a dedicated role/permissions table later.
+    const { data: callerProfile, error: callerProfileError } = await supabase
       .from('profiles')
-      .select('stripe_account_id, details_submitted, charges_enabled, payouts_enabled')
-      .eq('id', sellerId)
+      .select('id, username')
+      .eq('id', user.id)
       .single()
 
-    if (!sellerProfile?.stripe_account_id) {
-      blockingReasons.push('Seller has no Stripe connected account.')
+    if (callerProfileError || !callerProfile) {
+      return jsonResponse({ error: 'Caller profile not found.' }, 403)
     }
 
-    if (sellerProfile && !sellerProfile.details_submitted) {
-      blockingReasons.push('Seller has not completed Stripe identity verification.')
-    }
-    if (sellerProfile && !sellerProfile.charges_enabled) {
-      blockingReasons.push('Seller Stripe account is not enabled to receive charges.')
-    }
-    if (sellerProfile && !sellerProfile.payouts_enabled) {
-      blockingReasons.push('Seller Stripe account is not enabled for payouts.')
+    const callerUsername = String(callerProfile.username || '').toLowerCase()
+    const isPrivilegedCaller = callerUsername === 'sibadmin' || callerUsername === '@sibadmin'
+
+    if (!isPrivilegedCaller) {
+      return jsonResponse(
+        { error: 'You are not authorized to release seller payouts.' },
+        403
+      )
     }
 
-    // Get the order to validate delayed release rules and find the payment intent
-    const { data: order } = await supabase
+    // Fetch order server-side. Never trust sellerId or amount from the client.
+    const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('stripe_payment_intent_id, seller_payout_status, tracking_status, delivered_at, confirmed_at')
+      .select(`
+        id,
+        seller_id,
+        stripe_payment_intent_id,
+        seller_payout_status,
+        payout_status,
+        tracking_status,
+        delivered_at,
+        confirmed_at,
+        payout_released_at
+      `)
       .eq('id', orderId)
       .single()
 
-    if (!order) {
-      return new Response(
-        JSON.stringify({ error: 'Order not found.' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    if (orderError || !order) {
+      return jsonResponse({ error: 'Order not found.' }, 404)
+    }
+
+    if (!order.seller_id) {
+      return jsonResponse({ error: 'Order is missing seller information.' }, 400)
+    }
+
+    // Hard stop if order already marked paid/released
+    if (
+      order.seller_payout_status === 'paid' ||
+      order.payout_status === 'released' ||
+      order.payout_released_at
+    ) {
+      return jsonResponse(
+        { error: 'Seller has already been paid for this order.' },
+        400
       )
     }
 
-    // Guard against double-payout: if already paid, bail out
-    if (order?.seller_payout_status === 'paid') {
-      return new Response(
-        JSON.stringify({ error: 'Seller has already been paid for this order' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    // Fetch payout record server-side and derive transfer amount from DB only.
+    let payoutQuery = supabase
+      .from('payouts')
+      .select('id, order_id, seller_id, amount, status, stripe_transfer_id')
+      .eq('order_id', orderId)
+
+    if (payoutId) {
+      payoutQuery = payoutQuery.eq('id', payoutId)
+    }
+
+    const { data: payoutRows, error: payoutError } = await payoutQuery.limit(5)
+
+    if (payoutError) {
+      return jsonResponse({ error: 'Failed to load payout record.' }, 500)
+    }
+
+    if (!payoutRows || payoutRows.length === 0) {
+      return jsonResponse({ error: 'No eligible payout record found for this order.' }, 404)
+    }
+
+    if (payoutRows.length > 1 && !payoutId) {
+      return jsonResponse(
+        { error: 'Multiple payout records found. Pass payoutId explicitly.' },
+        400
       )
+    }
+
+    const payout = payoutRows[0]
+
+    if (!payout) {
+      return jsonResponse({ error: 'Payout record not found.' }, 404)
+    }
+
+    if (payout.seller_id !== order.seller_id) {
+      return jsonResponse(
+        { error: 'Payout seller does not match order seller.' },
+        400
+      )
+    }
+
+    if (payout.stripe_transfer_id) {
+      return jsonResponse(
+        { error: 'This payout already has a Stripe transfer attached.' },
+        400
+      )
+    }
+
+    if (!['pending', 'held'].includes(String(payout.status))) {
+      return jsonResponse(
+        { error: `Payout is not eligible for release from status "${payout.status}".` },
+        400
+      )
+    }
+
+    const payoutAmount = Number(payout.amount)
+    if (!Number.isFinite(payoutAmount) || payoutAmount <= 0) {
+      return jsonResponse({ error: 'Invalid payout amount on payout record.' }, 400)
+    }
+
+    const transferAmount = Math.round(payoutAmount)
+    if (transferAmount <= 0) {
+      return jsonResponse({ error: 'Transfer amount must be greater than zero.' }, 400)
+    }
+
+    const blockingReasons: string[] = []
+
+    // Get seller Stripe account server-side
+    const { data: sellerProfile, error: sellerProfileError } = await supabase
+      .from('profiles')
+      .select('id, stripe_account_id, details_submitted, charges_enabled, payouts_enabled')
+      .eq('id', order.seller_id)
+      .single()
+
+    if (sellerProfileError || !sellerProfile) {
+      return jsonResponse({ error: 'Seller profile not found.' }, 404)
+    }
+
+    if (!sellerProfile.stripe_account_id) {
+      blockingReasons.push('Seller has no Stripe connected account.')
+    }
+    if (!sellerProfile.details_submitted) {
+      blockingReasons.push('Seller has not completed Stripe identity verification.')
+    }
+    if (!sellerProfile.charges_enabled) {
+      blockingReasons.push('Seller Stripe account is not enabled to receive charges.')
+    }
+    if (!sellerProfile.payouts_enabled) {
+      blockingReasons.push('Seller Stripe account is not enabled for payouts.')
     }
 
     const nowMs = Date.now()
     const deliveredAtMs = order.delivered_at ? new Date(order.delivered_at).getTime() : null
-    const protectionWindowExpired = !!deliveredAtMs && (nowMs - deliveredAtMs >= PROTECTION_WINDOW_MS)
-    const deliveredOrConfirmed = order.tracking_status === 'delivered' || order.tracking_status === 'confirmed' || !!order.confirmed_at
+    const protectionWindowExpired =
+      !!deliveredAtMs && nowMs - deliveredAtMs >= PROTECTION_WINDOW_MS
+
+    const deliveredOrConfirmed =
+      order.tracking_status === 'delivered' ||
+      order.tracking_status === 'confirmed' ||
+      !!order.confirmed_at
 
     if (!deliveredOrConfirmed && !protectionWindowExpired) {
-      blockingReasons.push('Order is not marked delivered and the buyer protection window has not expired.')
+      blockingReasons.push(
+        'Order is not marked delivered and the buyer protection window has not expired.'
+      )
     }
 
-    const { data: openDispute } = await supabase
+    const { data: openDispute, error: disputeError } = await supabase
       .from('disputes')
       .select('id, status')
       .eq('order_id', orderId)
@@ -114,100 +256,102 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle()
 
+    if (disputeError) {
+      return jsonResponse({ error: 'Failed to check disputes for this order.' }, 500)
+    }
+
     if (openDispute) {
       blockingReasons.push(`Order has an active dispute (${openDispute.status}).`)
     }
 
     if (blockingReasons.length > 0) {
-      return new Response(
-        JSON.stringify({
+      return jsonResponse(
+        {
           error: 'Transfer blocked by payout release rules.',
           blocking_reasons: blockingReasons,
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        },
+        400
       )
     }
 
-    // Check if this PaymentIntent used destination charges (transfer_data.destination)
-    // If so, Stripe already routed funds to the seller — skip creating a separate transfer
+    // Check if funds were already routed via destination charge.
     let alreadyTransferredViaDestination = false
-    if (order?.stripe_payment_intent_id) {
+    let sourceTransactionId: string | undefined
+
+    if (order.stripe_payment_intent_id) {
       try {
-        const pi = await stripe.paymentIntents.retrieve(order.stripe_payment_intent_id)
-        if (pi.transfer_data?.destination) {
+        const paymentIntent = await stripe.paymentIntents.retrieve(order.stripe_payment_intent_id)
+
+        if (paymentIntent.transfer_data?.destination) {
           alreadyTransferredViaDestination = true
         }
+
+        const chargeId = paymentIntent.latest_charge
+        if (chargeId) {
+          sourceTransactionId = typeof chargeId === 'string' ? chargeId : chargeId.id
+        }
       } catch (piErr) {
-        console.warn('Could not retrieve PaymentIntent, will create manual transfer:', piErr.message)
+        console.warn(
+          'Could not retrieve PaymentIntent for transfer checks:',
+          piErr instanceof Error ? piErr.message : String(piErr)
+        )
       }
     }
 
     let transferId = ''
-    let transferAmount = Math.round(amount)
+    let finalAmount = transferAmount
 
     if (alreadyTransferredViaDestination) {
-      // Funds were already routed via destination charge — no separate transfer needed
-      console.log('Destination charge already transferred funds to seller; skipping manual transfer.')
       transferId = 'destination_charge'
     } else {
-      // Create the transfer to the connected account
-      const transferParams: Record<string, unknown> = {
+      if (!sellerProfile.stripe_account_id) {
+        return jsonResponse({ error: 'Seller Stripe account not available.' }, 400)
+      }
+
+      const transferParams: Stripe.TransferCreateParams = {
         amount: transferAmount,
         currency: 'eur',
         destination: sellerProfile.stripe_account_id,
         metadata: {
           order_id: orderId,
-          payout_id: payoutId || '',
-          seller_id: sellerId,
-          initiated_by: callerId,
+          payout_id: payout.id,
+          seller_id: order.seller_id,
+          initiated_by: user.id,
         },
       }
 
-      // If we have the payment intent, retrieve its latest charge for source_transaction
-      if (order?.stripe_payment_intent_id) {
-        try {
-          const pi = await stripe.paymentIntents.retrieve(order.stripe_payment_intent_id)
-          const chargeId = pi.latest_charge
-          if (chargeId) {
-            transferParams.source_transaction = typeof chargeId === 'string' ? chargeId : chargeId.id
-          }
-        } catch (piErr) {
-          console.warn('Could not retrieve PaymentIntent charge, proceeding without source_transaction:', piErr.message)
-        }
+      if (sourceTransactionId) {
+        transferParams.source_transaction = sourceTransactionId
       }
 
-      const transfer = await stripe.transfers.create(transferParams as Stripe.TransferCreateParams)
+      const transfer = await stripe.transfers.create(transferParams)
       transferId = transfer.id
-      transferAmount = transfer.amount
+      finalAmount = transfer.amount
     }
 
-    // Auto-lookup payout record if payoutId was not passed
-    let resolvedPayoutId = payoutId
-    if (!resolvedPayoutId) {
-      const { data: payoutRow } = await supabase
-        .from('payouts')
-        .select('id')
-        .eq('order_id', orderId)
-        .in('status', ['pending', 'held'])
-        .limit(1)
-        .single()
-      if (payoutRow) resolvedPayoutId = payoutRow.id
+    // Write payout record update.
+    const { error: payoutUpdateError } = await supabase
+      .from('payouts')
+      .update({
+        stripe_transfer_id: transferId,
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+      })
+      .eq('id', payout.id)
+      .is('stripe_transfer_id', null)
+
+    if (payoutUpdateError) {
+      return jsonResponse(
+        {
+          error: 'Transfer created, but failed to update payout record. Manual review required.',
+          transferId,
+        },
+        500
+      )
     }
 
-    // Update payout record with stripe_transfer_id
-    if (resolvedPayoutId) {
-      await supabase
-        .from('payouts')
-        .update({
-          stripe_transfer_id: transferId,
-          status: 'completed',
-          completed_at: new Date().toISOString(),
-        })
-        .eq('id', resolvedPayoutId)
-    }
-
-    // Update order seller_payout_status
-    await supabase
+    // Update order only if not already marked paid.
+    const { error: orderUpdateError } = await supabase
       .from('orders')
       .update({
         seller_payout_status: 'paid',
@@ -215,20 +359,28 @@ Deno.serve(async (req) => {
         payout_released_at: new Date().toISOString(),
       })
       .eq('id', orderId)
+      .neq('seller_payout_status', 'paid')
 
-    return new Response(
-      JSON.stringify({
-        transferId,
-        amount: transferAmount,
-        status: 'completed',
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    if (orderUpdateError) {
+      return jsonResponse(
+        {
+          error: 'Transfer created, but failed to update order payout status. Manual review required.',
+          transferId,
+        },
+        500
+      )
+    }
+
+    return jsonResponse({
+      transferId,
+      amount: finalAmount,
+      status: 'completed',
+    })
   } catch (error) {
     console.error('create-transfer error:', error)
-    return new Response(
-      JSON.stringify({ error: error.message || 'Failed to create transfer' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    return jsonResponse(
+      { error: error instanceof Error ? error.message : 'Failed to create transfer' },
+      500
     )
   }
 })

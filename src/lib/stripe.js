@@ -68,19 +68,15 @@ function isValidPaymentIntentClientSecret(value) {
 
 /**
  * Create a PaymentIntent for an order.
- * @param {number} amountCents - Amount in cents (EUR)
- * @param {object} opts - { orderId, orderRef, sellerId, metadata }
+ * @param {object} opts - { listingId, listingIds, deliveryMethod }
  * @param {string} accessToken - User's JWT
  * @returns {{ clientSecret: string, paymentIntentId: string }}
  */
-export async function createPaymentIntent(amountCents, opts = {}, accessToken) {
+export async function createPaymentIntent(opts = {}, accessToken) {
   const data = await callEdgeFunction('create-payment-intent', {
-    amount: amountCents,
-    currency: 'eur',
-    orderId: opts.orderId || '',
-    orderRef: opts.orderRef || '',
-    sellerId: opts.sellerId || '',
-    metadata: opts.metadata || {},
+    listingId: opts.listingId || '',
+    listingIds: opts.listingIds || [],
+    deliveryMethod: opts.deliveryMethod || 'home_delivery',
   }, accessToken)
 
   const clientSecret = data?.clientSecret || data?.client_secret || null

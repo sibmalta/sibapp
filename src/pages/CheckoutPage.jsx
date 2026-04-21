@@ -281,9 +281,9 @@ export default function CheckoutPage() {
     }
 
     try {
-      const result = await createPaymentIntent(amountCents, {
-        sellerId: listing.sellerId,
-        metadata: { listing_id: listing.id, listing_title: listing.title },
+      const result = await createPaymentIntent({
+        listingId: listing.id,
+        deliveryMethod: deliveryMethodId,
       }, session.access_token)
       const nextClientSecret = result?.clientSecret || result?.client_secret || null
       if (!isValidClientSecret(nextClientSecret)) {

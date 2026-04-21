@@ -249,9 +249,9 @@ export default function BundleCheckoutPage() {
     }
 
     try {
-      const result = await createPaymentIntent(amountCents, {
-        sellerId: bundle.sellerId,
-        metadata: { bundle: 'true', item_count: String(items.length) },
+      const result = await createPaymentIntent({
+        listingIds: items.map(item => item.id),
+        deliveryMethod: deliveryMethodId,
       }, session.access_token)
       const nextClientSecret = result?.clientSecret || result?.client_secret || null
       if (!isValidClientSecret(nextClientSecret)) {
