@@ -6,10 +6,6 @@ const STRIPE_PK = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
 
 let stripePromise = null
 
-/**
- * Returns true if the Stripe publishable key is configured.
- * Use this to guard UI before attempting to load Stripe Elements.
- */
 export function isStripeConfigured() {
   return !!STRIPE_PK
 }
@@ -34,9 +30,8 @@ function getHeaders(accessToken) {
 
   return {
     'Content-Type': 'application/json',
-    'apikey': SUPABASE_ANON_KEY,
-    'Authorization': `Bearer ${accessToken}`,
-    'x-user-token': accessToken,
+    apikey: SUPABASE_ANON_KEY,
+    Authorization: `Bearer ${accessToken}`,
   }
 }
 
@@ -52,13 +47,17 @@ async function callEdgeFunction(fnName, body, accessToken) {
     headers: getHeaders(accessToken),
     body: JSON.stringify(body),
   })
+
   const data = await res.json()
+
   if (!res.ok) {
     const extra = Array.isArray(data.blocking_reasons) && data.blocking_reasons.length
       ? ` ${data.blocking_reasons.join(' ')}`
       : ''
+
     throw new Error((data.error || `Edge function ${fnName} failed (${res.status})`) + extra)
   }
+
   return data
 }
 
@@ -66,18 +65,16 @@ function isValidPaymentIntentClientSecret(value) {
   return typeof value === 'string' && /^pi_[^_]+_secret_.+/.test(value)
 }
 
-/**
- * Create a PaymentIntent for an order.
- * @param {object} opts - { listingId, listingIds, deliveryMethod }
- * @param {string} accessToken - User's JWT
- * @returns {{ clientSecret: string, paymentIntentId: string }}
- */
 export async function createPaymentIntent(opts = {}, accessToken) {
-  const data = await callEdgeFunction('create-payment-intent', {
-    listingId: opts.listingId || '',
-    listingIds: opts.listingIds || [],
-    deliveryMethod: opts.deliveryMethod || 'home_delivery',
-  }, accessToken)
+  const data = await callEdgeFunction(
+    'create-payment-intent',
+    {
+      listingId: opts.listingId || '',
+      listingIds: opts.listingIds || [],
+      deliveryMethod: opts.deliveryMethod || 'home_delivery',
+    },
+    accessToken
+  )
 
   const clientSecret = data?.clientSecret || data?.client_secret || null
   const paymentIntentId = data?.paymentIntentId || data?.payment_intent_id || null
@@ -98,51 +95,35 @@ export async function createPaymentIntent(opts = {}, accessToken) {
   }
 }
 
-/**
- * Create a Stripe Connect Express account for the current seller.
- * @param {string} accessToken
- * @returns {{ accountId: string }}
- */
 export async function createConnectedAccount(accessToken) {
   return callEdgeFunction('create-connected-account', {}, accessToken)
 }
 
-/**
- * Create an onboarding or dashboard link for a connected account.
- * @param {string} accountId
- * @param {string} returnUrl
- * @param {string} accessToken
- * @returns {{ url: string, alreadyOnboarded: boolean, detailsSubmitted?: boolean, chargesEnabled: boolean, payoutsEnabled: boolean }}
- */
-export async function createAccountLink(accountId, returnUrl, accessToken) {
-  return callEdgeFunction('create-account-link', {
-    accountId,
-    returnUrl,
-    refreshUrl: returnUrl,
-  }, accessToken)
+export async function createAccountLink(returnUrl, accessToken) {
+  return callEdgeFunction(
+    'create-account-link',
+    {
+      returnUrl,
+      refreshUrl: returnUrl,
+    },
+    accessToken
+  )
 }
 
-/**
- * Fetch the seller's current Stripe Connect onboarding status.
- * Does not create a connected account when none exists.
- */
 export async function getStripeConnectStatus(accessToken) {
   if (!isValidSupabaseAccessToken(accessToken)) {
     throw new Error('Not authenticated. Please log in to view payout setup.')
   }
 
-  return callEdgeFunction('stripe-connect', {
-    mode: 'status',
-  }, accessToken)
+  return callEdgeFunction(
+    'stripe-connect',
+    {
+      mode: 'status',
+    },
+    accessToken
+  )
 }
 
-/**
- * Call the unified stripe-connect Edge Function for Stripe Connect onboarding.
- * Returns a Stripe onboarding/dashboard URL to redirect the user to.
- * @param {string} accessToken - User's JWT for authentication
- * @param {string} returnUrl - URL to return to after Stripe onboarding
- * @returns {{ url: string, accountId?: string, alreadyOnboarded?: boolean, detailsSubmitted?: boolean, chargesEnabled?: boolean, payoutsEnabled?: boolean }}
- */
 export async function startStripeConnect(accessToken, returnUrl) {
   if (!isValidSupabaseAccessToken(accessToken)) {
     throw new Error('Not authenticated. Please log in to set up payouts.')
@@ -151,6 +132,7 @@ export async function startStripeConnect(accessToken, returnUrl) {
   const url = `${SUPABASE_URL}/functions/v1/stripe-connect`
   const headers = getHeaders(accessToken)
   const safeReturnUrl = returnUrl || getPayoutSettingsUrl()
+
   const body = JSON.stringify({
     mode: 'start',
     returnUrl: safeReturnUrl,
@@ -160,9 +142,8 @@ export async function startStripeConnect(accessToken, returnUrl) {
   console.log('[stripe-connect] POST', url)
   console.log('[stripe-connect] headers', {
     'Content-Type': headers['Content-Type'],
-    'apikey': '***',
-    'Authorization': 'Bearer <user-jwt>',
-    'x-user-token': '<user-jwt>',
+    apikey: '***',
+    Authorization: 'Bearer <user-jwt>',
   })
   console.log('[stripe-connect] body', body)
 
@@ -197,23 +178,10 @@ export async function startStripeConnect(accessToken, returnUrl) {
   return data
 }
 
-/**
- * Create a Stripe Transfer to a seller's connected account (payout release).
- * @param {object} params - { orderId, payoutId, amount (cents), sellerId }
- * @param {string} accessToken
- * @returns {{ transferId: string, amount: number, status: string }}
- */
 export async function createTransfer(params, accessToken) {
   return callEdgeFunction('create-transfer', params, accessToken)
 }
 
-/**
- * Create a Stripe Refund for an order.
- * @param {string} orderId
- * @param {string} reason - optional: 'duplicate', 'fraudulent', or default
- * @param {string} accessToken
- * @returns {{ refundId: string, amount: number, status: string }}
- */
 export async function createRefund(orderId, reason, accessToken) {
   return callEdgeFunction('create-refund', { orderId, reason }, accessToken)
 }

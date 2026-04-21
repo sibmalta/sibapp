@@ -1,179 +1,37 @@
-import Stripe from 'npm:stripe@14.14.0'
-import { createClient } from 'npm:@supabase/supabase-js@2.45.0'
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const DELIVERY_TIERS: Record<string, number> = {
-  small: 2.99,
-  medium: 4.95,
-  heavy: 9.95,
-  bulky: 39.95,
-  large: 39.95,
-}
+import Stripe from 'npm:stripe@14.14.0'
+import { createClient } from 'npm:@supabase/supabase-js@2.45.0'
 
-const BUNDLE_DELIVERY_FEES: Record<string, number> = {
-  home_delivery: 4.50,
-  locker_collection: 3.25,
-}
+type JsonObject = Record<string, unknown>
 
-type ListingRow = {
-  id: string
-  seller_id: string
-  title: string | null
-  price: number | string | null
-  category: string | null
-  subcategory: string | null
-  delivery_size: string | null
-  status: string | null
-}
-
-class CheckoutError extends Error {
-  status: number
-
-  constructor(message: string, status = 400) {
-    super(message)
-    this.status = status
-  }
-}
-
-function jsonResponse(body: Record<string, unknown>, status = 200) {
+function jsonResponse(body: JsonObject, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })
 }
 
-function getBearerToken(req: Request) {
-  const authHeader = req.headers.get('authorization') || ''
-  if (!authHeader.startsWith('Bearer ')) return ''
-  return authHeader.slice('Bearer '.length).trim()
+function getBearerToken(req: Request): string | null {
+  const authHeader = req.headers.get('authorization')
+  if (!authHeader) return null
+
+  const [scheme, token] = authHeader.split(' ')
+  if (scheme?.toLowerCase() !== 'bearer' || !token) return null
+
+  return token
 }
 
-function cents(amount: number) {
-  return Math.round(amount * 100)
+function toMoneyNumber(value: unknown): number {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : 0
 }
 
-function buyerProtectionFee(itemSubtotal: number) {
-  return Number((0.75 + itemSubtotal * 0.05).toFixed(2))
-}
-
-function getSingleListingDeliveryFee(listing: ListingRow, deliveryMethod: string) {
-  const rawSize = listing.delivery_size || 'medium'
-  const deliverySize = rawSize === 'large' ? 'bulky' : rawSize
-  const tierPrice = DELIVERY_TIERS[deliverySize] ?? DELIVERY_TIERS.medium
-
-  if (deliverySize === 'bulky' || deliverySize === 'heavy') {
-    return tierPrice
-  }
-
-  if (deliveryMethod === 'locker_collection') {
-    return deliverySize === 'small'
-      ? Math.max(tierPrice - 0.50, 1.99)
-      : Math.max(tierPrice - 1.00, 2.99)
-  }
-
-  return tierPrice
-}
-
-function getBundleDeliveryFee(deliveryMethod: string) {
-  return BUNDLE_DELIVERY_FEES[deliveryMethod] ?? BUNDLE_DELIVERY_FEES.home_delivery
-}
-
-async function authenticateUser(req: Request) {
-  const token = getBearerToken(req)
-  if (!token) {
-    return { user: null, error: jsonResponse({ error: 'Missing bearer token. Please log in again and retry checkout.' }, 401) }
-  }
-
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')
-  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return { user: null, error: jsonResponse({ error: 'Supabase auth configuration is missing.' }, 500) }
-  }
-
-  const authClient = createClient(supabaseUrl, supabaseAnonKey)
-  const { data, error } = await authClient.auth.getUser(token)
-
-  if (error || !data?.user?.id) {
-    console.error('create-payment-intent auth verification failed:', error)
-    return { user: null, error: jsonResponse({ error: 'Invalid or expired user token. Please log in again and retry checkout.' }, 401) }
-  }
-
-  return { user: data.user, error: null }
-}
-
-function getServiceClient() {
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')
-  const serviceRoleKey = Deno.env.get('SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error('Supabase database configuration is missing.')
-  }
-
-  return createClient(supabaseUrl, serviceRoleKey)
-}
-
-async function getSingleListing(supabase: ReturnType<typeof createClient>, listingId: string) {
-  const { data, error } = await supabase
-    .from('listings')
-    .select('id, seller_id, title, price, category, subcategory, delivery_size, status')
-    .eq('id', listingId)
-    .single()
-
-  if (error || !data) {
-    console.error('create-payment-intent listing lookup failed:', error)
-    throw new CheckoutError('Listing not found.', 404)
-  }
-
-  return data as ListingRow
-}
-
-async function getBundleListings(supabase: ReturnType<typeof createClient>, listingIds: string[]) {
-  const uniqueIds = [...new Set(listingIds)]
-  const { data, error } = await supabase
-    .from('listings')
-    .select('id, seller_id, title, price, category, subcategory, delivery_size, status')
-    .in('id', uniqueIds)
-
-  if (error || !data || data.length !== uniqueIds.length) {
-    console.error('create-payment-intent bundle listing lookup failed:', error)
-    throw new CheckoutError('One or more bundle items could not be found.', 404)
-  }
-
-  return data as ListingRow[]
-}
-
-function validateListingsForCheckout(listings: ListingRow[], buyerId: string) {
-  if (listings.length === 0) {
-    throw new CheckoutError('No listings provided for checkout.')
-  }
-
-  const sellerId = listings[0].seller_id
-  if (!sellerId) {
-    throw new CheckoutError('Listing seller is missing.')
-  }
-
-  if (sellerId === buyerId) {
-    throw new CheckoutError('You cannot buy your own listing.', 403)
-  }
-
-  for (const listing of listings) {
-    if (listing.seller_id !== sellerId) {
-      throw new CheckoutError('Bundle checkout is only allowed for listings from the same seller.')
-    }
-    if (listing.status !== 'active') {
-      throw new CheckoutError('One or more listings are no longer available.', 409)
-    }
-    if (!Number.isFinite(Number(listing.price)) || Number(listing.price) <= 0) {
-      throw new CheckoutError('One or more listings have an invalid price.')
-    }
-  }
-
-  return sellerId
+function eurosToCents(value: number): number {
+  return Math.round(value * 100)
 }
 
 Deno.serve(async (req) => {
@@ -181,92 +39,205 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  if (req.method !== 'POST') {
-    return jsonResponse({ error: 'Method not allowed.' }, 405)
-  }
-
   try {
     const stripeKey = Deno.env.get('STRIPE_SECRET_KEY')
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
+    const serviceRoleKey =
+      Deno.env.get('SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+
     if (!stripeKey) {
-      return jsonResponse({ error: 'Stripe is not configured.' }, 500)
+      return jsonResponse({ error: 'STRIPE_SECRET_KEY not configured.' }, 500)
     }
 
-    const { user, error: authResponse } = await authenticateUser(req)
-    if (authResponse) return authResponse
-    if (!user) {
-      return jsonResponse({ error: 'Invalid or expired user token. Please log in again and retry checkout.' }, 401)
+    if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey) {
+      return jsonResponse(
+        { error: 'Supabase environment variables are not configured correctly.' },
+        500
+      )
     }
 
-    const buyerId = user.id
-    const body = await req.json().catch(() => ({}))
-    const listingId = typeof body.listingId === 'string' ? body.listingId : ''
+    const token = getBearerToken(req)
+    if (!token) {
+      return jsonResponse({ error: 'Missing bearer token.' }, 401)
+    }
+
+    const authClient = createClient(supabaseUrl, supabaseAnonKey)
+    const {
+      data: { user },
+      error: authError,
+    } = await authClient.auth.getUser(token)
+
+    if (authError || !user) {
+      return jsonResponse({ error: 'Invalid or expired token.' }, 401)
+    }
+
+    let body: {
+      listingId?: string
+      listingIds?: string[]
+      deliveryMethod?: string
+    } = {}
+
+    try {
+      body = await req.json()
+    } catch {
+      return jsonResponse({ error: 'Invalid JSON body.' }, 400)
+    }
+
+    const listingId = body.listingId || ''
     const listingIds = Array.isArray(body.listingIds)
-      ? body.listingIds.filter((id: unknown) => typeof id === 'string')
+      ? body.listingIds.filter((id) => typeof id === 'string' && id.trim().length > 0)
       : []
-    const deliveryMethod = body.deliveryMethod === 'locker_collection'
-      ? 'locker_collection'
-      : 'home_delivery'
+    const deliveryMethod = body.deliveryMethod || 'home_delivery'
 
-    if (!listingId && listingIds.length === 0) {
+    const requestedListingIds =
+      listingIds.length > 0
+        ? [...new Set(listingIds)]
+        : listingId
+          ? [listingId]
+          : []
+
+    if (requestedListingIds.length === 0) {
       return jsonResponse({ error: 'listingId or listingIds is required.' }, 400)
     }
 
-    const supabase = getServiceClient()
-    const isBundle = listingIds.length > 0
-    const listings = isBundle
-      ? await getBundleListings(supabase, listingIds)
-      : [await getSingleListing(supabase, listingId)]
+    if (!['home_delivery', 'locker_collection'].includes(deliveryMethod)) {
+      return jsonResponse({ error: 'Invalid delivery method.' }, 400)
+    }
 
-    const sellerId = validateListingsForCheckout(listings, buyerId)
-    const itemSubtotal = Number(listings.reduce((sum, listing) => sum + Number(listing.price), 0).toFixed(2))
-    const deliveryFee = isBundle
-      ? getBundleDeliveryFee(deliveryMethod)
-      : getSingleListingDeliveryFee(listings[0], deliveryMethod)
-    const protectionFee = buyerProtectionFee(itemSubtotal)
-    const total = Number((itemSubtotal + deliveryFee + protectionFee).toFixed(2))
-    const amountCents = cents(total)
+    const supabase = createClient(supabaseUrl, serviceRoleKey)
 
-    if (amountCents < 50) {
-      return jsonResponse({ error: 'Payment amount is below Stripe minimum.' }, 400)
+    const { data: listings, error: listingsError } = await supabase
+      .from('listings')
+      .select(`
+        id,
+        title,
+        price,
+        seller_id,
+        status,
+        is_sold,
+        delivery_size
+      `)
+      .in('id', requestedListingIds)
+
+    if (listingsError) {
+      return jsonResponse({ error: 'Failed to load listing data.' }, 500)
+    }
+
+    if (!listings || listings.length !== requestedListingIds.length) {
+      return jsonResponse({ error: 'One or more listings were not found.' }, 404)
+    }
+
+    const listingsById = new Map(listings.map((listing) => [listing.id, listing]))
+    const orderedListings = requestedListingIds.map((id) => listingsById.get(id)).filter(Boolean)
+
+    if (orderedListings.length !== requestedListingIds.length) {
+      return jsonResponse({ error: 'One or more listings were not found.' }, 404)
+    }
+
+    const sellerIds = new Set<string>()
+    let subtotalEuros = 0
+    let derivedDeliverySize = 'medium'
+
+    for (const listing of orderedListings) {
+      if (!listing) continue
+
+      if (listing.status && listing.status !== 'active') {
+        return jsonResponse({ error: `Listing "${listing.title}" is not available.` }, 400)
+      }
+
+      if (listing.is_sold) {
+        return jsonResponse({ error: `Listing "${listing.title}" has already been sold.` }, 400)
+      }
+
+      if (!listing.seller_id) {
+        return jsonResponse({ error: `Listing "${listing.title}" is missing seller information.` }, 400)
+      }
+
+      if (listing.seller_id === user.id) {
+        return jsonResponse({ error: 'You cannot buy your own listing.' }, 400)
+      }
+
+      const priceEuros = toMoneyNumber(listing.price)
+      if (priceEuros <= 0) {
+        return jsonResponse({ error: `Listing "${listing.title}" has an invalid price.` }, 400)
+      }
+
+      subtotalEuros += priceEuros
+      sellerIds.add(listing.seller_id)
+
+      const size = String(listing.delivery_size || '').toLowerCase()
+      if (size === 'bulky') {
+        derivedDeliverySize = 'bulky'
+      } else if (size === 'heavy' && derivedDeliverySize !== 'bulky') {
+        derivedDeliverySize = 'heavy'
+      } else if (size === 'small' && derivedDeliverySize === 'medium') {
+        derivedDeliverySize = 'small'
+      }
+    }
+
+    if (sellerIds.size !== 1) {
+      return jsonResponse({ error: 'Bundle listings must all belong to the same seller.' }, 400)
+    }
+
+    const sellerId = [...sellerIds][0]
+
+    let deliveryFeeEuros = 0
+
+    if (derivedDeliverySize === 'bulky') {
+      deliveryFeeEuros = 4.50
+    } else if (derivedDeliverySize === 'heavy') {
+      deliveryFeeEuros = 4.50
+    } else if (deliveryMethod === 'locker_collection') {
+      deliveryFeeEuros = derivedDeliverySize === 'small' ? 2.49 : 2.99
+    } else {
+      deliveryFeeEuros = derivedDeliverySize === 'small' ? 2.99 : 3.99
+    }
+
+    const buyerProtectionFeeEuros = 0.75 + subtotalEuros * 0.05
+    const totalEuros = subtotalEuros + deliveryFeeEuros + buyerProtectionFeeEuros
+
+    const subtotalCents = eurosToCents(subtotalEuros)
+    const deliveryFeeCents = eurosToCents(deliveryFeeEuros)
+    const buyerProtectionFeeCents = eurosToCents(buyerProtectionFeeEuros)
+    const totalAmountCents = eurosToCents(totalEuros)
+
+    if (totalAmountCents < 50) {
+      return jsonResponse({ error: 'Amount must be at least €0.50 (50 cents).' }, 400)
     }
 
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' })
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: amountCents,
-      currency: 'eur',
-      metadata: {
-        buyer_id: buyerId,
-        seller_id: sellerId,
-        listing_id: listings[0].id,
-        listing_ids: listings.map((listing) => listing.id).join(','),
-        item_subtotal: itemSubtotal.toFixed(2),
-        delivery_fee: deliveryFee.toFixed(2),
-        buyer_protection_fee: protectionFee.toFixed(2),
-        payment_flow_type: 'separate_charge',
-        checkout_type: isBundle ? 'bundle' : 'single',
-      },
-      payment_method_types: ['card'],
-    })
 
-    if (!paymentIntent.client_secret) {
-      console.error('create-payment-intent returned PaymentIntent without client_secret', {
-        paymentIntentId: paymentIntent.id,
-      })
-      return jsonResponse({ error: 'Stripe did not return a valid client secret.' }, 500)
-    }
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: totalAmountCents,
+      currency: 'eur',
+      automatic_payment_methods: { enabled: true },
+      metadata: {
+        buyer_id: user.id,
+        seller_id: sellerId,
+        listing_id: requestedListingIds.length === 1 ? requestedListingIds[0] : '',
+        listing_ids: requestedListingIds.join(','),
+        delivery_method: deliveryMethod,
+        subtotal_cents: String(subtotalCents),
+        delivery_fee_cents: String(deliveryFeeCents),
+        buyer_protection_fee_cents: String(buyerProtectionFeeCents),
+        total_cents: String(totalAmountCents),
+      },
+    })
 
     return jsonResponse({
       clientSecret: paymentIntent.client_secret,
-      client_secret: paymentIntent.client_secret,
       paymentIntentId: paymentIntent.id,
-      payment_intent_id: paymentIntent.id,
-      amount: amountCents,
-      currency: 'eur',
+      amount: totalAmountCents,
+      subtotalCents,
+      deliveryFeeCents,
+      buyerProtectionFeeCents,
     })
   } catch (error) {
     console.error('create-payment-intent error:', error)
-    const message = error instanceof Error ? error.message : 'Failed to create payment intent.'
-    const status = error instanceof CheckoutError ? error.status : 500
-    return jsonResponse({ error: message }, status)
+    return jsonResponse(
+      { error: error instanceof Error ? error.message : 'Failed to create payment intent.' },
+      500
+    )
   }
 })
