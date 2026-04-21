@@ -120,6 +120,8 @@ if (listingsError) {
   )
 }
 
+  
+
     if (!listings || listings.length !== requestedListingIds.length) {
       return jsonResponse({ error: 'One or more listings were not found.' }, 404)
     }
@@ -222,22 +224,26 @@ if (resolvedSellerId === user.id) {
 
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' })
 
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: totalAmountCents,
-      currency: 'eur',
-      automatic_payment_methods: { enabled: true },
-      metadata: {
-        buyer_id: user.id,
-        seller_id: sellerId,
-        listing_id: requestedListingIds.length === 1 ? requestedListingIds[0] : '',
-        listing_ids: requestedListingIds.join(','),
-        delivery_method: deliveryMethod,
-        subtotal_cents: String(subtotalCents),
-        delivery_fee_cents: String(deliveryFeeCents),
-        buyer_protection_fee_cents: String(buyerProtectionFeeCents),
-        total_cents: String(totalAmountCents),
-      },
-    })
+   const paymentIntent = await stripe.paymentIntents.create({
+  amount: totalAmountCents,
+  currency: 'eur',
+
+  automatic_payment_methods: { enabled: true },
+
+  receipt_email: user.email, // ✅ MUST BE HERE (top level)
+
+  metadata: {
+    buyer_id: user.id,
+    seller_id: sellerId,
+    listing_id: requestedListingIds.length === 1 ? requestedListingIds[0] : '',
+    listing_ids: requestedListingIds.join(','),
+    delivery_method: deliveryMethod,
+    subtotal_cents: String(subtotalCents),
+    delivery_fee_cents: String(deliveryFeeCents),
+    buyer_protection_fee_cents: String(buyerProtectionFeeCents),
+    total_cents: String(totalAmountCents),
+  },
+})
 
     return jsonResponse({
       clientSecret: paymentIntent.client_secret,
