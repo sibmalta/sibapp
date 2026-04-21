@@ -107,22 +107,18 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey)
 
-    const { data: listings, error: listingsError } = await supabase
-      .from('listings')
-      .select(`
-        id,
-        title,
-        price,
-        seller_id,
-        status,
-        is_sold,
-        delivery_size
-      `)
-      .in('id', requestedListingIds)
+  const { data: listings, error: listingsError } = await supabase
+  .from('listings')
+  .select('*')
+  .in('id', requestedListingIds)
 
-    if (listingsError) {
-      return jsonResponse({ error: 'Failed to load listing data.' }, 500)
-    }
+if (listingsError) {
+  console.error('Listings query error:', listingsError)
+  return jsonResponse(
+    { error: `Failed to load listing data: ${listingsError.message}` },
+    500
+  )
+}
 
     if (!listings || listings.length !== requestedListingIds.length) {
       return jsonResponse({ error: 'One or more listings were not found.' }, 404)
@@ -146,13 +142,31 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: `Listing "${listing.title}" is not available.` }, 400)
       }
 
-      if (listing.is_sold) {
+      if (listing.is_sold || listing.isSold) {
         return jsonResponse({ error: `Listing "${listing.title}" has already been sold.` }, 400)
       }
 
-      if (!listing.seller_id) {
-        return jsonResponse({ error: `Listing "${listing.title}" is missing seller information.` }, 400)
-      }
+const resolvedSellerId =
+  listing.seller_id ||
+  listing.sellerId ||
+  listing.user_id ||
+  listing.userId ||
+  listing.owner_id ||
+  listing.ownerId
+
+if (!resolvedSellerId) {
+  return jsonResponse(
+    {
+      error: `Listing "${listing.title}" is missing seller information.`,
+      debug: Object.keys(listing),
+    },
+    400
+  )
+}
+
+if (resolvedSellerId === user.id) {
+  return jsonResponse({ error: 'You cannot buy your own listing.' }, 400)
+}
 
       if (listing.seller_id === user.id) {
         return jsonResponse({ error: 'You cannot buy your own listing.' }, 400)
@@ -164,9 +178,9 @@ Deno.serve(async (req) => {
       }
 
       subtotalEuros += priceEuros
-      sellerIds.add(listing.seller_id)
+      sellerIds.add(resolvedSellerId)
 
-      const size = String(listing.delivery_size || '').toLowerCase()
+      const size = String(listing.delivery_size || listing.deliverySize || '').toLowerCase()
       if (size === 'bulky') {
         derivedDeliverySize = 'bulky'
       } else if (size === 'heavy' && derivedDeliverySize !== 'bulky') {
