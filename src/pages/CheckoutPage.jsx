@@ -85,6 +85,19 @@ function StripeCheckoutForm({ fees, onSuccess, onError }) {
   const [errorMsg, setErrorMsg] = useState('')
   const [elementReady, setElementReady] = useState(false)
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!elementReady) {
+        console.error('PaymentElement timed out before ready')
+        const msg = "Payment options are taking too long to load. Please refresh and try again."
+        setErrorMsg(msg)
+        onError?.(msg)
+      }
+    }, 8000)
+
+    return () => clearTimeout(timer)
+  }, [elementReady, onError])
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!stripe || !elements) return
@@ -136,12 +149,17 @@ function StripeCheckoutForm({ fees, onSuccess, onError }) {
 
       <div className={`mb-4 ${!elementReady ? 'h-0 overflow-hidden' : ''}`}>
         <PaymentElement
-          options={{
-            layout: 'tabs',
-            wallets: { applePay: 'auto', googlePay: 'auto' },
-            paymentMethodOrder: ['apple_pay', 'google_pay', 'card'],
+          onReady={() => {
+            console.log('PaymentElement ready')
+            setElementReady(true)
           }}
-          onReady={() => setElementReady(true)}
+          onLoadError={(event) => {
+            console.error('PaymentElement load error:', event)
+            const msg = "We couldn't load payment options right now. Please refresh and try again."
+            setErrorMsg(msg)
+            setLoading(false)
+            onError?.(msg)
+          }}
         />
       </div>
 
@@ -257,12 +275,14 @@ export default function CheckoutPage() {
     setAddressConfirmed(false)
     setClientSecret(null)
     setSelectedLockerId(null)
+    setIntentError('')
   }
 
   const handleLockerSelect = (lockerId) => {
     setSelectedLockerId(lockerId)
     setAddressConfirmed(false)
     setClientSecret(null)
+    setIntentError('')
   }
 
   const validateDelivery = () => {
@@ -300,6 +320,8 @@ export default function CheckoutPage() {
 
     setCreatingIntent(true)
     setIntentError('')
+    setClientSecret(null)
+    setAddressConfirmed(false)
 
     if (saveAddressChecked && !isLocker) {
       persistAddress({
