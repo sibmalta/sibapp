@@ -70,7 +70,7 @@ export function rowToOrder(row) {
     sellerPayoutStatus: row.seller_payout_status || null,
     refundedAt: row.refunded_at || null,
     stripeRefundId: row.stripe_refund_id || null,
-  }
+    }
 }
 
 export function orderToRow(order) {
