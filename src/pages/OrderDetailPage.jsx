@@ -401,46 +401,6 @@ export default function OrderDetailPage() {
           </div>
         </div>
 
-        {/* ── Delivery Details (snapshot) ────────────────────── */}
-        {(order.buyerFullName || order.sellerName) && (
-          <div className="p-4 rounded-2xl bg-white border border-sib-ash space-y-4">
-            <p className="text-xs font-semibold text-sib-text uppercase tracking-wide">Delivery Details</p>
-
-            {/* Buyer snapshot */}
-            {order.buyerFullName && (
-              <div className="space-y-1.5">
-                <p className="text-[10px] font-semibold text-sib-muted uppercase tracking-wider">Deliver to</p>
-                <div className="text-xs text-sib-text space-y-0.5">
-                  <p className="font-medium">{order.buyerFullName}</p>
-                  {order.buyerPhone && <p className="text-sib-muted">{order.buyerPhone}</p>}
-                  {order.address && <p>{order.address}</p>}
-                  {(order.buyerCity || order.buyerPostcode) && (
-                    <p>{[order.buyerCity, order.buyerPostcode].filter(Boolean).join(', ')}</p>
-                  )}
-                  {order.deliveryNotes && (
-                    <p className="text-sib-muted italic mt-1">Notes: {order.deliveryNotes}</p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Divider */}
-            {order.buyerFullName && order.sellerName && <div className="border-t border-sib-ash" />}
-
-            {/* Seller snapshot */}
-            {order.sellerName && (
-              <div className="space-y-1.5">
-                <p className="text-[10px] font-semibold text-sib-muted uppercase tracking-wider">Pickup from</p>
-                <div className="text-xs text-sib-text space-y-0.5">
-                  <p className="font-medium">{order.sellerName}</p>
-                  {order.sellerPhone && <p className="text-sib-muted">{order.sellerPhone}</p>}
-                  {order.sellerAddress && <p>{order.sellerAddress}</p>}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
         {/* Cost breakdown */}
         <div className="p-4 rounded-2xl bg-sib-warm">
           <p className="text-sm font-bold text-sib-text mb-3">Payment</p>
