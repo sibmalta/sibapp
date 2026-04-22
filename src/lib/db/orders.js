@@ -1,11 +1,11 @@
 /**
- * orders.js — Supabase data layer for orders, disputes, and payouts tables.
+ * orders.js - Supabase data layer for orders, disputes, and payouts tables.
  *
  * All functions accept an authenticated supabase client (from useSupabase()).
  * Returns { data, error } mirroring the Supabase client pattern.
  */
 
-// ── Shape helpers ────────────────────────────────────────────────────────────
+// Shape helpers
 
 export function rowToOrder(row) {
   if (!row) return null
@@ -50,7 +50,7 @@ export function rowToOrder(row) {
     confirmedAt: row.confirmed_at || null,
     payoutReleasedAt: row.payout_released_at || null,
     cancelledAt: row.cancelled_at || null,
-    // Delivery snapshot — buyer
+    // Delivery snapshot - buyer
     buyerFullName: row.buyer_full_name || shippingAddressObject.buyerFullName || null,
     buyerPhone: row.buyer_phone || shippingAddressObject.buyerPhone || null,
     buyerCity: row.buyer_city || shippingAddressObject.buyerCity || null,
@@ -59,7 +59,7 @@ export function rowToOrder(row) {
     deliveryFee: row.delivery_fee != null ? Number(row.delivery_fee) : (shippingAddressObject.deliveryFee != null ? Number(shippingAddressObject.deliveryFee) : null),
     lockerLocationName: row.locker_location_name || shippingAddressObject.lockerLocationName || null,
     lockerAddress: row.locker_address || shippingAddressObject.lockerAddress || null,
-    // Delivery snapshot — seller
+    // Delivery snapshot - seller
     sellerName: row.seller_name || shippingAddressObject.sellerName || null,
     sellerPhone: row.seller_phone || shippingAddressObject.sellerPhone || null,
     sellerAddress: row.seller_address || shippingAddressObject.sellerAddress || null,
@@ -70,7 +70,7 @@ export function rowToOrder(row) {
     sellerPayoutStatus: row.seller_payout_status || null,
     refundedAt: row.refunded_at || null,
     stripeRefundId: row.stripe_refund_id || null,
-    }
+  }
 }
 
 export function orderToRow(order) {
@@ -120,7 +120,7 @@ export function orderToRow(order) {
   return row
 }
 
-// ── Order CRUD ────────────────────────────────────────────────────────────────
+// Order CRUD
 
 function buildShippingAddressPayload(order) {
   if (order.shippingAddress !== undefined) return order.shippingAddress
@@ -233,7 +233,7 @@ export async function updateOrder(supabase, orderId, updates) {
   }
 }
 
-// ── Dispute shape helpers ─────────────────────────────────────────────────────
+// Dispute shape helpers
 
 export function rowToDispute(row) {
   if (!row) return null
@@ -273,7 +273,7 @@ export function disputeToRow(dispute) {
   return row
 }
 
-// ── Dispute CRUD ──────────────────────────────────────────────────────────────
+// Dispute CRUD
 
 export async function fetchAllDisputes(supabase) {
   try {
@@ -321,7 +321,7 @@ export async function updateDispute(supabase, disputeId, updates) {
   }
 }
 
-// ── Payout shape helpers ──────────────────────────────────────────────────────
+// Payout shape helpers
 
 export function rowToPayout(row) {
   if (!row) return null
@@ -357,7 +357,7 @@ export function payoutToRow(payout) {
   return row
 }
 
-// ── Payout CRUD ───────────────────────────────────────────────────────────────
+// Payout CRUD
 
 export async function fetchAllPayouts(supabase) {
   try {
@@ -405,7 +405,7 @@ export async function updatePayout(supabase, payoutId, updates) {
   }
 }
 
-// ── Shipment shape helpers ────────────────────────────────────────────────────
+// Shipment shape helpers
 
 export function rowToShipment(row) {
   if (!row) return null
@@ -481,7 +481,7 @@ export function shipmentToRow(shipment) {
   return row
 }
 
-// ── Shipment CRUD ─────────────────────────────────────────────────────────────
+// Shipment CRUD
 
 export async function fetchAllShipments(supabase) {
   try {
