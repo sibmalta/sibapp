@@ -381,18 +381,22 @@ export default function OrderDetailPage() {
             <div className="w-8 h-8 rounded-full bg-sib-stone flex items-center justify-center flex-shrink-0">
               <Truck size={14} className="text-sib-muted" />
             </div>
-            <div>
-              <p className="text-xs text-sib-muted">
-                {order.deliveryMethod === 'locker_collection' ? 'Locker Collection' : order.deliveryMethod === 'home_delivery' ? 'Home Delivery' : (getDeliveryMethod(order.deliveryMethod)?.name || 'Delivery')}
+            <div className="space-y-1">
+              <div>
+                <p className="text-xs text-sib-muted">Delivery method</p>
+                <p className="text-sm font-medium text-sib-text">
+                  {order.deliveryMethod === 'locker_collection' ? 'Locker Collection' : order.deliveryMethod === 'home_delivery' ? 'Home Delivery' : (getDeliveryMethod(order.deliveryMethod)?.name || 'Delivery')}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-sib-muted">Delivery status</p>
+                <p className="text-sm font-medium text-sib-text capitalize">
+                  {(order.trackingStatus || order.status || 'pending').replace(/_/g, ' ')}
+                </p>
+              </div>
+              <p className="text-xs text-sib-muted leading-relaxed">
+                Delivery details are handled securely by Sib. You'll receive updates when your order is shipped.
               </p>
-              {order.deliveryMethod === 'locker_collection' && order.lockerLocationName ? (
-                <>
-                  <p className="text-sm font-medium text-sib-text">{order.lockerLocationName}</p>
-                  {order.lockerAddress && <p className="text-xs text-sib-muted mt-0.5">{order.lockerAddress}</p>}
-                </>
-              ) : (
-                <p className="text-sm font-medium text-sib-text">{order.address}</p>
-              )}
             </div>
           </div>
         </div>
