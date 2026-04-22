@@ -400,12 +400,20 @@ export default function CheckoutPage() {
       deliverySnapshot
     )
 
+    if (!order) {
+      const msg = 'Payment completed, but we could not save the order. Please contact support before trying again.'
+      console.error('[CheckoutPage] Payment succeeded but order creation failed', { stripePaymentIntentId })
+      showToast(msg, 'error')
+      return
+    }
+
     if (order) {
+      let paymentReferenceSaved = true
       try {
         const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
         const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-        await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${order.id}`, {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${order.id}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -418,8 +426,16 @@ export default function CheckoutPage() {
             payment_status: 'paid',
           }),
         })
+        if (!response.ok) {
+          paymentReferenceSaved = false
+          const body = await response.text().catch(() => '')
+          console.error('[CheckoutPage] Failed to save payment intent ID to order:', response.status, body)
+          showToast('Order placed, but the payment reference could not be saved. Please contact support if you need help.', 'error')
+        }
       } catch (err) {
+        paymentReferenceSaved = false
         console.error('Failed to save payment intent ID to order:', err)
+        showToast('Order placed, but the payment reference could not be saved. Please contact support if you need help.', 'error')
       }
 
       try {
@@ -434,7 +450,9 @@ export default function CheckoutPage() {
         // silent
       }
 
-      showToast('Payment successful! Your order has been placed.')
+      if (paymentReferenceSaved) {
+        showToast('Payment successful! Your order has been placed.')
+      }
       navigate(`/orders/${order.id}`)
     }
   }

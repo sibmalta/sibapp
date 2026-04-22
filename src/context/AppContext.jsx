@@ -409,6 +409,7 @@ export function AppProvider({ children }) {
       sellerId: listing.sellerId,
       itemPrice,
       totalPrice,
+      amount: totalPrice,
       sellerPayout: itemPrice,
       platformFee: bundledFee,
       paymentFlowType: 'separate_charge',
@@ -419,19 +420,6 @@ export function AppProvider({ children }) {
       payoutStatus: 'held',
       paidAt: now,
       shippingAddress,
-      address,
-      lockerLocationName: deliveryInfo?.lockerName || null,
-      lockerAddress: deliveryInfo?.lockerAddress || null,
-      // Delivery snapshot — buyer
-      buyerFullName: deliverySnapshot?.buyerFullName || currentUser?.name || null,
-      buyerPhone: deliverySnapshot?.buyerPhone || null,
-      buyerCity: deliverySnapshot?.buyerCity || null,
-      buyerPostcode: deliverySnapshot?.buyerPostcode || null,
-      deliveryNotes: deliverySnapshot?.deliveryNotes || null,
-      // Delivery snapshot — seller
-      sellerName: deliverySnapshot?.sellerName || seller?.name || seller?.username || null,
-      sellerPhone: deliverySnapshot?.sellerPhone || seller?.phone || null,
-      sellerAddress: deliverySnapshot?.sellerAddress || seller?.location || null,
     }
     const { data: savedOrder, error: orderErr } = await dbCreateOrder(orderData)
     if (orderErr) {
@@ -1047,6 +1035,7 @@ export function AppProvider({ children }) {
       sellerId: bundle.sellerId,
       itemPrice: subtotal,
       totalPrice: fees.total,
+      amount: fees.total,
       sellerPayout: subtotal,
       platformFee: fees.bundledFee,
       paymentFlowType: 'separate_charge',
@@ -1057,19 +1046,6 @@ export function AppProvider({ children }) {
       payoutStatus: 'held',
       paidAt: now,
       shippingAddress,
-      address,
-      lockerLocationName: deliveryInfo?.lockerName || null,
-      lockerAddress: deliveryInfo?.lockerAddress || null,
-      // Delivery snapshot — buyer
-      buyerFullName: deliverySnapshot?.buyerFullName || currentUser?.name || null,
-      buyerPhone: deliverySnapshot?.buyerPhone || null,
-      buyerCity: deliverySnapshot?.buyerCity || null,
-      buyerPostcode: deliverySnapshot?.buyerPostcode || null,
-      deliveryNotes: deliverySnapshot?.deliveryNotes || null,
-      // Delivery snapshot — seller
-      sellerName: deliverySnapshot?.sellerName || seller?.name || seller?.username || null,
-      sellerPhone: deliverySnapshot?.sellerPhone || seller?.phone || null,
-      sellerAddress: deliverySnapshot?.sellerAddress || seller?.location || null,
     }
 
     const { data: savedOrder, error: orderErr } = await dbCreateOrder(orderData)
@@ -1323,6 +1299,7 @@ export function AppProvider({ children }) {
       sellerId: offer.sellerId,
       itemPrice: acceptedPrice,
       totalPrice: fees.total,
+      amount: fees.total,
       sellerPayout: acceptedPrice,
       platformFee: fees.bundledFee,
       paymentFlowType: 'separate_charge',
@@ -1332,21 +1309,8 @@ export function AppProvider({ children }) {
       trackingStatus: 'paid',
       payoutStatus: 'held',
       paidAt: now,
-      address,
       shippingAddress,
       bundleOfferId: offerId,
-      lockerLocationName: deliveryInfo?.lockerName || null,
-      lockerAddress: deliveryInfo?.lockerAddress || null,
-      // Delivery snapshot — buyer
-      buyerFullName: deliverySnapshot?.buyerFullName || null,
-      buyerPhone: deliverySnapshot?.buyerPhone || null,
-      buyerCity: deliverySnapshot?.buyerCity || null,
-      buyerPostcode: deliverySnapshot?.buyerPostcode || null,
-      deliveryNotes: deliverySnapshot?.deliveryNotes || null,
-      // Delivery snapshot — seller
-      sellerName: deliverySnapshot?.sellerName || sellerUser?.name || sellerUser?.username || null,
-      sellerPhone: deliverySnapshot?.sellerPhone || sellerUser?.phone || null,
-      sellerAddress: deliverySnapshot?.sellerAddress || sellerUser?.location || null,
     }
 
     const { data: savedOrder, error: orderErr } = await dbCreateOrder(orderData)

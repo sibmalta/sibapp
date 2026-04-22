@@ -314,11 +314,19 @@ export default function BundleCheckoutPage() {
       deliveryNotes,
     }
     const order = await placeBundleOrder(getFullAddress(), undefined, deliveryInfo, deliverySnapshot)
+    if (!order) {
+      const msg = 'Payment completed, but we could not save the order. Please contact support before trying again.'
+      console.error('[BundleCheckoutPage] Payment succeeded but order creation failed', { stripePaymentIntentId })
+      showToast(msg, 'error')
+      return
+    }
+
     if (order) {
+      let paymentReferenceSaved = true
       try {
         const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
         const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
-        await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${order.id}`, {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${order.id}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -328,8 +336,16 @@ export default function BundleCheckoutPage() {
           },
           body: JSON.stringify({ stripe_payment_intent_id: stripePaymentIntentId, payment_status: 'paid' }),
         })
+        if (!response.ok) {
+          paymentReferenceSaved = false
+          const body = await response.text().catch(() => '')
+          console.error('[BundleCheckoutPage] Failed to save payment intent ID:', response.status, body)
+          showToast('Order placed, but the payment reference could not be saved. Please contact support if you need help.', 'error')
+        }
       } catch (err) {
+        paymentReferenceSaved = false
         console.error('Failed to save payment intent ID:', err)
+        showToast('Order placed, but the payment reference could not be saved. Please contact support if you need help.', 'error')
       }
       // Track referral conversion if this purchase came from a referral
       try {
@@ -339,7 +355,9 @@ export default function BundleCheckoutPage() {
         }
       } catch (_) { /* fire-and-forget */ }
 
-      showToast('Payment successful! Your bundle order has been placed.')
+      if (paymentReferenceSaved) {
+        showToast('Payment successful! Your bundle order has been placed.')
+      }
       navigate(`/orders/${order.id}`)
     }
   }

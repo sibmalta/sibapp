@@ -74,8 +74,6 @@ export function rowToOrder(row) {
 }
 
 export function orderToRow(order) {
-  console.log('[SIB_DEPLOY_MARKER] orders.js no bundled_fee write v2026-04-22')
-
   const row = {}
   if (order.orderRef !== undefined) row.order_ref = order.orderRef
   if (order.listingId !== undefined) row.listing_id = order.listingId
@@ -177,6 +175,8 @@ export async function fetchAllOrders(supabase) {
 export async function insertOrder(supabase, order) {
   try {
     const row = orderToRow(order)
+    const validationError = validateOrderRowForInsert(row)
+    if (validationError) return { data: null, error: validationError }
     const { data, error } = await insertOrderRow(supabase, row)
     if (error) return { data: null, error }
     return { data: rowToOrder(data), error: null }
@@ -202,7 +202,18 @@ async function insertOrderRow(supabase, row) {
       return { data: null, error }
     }
 
-    console.warn(`[orders] Live orders schema is missing "${missingColumn}". Retrying insert without that optional column.`)
+    if (!isOptionalSchemaDriftColumn(missingColumn)) {
+      console.error(`[orders] Live orders schema is missing required checkout column "${missingColumn}". Refusing to create a partial order.`)
+      return {
+        data: null,
+        error: {
+          ...error,
+          message: `Live orders schema is missing required checkout column "${missingColumn}". Apply the orders schema repair migration before placing orders.`,
+        },
+      }
+    }
+
+    console.warn(`[orders] Live orders schema is missing optional legacy column "${missingColumn}". Retrying insert without it.`)
     const { [missingColumn]: _removed, ...nextRow } = currentRow
     currentRow = nextRow
   }
@@ -214,6 +225,56 @@ function getMissingSchemaColumn(error) {
   const message = error?.message || ''
   const match = message.match(/Could not find the '([^']+)' column/i)
   return match?.[1] || null
+}
+
+function isOptionalSchemaDriftColumn(column) {
+  return column === 'bundled_fee'
+}
+
+function validateOrderRowForInsert(row) {
+  const requiredText = [
+    'order_ref',
+    'listing_id',
+    'buyer_id',
+    'seller_id',
+    'status',
+    'tracking_status',
+    'payout_status',
+    'delivery_method',
+    'payment_flow_type',
+  ]
+  const requiredNumbers = [
+    'item_price',
+    'total_price',
+    'seller_payout',
+    'platform_fee',
+    'amount',
+  ]
+  const missing = requiredText.filter(key => !row[key])
+  for (const key of requiredNumbers) {
+    if (row[key] === undefined || row[key] === null || Number.isNaN(Number(row[key]))) missing.push(key)
+  }
+  if (!row.paid_at) missing.push('paid_at')
+  if (!row.shipping_address || typeof row.shipping_address !== 'object' || Array.isArray(row.shipping_address)) {
+    missing.push('shipping_address')
+  }
+
+  if (missing.length > 0) {
+    const message = `Order insert blocked. Missing required order field(s): ${missing.join(', ')}.`
+    console.error(`[orders] ${message}`)
+    return { message }
+  }
+
+  const amount = Number(row.amount)
+  const totalPrice = Number(row.total_price)
+  if (amount < 0 || totalPrice < 0 || Number(row.item_price) < 0 || Number(row.seller_payout) < 0 || Number(row.platform_fee) < 0) {
+    return { message: 'Order insert blocked. Order monetary fields must be non-negative.' }
+  }
+  if (Math.abs(amount - totalPrice) > 0.01) {
+    return { message: 'Order insert blocked. Amount must match total_price for checkout orders.' }
+  }
+
+  return null
 }
 
 function stripUnsupportedOrderColumns(row) {
