@@ -387,13 +387,27 @@ export function AppProvider({ children }) {
     const deliveryType = deliveryInfo?.type || 'home_delivery'
     const deliveryLabel = deliveryType === 'locker_collection' ? 'Locker Collection' : 'Home Delivery'
     const seller = users.find(u => u.id === listing.sellerId)
+    const shippingAddress = {
+      raw: address || null,
+      bundledFee,
+      buyerFullName: deliverySnapshot?.buyerFullName || currentUser?.name || null,
+      buyerPhone: deliverySnapshot?.buyerPhone || null,
+      buyerCity: deliverySnapshot?.buyerCity || null,
+      buyerPostcode: deliverySnapshot?.buyerPostcode || null,
+      deliveryNotes: deliverySnapshot?.deliveryNotes || null,
+      deliveryFee: dFee,
+      lockerLocationName: deliveryInfo?.lockerName || null,
+      lockerAddress: deliveryInfo?.lockerAddress || null,
+      sellerName: deliverySnapshot?.sellerName || seller?.name || seller?.username || null,
+      sellerPhone: deliverySnapshot?.sellerPhone || seller?.phone || null,
+      sellerAddress: deliverySnapshot?.sellerAddress || seller?.location || null,
+    }
     const orderData = {
       orderRef,
       listingId,
       buyerId: currentUser.id,
       sellerId: listing.sellerId,
       itemPrice,
-      bundledFee,
       totalPrice,
       sellerPayout: itemPrice,
       platformFee: bundledFee,
@@ -404,6 +418,7 @@ export function AppProvider({ children }) {
       trackingStatus: 'paid',
       payoutStatus: 'held',
       paidAt: now,
+      shippingAddress,
       address,
       lockerLocationName: deliveryInfo?.lockerName || null,
       lockerAddress: deliveryInfo?.lockerAddress || null,
@@ -1007,6 +1022,21 @@ export function AppProvider({ children }) {
     const orderRef = `SIB-B${Date.now().toString(36).toUpperCase()}`
     const now = new Date().toISOString()
     const seller = users.find(u => u.id === bundle.sellerId)
+    const shippingAddress = {
+      raw: address || null,
+      bundledFee: fees.bundledFee,
+      buyerFullName: deliverySnapshot?.buyerFullName || currentUser?.name || null,
+      buyerPhone: deliverySnapshot?.buyerPhone || null,
+      buyerCity: deliverySnapshot?.buyerCity || null,
+      buyerPostcode: deliverySnapshot?.buyerPostcode || null,
+      deliveryNotes: deliverySnapshot?.deliveryNotes || null,
+      deliveryFee: dFee,
+      lockerLocationName: deliveryInfo?.lockerName || null,
+      lockerAddress: deliveryInfo?.lockerAddress || null,
+      sellerName: deliverySnapshot?.sellerName || seller?.name || seller?.username || null,
+      sellerPhone: deliverySnapshot?.sellerPhone || seller?.phone || null,
+      sellerAddress: deliverySnapshot?.sellerAddress || seller?.location || null,
+    }
 
     const orderData = {
       orderRef,
@@ -1016,7 +1046,6 @@ export function AppProvider({ children }) {
       buyerId: currentUser.id,
       sellerId: bundle.sellerId,
       itemPrice: subtotal,
-      bundledFee: fees.bundledFee,
       totalPrice: fees.total,
       sellerPayout: subtotal,
       platformFee: fees.bundledFee,
@@ -1027,6 +1056,7 @@ export function AppProvider({ children }) {
       trackingStatus: 'paid',
       payoutStatus: 'held',
       paidAt: now,
+      shippingAddress,
       address,
       lockerLocationName: deliveryInfo?.lockerName || null,
       lockerAddress: deliveryInfo?.lockerAddress || null,
@@ -1268,6 +1298,21 @@ export function AppProvider({ children }) {
     const orderRef = `SIB-B${Date.now().toString(36).toUpperCase()}`
     const now = new Date().toISOString()
     const sellerUser = users.find(u => u.id === offer.sellerId)
+    const shippingAddress = {
+      raw: address || null,
+      bundledFee: fees.bundledFee,
+      buyerFullName: deliverySnapshot?.buyerFullName || null,
+      buyerPhone: deliverySnapshot?.buyerPhone || null,
+      buyerCity: deliverySnapshot?.buyerCity || null,
+      buyerPostcode: deliverySnapshot?.buyerPostcode || null,
+      deliveryNotes: deliverySnapshot?.deliveryNotes || null,
+      deliveryFee: dFee,
+      lockerLocationName: deliveryInfo?.lockerName || null,
+      lockerAddress: deliveryInfo?.lockerAddress || null,
+      sellerName: deliverySnapshot?.sellerName || sellerUser?.name || sellerUser?.username || null,
+      sellerPhone: deliverySnapshot?.sellerPhone || sellerUser?.phone || null,
+      sellerAddress: deliverySnapshot?.sellerAddress || sellerUser?.location || null,
+    }
 
     const orderData = {
       orderRef,
@@ -1277,7 +1322,6 @@ export function AppProvider({ children }) {
       buyerId: offer.buyerId,
       sellerId: offer.sellerId,
       itemPrice: acceptedPrice,
-      bundledFee: fees.bundledFee,
       totalPrice: fees.total,
       sellerPayout: acceptedPrice,
       platformFee: fees.bundledFee,
@@ -1289,6 +1333,7 @@ export function AppProvider({ children }) {
       payoutStatus: 'held',
       paidAt: now,
       address,
+      shippingAddress,
       bundleOfferId: offerId,
       lockerLocationName: deliveryInfo?.lockerName || null,
       lockerAddress: deliveryInfo?.lockerAddress || null,

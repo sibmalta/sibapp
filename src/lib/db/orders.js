@@ -186,7 +186,7 @@ export async function insertOrder(supabase, order) {
 }
 
 async function insertOrderRow(supabase, row) {
-  let currentRow = { ...row }
+  let currentRow = stripUnsupportedOrderColumns(row)
 
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const { data, error } = await supabase
@@ -216,9 +216,22 @@ function getMissingSchemaColumn(error) {
   return match?.[1] || null
 }
 
+function stripUnsupportedOrderColumns(row) {
+  const nextRow = { ...row }
+  if (nextRow.bundled_fee !== undefined) {
+    const shippingAddress = nextRow.shipping_address && typeof nextRow.shipping_address === 'object' && !Array.isArray(nextRow.shipping_address)
+      ? { ...nextRow.shipping_address }
+      : {}
+    if (shippingAddress.bundledFee === undefined) shippingAddress.bundledFee = nextRow.bundled_fee
+    nextRow.shipping_address = shippingAddress
+    delete nextRow.bundled_fee
+  }
+  return nextRow
+}
+
 export async function updateOrder(supabase, orderId, updates) {
   try {
-    const row = orderToRow(updates)
+    const row = stripUnsupportedOrderColumns(orderToRow(updates))
     row.updated_at = new Date().toISOString()
     const { data, error } = await supabase
       .from('orders')
