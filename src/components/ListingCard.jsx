@@ -1,12 +1,54 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Heart, Zap } from 'lucide-react'
+import { Heart, ImageIcon, Zap } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { CONDITION_LABELS, CONDITION_DOT, getCardSubtitle, getCardBadge } from '../lib/listingMeta'
+
+function getListingImage(listing) {
+  const image = Array.isArray(listing?.images) ? listing.images[0] : null
+  if (typeof image !== 'string') return null
+  const trimmed = image.trim()
+  if (!trimmed) return null
+  if (
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('/') ||
+    trimmed.startsWith('blob:') ||
+    trimmed.startsWith('data:image/')
+  ) {
+    return trimmed
+  }
+  return null
+}
+
+function ListingImage({ listing, className }) {
+  const [failed, setFailed] = useState(false)
+  const src = failed ? null : getListingImage(listing)
+
+  if (!src) {
+    return (
+      <div className={`${className} flex items-center justify-center bg-sib-sand text-sib-muted`}>
+        <ImageIcon size={22} strokeWidth={1.7} />
+      </div>
+    )
+  }
+
+  return (
+    <img
+      src={src}
+      alt={listing.title || ''}
+      className={className}
+      loading="lazy"
+      onError={() => setFailed(true)}
+    />
+  )
+}
 
 export default function ListingCard({ listing, size = 'normal' }) {
   const navigate = useNavigate()
   const { likedListings, toggleLike, currentUser } = useApp()
+  if (!listing?.id || listing.price === undefined || listing.price === null || Number.isNaN(Number(listing.price))) return null
+
   const liked = likedListings.includes(listing.id)
 
   const handleLike = (e) => {
@@ -23,12 +65,7 @@ export default function ListingCard({ listing, size = 'normal' }) {
         className="cursor-pointer"
       >
         <div className="relative rounded-xl overflow-hidden bg-sib-sand aspect-square">
-          <img
-            src={listing.images[0]}
-            alt={listing.title}
-            className="w-full h-full object-cover"
-            loading="lazy"
-          />
+          <ListingImage listing={listing} className="w-full h-full object-cover" />
           {listing.status === 'sold' && (
             <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
               <span className="text-white font-bold text-sm tracking-wider uppercase">Sold</span>
@@ -54,12 +91,7 @@ export default function ListingCard({ listing, size = 'normal' }) {
     >
       {/* Image container */}
       <div className="relative rounded-xl overflow-hidden bg-sib-stone/30 aspect-[3/4]">
-        <img
-          src={listing.images[0]}
-          alt={listing.title}
-          className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.06]"
-          loading="lazy"
-        />
+        <ListingImage listing={listing} className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.06]" />
 
         {/* Sold overlay */}
         {listing.status === 'sold' && (

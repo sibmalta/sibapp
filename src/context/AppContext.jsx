@@ -3,7 +3,7 @@ import { useAuth } from '../lib/auth-context'
 import { useListings as useListingsHook } from '../hooks/useListings'
 import { useProfiles as useProfilesHook } from '../hooks/useProfiles'
 import { useOrders as useOrdersHook } from '../hooks/useOrders'
-import { SEED_USERS, SEED_LISTINGS, SEED_MESSAGES, SEED_REVIEWS } from '../data/seedData'
+import { SEED_USERS, SEED_MESSAGES, SEED_REVIEWS } from '../data/seedData'
 import {
   sendOfferReceivedEmail, sendOfferAcceptedEmail, sendOfferDeclinedEmail, sendOfferCounteredEmail,
   sendOrderConfirmedEmail, sendPaymentConfirmedEmail, sendOrderCancelledEmail, sendOrderCancelledSellerEmail,
@@ -80,28 +80,7 @@ function saveToStorage(key, value) {
 // Bump this version whenever seed data structure changes; clears stale caches
 const DATA_VERSION = 8
 
-function getInitialListings() {
-  const version = loadFromStorage('sib_data_version', 0)
-  if (version < DATA_VERSION) {
-    try { localStorage.removeItem('sib_listings') } catch {}
-    try { localStorage.removeItem('sib_orders') } catch {}
-    try { localStorage.removeItem('sib_notifications') } catch {}
-    try { localStorage.removeItem('sib_users') } catch {}
-    try { localStorage.removeItem('sib_conversations') } catch {}
-    try { localStorage.removeItem('sib_reviews') } catch {}
-    try { localStorage.removeItem('sib_disputes') } catch {}
-    try { localStorage.removeItem('sib_likes') } catch {}
-    try { localStorage.removeItem('sib_offers') } catch {}
-    try { localStorage.removeItem('sib_bundle') } catch {}
-    try { localStorage.removeItem('sib_bundleOffers') } catch {}
-    try { localStorage.removeItem('sib_currentUser') } catch {}
-    try { localStorage.setItem('sib_data_version', JSON.stringify(DATA_VERSION)) } catch {}
-    return SEED_LISTINGS
-  }
-  return loadFromStorage('sib_listings', SEED_LISTINGS)
-}
-
-// getInitialOrders removed — orders are now DB-only (no localStorage fallback)
+// getInitialOrders removed - orders are now DB-only (no localStorage fallback)
 
 function getInitialUsers() {
   const version = loadFromStorage('sib_data_version', 0)
@@ -137,9 +116,9 @@ export function AppProvider({ children }) {
   // Derive currentUser from Supabase auth — single source of truth
   const authAppUser = useMemo(() => buildAppUser(authUser), [authUser])
 
-  // Local seed state (used as fallback when DB is unavailable)
+  // Local seed state. Listings are intentionally empty here: Supabase is the only production listing source.
   const [localUsers]    = useState(() => getInitialUsers())
-  const [localListings] = useState(() => getInitialListings())
+  const [localListings] = useState([])
   const [localLikes]    = useState(() => loadFromStorage('sib_likes', []))
 
   // ── Supabase-backed profiles hook ──────────────────────────
@@ -268,10 +247,10 @@ export function AppProvider({ children }) {
   }, [users, shipments, dbPatchShipmentByOrderId, addNotification])
 
   // No longer persist currentUser to localStorage — derived from Supabase auth
-  // Only persist users/listings/likes to localStorage when DB is NOT available (fallback mode).
+  // Only persist users/likes to localStorage when DB is NOT available (fallback mode).
   // When DB is the source of truth, localStorage caching would create stale conflicts.
   useEffect(() => { if (!profilesDbAvailable) saveToStorage('sib_users', users) }, [users, profilesDbAvailable])
-  useEffect(() => { if (!listingsDbAvailable) saveToStorage('sib_listings', listings) }, [listings, listingsDbAvailable])
+  // Listings are never cached to localStorage; Supabase is the only production listing source.
   // Orders no longer saved to localStorage — DB is sole source of truth
   useEffect(() => { saveToStorage('sib_conversations', conversations) }, [conversations])
   useEffect(() => { saveToStorage('sib_reviews', reviews) }, [reviews])

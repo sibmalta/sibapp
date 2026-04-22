@@ -38,6 +38,9 @@ const CATEGORY_FOCAL = {
   kids:        'center 35%',
 }
 
+function isRenderableListing(listing) {
+  return !!listing?.id && listing.price !== undefined && listing.price !== null && !Number.isNaN(Number(listing.price))
+}
 
 function ListingRowSkeleton() {
   return (
@@ -61,7 +64,7 @@ export default function HomePage() {
 
   useScrollRestore('/')
 
-  const activeListings = listings.filter(l => l.status === 'active')
+  const activeListings = listings.filter(l => l.status === 'active' && isRenderableListing(l))
   const boostedListings = activeListings.filter(l => l.boosted)
 
   const freshListings = useMemo(() => {

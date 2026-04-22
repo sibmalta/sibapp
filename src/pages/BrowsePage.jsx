@@ -32,8 +32,26 @@ const SORT_OPTIONS = [
 
 const DESIGNER_BRANDS = ['Gucci', 'Prada', 'Ralph Lauren', 'Calvin Klein', 'Tommy Hilfiger', 'Versace', 'Burberry', 'Dior', 'Balenciaga', 'Louis Vuitton']
 
+function isRenderableListing(listing) {
+  return !!listing?.id && listing.price !== undefined && listing.price !== null && !Number.isNaN(Number(listing.price))
+}
+
+function BrowseGridSkeleton() {
+  return (
+    <div className="grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-4 lg:gap-4">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div key={i}>
+          <div className="rounded-xl bg-gray-200 animate-pulse aspect-[3/4]" />
+          <div className="h-3 w-24 bg-gray-200 rounded mt-2 animate-pulse" />
+          <div className="h-3 w-14 bg-gray-100 rounded mt-1 animate-pulse" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function BrowsePage() {
-  const { listings } = useApp()
+  const { listings, listingsLoading } = useApp()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const [searchFocused, setSearchFocused] = useState(false)
@@ -97,7 +115,7 @@ export default function BrowsePage() {
 
   useScrollRestore('/browse')
 
-  const activeListings = listings.filter(l => l.status === 'active')
+  const activeListings = listings.filter(l => l.status === 'active' && isRenderableListing(l))
 
   const allBrands = useMemo(() => {
     const set = new Set()
@@ -694,7 +712,9 @@ export default function BrowsePage() {
             </div>
           )}
 
-          {results.length === 0 ? (
+          {listingsLoading ? (
+            <BrowseGridSkeleton />
+          ) : results.length === 0 ? (
             <EmptyBrowseState
               query={query}
               category={category}

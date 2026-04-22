@@ -1,8 +1,7 @@
 /**
  * useListings — data hook for the listings table.
  *
- * Tries Supabase first; falls back to the in-memory/localStorage state
- * provided by AppContext when the backend is unavailable.
+ * Uses Supabase as the single source of truth for production listing data.
  *
  * Returns the same shape as the AppContext listings array so callers
  * don't need to change.
@@ -67,7 +66,7 @@ async function persistBackfilledTags(supabase, originalData, taggedData) {
 /**
  * useListings(localListings, localLikes, currentUser)
  *
- * @param {Array}  localListings - listings from AppContext localStorage state
+ * @param {Array}  localListings - ignored; kept for backward-compatible hook signature
  * @param {Array}  localLikes    - liked listing ids from AppContext localStorage state
  * @param {object} currentUser   - current user from AppContext
  */
@@ -99,9 +98,9 @@ export function useListings(localListings, localLikes, currentUser) {
         persistBackfilledTags(supabase, data, tagged)
       } else if (error) {
         // Backend unavailable — keep localStorage data
-        console.warn('[useListings] Supabase unavailable, using localStorage:', error.message)
+        console.warn('[useListings] Supabase unavailable. Listing grid will render empty instead of demo data:', error.message)
         setDbAvailable(false)
-        setListings(backfillCollectionTags(backfillStyleTags(localListings)))
+        setListings([])
       }
       setLoading(false)
     }
@@ -117,10 +116,6 @@ export function useListings(localListings, localLikes, currentUser) {
   }, [isAuthenticated, currentUser?.id, dbAvailable]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Keep in sync with local state when DB is unavailable ──────────────────
-  useEffect(() => {
-    if (!dbAvailable) setListings(localListings)
-  }, [localListings, dbAvailable])
-
   useEffect(() => {
     if (!dbAvailable) setLikedListings(localLikes)
   }, [localLikes, dbAvailable])
@@ -180,19 +175,7 @@ export function useListings(localListings, localLikes, currentUser) {
     }
 
     // Local fallback — only when DB is genuinely unreachable or user isn't authenticated
-    const local = {
-      id: `l${Date.now()}`,
-      sellerId: currentUser.id,
-      ...payload,
-      styleTags: payload.style_tags,
-      collectionTags: payload.collection_tags,
-      createdAt: new Date().toISOString(),
-      likes: 0,
-      status: 'active',
-      views: 0,
-    }
-    setListings(prev => [local, ...prev])
-    return local
+    throw new Error('Listings database is unavailable. Listing was not saved.')
   }, [supabase, currentUser, dbAvailable, isAuthenticated])
 
   // ── Delete listing ─────────────────────────────────────────────────────────
