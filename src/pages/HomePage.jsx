@@ -1,7 +1,7 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  ArrowRight, Zap, ChevronRight, Flame, Eye, Sparkles, Tag,
+  ArrowRight, Zap, ChevronRight, Flame, Eye, Sparkles, Tag, Search,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import ListingCard from '../components/ListingCard'
@@ -53,14 +53,27 @@ function ListingRowSkeleton() {
 }
 
 export default function HomePage() {
-  const { listings, listingsLoading, currentUser } = useApp()
+  const { listings, listingsLoading } = useApp()
   const navigate = useNavigate()
   const authNav = useAuthNav()
+  const [mobileSearch, setMobileSearch] = useState('')
 
   useScrollRestore('/')
 
   const activeListings = listings.filter(l => l.status === 'active')
   const boostedListings = activeListings.filter(l => l.boosted)
+
+  const freshListings = useMemo(() => {
+    return [...activeListings]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 8)
+  }, [activeListings])
+
+  const handleMobileSearch = (e) => {
+    e.preventDefault()
+    const query = mobileSearch.trim()
+    navigate(query ? `/browse?q=${encodeURIComponent(query)}` : '/browse')
+  }
 
   // ── Live counts per top-level category (supports legacy mapping) ────
   const categoryCounts = useMemo(() => {
@@ -135,8 +148,54 @@ export default function HomePage() {
 
   return (
     <div className="pb-4 lg:max-w-7xl lg:mx-auto bg-[#FAFAF9]">
+      <section className="lg:hidden bg-white px-4 pt-3 pb-4 border-b border-sib-stone/50">
+        <div className="flex items-end justify-between gap-3 mb-3">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-sib-muted font-bold">Sib marketplace</p>
+            <h1 className="text-[22px] font-extrabold text-sib-text leading-tight tracking-tight">Find your next pre-loved thing</h1>
+          </div>
+          <button
+            onClick={() => authNav('/sell')}
+            className="flex-shrink-0 rounded-full bg-sib-primary px-4 py-2 text-xs font-bold text-white active:scale-95 transition-transform"
+          >
+            Sell
+          </button>
+        </div>
+
+        <form onSubmit={handleMobileSearch} className="relative">
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sib-muted pointer-events-none" />
+          <input
+            value={mobileSearch}
+            onChange={e => setMobileSearch(e.target.value)}
+            placeholder="Search brands, styles, items..."
+            className="w-full rounded-2xl border border-sib-stone bg-sib-sand/70 py-3 pl-10 pr-4 text-sm font-medium text-sib-text placeholder-sib-muted outline-none focus:border-sib-primary focus:bg-white transition-colors"
+          />
+        </form>
+      </section>
+
+      {listingsLoading ? (
+        <section className="lg:hidden pt-4">
+          <ListingRowSkeleton />
+        </section>
+      ) : freshListings.length > 0 && (
+        <section className="lg:hidden pt-4 pb-1">
+          <div className="flex items-center justify-between px-4 mb-2">
+            <h2 className="text-[17px] font-extrabold text-sib-text tracking-tight">Fresh finds</h2>
+            <button onClick={() => navigate('/browse?sort=newest')} className="flex items-center gap-0.5 text-xs text-sib-primary font-semibold">
+              See all <ArrowRight size={13} />
+            </button>
+          </div>
+          <div className="flex gap-3 overflow-x-auto px-4 pb-1 scrollbar-none">
+            {freshListings.slice(0, 6).map(listing => (
+              <div key={listing.id} className="flex-shrink-0 w-36">
+                <ListingCard listing={listing} size="small" />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
       {/* ── Hero — typography-driven ────────────────────────── */}
-      <div className="relative overflow-hidden bg-white">
+      <div className="relative hidden overflow-hidden bg-white lg:block">
         {/* Subtle ambient glow accents */}
         <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full opacity-[0.05]"
           style={{ background: 'radial-gradient(circle, #C68A2E 0%, transparent 70%)' }} />
@@ -178,11 +237,11 @@ export default function HomePage() {
       </div>
 
       {/* ── Browse by Category — bento / masonry layout ────────── */}
-      <section className="pt-6 pb-2 lg:max-w-6xl lg:mx-auto lg:px-8">
-        <div className="px-4 mb-3.5 lg:px-0 flex items-end justify-between">
+      <section className="pt-4 pb-2 lg:pt-6 lg:max-w-6xl lg:mx-auto lg:px-8">
+        <div className="px-4 mb-2.5 lg:mb-3.5 lg:px-0 flex items-end justify-between">
           <div>
             <h2 className="text-[17px] font-extrabold text-sib-text tracking-tight lg:text-xl">Browse by Category</h2>
-            <p className="text-[11px] text-sib-muted mt-0.5 font-medium lg:text-xs">Find exactly what you're looking for</p>
+            <p className="hidden text-[11px] text-sib-muted mt-0.5 font-medium lg:block lg:text-xs">Find exactly what you're looking for</p>
           </div>
           <button onClick={() => navigate('/browse')} className="text-xs font-semibold text-sib-primary flex items-center gap-0.5 lg:text-sm">
             View all <ArrowRight size={12} />
@@ -200,7 +259,7 @@ export default function HomePage() {
       </section>
 
       {/* ── Sell Banner — high-visibility conversion strip ─────── */}
-      <section className="mt-5 mb-2 px-4 lg:max-w-6xl lg:mx-auto lg:px-8">
+      <section className="hidden mt-5 mb-2 px-4 lg:block lg:max-w-6xl lg:mx-auto lg:px-8">
         <div className="rounded-2xl bg-[#F3F1EC] px-5 py-7 sm:py-9 md:py-10 lg:px-10 lg:py-12 flex flex-col md:flex-row md:items-center md:justify-between gap-5 md:gap-8">
           <div className="min-w-0">
             <h2 className="text-[24px] sm:text-[28px] lg:text-[32px] font-extrabold text-sib-text leading-tight tracking-tight">

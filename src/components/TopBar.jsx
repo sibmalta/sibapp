@@ -153,21 +153,21 @@ export default function TopBar() {
     )
   }
 
-  // On the home page: float the action icons over the dark hero
+  // On the home page: use a compact app header.
   if (isHome) {
     return (
-      <header className="sticky top-0 z-50 flex justify-between px-3 h-14 items-center bg-transparent pointer-events-none -mb-14">
-        <div className="pointer-events-auto -ml-0.5">
+      <header className="sticky top-0 z-50 flex justify-between px-3 h-12 items-center bg-white/95 backdrop-blur-md border-b border-gray-200/70">
+        <div className="-ml-0.5">
           <img
             src={`${import.meta.env.BASE_URL}assets/sib-3.png`}
             alt="Sib"
-            className="header-logo drop-shadow-md"
+            className="header-logo"
           />
         </div>
-        <div className="flex items-center gap-2 pointer-events-auto">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setSearchOpen(true)}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/70 backdrop-blur-md shadow-sm border border-sib-stone/20"
+            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors"
           >
             <Search size={18} className="text-sib-text" />
           </button>
@@ -175,7 +175,7 @@ export default function TopBar() {
             <NotifBell
               onClick={handleBellTap}
               size={18}
-              className="w-10 h-10 flex items-center justify-center rounded-full bg-white/70 backdrop-blur-md shadow-sm border border-sib-stone/20 text-sib-text"
+              className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors text-sib-text"
             />
           )}
         </div>

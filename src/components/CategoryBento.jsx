@@ -136,15 +136,6 @@ export default function CategoryBento({ categories, images, focalPoints = {}, co
     <>
       {/* ── MOBILE (< lg) — hero + horizontal carousel ───────── */}
       <div className="flex flex-col lg:hidden">
-
-        {/* Featured hero tile — Fashion, full-width */}
-        <div className="px-4 mb-3">
-          <div className="h-[190px] sm:h-[220px] rounded-2xl overflow-hidden">
-            {tile(FEATURED_ID, 'hero')}
-          </div>
-        </div>
-
-        {/* Horizontal snap carousel for remaining categories */}
         <div
           ref={scrollRef}
           className="flex gap-3 overflow-x-auto px-4 pb-1 scrollbar-none"
@@ -153,14 +144,14 @@ export default function CategoryBento({ categories, images, focalPoints = {}, co
             WebkitOverflowScrolling: 'touch',
           }}
         >
-          {carouselCats.map(cat => (
+          {categories.map(cat => (
             <div
               key={cat.id}
-              className="flex-shrink-0 h-[150px] sm:h-[170px]"
+              className="flex-shrink-0 h-[92px] sm:h-[108px]"
               style={{
-                width: 'calc((100vw - 44px) / 2.3)',
-                minWidth: '140px',
-                maxWidth: '200px',
+                width: 'calc((100vw - 48px) / 3)',
+                minWidth: '104px',
+                maxWidth: '140px',
                 scrollSnapAlign: 'start',
               }}
             >
@@ -178,9 +169,6 @@ export default function CategoryBento({ categories, images, focalPoints = {}, co
           {/* Trailing spacer so last tile can snap-start with right padding */}
           <div className="flex-shrink-0 w-1" aria-hidden="true" />
         </div>
-
-        {/* Scroll indicator dots */}
-        <ScrollDots total={Math.ceil(carouselCats.length / 2)} active={Math.floor(activeIdx / 2)} />
       </div>
 
       {/* ── DESKTOP (lg+) — editorial magazine layout ────────── */}
