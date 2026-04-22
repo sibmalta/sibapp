@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowRight, Zap, ChevronRight, Flame, Eye, Sparkles, Tag, Search,
@@ -10,6 +10,7 @@ import PickedForYou from '../components/PickedForYou'
 import useForYou from '../hooks/useForYou'
 import useAuthNav from '../hooks/useAuthNav'
 import CategoryBento from '../components/CategoryBento'
+import SearchAutocomplete from '../components/SearchAutocomplete'
 import { CATEGORY_TREE, resolveCategory } from '../data/categories'
 import { getHistory, hasActivity } from '../lib/browsingHistory'
 
@@ -72,8 +73,29 @@ export default function HomePage() {
   const handleMobileSearch = (e) => {
     e.preventDefault()
     const query = mobileSearch.trim()
+    if (query.length >= 2) return
     navigate(query ? `/browse?q=${encodeURIComponent(query)}` : '/browse')
   }
+
+  const handleMobileSuggestionSelect = useCallback((suggestion) => {
+    if (suggestion.type === 'auth_prompt') {
+      navigate('/auth', { state: { from: '/' } })
+    } else if (suggestion.type === 'user' && suggestion.username) {
+      navigate(`/profile/${suggestion.username}`)
+    } else if (suggestion.type === 'item' && suggestion.id) {
+      navigate(`/listing/${suggestion.id}`)
+    } else {
+      const params = new URLSearchParams()
+      if (suggestion.query) params.set('q', suggestion.query)
+      if (suggestion.category) params.set('cat', suggestion.category)
+      if (suggestion.subcategory) params.set('sub', suggestion.subcategory)
+      if (suggestion.brand) params.set('brand', suggestion.brand)
+      if (!suggestion.query && !suggestion.category && !suggestion.brand) {
+        params.set('q', suggestion.label)
+      }
+      navigate(`/browse?${params.toString()}`)
+    }
+  }, [navigate])
 
   // ── Live counts per top-level category (supports legacy mapping) ────
   const categoryCounts = useMemo(() => {
@@ -162,13 +184,17 @@ export default function HomePage() {
           </button>
         </div>
 
-        <form onSubmit={handleMobileSearch} className="relative">
+        <form onSubmit={handleMobileSearch} className="relative z-30 overflow-visible">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sib-muted pointer-events-none" />
           <input
             value={mobileSearch}
             onChange={e => setMobileSearch(e.target.value)}
             placeholder="Search brands, styles, items..."
             className="w-full rounded-2xl border border-sib-stone bg-sib-sand/70 py-3 pl-10 pr-4 text-sm font-medium text-sib-text placeholder-sib-muted outline-none focus:border-sib-primary focus:bg-white transition-colors"
+          />
+          <SearchAutocomplete
+            query={mobileSearch}
+            onSelect={handleMobileSuggestionSelect}
           />
         </form>
       </section>

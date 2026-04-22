@@ -25,8 +25,17 @@ const SearchAutocomplete = forwardRef(function SearchAutocomplete(
 
   const suggestions = useMemo(() => {
     if (!debouncedQuery || debouncedQuery.trim().length < 2) return []
+    console.log('generateSuggestions called', {
+      query: debouncedQuery,
+      listingsCount: listings.length,
+      usersCount: users.length,
+    })
     return generateSuggestions(debouncedQuery, listings, 8, users, { isAuthenticated })
   }, [debouncedQuery, listings, users, isAuthenticated])
+
+  useEffect(() => {
+    console.log('suggestions', suggestions)
+  }, [suggestions])
 
   // Keep ref in sync for imperative access
   suggestionsRef.current = suggestions
@@ -258,5 +267,4 @@ function highlightMatch(text, query) {
     </>
   )
 }
-
 
