@@ -73,7 +73,7 @@ export function rowToOrder(row) {
   }
 }
 
-eexport function orderToRow(order) {
+export function orderToRow(order) {
   console.log('[SIB_DEPLOY_MARKER] orders.js no bundled_fee write v2026-04-22')
 
   const row = {}
