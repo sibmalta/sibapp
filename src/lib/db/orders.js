@@ -24,7 +24,7 @@ export function rowToOrder(row) {
     listingTitle: row.listing_title || '',
     listingImage: row.listing_image || '',
     itemPrice: Number(row.item_price || 0),
-    bundledFee: Number(row.bundled_fee || 0),
+    bundledFee: Number(row.bundled_fee || row.platform_fee || shippingAddressObject.bundledFee || 0),
     totalPrice: Number(row.total_price || 0),
     sellerPayout: Number(row.seller_payout || 0),
     platformFee: Number(row.platform_fee || 0),
@@ -82,7 +82,6 @@ export function orderToRow(order) {
   if (order.listingTitle !== undefined) row.listing_title = order.listingTitle
   if (order.listingImage !== undefined) row.listing_image = order.listingImage
   if (order.itemPrice !== undefined) row.item_price = order.itemPrice
-  if (order.bundledFee !== undefined) row.bundled_fee = order.bundledFee
   if (order.totalPrice !== undefined) row.total_price = order.totalPrice
   if (order.sellerPayout !== undefined) row.seller_payout = order.sellerPayout
   if (order.platformFee !== undefined) row.platform_fee = order.platformFee
@@ -127,6 +126,7 @@ function buildShippingAddressPayload(order) {
 
   const hasDeliverySnapshot = [
     'address',
+    'bundledFee',
     'buyerFullName',
     'buyerPhone',
     'buyerCity',
@@ -144,6 +144,7 @@ function buildShippingAddressPayload(order) {
 
   return {
     raw: order.address || null,
+    bundledFee: order.bundledFee ?? null,
     buyerFullName: order.buyerFullName || null,
     buyerPhone: order.buyerPhone || null,
     buyerCity: order.buyerCity || null,
@@ -175,16 +176,43 @@ export async function fetchAllOrders(supabase) {
 export async function insertOrder(supabase, order) {
   try {
     const row = orderToRow(order)
-    const { data, error } = await supabase
-      .from('orders')
-      .insert(row)
-      .select()
-      .single()
+    const { data, error } = await insertOrderRow(supabase, row)
     if (error) return { data: null, error }
     return { data: rowToOrder(data), error: null }
   } catch (e) {
     return { data: null, error: { message: e.message } }
   }
+}
+
+async function insertOrderRow(supabase, row) {
+  let currentRow = { ...row }
+
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const { data, error } = await supabase
+      .from('orders')
+      .insert(currentRow)
+      .select()
+      .single()
+
+    if (!error) return { data, error: null }
+
+    const missingColumn = getMissingSchemaColumn(error)
+    if (!missingColumn || !(missingColumn in currentRow)) {
+      return { data: null, error }
+    }
+
+    console.warn(`[orders] Live orders schema is missing "${missingColumn}". Retrying insert without that optional column.`)
+    const { [missingColumn]: _removed, ...nextRow } = currentRow
+    currentRow = nextRow
+  }
+
+  return { data: null, error: { message: 'Order insert failed after removing unsupported live-schema columns.' } }
+}
+
+function getMissingSchemaColumn(error) {
+  const message = error?.message || ''
+  const match = message.match(/Could not find the '([^']+)' column/i)
+  return match?.[1] || null
 }
 
 export async function updateOrder(supabase, orderId, updates) {
