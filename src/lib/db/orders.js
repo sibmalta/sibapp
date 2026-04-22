@@ -73,7 +73,9 @@ export function rowToOrder(row) {
   }
 }
 
-export function orderToRow(order) {
+eexport function orderToRow(order) {
+  console.log('[SIB_DEPLOY_MARKER] orders.js no bundled_fee write v2026-04-22')
+
   const row = {}
   if (order.orderRef !== undefined) row.order_ref = order.orderRef
   if (order.listingId !== undefined) row.listing_id = order.listingId
@@ -91,8 +93,10 @@ export function orderToRow(order) {
   if (order.payoutStatus !== undefined) row.payout_status = order.payoutStatus
   if (order.deliveryMethod !== undefined) row.delivery_method = order.deliveryMethod
   if (order.trackingNumber !== undefined) row.tracking_number = order.trackingNumber
+
   const shippingAddress = buildShippingAddressPayload(order)
   if (shippingAddress !== undefined) row.shipping_address = shippingAddress
+
   if (order.isBundle !== undefined) row.is_bundle = order.isBundle
   if (order.bundleListingIds !== undefined) row.bundle_listing_ids = order.bundleListingIds
   if (order.bundleOfferId !== undefined) row.bundle_offer_id = order.bundleOfferId
@@ -105,17 +109,14 @@ export function orderToRow(order) {
   if (order.confirmedAt !== undefined) row.confirmed_at = order.confirmedAt
   if (order.payoutReleasedAt !== undefined) row.payout_released_at = order.payoutReleasedAt
   if (order.cancelledAt !== undefined) row.cancelled_at = order.cancelledAt
-  // Delivery snapshot — buyer
-  // Delivery snapshot is written to shipping_address JSONB for live-schema compatibility.
-  // Delivery snapshot — seller
-  // Seller delivery snapshot is also included in shipping_address JSONB.
-  // Stripe fields
+
   if (order.stripePaymentIntentId !== undefined) row.stripe_payment_intent_id = order.stripePaymentIntentId
   if (order.paymentStatus !== undefined) row.payment_status = order.paymentStatus
   if (order.paymentFlowType !== undefined) row.payment_flow_type = order.paymentFlowType
   if (order.sellerPayoutStatus !== undefined) row.seller_payout_status = order.sellerPayoutStatus
   if (order.refundedAt !== undefined) row.refunded_at = order.refundedAt
   if (order.stripeRefundId !== undefined) row.stripe_refund_id = order.stripeRefundId
+
   return row
 }
 
