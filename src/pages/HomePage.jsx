@@ -204,18 +204,16 @@ export default function HomePage() {
           <ListingRowSkeleton />
         </section>
       ) : freshListings.length > 0 && (
-        <section className="lg:hidden pt-4 pb-1">
-          <div className="flex items-center justify-between px-4 mb-2">
-            <h2 className="text-[17px] font-extrabold text-sib-text tracking-tight">Fresh finds</h2>
+        <section className="lg:hidden pt-4 pb-1 px-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-[17px] font-extrabold text-sib-text tracking-tight">For you</h2>
             <button onClick={() => navigate('/browse?sort=newest')} className="flex items-center gap-0.5 text-xs text-sib-primary font-semibold">
               See all <ArrowRight size={13} />
             </button>
           </div>
-          <div className="flex gap-3 overflow-x-auto px-4 pb-1 scrollbar-none">
+          <div className="grid grid-cols-2 gap-x-3 gap-y-5">
             {freshListings.slice(0, 6).map(listing => (
-              <div key={listing.id} className="flex-shrink-0 w-36">
-                <ListingCard listing={listing} size="small" />
-              </div>
+              <ListingCard key={listing.id} listing={listing} />
             ))}
           </div>
         </section>
