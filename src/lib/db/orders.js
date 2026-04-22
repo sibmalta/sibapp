@@ -9,6 +9,12 @@
 
 export function rowToOrder(row) {
   if (!row) return null
+  const shippingAddress = row.shipping_address || null
+  const shippingAddressObject = shippingAddress && typeof shippingAddress === 'object' && !Array.isArray(shippingAddress)
+    ? shippingAddress
+    : {}
+  const address = row.address || shippingAddressObject.raw || (typeof shippingAddress === 'string' ? shippingAddress : null)
+
   return {
     id: row.id,
     orderRef: row.order_ref || '',
@@ -28,11 +34,11 @@ export function rowToOrder(row) {
     payoutStatus: row.payout_status || 'held',
     deliveryMethod: row.delivery_method || 'sib_delivery',
     trackingNumber: row.tracking_number || null,
-    shippingAddress: row.shipping_address || null,
+    shippingAddress,
     isBundle: row.is_bundle || false,
     bundleListingIds: row.bundle_listing_ids || [],
     bundleOfferId: row.bundle_offer_id || null,
-    address: row.address || null,
+    address,
     overdueFlag: row.overdue_flag || false,
     overdueFlaggedAt: row.overdue_flagged_at || null,
     autoConfirmed: row.auto_confirmed || false,
@@ -45,18 +51,18 @@ export function rowToOrder(row) {
     payoutReleasedAt: row.payout_released_at || null,
     cancelledAt: row.cancelled_at || null,
     // Delivery snapshot — buyer
-    buyerFullName: row.buyer_full_name || null,
-    buyerPhone: row.buyer_phone || null,
-    buyerCity: row.buyer_city || null,
-    buyerPostcode: row.buyer_postcode || null,
-    deliveryNotes: row.delivery_notes || null,
-    deliveryFee: row.delivery_fee != null ? Number(row.delivery_fee) : null,
-    lockerLocationName: row.locker_location_name || null,
-    lockerAddress: row.locker_address || null,
+    buyerFullName: row.buyer_full_name || shippingAddressObject.buyerFullName || null,
+    buyerPhone: row.buyer_phone || shippingAddressObject.buyerPhone || null,
+    buyerCity: row.buyer_city || shippingAddressObject.buyerCity || null,
+    buyerPostcode: row.buyer_postcode || shippingAddressObject.buyerPostcode || null,
+    deliveryNotes: row.delivery_notes || shippingAddressObject.deliveryNotes || null,
+    deliveryFee: row.delivery_fee != null ? Number(row.delivery_fee) : (shippingAddressObject.deliveryFee != null ? Number(shippingAddressObject.deliveryFee) : null),
+    lockerLocationName: row.locker_location_name || shippingAddressObject.lockerLocationName || null,
+    lockerAddress: row.locker_address || shippingAddressObject.lockerAddress || null,
     // Delivery snapshot — seller
-    sellerName: row.seller_name || null,
-    sellerPhone: row.seller_phone || null,
-    sellerAddress: row.seller_address || null,
+    sellerName: row.seller_name || shippingAddressObject.sellerName || null,
+    sellerPhone: row.seller_phone || shippingAddressObject.sellerPhone || null,
+    sellerAddress: row.seller_address || shippingAddressObject.sellerAddress || null,
     // Stripe fields (written by Edge Functions / checkout pages)
     stripePaymentIntentId: row.stripe_payment_intent_id || null,
     paymentStatus: row.payment_status || null,
@@ -86,11 +92,11 @@ export function orderToRow(order) {
   if (order.payoutStatus !== undefined) row.payout_status = order.payoutStatus
   if (order.deliveryMethod !== undefined) row.delivery_method = order.deliveryMethod
   if (order.trackingNumber !== undefined) row.tracking_number = order.trackingNumber
-  if (order.shippingAddress !== undefined) row.shipping_address = order.shippingAddress
+  const shippingAddress = buildShippingAddressPayload(order)
+  if (shippingAddress !== undefined) row.shipping_address = shippingAddress
   if (order.isBundle !== undefined) row.is_bundle = order.isBundle
   if (order.bundleListingIds !== undefined) row.bundle_listing_ids = order.bundleListingIds
   if (order.bundleOfferId !== undefined) row.bundle_offer_id = order.bundleOfferId
-  if (order.address !== undefined) row.address = order.address
   if (order.overdueFlag !== undefined) row.overdue_flag = order.overdueFlag
   if (order.overdueFlaggedAt !== undefined) row.overdue_flagged_at = order.overdueFlaggedAt
   if (order.autoConfirmed !== undefined) row.auto_confirmed = order.autoConfirmed
@@ -101,18 +107,9 @@ export function orderToRow(order) {
   if (order.payoutReleasedAt !== undefined) row.payout_released_at = order.payoutReleasedAt
   if (order.cancelledAt !== undefined) row.cancelled_at = order.cancelledAt
   // Delivery snapshot — buyer
-  if (order.buyerFullName !== undefined) row.buyer_full_name = order.buyerFullName
-  if (order.buyerPhone !== undefined) row.buyer_phone = order.buyerPhone
-  if (order.buyerCity !== undefined) row.buyer_city = order.buyerCity
-  if (order.buyerPostcode !== undefined) row.buyer_postcode = order.buyerPostcode
-  if (order.deliveryNotes !== undefined) row.delivery_notes = order.deliveryNotes
-  if (order.deliveryFee !== undefined) row.delivery_fee = order.deliveryFee
-  if (order.lockerLocationName !== undefined) row.locker_location_name = order.lockerLocationName
-  if (order.lockerAddress !== undefined) row.locker_address = order.lockerAddress
+  // Delivery snapshot is written to shipping_address JSONB for live-schema compatibility.
   // Delivery snapshot — seller
-  if (order.sellerName !== undefined) row.seller_name = order.sellerName
-  if (order.sellerPhone !== undefined) row.seller_phone = order.sellerPhone
-  if (order.sellerAddress !== undefined) row.seller_address = order.sellerAddress
+  // Seller delivery snapshot is also included in shipping_address JSONB.
   // Stripe fields
   if (order.stripePaymentIntentId !== undefined) row.stripe_payment_intent_id = order.stripePaymentIntentId
   if (order.paymentStatus !== undefined) row.payment_status = order.paymentStatus
@@ -124,6 +121,42 @@ export function orderToRow(order) {
 }
 
 // ── Order CRUD ────────────────────────────────────────────────────────────────
+
+function buildShippingAddressPayload(order) {
+  if (order.shippingAddress !== undefined) return order.shippingAddress
+
+  const hasDeliverySnapshot = [
+    'address',
+    'buyerFullName',
+    'buyerPhone',
+    'buyerCity',
+    'buyerPostcode',
+    'deliveryNotes',
+    'deliveryFee',
+    'lockerLocationName',
+    'lockerAddress',
+    'sellerName',
+    'sellerPhone',
+    'sellerAddress',
+  ].some(key => order[key] !== undefined)
+
+  if (!hasDeliverySnapshot) return undefined
+
+  return {
+    raw: order.address || null,
+    buyerFullName: order.buyerFullName || null,
+    buyerPhone: order.buyerPhone || null,
+    buyerCity: order.buyerCity || null,
+    buyerPostcode: order.buyerPostcode || null,
+    deliveryNotes: order.deliveryNotes || null,
+    deliveryFee: order.deliveryFee ?? null,
+    lockerLocationName: order.lockerLocationName || null,
+    lockerAddress: order.lockerAddress || null,
+    sellerName: order.sellerName || null,
+    sellerPhone: order.sellerPhone || null,
+    sellerAddress: order.sellerAddress || null,
+  }
+}
 
 export async function fetchAllOrders(supabase) {
   try {

@@ -5,6 +5,7 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 const STRIPE_PK = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
 
 let stripePromise = null
+const EDGE_TIMEOUT_MS = 15000
 
 export function isStripeConfigured() {
   return !!STRIPE_PK
@@ -42,20 +43,53 @@ function getPayoutSettingsUrl() {
 }
 
 async function callEdgeFunction(fnName, body, accessToken) {
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/${fnName}`, {
-    method: 'POST',
-    headers: getHeaders(accessToken),
-    body: JSON.stringify(body),
-  })
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error('Supabase frontend environment variables are missing.')
+  }
 
-  const data = await res.json()
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), EDGE_TIMEOUT_MS)
+
+  let res
+  try {
+    res = await fetch(`${SUPABASE_URL}/functions/v1/${fnName}`, {
+      method: 'POST',
+      headers: getHeaders(accessToken),
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    })
+  } catch (err) {
+    if (err?.name === 'AbortError') {
+      throw new Error(`Edge function ${fnName} timed out after ${EDGE_TIMEOUT_MS / 1000}s.`)
+    }
+    throw err
+  } finally {
+    clearTimeout(timeout)
+  }
+
+  let data
+  try {
+    data = await res.json()
+  } catch {
+    throw new Error(`Edge function ${fnName} returned a non-JSON response (${res.status}).`)
+  }
 
   if (!res.ok) {
+    console.error(`[${fnName}] Edge function failed`, {
+      status: res.status,
+      code: data?.code || null,
+      step: data?.step || null,
+      details: data?.details || {},
+    })
+
     const extra = Array.isArray(data.blocking_reasons) && data.blocking_reasons.length
       ? ` ${data.blocking_reasons.join(' ')}`
       : ''
 
-    throw new Error((data.error || `Edge function ${fnName} failed (${res.status})`) + extra)
+    const requestId = res.headers.get('x-request-id') || res.headers.get('x-supabase-request-id')
+    const diagnostic = requestId ? ` Request ID: ${requestId}.` : ''
+    const structured = data?.code && data?.step ? ` [${data.code} at ${data.step}]` : ''
+    throw new Error((data.error || `Edge function ${fnName} failed (${res.status}).`) + structured + extra + diagnostic)
   }
 
   return data
@@ -81,7 +115,7 @@ export async function createPaymentIntent(opts = {}, accessToken) {
 
   if (!isValidPaymentIntentClientSecret(clientSecret)) {
     console.error('[createPaymentIntent] Invalid client secret returned from backend', {
-      clientSecret,
+      hasClientSecret: typeof clientSecret === 'string',
       paymentIntentId,
       rawKeys: data ? Object.keys(data) : [],
     })

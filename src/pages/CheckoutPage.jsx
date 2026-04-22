@@ -64,6 +64,15 @@ function friendlyIntentError(raw) {
   if (/invalid client secret/i.test(raw)) {
     return 'The payment service returned an invalid payment secret. Please refresh and try again.'
   }
+  if (/frontend environment variables are missing|auth environment variables are missing|service role environment variables are missing/i.test(raw)) {
+    return 'Payment configuration is incomplete. Please check the Supabase and Stripe environment variables.'
+  }
+  if (/missing bearer token|invalid or expired token|not authenticated|log in again/i.test(raw)) {
+    return 'Your session expired. Please log in again before continuing to payment.'
+  }
+  if (/timed out/i.test(raw)) {
+    return 'Payment setup timed out. Please check your connection and try again.'
+  }
   if (/amount must be at least/i.test(raw) || /minimum amount/i.test(raw)) {
     return 'Order total must be at least €0.50 to proceed.'
   }
@@ -93,7 +102,7 @@ function StripeCheckoutForm({ fees, onSuccess, onError }) {
         setErrorMsg(msg)
         onError?.(msg)
       }
-    }, 8000)
+    }, 15000)
 
     return () => clearTimeout(timer)
   }, [elementReady, onError])
@@ -348,7 +357,7 @@ export default function CheckoutPage() {
 
       if (!isValidClientSecret(nextClientSecret)) {
         console.error('[CheckoutPage] Missing or malformed Stripe client secret', {
-          clientSecret: nextClientSecret,
+          hasClientSecret: typeof nextClientSecret === 'string',
           paymentIntentId: result?.paymentIntentId || result?.payment_intent_id || null,
         })
         throw new Error('Payment service returned an invalid client secret.')
@@ -756,7 +765,7 @@ export default function CheckoutPage() {
               )}
 
               {clientSecret && (
-                <Elements stripe={getStripe()} options={{ clientSecret, appearance: stripeAppearance }}>
+                <Elements key={clientSecret} stripe={getStripe()} options={{ clientSecret, appearance: stripeAppearance }}>
                   <StripeCheckoutForm fees={fees} onSuccess={handlePaymentSuccess} onError={handlePaymentError} />
                 </Elements>
               )}

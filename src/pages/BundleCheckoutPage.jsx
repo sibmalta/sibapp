@@ -41,6 +41,15 @@ function friendlyIntentError(raw) {
   if (/invalid client secret/i.test(raw)) {
     return 'The payment service returned an invalid payment secret. Please refresh and try again. If this keeps happening, the latest checkout or Supabase function changes may not be deployed yet.'
   }
+  if (/frontend environment variables are missing|auth environment variables are missing|service role environment variables are missing/i.test(raw)) {
+    return 'Payment configuration is incomplete. Please check the Supabase and Stripe environment variables.'
+  }
+  if (/missing bearer token|invalid or expired token|not authenticated|log in again/i.test(raw)) {
+    return 'Your session expired. Please log in again before continuing to payment.'
+  }
+  if (/timed out/i.test(raw)) {
+    return 'Payment setup timed out. Please check your connection and try again.'
+  }
   if (TECHNICAL_PATTERNS.some(p => p.test(raw))) {
     return "We couldn't load payment options right now. Please try again in a moment."
   }
@@ -71,6 +80,19 @@ function BundleStripeForm({ fees, onSuccess, onError }) {
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [elementReady, setElementReady] = useState(false)
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!elementReady) {
+        console.error('Bundle PaymentElement timed out before ready')
+        const msg = 'Payment options are taking too long to load. Please refresh and try again.'
+        setErrorMsg(msg)
+        onError?.(msg)
+      }
+    }, 15000)
+
+    return () => clearTimeout(timer)
+  }, [elementReady, onError])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -123,6 +145,13 @@ function BundleStripeForm({ fees, onSuccess, onError }) {
             paymentMethodOrder: ['apple_pay', 'google_pay', 'card'],
           }}
           onReady={() => setElementReady(true)}
+          onLoadError={(event) => {
+            console.error('Bundle PaymentElement load error:', event)
+            const msg = "We couldn't load payment options right now. Please refresh and try again."
+            setErrorMsg(msg)
+            setLoading(false)
+            onError?.(msg)
+          }}
         />
       </div>
       {errorMsg && (
@@ -256,7 +285,7 @@ export default function BundleCheckoutPage() {
       const nextClientSecret = result?.clientSecret || result?.client_secret || null
       if (!isValidClientSecret(nextClientSecret)) {
         console.error('[BundleCheckoutPage] Missing or malformed Stripe client secret', {
-          clientSecret: nextClientSecret,
+          hasClientSecret: typeof nextClientSecret === 'string',
           paymentIntentId: result?.paymentIntentId || result?.payment_intent_id || null,
         })
         throw new Error('Payment service returned an invalid client secret.')
@@ -526,7 +555,7 @@ export default function BundleCheckoutPage() {
 
               {/* State B — Stripe Elements loaded, buyer can pay */}
               {clientSecret && (
-                <Elements stripe={getStripe()} options={{ clientSecret, appearance: stripeAppearance }}>
+                <Elements key={clientSecret} stripe={getStripe()} options={{ clientSecret, appearance: stripeAppearance }}>
                   <BundleStripeForm fees={fees} onSuccess={handlePaymentSuccess} onError={handlePaymentError} />
                 </Elements>
               )}
