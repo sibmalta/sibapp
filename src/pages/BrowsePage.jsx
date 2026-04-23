@@ -59,6 +59,10 @@ export default function BrowsePage() {
   const [subcategorySheetOpen, setSubcategorySheetOpen] = useState(false)
   const authNav = useAuthNav()
 
+  useEffect(() => {
+    document.title = 'Browse items | Sib'
+  }, [])
+
   const {
     query, setQuery,
     category, setCategory,

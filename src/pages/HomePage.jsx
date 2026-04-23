@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowRight, Zap, ChevronRight, Flame, Eye, Sparkles, Tag, Search,
@@ -61,6 +61,10 @@ export default function HomePage() {
   const navigate = useNavigate()
   const authNav = useAuthNav()
   const [mobileSearch, setMobileSearch] = useState('')
+
+  useEffect(() => {
+    document.title = 'Sib — Marketplace'
+  }, [])
 
   useScrollRestore('/')
 

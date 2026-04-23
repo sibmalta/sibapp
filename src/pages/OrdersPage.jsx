@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Package, ShoppingBag, Truck } from 'lucide-react'
 import { useApp } from '../context/AppContext'
@@ -37,6 +37,10 @@ export default function OrdersPage() {
   const navigate = useNavigate()
   const authNav = useAuthNav()
   const [tab, setTab] = useState('buying')
+
+  useEffect(() => {
+    document.title = 'Your orders | Sib'
+  }, [])
 
   if (!currentUser) {
     navigate('/auth')
