@@ -83,6 +83,14 @@ function BundleStripeForm({ fees, onSuccess, onError }) {
   const [walletsAvailable, setWalletsAvailable] = useState(null)
 
   useEffect(() => {
+    console.log('[BundleCheckoutPage] ExpressCheckoutElement mounted')
+  }, [])
+
+  useEffect(() => {
+    console.log('[BundleCheckoutPage] walletsAvailable final value', walletsAvailable)
+  }, [walletsAvailable])
+
+  useEffect(() => {
     const timer = setTimeout(() => {
       if (!elementReady) {
         console.error('Bundle PaymentElement timed out before ready')
@@ -167,7 +175,7 @@ function BundleStripeForm({ fees, onSuccess, onError }) {
           </div>
         </div>
       )}
-      <div className={walletsAvailable === false ? 'hidden' : 'mb-4'}>
+      <div className="mb-4">
         <ExpressCheckoutElement
           options={{
             buttonHeight: 48,

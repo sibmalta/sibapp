@@ -96,6 +96,14 @@ function StripeCheckoutForm({ fees, onSuccess, onError }) {
   const [walletsAvailable, setWalletsAvailable] = useState(null)
 
   useEffect(() => {
+    console.log('[CheckoutPage] ExpressCheckoutElement mounted')
+  }, [])
+
+  useEffect(() => {
+    console.log('[CheckoutPage] walletsAvailable final value', walletsAvailable)
+  }, [walletsAvailable])
+
+  useEffect(() => {
     const timer = setTimeout(() => {
       if (!elementReady) {
         console.error('PaymentElement timed out before ready')
@@ -191,7 +199,7 @@ function StripeCheckoutForm({ fees, onSuccess, onError }) {
         </div>
       )}
 
-      <div className={walletsAvailable === false ? 'hidden' : 'mb-4'}>
+      <div className="mb-4">
         <ExpressCheckoutElement
           options={{
             buttonHeight: 48,
