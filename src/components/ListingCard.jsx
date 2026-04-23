@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Heart, ImageIcon, Zap } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Heart, ImageIcon, Zap } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { CONDITION_LABELS, CONDITION_DOT, getCardSubtitle, getCardBadge } from '../lib/listingMeta'
 
@@ -110,6 +110,16 @@ function SwipeableListingImage({ listing, className, imageClassName, children, o
     swipedRef.current = false
   }
 
+  const showPreviousImage = (e) => {
+    e.stopPropagation()
+    setImageIndex(prev => Math.max(prev - 1, 0))
+  }
+
+  const showNextImage = (e) => {
+    e.stopPropagation()
+    setImageIndex(prev => Math.min(prev + 1, images.length - 1))
+  }
+
   return (
     <div
       className={className}
@@ -121,6 +131,28 @@ function SwipeableListingImage({ listing, className, imageClassName, children, o
     >
       <ListingImage listing={listing} src={images[imageIndex]} className={imageClassName} />
       {children}
+      {hasMultipleImages && (
+        <>
+          <button
+            type="button"
+            onClick={showPreviousImage}
+            disabled={imageIndex === 0}
+            aria-label="Previous photo"
+            className="hidden lg:flex absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/35 text-white items-center justify-center opacity-0 group-hover:opacity-100 disabled:opacity-0 transition-opacity"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={showNextImage}
+            disabled={imageIndex === images.length - 1}
+            aria-label="Next photo"
+            className="hidden lg:flex absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/35 text-white items-center justify-center opacity-0 group-hover:opacity-100 disabled:opacity-0 transition-opacity"
+          >
+            <ChevronRight size={16} />
+          </button>
+        </>
+      )}
       {hasMultipleImages && (
         <div className="absolute top-2 left-1/2 -translate-x-1/2 flex items-center gap-1 pointer-events-none">
           {images.map((_, i) => (
