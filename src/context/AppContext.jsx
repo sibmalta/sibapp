@@ -1072,16 +1072,20 @@ export function AppProvider({ children }) {
       message: `@${currentUser.username} purchased ${items.length} items for €${fees.total.toFixed(2)} — ${deliveryLabel}. Ship via MaltaPost within 3 business days.`,
     })
 
-    // Email buyer order confirmation
-    sendOrderConfirmedEmail(currentUser.email, currentUser.username, orderRef, `${items.length}-item bundle`, fees.total.toFixed(2), deliveryLabel, {
-      related_entity_type: 'order',
-      related_entity_id: savedOrder.id,
-      orderId: savedOrder.id,
-      listingId: savedOrder.listingId,
-      sellerId: bundle.sellerId,
-      buyerId: currentUser.id,
-      bundle: true,
-    })
+    // Email buyer order confirmation + payment confirmation
+    if (currentUser?.email) {
+      const emailMeta = {
+        related_entity_type: 'order',
+        related_entity_id: savedOrder.id,
+        orderId: savedOrder.id,
+        listingId: savedOrder.listingId,
+        sellerId: bundle.sellerId,
+        buyerId: currentUser.id,
+        bundle: true,
+      }
+      sendOrderConfirmedEmail(currentUser.email, currentUser.username, orderRef, `${items.length}-item bundle`, fees.total.toFixed(2), deliveryLabel, emailMeta)
+      sendPaymentConfirmedEmail(currentUser.email, currentUser.username, orderRef, fees.total.toFixed(2), emailMeta)
+    }
 
     // Email: item sold notification to seller
     if (seller?.email) {
@@ -1342,8 +1346,8 @@ export function AppProvider({ children }) {
 
     // Email buyer order confirmation
     const buyer = users.find(u => u.id === offer.buyerId)
-    if (buyer) {
-      sendOrderConfirmedEmail(buyer.email, buyer.username, orderRef, `${items.length}-item bundle`, fees.total.toFixed(2), deliveryLabel, {
+    if (buyer?.email) {
+      const emailMeta = {
         related_entity_type: 'order',
         related_entity_id: savedOrder.id,
         orderId: savedOrder.id,
@@ -1352,7 +1356,9 @@ export function AppProvider({ children }) {
         buyerId: offer.buyerId,
         bundle: true,
         bundleOfferId: offerId,
-      })
+      }
+      sendOrderConfirmedEmail(buyer.email, buyer.username, orderRef, `${items.length}-item bundle`, fees.total.toFixed(2), deliveryLabel, emailMeta)
+      sendPaymentConfirmedEmail(buyer.email, buyer.username, orderRef, fees.total.toFixed(2), emailMeta)
     }
 
     // Email seller sold notification

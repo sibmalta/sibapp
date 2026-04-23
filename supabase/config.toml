@@ -1,0 +1,10 @@
+project_id = "sibapp"
+
+[functions.create-payment-intent]
+verify_jwt = false
+
+[functions.create-transfer]
+verify_jwt = false
+
+[functions.send-email]
+verify_jwt = false

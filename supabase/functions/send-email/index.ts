@@ -322,16 +322,17 @@ function buildEmail(payload: EmailPayload): { subject: string; html: string; pre
       }
     }
 
-    // ── SELLER EMAILS ─────────────────────────────────────────    case 'item_sold': {
+    // SELLER EMAILS
+    case 'item_sold': {
       const { sellerName, itemTitle, orderRef, salePrice, buyerName } = data
-      const ph = `Your item "${itemTitle}" was purchased for EUR ${salePrice}.`
+      const ph = `Your item "${itemTitle}" has sold on Sib.`
       return {
-        subject: `Item sold — "${itemTitle}"`,
+        subject: `Item sold - "${itemTitle}"`,
         preheader: ph,
         html: wrap(ph, `
-          <h2 style="font-size:18px;color:#1F2937;text-align:center;margin:14px 0 8px;">Your Item Was Sold</h2>
+          <h2 style="font-size:18px;color:#1F2937;text-align:center;margin:14px 0 8px;">Your item has sold</h2>
           <p style="font-size:14px;color:#4B5563;text-align:center;margin:0 0 14px;">
-            Hi ${sellerName || 'there'}, @${buyerName} purchased your item.
+            Hi ${sellerName || 'there'}, ${buyerName ? `@${buyerName} purchased your item.` : 'your item has been purchased.'}
           </p>
           ${infoBox('#ECFDF5', `
             <p style="font-size:14px;color:#4B5563;margin:0 0 4px;"><strong>Item:</strong> ${itemTitle}</p>
@@ -339,7 +340,7 @@ function buildEmail(payload: EmailPayload): { subject: string; html: string; pre
             ${priceTag(salePrice, '#059669')}
           `)}
           <p style="font-size:13px;color:#6B7280;text-align:center;">
-            Next step: package and ship the item, then mark it as shipped in the app.
+            Please prepare it for shipment and check Sib for delivery instructions. Buyer contact details are kept private.
           </p>
           ${btn('View Sale', `${appUrl}/seller`)}
         `),
