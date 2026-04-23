@@ -20,6 +20,17 @@ const AppContext = createContext(null)
 const PROTECTION_WINDOW_MS = 48 * 60 * 60 * 1000 // 48 hours
 const SHIPPING_DEADLINE_MS = 3 * 24 * 60 * 60 * 1000 // 3 business days
 const SHIPPING_REMINDER_MS = 2 * 24 * 60 * 60 * 1000 // Remind after 2 days
+const SOLD_ORDER_STATUSES = new Set(['paid', 'shipped', 'delivered', 'confirmed', 'completed'])
+
+function hasBlockingOrderForListings(orders, listingIds) {
+  const ids = new Set(listingIds.filter(Boolean))
+  return orders.some(order => {
+    const status = order.status || order.trackingStatus
+    if (!SOLD_ORDER_STATUSES.has(status)) return false
+    if (ids.has(order.listingId)) return true
+    return Array.isArray(order.bundleListingIds) && order.bundleListingIds.some(id => ids.has(id))
+  })
+}
 
 // ── Shipment helper: create a shipment record for a paid order ───
 function createShipmentRecord(order) {
@@ -356,6 +367,10 @@ export function AppProvider({ children }) {
   const placeOrder = useCallback(async (listingId, deliveryMethod, address, overridePrice, deliveryInfo, deliverySnapshot) => {
     const listing = listings.find(l => l.id === listingId)
     if (!listing) return null
+    if (listing.status !== 'active' || hasBlockingOrderForListings(orders, [listingId])) {
+      showToast('Item already sold', 'error')
+      return null
+    }
     const itemPrice = overridePrice != null ? overridePrice : listing.price
     const dFee = deliveryInfo?.fee ?? 4.50
     const buyerProtectionFee = parseFloat((0.75 + itemPrice * 0.05).toFixed(2))
@@ -451,7 +466,7 @@ export function AppProvider({ children }) {
     }
 
     return savedOrder
-  }, [currentUser, listings, users, addNotification, dbCreateOrder, dbCreateShipment, showToast])
+  }, [currentUser, listings, users, orders, addNotification, dbCreateOrder, dbCreateShipment, showToast])
 
   const getOrCreateConversation = useCallback((otherUserId, listingId) => {
     const existing = conversations.find(c =>
@@ -980,6 +995,10 @@ export function AppProvider({ children }) {
     if (!currentUser || !bundle || bundle.items.length === 0) return null
     const items = bundle.items.map(id => listings.find(l => l.id === id)).filter(Boolean)
     if (items.length === 0) return null
+    if (items.length !== bundle.items.length || items.some(item => item.status !== 'active') || hasBlockingOrderForListings(orders, bundle.items)) {
+      showToast('Item already sold', 'error')
+      return null
+    }
 
     const subtotal = overrideSubtotal != null ? overrideSubtotal : items.reduce((sum, l) => sum + l.price, 0)
     const dFee = deliveryInfo?.fee ?? 4.50
@@ -1080,7 +1099,7 @@ export function AppProvider({ children }) {
     // Clear bundle after order
     setBundle(null)
     return savedOrder
-  }, [currentUser, bundle, listings, users, calculateBundleFees, addNotification, dbCreateOrder, dbCreateShipment, showToast])
+  }, [currentUser, bundle, listings, users, orders, calculateBundleFees, addNotification, dbCreateOrder, dbCreateShipment, showToast])
 
   // ── Bundle Offer system ──────────────────────────────────────────
   const BUNDLE_OFFER_EXPIRY_MS = 24 * 60 * 60 * 1000
@@ -1245,6 +1264,10 @@ export function AppProvider({ children }) {
     const acceptedPrice = offer.acceptedPrice || offer.counterPrice || offer.price
     const items = offer.listingIds.map(id => listings.find(l => l.id === id)).filter(Boolean)
     if (items.length === 0) return null
+    if (items.length !== offer.listingIds.length || items.some(item => item.status !== 'active') || hasBlockingOrderForListings(orders, offer.listingIds)) {
+      showToast('Item already sold', 'error')
+      return null
+    }
 
     const dFee = deliveryInfo?.fee ?? 4.50
     const fees = calculateBundleFees(acceptedPrice, dFee)
@@ -1353,7 +1376,7 @@ export function AppProvider({ children }) {
     })
 
     return savedOrder
-  }, [bundleOffers, listings, users, calculateBundleFees, addNotification, dbCreateOrder, dbCreateShipment, showToast])
+  }, [bundleOffers, listings, users, orders, calculateBundleFees, addNotification, dbCreateOrder, dbCreateShipment, showToast])
 
   // ── Admin actions — delegate to DB-backed profile hook ────────────
   const suspendUser = dbSuspendUser

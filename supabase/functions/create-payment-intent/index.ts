@@ -294,9 +294,9 @@ function validateListingsForCheckout(listings: ListingRow[], buyerId: string) {
       )
     }
 
-    if (listing.status && listing.status !== 'active') {
+    if (listing.status !== 'active') {
       throw new CheckoutError(
-        `Listing "${listing.title || listing.id}" is not available.`,
+        'Item already sold',
         409,
         'listing_not_active',
         'listing_validation',
@@ -317,6 +317,40 @@ function validateListingsForCheckout(listings: ListingRow[], buyerId: string) {
 
   logStep('listing_validation', 'succeeded', { sellerId })
   return sellerId
+}
+
+const SOLD_ORDER_STATUSES = ['paid', 'shipped', 'delivered', 'confirmed', 'completed']
+
+async function validateNoExistingSoldOrders(supabase: ReturnType<typeof createClient>, listingIds: string[]) {
+  logStep('duplicate_order_check', 'started', { listingCount: listingIds.length })
+  const { data, error } = await supabase
+    .from('orders')
+    .select('id,listing_id,status')
+    .in('listing_id', listingIds)
+    .in('status', SOLD_ORDER_STATUSES)
+    .limit(1)
+
+  if (error) {
+    throw new CheckoutError(
+      'Failed to check existing orders.',
+      500,
+      'duplicate_order_check_failed',
+      'duplicate_order_check',
+      { dbCode: error.code || null, dbMessage: error.message || null },
+    )
+  }
+
+  if (data?.length) {
+    throw new CheckoutError(
+      'Item already sold',
+      409,
+      'item_already_sold',
+      'duplicate_order_check',
+      { listingId: data[0].listing_id, orderId: data[0].id, status: data[0].status },
+    )
+  }
+
+  logStep('duplicate_order_check', 'succeeded')
 }
 
 async function validateSellerProfile(supabase: ReturnType<typeof createClient>, sellerId: string) {
@@ -428,6 +462,7 @@ Deno.serve(async (req) => {
     const supabase = getServiceClient()
     const listings = await loadListings(supabase, requestedListingIds)
     const sellerId = validateListingsForCheckout(listings, user.id)
+    await validateNoExistingSoldOrders(supabase, requestedListingIds)
     await validateSellerProfile(supabase, sellerId)
 
     logStep('pricing', 'started', { listingCount: listings.length, deliveryMethod })

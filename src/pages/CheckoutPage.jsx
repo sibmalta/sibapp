@@ -109,7 +109,7 @@ function StripeCheckoutForm({ fees, onSuccess, onError }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!stripe || !elements) return
+    if (loading || !stripe || !elements) return
 
     setLoading(true)
     setErrorMsg('')
@@ -124,13 +124,10 @@ function StripeCheckoutForm({ fees, onSuccess, onError }) {
       if (error) {
         const msg = friendlyPaymentError(error.message) || 'Payment failed. Please try again.'
         setErrorMsg(msg)
-        setLoading(false)
         onError(msg)
       } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-        setLoading(false)
-        onSuccess(paymentIntent.id)
+        await onSuccess(paymentIntent.id)
       } else {
-        setLoading(false)
         setErrorMsg('Payment was not completed. Please try again.')
       }
     } catch (err) {
@@ -138,8 +135,9 @@ function StripeCheckoutForm({ fees, onSuccess, onError }) {
         friendlyPaymentError(err?.message) ||
         "We couldn't process your payment right now. Please check your connection and try again."
       setErrorMsg(msg)
-      setLoading(false)
       onError(msg)
+    } finally {
+      setLoading(false)
     }
   }
 

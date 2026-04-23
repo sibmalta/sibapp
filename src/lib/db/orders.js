@@ -177,12 +177,43 @@ export async function insertOrder(supabase, order) {
     const row = orderToRow(order)
     const validationError = validateOrderRowForInsert(row)
     if (validationError) return { data: null, error: validationError }
+
+    const listingCheck = await assertListingCanBeOrdered(supabase, row.listing_id)
+    if (listingCheck.error) return { data: null, error: listingCheck.error }
+
     const { data, error } = await insertOrderRow(supabase, row)
     if (error) return { data: null, error }
     return { data: rowToOrder(data), error: null }
   } catch (e) {
     return { data: null, error: { message: e.message } }
   }
+}
+
+const SOLD_ORDER_STATUSES = ['paid', 'shipped', 'delivered', 'confirmed', 'completed']
+
+async function assertListingCanBeOrdered(supabase, listingId) {
+  if (!listingId) return { error: { message: 'Item already sold' } }
+
+  const { data: listing, error: listingError } = await supabase
+    .from('listings')
+    .select('id,status')
+    .eq('id', listingId)
+    .single()
+
+  if (listingError) return { error: listingError }
+  if (!listing || listing.status !== 'active') return { error: { message: 'Item already sold' } }
+
+  const { data: existingOrders, error: orderError } = await supabase
+    .from('orders')
+    .select('id')
+    .eq('listing_id', listingId)
+    .in('status', SOLD_ORDER_STATUSES)
+    .limit(1)
+
+  if (orderError) return { error: orderError }
+  if (existingOrders?.length > 0) return { error: { message: 'Item already sold' } }
+
+  return { error: null }
 }
 
 async function insertOrderRow(supabase, row) {
