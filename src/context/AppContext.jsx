@@ -14,6 +14,7 @@ import {
   sendBundleOfferReceivedEmail, sendBundleOfferAcceptedEmail, sendBundleOfferDeclinedEmail, sendBundleOfferCounteredEmail,
 } from '../lib/email'
 import { createTransfer, createRefund } from '../lib/stripe'
+import { analyseMessage } from '../utils/circumventionDetector'
 
 const AppContext = createContext(null)
 
@@ -487,6 +488,20 @@ export function AppProvider({ children }) {
   // sendMessage(convId, senderId, text, flagged?)
   const sendMessage = useCallback((conversationId, senderIdOrText, textArg, flagged = false) => {
     const text = textArg !== undefined ? textArg : senderIdOrText
+    const analysis = analyseMessage(text)
+    if (analysis.flagged) {
+      if (currentUser?.email) {
+        sendSuspiciousActivityEmail(
+          currentUser.email,
+          currentUser.name,
+          'Your message was blocked because it tried to share contact details, addresses, or arrange an off-platform deal. Please keep communication on Sib to stay protected.'
+        )
+      }
+      const err = new Error('For your safety and to keep Buyer Protection active, sharing addresses, contact details, or arranging off-platform deals is not allowed in chat.')
+      err.code = 'SIB_CHAT_CIRCUMVENTION_BLOCKED'
+      err.analysis = analysis
+      throw err
+    }
     const newMsg = {
       id: `m${Date.now()}`,
       senderId: currentUser.id,

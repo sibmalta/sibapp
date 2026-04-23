@@ -42,13 +42,31 @@ const CONTACT_KEYWORDS = [
 const MEETUP_KEYWORDS = [
   'meet up', 'meetup', 'meet in person', 'meet there', 'meet here',
   'in person', 'face to face', 'face-to-face',
-  'pay cash', 'pay in cash', 'cash only', 'cash deal', 'cash in hand',
+  'pay cash', 'pay in cash', 'cash only', 'cash deal', 'cash in hand', 'cash?',
   'pay me directly', 'pay directly', 'pay outside', 'bank transfer',
   'wire me', 'revolut me', 'revolut', 'paypal me', 'paypal', 'venmo',
   'collect from', 'collect it', 'pick up from', 'pick-up', 'pickup from',
+  'collection in person', 'collect in person', 'in-person collection',
   'drop off', 'drop it off', 'hand deliver',
   'i can come', 'come and get', 'come collect',
+  "let's meet", 'lets meet', 'meet me', 'meet you',
 ]
+
+const ADDRESS_KEYWORDS = [
+  'address', 'your address', 'my address', 'send address', 'send your address',
+  'home address', 'house address', 'delivery address', 'pickup address',
+  'pick up address', 'collection address', 'where exactly', 'exact location',
+  'precise location', 'your location', 'send location', 'share location',
+  'drop pin', 'send pin', 'map pin', 'google maps',
+  'street name', 'street address', 'house number', 'door number',
+  'flat number', 'apartment number', 'postcode', 'post code',
+  'where do you live', 'where are you located', 'where are you based',
+  'where can i collect', 'where can i pick up', 'collect from you',
+]
+
+const ADDRESS_REQUEST_RE = /\b(what'?s|what is|send|share|give|give me|can i have|where'?s|where is|where exactly|tell me)\b.{0,40}\b(address|location|pin|street|house|flat|postcode|post code|collect|pickup|pick up)\b/i
+
+const OFF_PLATFORM_PAYMENT_RE = /\b(cash|bank\s*transfer|bank\s*details|iban|revolut|paypal|pay\s*direct|pay\s*outside|transfer\s*me|send\s*money)\b/i
 
 const BYPASS_KEYWORDS = [
   'cheaper outside', 'better price outside', 'better price direct',
@@ -173,6 +191,28 @@ export function analyseMessage(raw) {
     }
   }
 
+  if (OFF_PLATFORM_PAYMENT_RE.test(raw)) {
+    if (!categories.includes('meetup')) {
+      reasons.push(`Suggests off-platform meetup or cash deal`)
+      categories.push('meetup')
+    }
+  }
+
+  for (const kw of ADDRESS_KEYWORDS) {
+    if (text.includes(kw.toLowerCase())) {
+      reasons.push(`Requests or shares address/location details`)
+      categories.push('address')
+      break
+    }
+  }
+
+  if (ADDRESS_REQUEST_RE.test(raw)) {
+    if (!categories.includes('address')) {
+      reasons.push(`Requests or shares address/location details`)
+      categories.push('address')
+    }
+  }
+
   for (const kw of BYPASS_KEYWORDS) {
     if (text.includes(kw.toLowerCase())) {
       reasons.push(`Suggests bypassing Sib ("${kw.trim()}")`)
@@ -229,7 +269,7 @@ export function analyseMessage(raw) {
   }
 
   const flagged = reasons.length > 0
-  const hardCategories = ['phone', 'email', 'bypass', 'evasion', 'url']
+  const hardCategories = ['phone', 'email', 'address', 'meetup', 'bypass', 'evasion', 'url']
   const hasHard = categories.some(c => hardCategories.includes(c))
   const severity = (reasons.length >= 2 || hasHard) ? 'block' : 'warn'
 

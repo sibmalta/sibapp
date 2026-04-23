@@ -2,12 +2,14 @@ import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, MessageCircle, Send } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+import { analyseMessage, recordViolation } from '../utils/circumventionDetector'
 
 export default function InboxPage() {
   const { currentUser, conversations, getUser, listings, sendMessage } = useApp()
   const navigate = useNavigate()
   const [selectedConv, setSelectedConv] = useState(null)
   const [replyText, setReplyText] = useState('')
+  const [warning, setWarning] = useState('')
 
   if (!currentUser) {
     navigate('/auth')
@@ -18,8 +20,19 @@ export default function InboxPage() {
 
   const handleReply = () => {
     if (!replyText.trim() || !selectedConv) return
-    const otherUserId = selectedConv.participants.find(p => p !== currentUser.id)
-    sendMessage(otherUserId, selectedConv.listingId, replyText)
+    const result = analyseMessage(replyText)
+    if (result.flagged) {
+      recordViolation()
+      setWarning('For your safety and to keep Buyer Protection active, sharing addresses, contact details, or arranging off-platform deals is not allowed in chat.')
+      return
+    }
+    try {
+      sendMessage(selectedConv.id, currentUser.id, replyText, false)
+    } catch (err) {
+      setWarning(err.message || 'This message is not allowed in chat.')
+      return
+    }
+    setWarning('')
     setReplyText('')
   }
 
@@ -60,7 +73,7 @@ export default function InboxPage() {
           <div className="flex items-center gap-2">
             <input
               value={replyText}
-              onChange={e => setReplyText(e.target.value)}
+              onChange={e => { setReplyText(e.target.value); if (warning) setWarning('') }}
               onKeyDown={e => e.key === 'Enter' && handleReply()}
               placeholder="Type a message..."
               className="flex-1 px-4 py-2.5 bg-sib-sand rounded-xl text-sm outline-none text-sib-text placeholder-sib-muted"
@@ -72,6 +85,11 @@ export default function InboxPage() {
               <Send className="w-4 h-4 text-white" />
             </button>
           </div>
+          {warning && (
+            <p className="text-[11px] text-red-600 font-medium leading-snug mt-2">
+              {warning}
+            </p>
+          )}
         </div>
       </div>
     )

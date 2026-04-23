@@ -21,7 +21,7 @@ function BlockedMessage({ msg, isMe, other }) {
             <span className="text-xs font-bold text-red-700">Message blocked</span>
           </div>
           <p className="text-xs text-red-600 leading-snug">
-            Sharing contact details is not allowed on Sib
+            Addresses, contact details, and off-platform deals are not allowed on Sib
           </p>
           <p className={`text-[10px] mt-2 text-red-400`}>
             {new Date(msg.timestamp).toLocaleTimeString('en-MT', { hour: '2-digit', minute: '2-digit' })}
@@ -46,7 +46,7 @@ function SendBlockedModal({ reasons, violationCount, onDismiss }) {
             <div>
               <p className="text-sm font-bold text-red-800">Message not sent</p>
               <p className="text-xs mt-0.5 leading-snug text-red-700">
-                Sharing contact details is not allowed on Sib. Please keep all communication on-platform to stay protected.
+                For your safety and to keep Buyer Protection active, sharing addresses, contact details, or arranging off-platform deals isn't allowed in chat.
               </p>
             </div>
           </div>
@@ -173,7 +173,15 @@ export default function ChatPage() {
       setWarning({ flagged: true, reasons: ['Message contains inappropriate language'] })
       return
     }
-    sendMessage(conv.id, currentUser.id, msg, false)
+    try {
+      sendMessage(conv.id, currentUser.id, msg, false)
+    } catch (err) {
+      setWarning(err.analysis || {
+        flagged: true,
+        reasons: [err.message || 'This message is not allowed in chat'],
+      })
+      return
+    }
     setText('')
     // Re-focus input without letting the browser scroll the page
     requestAnimationFrame(() => {
@@ -267,7 +275,7 @@ export default function ChatPage() {
           <div className="px-4 py-2 border-t flex items-start gap-2 bg-red-50 border-red-100">
             <Ban size={13} className="flex-shrink-0 mt-0.5 text-red-500" />
             <p className="text-[11px] font-medium leading-snug text-red-700">
-              Sharing contact details is not allowed. Please keep communication on Sib to stay protected.
+              For your safety and to keep Buyer Protection active, sharing addresses, contact details, or arranging off-platform deals isn't allowed in chat.
             </p>
           </div>
         )}

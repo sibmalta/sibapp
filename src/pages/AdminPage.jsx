@@ -71,6 +71,8 @@ const FLAG_PATTERNS = [
   { regex: /\boutside\s*(the\s*)?app\b/i, label: '"outside app"' },
   { regex: /\bavoid\s*(the\s*)?fee\b/i, label: '"avoid fee"' },
   { regex: /\bin\s*person\b/i, label: '"in person"' },
+  { regex: /\b(address|where exactly|exact location|send location|share location|street address|house number|postcode|post code|collect from you)\b/i, label: 'Address/location' },
+  { regex: /\b(bank transfer|bank details|iban|revolut|paypal|pay direct|pay outside)\b/i, label: 'Off-platform payment' },
   { regex: /instagram/i, label: 'Instagram' },
 ]
 
