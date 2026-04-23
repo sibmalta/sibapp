@@ -181,9 +181,9 @@ function BundleStripeForm({ fees, onSuccess, onError }) {
             buttonHeight: 48,
             buttonTheme: { applePay: 'black', googlePay: 'black' },
             buttonType: { applePay: 'buy', googlePay: 'pay' },
-            layout: { maxColumns: 1, maxRows: 2, overflow: 'never' },
+            layout: { overflow: 'auto' },
             paymentMethodOrder: ['apple_pay', 'google_pay'],
-            wallets: { applePay: 'always', googlePay: 'always' },
+            paymentMethods: { applePay: 'auto', googlePay: 'auto' },
           }}
           onClick={(event) => {
             // Apple Pay requires this domain to be registered in Stripe before it can render in production.
@@ -214,7 +214,6 @@ function BundleStripeForm({ fees, onSuccess, onError }) {
         <PaymentElement
           options={{
             layout: 'tabs',
-            wallets: { applePay: 'never', googlePay: 'never' },
           }}
           onReady={() => setElementReady(true)}
           onLoadError={(event) => {
