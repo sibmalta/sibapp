@@ -20,8 +20,8 @@ const MALTAPOST_API_KEY = import.meta.env.VITE_MALTAPOST_API_KEY || ''
 
 // MaltaPost parcel size categories (Malta domestic)
 export const PARCEL_SIZES = [
-  { id: 'small', label: 'Small (up to 500g)', maxWeight: 500, price: 3.50 },
-  { id: 'medium', label: 'Medium (500g–2kg)', maxWeight: 2000, price: 5.00 },
+  { id: 'small', label: 'Small (up to 500g)', maxWeight: 500, price: 3.25 },
+  { id: 'medium', label: 'Medium (500g–2kg)', maxWeight: 2000, price: 4.50 },
   { id: 'large', label: 'Large (2kg–5kg)', maxWeight: 5000, price: 7.50 },
   { id: 'xlarge', label: 'Extra Large (5kg–10kg)', maxWeight: 10000, price: 12.00 },
 ]

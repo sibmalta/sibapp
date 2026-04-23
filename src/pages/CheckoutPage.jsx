@@ -13,6 +13,9 @@ import { getDefaultDeliverySize, TIER_MAP } from '../lib/deliveryPricing'
 import useSavedAddress from '../hooks/useSavedAddress'
 import { trackReferralConversion } from '../lib/referral'
 
+const MALTAPOST_HOME_DELIVERY_PRICE = 4.50
+const MALTAPOST_LOCKER_COLLECTION_PRICE = 3.25
+
 const TECHNICAL_PATTERNS = [
   /failed to fetch/i,
   /network\s*(request\s*)?error/i,
@@ -341,17 +344,12 @@ export default function CheckoutPage() {
   const isLargeItem = isBulkyItem
   const tier = TIER_MAP[deliverySize] || TIER_MAP.medium
 
-  const lockerPrice =
-    deliverySize === 'small'
-      ? Math.max(tier.price - 0.5, 1.99)
-      : Math.max(tier.price - 1.0, 2.99)
-
   const deliveryFee =
     isBulkyItem || isHeavyItem
       ? tier.price
       : deliveryMethodId === 'locker_collection'
-        ? lockerPrice
-        : tier.price
+        ? MALTAPOST_LOCKER_COLLECTION_PRICE
+        : MALTAPOST_HOME_DELIVERY_PRICE
 
   const fees = calculateFees(listing.price, deliveryFee)
   const isLocker = !isLargeItem && deliveryMethodId === 'locker_collection'

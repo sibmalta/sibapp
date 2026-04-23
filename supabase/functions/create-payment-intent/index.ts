@@ -118,13 +118,7 @@ function getSingleListingDeliveryFee(listing: ListingRow, deliveryMethod: string
     return tierPrice
   }
 
-  if (deliveryMethod === 'locker_collection') {
-    return deliverySize === 'small'
-      ? Math.max(tierPrice - 0.50, 1.99)
-      : Math.max(tierPrice - 1.00, 2.99)
-  }
-
-  return tierPrice
+  return BUNDLE_DELIVERY_FEES[deliveryMethod] ?? BUNDLE_DELIVERY_FEES.home_delivery
 }
 
 function getBundleDeliveryFee(deliveryMethod: string) {

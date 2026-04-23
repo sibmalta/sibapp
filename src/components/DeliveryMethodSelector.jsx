@@ -3,6 +3,9 @@ import { Home, Box, ChevronDown, MapPin, Info, Truck, AlertTriangle } from 'luci
 import { getActiveLockers } from '../data/deliveryConfig'
 import { TIER_MAP, BULKY_DELIVERY_NOTES } from '../lib/deliveryPricing'
 
+const MALTAPOST_HOME_DELIVERY_PRICE = 4.50
+const MALTAPOST_LOCKER_COLLECTION_PRICE = 3.25
+
 /**
  * Delivery method selector driven by the listing's delivery_size tier.
  *
@@ -83,16 +86,13 @@ export default function DeliveryMethodSelector({
   /* ── Small / Medium / Heavy items: home delivery + optional locker ── */
   // Heavy items can only use home delivery (too large for lockers)
   const lockerAvailable = !isHeavy
-  const lockerPrice = normalizedSize === 'small'
-    ? Math.max(tier.price - 0.50, 1.99)
-    : Math.max(tier.price - 1.00, 2.99)
 
   const methods = [
     {
       id: 'home_delivery',
       name: 'Home Delivery',
       description: isHeavy ? 'Heavy parcel delivered to your address via MaltaPost' : 'Delivered to your address via MaltaPost',
-      price: tier.price,
+      price: isHeavy ? tier.price : MALTAPOST_HOME_DELIVERY_PRICE,
       estimatedDays: isHeavy ? '3–5 working days' : '2–3 working days',
       icon: Home,
     },
@@ -100,7 +100,7 @@ export default function DeliveryMethodSelector({
       id: 'locker_collection',
       name: 'Locker Collection',
       description: 'Collect from a MaltaPost locker near you',
-      price: lockerPrice,
+      price: MALTAPOST_LOCKER_COLLECTION_PRICE,
       estimatedDays: '2–4 working days',
       icon: Box,
       helpText: 'Once your parcel arrives, MaltaPost will notify you with a collection code.',
