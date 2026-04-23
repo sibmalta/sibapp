@@ -1,25 +1,44 @@
 import React, { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, Tag, Package, CheckCircle, XCircle, ArrowRightLeft, ShieldCheck, AlertTriangle, ChevronRight, PackagePlus } from 'lucide-react'
+import { Bell, Tag, Package, CheckCircle, XCircle, ArrowRightLeft, ShieldCheck, AlertTriangle, ChevronRight, PackagePlus, Truck, MessageSquare } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+
+const orderTarget = (notif, fallback = '/orders') => notif.orderId ? `/orders/${notif.orderId}` : fallback
+const messageTarget = (notif) => notif.conversationId ? `/messages/${notif.conversationId}` : '/messages'
 
 const NOTIF_CONFIG = {
   offer_received:       { icon: Tag,            color: 'bg-blue-100 text-blue-600',    link: '/offers' },
   offer_accepted:       { icon: CheckCircle,    color: 'bg-green-100 text-green-600',  link: '/offers' },
   offer_declined:       { icon: XCircle,        color: 'bg-red-100 text-red-600',      link: '/offers' },
   offer_countered:      { icon: ArrowRightLeft, color: 'bg-amber-100 text-amber-600',  link: '/offers' },
-  delivered:            { icon: Package,         color: 'bg-indigo-100 text-indigo-600', linkFn: (n) => `/orders/${n.orderId}` },
-  delivered_seller:     { icon: Package,         color: 'bg-indigo-100 text-indigo-600', linkFn: (n) => `/orders/${n.orderId}` },
-  confirmed:            { icon: CheckCircle,    color: 'bg-green-100 text-green-600',  linkFn: (n) => `/orders/${n.orderId}` },
-  buyer_confirmed:      { icon: CheckCircle,    color: 'bg-green-100 text-green-600',  linkFn: (n) => `/orders/${n.orderId}` },
-  auto_confirmed:       { icon: ShieldCheck,    color: 'bg-green-100 text-green-600',  linkFn: (n) => `/orders/${n.orderId}` },
-  dispute_opened:       { icon: AlertTriangle,  color: 'bg-red-100 text-red-600',      linkFn: (n) => `/orders/${n.orderId}` },
-  dispute_opened_buyer: { icon: AlertTriangle,  color: 'bg-orange-100 text-orange-600', linkFn: (n) => `/orders/${n.orderId}` },
-  shipped:              { icon: Package,         color: 'bg-blue-100 text-blue-600',    linkFn: (n) => `/orders/${n.orderId}` },
+  bundle_offer_received: { icon: PackagePlus,    color: 'bg-purple-100 text-purple-600', link: '/offers' },
+  bundle_offer_accepted: { icon: CheckCircle,    color: 'bg-green-100 text-green-600',  link: '/offers' },
+  bundle_offer_declined: { icon: XCircle,        color: 'bg-red-100 text-red-600',      link: '/offers' },
+  bundle_offer_countered: { icon: ArrowRightLeft, color: 'bg-amber-100 text-amber-600', link: '/offers' },
+  delivered:            { icon: Package,         color: 'bg-indigo-100 text-indigo-600', linkFn: (n) => orderTarget(n) },
+  delivered_seller:     { icon: Package,         color: 'bg-indigo-100 text-indigo-600', linkFn: (n) => orderTarget(n, '/seller') },
+  confirmed:            { icon: CheckCircle,    color: 'bg-green-100 text-green-600',  linkFn: (n) => orderTarget(n, '/seller') },
+  buyer_confirmed:      { icon: CheckCircle,    color: 'bg-green-100 text-green-600',  linkFn: (n) => orderTarget(n) },
+  auto_confirmed:       { icon: ShieldCheck,    color: 'bg-green-100 text-green-600',  linkFn: (n) => orderTarget(n) },
+  dispute_opened:       { icon: AlertTriangle,  color: 'bg-red-100 text-red-600',      linkFn: (n) => orderTarget(n) },
+  dispute_opened_buyer: { icon: AlertTriangle,  color: 'bg-orange-100 text-orange-600', linkFn: (n) => orderTarget(n) },
+  dispute_message:      { icon: MessageSquare,  color: 'bg-orange-100 text-orange-600', linkFn: (n) => orderTarget(n) },
+  shipped:              { icon: Package,         color: 'bg-blue-100 text-blue-600',    linkFn: (n) => orderTarget(n) },
+  ship_reminder:        { icon: Truck,           color: 'bg-blue-100 text-blue-600',    linkFn: (n) => orderTarget(n, '/seller') },
+  bundle_sold:          { icon: PackagePlus,     color: 'bg-purple-100 text-purple-600', linkFn: (n) => orderTarget(n, '/seller') },
+  overdue_warning:      { icon: AlertTriangle,  color: 'bg-amber-100 text-amber-600',  linkFn: (n) => orderTarget(n, '/seller') },
+  order_cancelled:      { icon: XCircle,        color: 'bg-red-100 text-red-600',      linkFn: (n) => orderTarget(n) },
   bundle_received:      { icon: PackagePlus,     color: 'bg-purple-100 text-purple-600', link: '/offers' },
 }
 
-const DEFAULT_CONFIG = { icon: Bell, color: 'bg-sib-sand text-sib-muted', link: '/' }
+const DEFAULT_CONFIG = { icon: Bell, color: 'bg-sib-sand text-sib-muted', link: '/notifications' }
+
+function resolveNotificationTarget(notif) {
+  if (notif.actionTarget) return notif.actionTarget
+  if (notif.conversationId) return messageTarget(notif)
+  const cfg = NOTIF_CONFIG[notif.type] || DEFAULT_CONFIG
+  return cfg.linkFn ? cfg.linkFn(notif) : cfg.link
+}
 
 function timeAgo(dateStr) {
   const diff = Date.now() - new Date(dateStr).getTime()
@@ -50,8 +69,7 @@ export default function NotificationsPage() {
 
   const handleTap = (notif) => {
     markNotificationRead(notif.id)
-    const cfg = NOTIF_CONFIG[notif.type] || DEFAULT_CONFIG
-    const target = cfg.linkFn ? cfg.linkFn(notif) : cfg.link
+    const target = resolveNotificationTarget(notif)
     if (target) navigate(target)
   }
 

@@ -1584,8 +1584,8 @@ export function AppProvider({ children }) {
     }
     // Notify both parties
     if (dispute) {
-      addNotification({ userId: dispute.buyerId, type: 'dispute_message', title: 'Dispute update', message: fromAdmin ? 'Admin has sent a message regarding your dispute.' : message })
-      addNotification({ userId: dispute.sellerId, type: 'dispute_message', title: 'Dispute update', message: fromAdmin ? 'Admin has sent a message regarding the dispute.' : message })
+      addNotification({ userId: dispute.buyerId, orderId: dispute.orderId, type: 'dispute_message', title: 'Dispute update', message: fromAdmin ? 'Admin has sent a message regarding your dispute.' : message })
+      addNotification({ userId: dispute.sellerId, orderId: dispute.orderId, type: 'dispute_message', title: 'Dispute update', message: fromAdmin ? 'Admin has sent a message regarding the dispute.' : message })
       // Email both parties about the new dispute message
       const order = orders.find(o => o.id === dispute.orderId)
       const buyer = users.find(u => u.id === dispute.buyerId)
