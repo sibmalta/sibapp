@@ -199,6 +199,7 @@ function StripeCheckoutForm({ fees, onSuccess, onError }) {
             buttonType: { applePay: 'buy', googlePay: 'pay' },
             layout: { maxColumns: 1, maxRows: 2, overflow: 'never' },
             paymentMethodOrder: ['apple_pay', 'google_pay'],
+            wallets: { applePay: 'always', googlePay: 'always' },
           }}
           onClick={(event) => {
             // Apple Pay requires this domain to be registered in Stripe before it can render in production.
@@ -206,7 +207,10 @@ function StripeCheckoutForm({ fees, onSuccess, onError }) {
           }}
           onReady={(event) => {
             const available = event.availablePaymentMethods
-            setWalletsAvailable(Boolean(available?.applePay || available?.googlePay))
+            console.log('[CheckoutPage] ExpressCheckoutElement ready', { availablePaymentMethods: available })
+            const nextWalletsAvailable = Boolean(available?.applePay || available?.googlePay)
+            console.log('[CheckoutPage] walletsAvailable ->', nextWalletsAvailable)
+            setWalletsAvailable(nextWalletsAvailable)
           }}
           onConfirm={handleExpressConfirm}
           onLoadError={(event) => {
