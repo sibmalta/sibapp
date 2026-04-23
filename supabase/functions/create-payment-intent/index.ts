@@ -501,6 +501,7 @@ Deno.serve(async (req) => {
         amount: totalAmountCents,
         currency: 'eur',
         automatic_payment_methods: { enabled: true },
+        excluded_payment_method_types: ['bancontact', 'eps'],
         receipt_email: user.email || undefined,
         metadata: {
           buyer_id: user.id,

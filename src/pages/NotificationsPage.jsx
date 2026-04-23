@@ -3,8 +3,61 @@ import { useNavigate } from 'react-router-dom'
 import { Bell, Tag, Package, CheckCircle, XCircle, ArrowRightLeft, ShieldCheck, AlertTriangle, ChevronRight, PackagePlus, Truck, MessageSquare } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 
-const orderTarget = (notif, fallback = '/orders') => notif.orderId ? `/orders/${notif.orderId}` : fallback
-const messageTarget = (notif) => notif.conversationId ? `/messages/${notif.conversationId}` : '/messages'
+const SELLER_SHIPMENT_QUEUE = '/orders?tab=selling&shipment=awaiting_shipment'
+const SELLER_DASHBOARD = '/seller'
+
+function firstValue(...values) {
+  return values.find(value => value !== undefined && value !== null && String(value).trim() !== '')
+}
+
+function getOrderId(notif) {
+  return firstValue(
+    notif.orderId,
+    notif.order_id,
+    notif.metadata?.orderId,
+    notif.metadata?.order_id,
+    notif.data?.orderId,
+    notif.data?.order_id,
+    notif.related_entity_type === 'order' ? notif.related_entity_id : null,
+    notif.relatedEntityType === 'order' ? notif.relatedEntityId : null
+  )
+}
+
+function getConversationId(notif) {
+  return firstValue(
+    notif.conversationId,
+    notif.conversation_id,
+    notif.threadId,
+    notif.metadata?.conversationId,
+    notif.metadata?.conversation_id,
+    notif.data?.conversationId,
+    notif.data?.conversation_id
+  )
+}
+
+function orderTarget(notif, fallback = '/orders') {
+  const orderId = getOrderId(notif)
+  return orderId ? `/orders/${orderId}` : fallback
+}
+
+function messageTarget(notif) {
+  const conversationId = getConversationId(notif)
+  return conversationId ? `/messages/${conversationId}` : '/messages'
+}
+
+function isOperationalShippingNotification(notif) {
+  const text = `${notif.type || ''} ${notif.title || ''} ${notif.message || ''}`.toLowerCase()
+  return (
+    text.includes('ship_reminder') ||
+    text.includes('bundle_sold') ||
+    text.includes('new sale') ||
+    text.includes('ship within') ||
+    text.includes('shipment') ||
+    text.includes('awaiting_shipment') ||
+    text.includes('collection deadline') ||
+    text.includes('collection overdue')
+  )
+}
 
 const NOTIF_CONFIG = {
   offer_received:       { icon: Tag,            color: 'bg-blue-100 text-blue-600',    link: '/offers' },
@@ -24,18 +77,25 @@ const NOTIF_CONFIG = {
   dispute_opened_buyer: { icon: AlertTriangle,  color: 'bg-orange-100 text-orange-600', linkFn: (n) => orderTarget(n) },
   dispute_message:      { icon: MessageSquare,  color: 'bg-orange-100 text-orange-600', linkFn: (n) => orderTarget(n) },
   shipped:              { icon: Package,         color: 'bg-blue-100 text-blue-600',    linkFn: (n) => orderTarget(n) },
-  ship_reminder:        { icon: Truck,           color: 'bg-blue-100 text-blue-600',    linkFn: (n) => orderTarget(n, '/seller') },
-  bundle_sold:          { icon: PackagePlus,     color: 'bg-purple-100 text-purple-600', linkFn: (n) => orderTarget(n, '/seller') },
-  overdue_warning:      { icon: AlertTriangle,  color: 'bg-amber-100 text-amber-600',  linkFn: (n) => orderTarget(n, '/seller') },
+  ship_reminder:        { icon: Truck,           color: 'bg-blue-100 text-blue-600',    linkFn: (n) => orderTarget(n, SELLER_SHIPMENT_QUEUE) },
+  bundle_sold:          { icon: PackagePlus,     color: 'bg-purple-100 text-purple-600', linkFn: (n) => orderTarget(n, SELLER_SHIPMENT_QUEUE) },
+  overdue_warning:      { icon: AlertTriangle,  color: 'bg-amber-100 text-amber-600',  linkFn: (n) => orderTarget(n, SELLER_SHIPMENT_QUEUE) },
   order_cancelled:      { icon: XCircle,        color: 'bg-red-100 text-red-600',      linkFn: (n) => orderTarget(n) },
   bundle_received:      { icon: PackagePlus,     color: 'bg-purple-100 text-purple-600', link: '/offers' },
+  message_received:     { icon: MessageSquare,  color: 'bg-blue-100 text-blue-600',    linkFn: messageTarget },
+  payout_available:     { icon: ShieldCheck,    color: 'bg-green-100 text-green-600',  link: SELLER_DASHBOARD },
+  payout_released:      { icon: ShieldCheck,    color: 'bg-green-100 text-green-600',  link: SELLER_DASHBOARD },
 }
 
 const DEFAULT_CONFIG = { icon: Bell, color: 'bg-sib-sand text-sib-muted', link: '/notifications' }
 
 function resolveNotificationTarget(notif) {
-  if (notif.actionTarget) return notif.actionTarget
-  if (notif.conversationId) return messageTarget(notif)
+  const orderId = getOrderId(notif)
+  if (orderId) return `/orders/${orderId}`
+  if (getConversationId(notif)) return messageTarget(notif)
+  if (notif.actionTarget && notif.actionTarget !== '/') return notif.actionTarget
+  if (notif.targetPath && notif.targetPath !== '/') return notif.targetPath
+  if (isOperationalShippingNotification(notif)) return SELLER_SHIPMENT_QUEUE
   const cfg = NOTIF_CONFIG[notif.type] || DEFAULT_CONFIG
   return cfg.linkFn ? cfg.linkFn(notif) : cfg.link
 }

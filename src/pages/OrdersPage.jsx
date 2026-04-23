@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Package, ShoppingBag, Truck } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import useAuthNav from '../hooks/useAuthNav'
@@ -35,12 +35,20 @@ const STATUS_LABELS = {
 export default function OrdersPage() {
   const { currentUser, getUserOrders, getUserSales, getListingById, getUserById, getShipmentByOrderId } = useApp()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const authNav = useAuthNav()
-  const [tab, setTab] = useState('buying')
+  const initialTab = searchParams.get('tab') === 'selling' ? 'selling' : 'buying'
+  const [tab, setTab] = useState(initialTab)
+  const shipmentFilter = searchParams.get('shipment')
 
   useEffect(() => {
     document.title = 'Your orders | Sib'
   }, [])
+
+  useEffect(() => {
+    const nextTab = searchParams.get('tab') === 'selling' ? 'selling' : 'buying'
+    setTab(nextTab)
+  }, [searchParams])
 
   if (!currentUser) {
     navigate('/auth')
@@ -49,7 +57,19 @@ export default function OrdersPage() {
 
   const buyingOrders = getUserOrders(currentUser.id)
   const sellingOrders = getUserSales(currentUser.id)
-  const displayed = tab === 'buying' ? buyingOrders : sellingOrders
+  const displayed = (tab === 'buying' ? buyingOrders : sellingOrders)
+    .filter(order => {
+      if (!shipmentFilter) return true
+      return getShipmentByOrderId(order.id)?.status === shipmentFilter
+    })
+
+  const selectTab = (nextTab) => {
+    setTab(nextTab)
+    const next = new URLSearchParams(searchParams)
+    next.set('tab', nextTab)
+    if (nextTab !== 'selling') next.delete('shipment')
+    setSearchParams(next, { replace: true })
+  }
 
   return (
     <div>
@@ -62,7 +82,7 @@ export default function OrdersPage() {
         ].map(t => (
           <button
             key={t.id}
-            onClick={() => setTab(t.id)}
+            onClick={() => selectTab(t.id)}
             className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-semibold border-b-2 transition-colors ${
               tab === t.id ? 'border-sib-primary text-sib-primary' : 'border-transparent text-sib-muted'
             }`}
@@ -77,7 +97,9 @@ export default function OrdersPage() {
           <p className="text-5xl">{tab === 'buying' ? '🛍️' : '📦'}</p>
           <p className="font-semibold text-sib-text">No {tab === 'buying' ? 'purchases' : 'sales'} yet</p>
           <p className="text-sm text-sib-muted text-center px-8">
-            {tab === 'buying' ? 'Browse and buy something you love.' : 'List your first item to start selling.'}
+            {shipmentFilter === 'awaiting_shipment'
+              ? 'No sales are currently awaiting shipment.'
+              : tab === 'buying' ? 'Browse and buy something you love.' : 'List your first item to start selling.'}
           </p>
           {tab === 'buying' ? (
             <button onClick={() => navigate('/browse')} className="mt-2 bg-sib-secondary text-white px-5 py-2.5 rounded-full text-sm font-semibold">Browse</button>

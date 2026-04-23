@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { ShieldCheck, Truck, Lock, AlertCircle, Package, CreditCard, RefreshCw } from 'lucide-react'
-import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
+import { Elements, ExpressCheckoutElement, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { useApp } from '../context/AppContext'
 import { useAuth } from '../lib/auth-context'
 import { getStripe, createPaymentIntent, isStripeConfigured } from '../lib/stripe'
@@ -80,6 +80,7 @@ function BundleStripeForm({ fees, onSuccess, onError }) {
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [elementReady, setElementReady] = useState(false)
+  const [walletsAvailable, setWalletsAvailable] = useState(null)
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -123,6 +124,37 @@ function BundleStripeForm({ fees, onSuccess, onError }) {
     }
   }
 
+  const handleExpressConfirm = async (event) => {
+    if (loading || !stripe || !elements) return
+    setLoading(true)
+    setErrorMsg('')
+    try {
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        confirmParams: { return_url: window.location.origin + '/orders' },
+        redirect: 'if_required',
+      })
+      if (error) {
+        event.paymentFailed?.()
+        const msg = friendlyPaymentError(error.message) || 'Payment failed. Please try again.'
+        setErrorMsg(msg)
+        onError(msg)
+      } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+        await onSuccess(paymentIntent.id)
+      } else {
+        event.paymentFailed?.()
+        setErrorMsg('Payment was not completed. Please try again.')
+      }
+    } catch (err) {
+      event.paymentFailed?.()
+      const msg = friendlyPaymentError(err?.message) || "We couldn't process your payment right now. Please check your connection and try again."
+      setErrorMsg(msg)
+      onError(msg)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <form onSubmit={handleSubmit}>
       {!elementReady && (
@@ -135,12 +167,42 @@ function BundleStripeForm({ fees, onSuccess, onError }) {
           </div>
         </div>
       )}
+      <div className={walletsAvailable === false ? 'hidden' : 'mb-4'}>
+        <ExpressCheckoutElement
+          options={{
+            buttonHeight: 48,
+            buttonTheme: { applePay: 'black', googlePay: 'black' },
+            buttonType: { applePay: 'buy', googlePay: 'pay' },
+            layout: { maxColumns: 1, maxRows: 2, overflow: 'never' },
+            paymentMethodOrder: ['apple_pay', 'google_pay'],
+          }}
+          onClick={(event) => {
+            // Apple Pay requires this domain to be registered in Stripe before it can render in production.
+            event.resolve({ business: { name: 'Sib' } })
+          }}
+          onReady={(event) => {
+            const available = event.availablePaymentMethods
+            setWalletsAvailable(Boolean(available?.applePay || available?.googlePay))
+          }}
+          onConfirm={handleExpressConfirm}
+          onLoadError={(event) => {
+            console.error('Bundle ExpressCheckoutElement load error:', event)
+            setWalletsAvailable(false)
+          }}
+        />
+      </div>
+      {walletsAvailable && (
+        <div className="flex items-center gap-3 mb-4">
+          <div className="h-px bg-sib-stone flex-1" />
+          <span className="text-[11px] font-semibold text-sib-muted uppercase tracking-wide">Or pay by card</span>
+          <div className="h-px bg-sib-stone flex-1" />
+        </div>
+      )}
       <div className={`mb-4 ${!elementReady ? 'h-0 overflow-hidden' : ''}`}>
         <PaymentElement
           options={{
             layout: 'tabs',
-            wallets: { applePay: 'auto', googlePay: 'auto' },
-            paymentMethodOrder: ['apple_pay', 'google_pay', 'card'],
+            wallets: { applePay: 'never', googlePay: 'never' },
           }}
           onReady={() => setElementReady(true)}
           onLoadError={(event) => {

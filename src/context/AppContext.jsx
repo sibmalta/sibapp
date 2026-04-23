@@ -237,6 +237,8 @@ export function AppProvider({ children }) {
           addNotification({
             userId: s.sellerId,
             orderId: s.orderId,
+            status: 'awaiting_shipment',
+            actionTarget: `/orders/${s.orderId}`,
             type: 'ship_reminder',
             title: 'Collection deadline approaching',
             message: `Order ${s.orderRef || s.orderId} must be collected within 24 hours to avoid cancellation.`,
@@ -435,6 +437,9 @@ export function AppProvider({ children }) {
     addNotification({
       userId: listing.sellerId,
       orderId: savedOrder.id,
+      listingId: listing.id,
+      status: 'awaiting_shipment',
+      actionTarget: `/orders/${savedOrder.id}`,
       type: 'ship_reminder',
       title: 'New sale — ship within 3 days',
       message: `You have a new order (${orderRef}) — ${deliveryLabel}. Please ship via MaltaPost within 3 business days.`,
@@ -1081,6 +1086,9 @@ export function AppProvider({ children }) {
     addNotification({
       userId: bundle.sellerId,
       orderId: savedOrder.id,
+      listingId: savedOrder.listingId,
+      status: 'awaiting_shipment',
+      actionTarget: `/orders/${savedOrder.id}`,
       type: 'bundle_sold',
       title: `${items.length}-item bundle sold — ship within 3 days`,
       message: `@${currentUser.username} purchased ${items.length} items for €${fees.total.toFixed(2)} — ${deliveryLabel}. Ship via MaltaPost within 3 business days.`,
@@ -1352,6 +1360,9 @@ export function AppProvider({ children }) {
     addNotification({
       userId: offer.sellerId,
       orderId: savedOrder.id,
+      listingId: savedOrder.listingId,
+      status: 'awaiting_shipment',
+      actionTarget: `/orders/${savedOrder.id}`,
       type: 'bundle_sold',
       title: `${items.length}-item bundle sold — ship within 3 days`,
       message: `@${users.find(u => u.id === offer.buyerId)?.username || 'buyer'} purchased ${items.length} items for €${fees.total.toFixed(2)} — ${deliveryLabel}. Ship via MaltaPost within 3 business days.`,
