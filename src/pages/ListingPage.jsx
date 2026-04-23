@@ -44,6 +44,14 @@ export default function ListingPage() {
 
   const listing = getListingById(id)
 
+  useEffect(() => {
+    if (listing && listing.title) {
+      document.title = listing.title + ' | Sib'
+    } else {
+      document.title = 'Sib — Malta’s Second-Hand Marketplace'
+    }
+  }, [listing])
+
   // Track this listing view for personalised recommendations (DB + local)
   useEffect(() => {
     if (!listing) return
