@@ -195,6 +195,9 @@ function buildEmail(payload: EmailPayload): { subject: string; html: string; pre
             ${priceTag(totalPrice)}
           `)}
           <p style="font-size:13px;color:#6B7280;text-align:center;">
+            Your item is reserved and will be shipped shortly. You'll receive updates when it's on the way.
+          </p>
+          <p style="font-size:13px;color:#6B7280;text-align:center;">
             Your payment is held safely by Sib until you confirm delivery.
           </p>
           ${btn('View Order', `${appUrl}/orders`)}

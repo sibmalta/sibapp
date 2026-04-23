@@ -6,7 +6,7 @@ import { useOrders as useOrdersHook } from '../hooks/useOrders'
 import { SEED_USERS, SEED_MESSAGES, SEED_REVIEWS } from '../data/seedData'
 import {
   sendOfferReceivedEmail, sendOfferAcceptedEmail, sendOfferDeclinedEmail, sendOfferCounteredEmail,
-  sendOrderConfirmedEmail, sendPaymentConfirmedEmail, sendOrderCancelledEmail, sendOrderCancelledSellerEmail,
+  sendOrderConfirmedEmail, sendOrderCancelledEmail, sendOrderCancelledSellerEmail,
   sendItemShippedEmail, sendItemDeliveredEmail,
   sendRefundConfirmedEmail, sendDisputeOpenedEmail, sendDisputeResolvedEmail, sendDisputeMessageEmail,
   sendItemSoldEmail, sendShippingReminderEmail, sendPayoutReleasedEmail,
@@ -450,7 +450,6 @@ export function AppProvider({ children }) {
         buyerId: currentUser.id,
       }
       sendOrderConfirmedEmail(currentUser.email, currentUser.username, orderRef, listing.title, totalPrice.toFixed(2), deliveryLabel, emailMeta)
-      sendPaymentConfirmedEmail(currentUser.email, currentUser.username, orderRef, totalPrice.toFixed(2), emailMeta)
     }
 
     // Email: item sold notification to seller
@@ -1084,7 +1083,6 @@ export function AppProvider({ children }) {
         bundle: true,
       }
       sendOrderConfirmedEmail(currentUser.email, currentUser.username, orderRef, `${items.length}-item bundle`, fees.total.toFixed(2), deliveryLabel, emailMeta)
-      sendPaymentConfirmedEmail(currentUser.email, currentUser.username, orderRef, fees.total.toFixed(2), emailMeta)
     }
 
     // Email: item sold notification to seller
@@ -1358,7 +1356,6 @@ export function AppProvider({ children }) {
         bundleOfferId: offerId,
       }
       sendOrderConfirmedEmail(buyer.email, buyer.username, orderRef, `${items.length}-item bundle`, fees.total.toFixed(2), deliveryLabel, emailMeta)
-      sendPaymentConfirmedEmail(buyer.email, buyer.username, orderRef, fees.total.toFixed(2), emailMeta)
     }
 
     // Email seller sold notification
