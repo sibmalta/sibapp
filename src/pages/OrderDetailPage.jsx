@@ -74,6 +74,12 @@ export default function OrderDetailPage() {
   const isDelivered = order.trackingStatus === 'delivered'
   const isConfirmed = order.trackingStatus === 'confirmed' || order.trackingStatus === 'completed'
   const isDisputed = order.trackingStatus === 'disputed' || order.trackingStatus === 'under_review'
+  const deliveryMethodLabel = order.deliveryMethod === 'locker_collection'
+    ? 'Locker Collection'
+    : order.deliveryMethod === 'home_delivery'
+      ? 'Home Delivery'
+      : (getDeliveryMethod(order.deliveryMethod)?.name || 'Delivery')
+  const deliveryStatusLabel = (order.trackingStatus || order.status || 'pending').replace(/_/g, ' ')
 
   const trackingUrl = shipment?.trackingNumber ? getTrackingUrl(shipment.trackingNumber) : null
   const estDelivery = shipment?.shippedAt ? estimateDeliveryDate(shipment.shippedAt) : null
@@ -385,13 +391,13 @@ export default function OrderDetailPage() {
               <div>
                 <p className="text-xs text-sib-muted">Delivery method</p>
                 <p className="text-sm font-medium text-sib-text">
-                  {order.deliveryMethod === 'locker_collection' ? 'Locker Collection' : order.deliveryMethod === 'home_delivery' ? 'Home Delivery' : (getDeliveryMethod(order.deliveryMethod)?.name || 'Delivery')}
+                  {deliveryMethodLabel}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-sib-muted">Delivery status</p>
                 <p className="text-sm font-medium text-sib-text capitalize">
-                  {(order.trackingStatus || order.status || 'pending').replace(/_/g, ' ')}
+                  {deliveryStatusLabel}
                 </p>
               </div>
               <p className="text-xs text-sib-muted leading-relaxed">
