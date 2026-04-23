@@ -47,7 +47,9 @@ function ListingImage({ listing, className, src }) {
       alt={listing.title || ''}
       className={className}
       loading="lazy"
+      draggable={false}
       onError={() => setFailed(true)}
+      onDragStart={(e) => e.preventDefault()}
     />
   )
 }
@@ -203,7 +205,7 @@ export default function ListingCard({ listing, size = 'normal' }) {
     return (
       <div
         onClick={handleCardClick}
-        className="cursor-pointer"
+        className="cursor-pointer group"
       >
         <SwipeableListingImage
           listing={listing}
