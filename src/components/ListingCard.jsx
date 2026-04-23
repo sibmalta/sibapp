@@ -57,30 +57,45 @@ function SwipeableListingImage({ listing, className, imageClassName, children, o
   const hasMultipleImages = images.length > 1
   const [imageIndex, setImageIndex] = useState(0)
   const touchStartRef = useRef(null)
+  const swipedRef = useRef(false)
 
   const handleTouchStart = (e) => {
     if (!hasMultipleImages) return
     const touch = e.touches[0]
     touchStartRef.current = { x: touch.clientX, y: touch.clientY }
+    swipedRef.current = false
   }
 
   const handleTouchMove = (e) => {
     if (!hasMultipleImages || !touchStartRef.current) return
+    if (swipedRef.current) return
     const touch = e.touches[0]
     const dx = touch.clientX - touchStartRef.current.x
     const dy = touch.clientY - touchStartRef.current.y
 
-    if (Math.abs(dy) > Math.abs(dx)) return
+    if (Math.abs(dx) < 24 || Math.abs(dx) <= Math.abs(dy) * 1.15) return
+
+    swipedRef.current = true
+    onSwipe?.()
+    setImageIndex(prev => {
+      if (dx < 0) return Math.min(prev + 1, images.length - 1)
+      return Math.max(prev - 1, 0)
+    })
   }
 
   const handleTouchEnd = (e) => {
     if (!hasMultipleImages || !touchStartRef.current) return
+    if (swipedRef.current) {
+      touchStartRef.current = null
+      swipedRef.current = false
+      return
+    }
     const touch = e.changedTouches[0]
     const dx = touch.clientX - touchStartRef.current.x
     const dy = touch.clientY - touchStartRef.current.y
     touchStartRef.current = null
 
-    if (Math.abs(dx) < 40 || Math.abs(dx) <= Math.abs(dy) * 1.25) return
+    if (Math.abs(dx) < 28 || Math.abs(dx) <= Math.abs(dy) * 1.15) return
 
     e.stopPropagation()
     onSwipe?.()
@@ -90,12 +105,18 @@ function SwipeableListingImage({ listing, className, imageClassName, children, o
     })
   }
 
+  const handleTouchCancel = () => {
+    touchStartRef.current = null
+    swipedRef.current = false
+  }
+
   return (
     <div
       className={className}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchCancel}
       style={hasMultipleImages ? { touchAction: 'pan-y' } : undefined}
     >
       <ListingImage listing={listing} src={images[imageIndex]} className={imageClassName} />
@@ -136,7 +157,7 @@ export default function ListingCard({ listing, size = 'normal' }) {
     suppressClickRef.current = true
     window.setTimeout(() => {
       suppressClickRef.current = false
-    }, 350)
+    }, 220)
   }
 
   const handleLike = (e) => {
