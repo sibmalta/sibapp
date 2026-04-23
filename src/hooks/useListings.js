@@ -193,7 +193,8 @@ export function useListings(localListings, localLikes, currentUser) {
   const markSold = useCallback(async (listingId) => {
     setListings(prev => prev.map(l => l.id === listingId ? { ...l, status: 'sold' } : l))
     if (dbAvailable && isAuthenticated) {
-      await markListingSold(supabase, listingId)
+      const { error } = await markListingSold(supabase, listingId)
+      if (error) console.error('[useListings] markSold DB error:', error.message)
     }
   }, [supabase, dbAvailable, isAuthenticated])
 
