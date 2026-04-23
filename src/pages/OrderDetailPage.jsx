@@ -74,6 +74,7 @@ export default function OrderDetailPage() {
   const isDelivered = order.trackingStatus === 'delivered'
   const isConfirmed = order.trackingStatus === 'confirmed' || order.trackingStatus === 'completed'
   const isDisputed = order.trackingStatus === 'disputed' || order.trackingStatus === 'under_review'
+  const isAwaitingShipment = shipment?.status === 'awaiting_shipment'
   const deliveryMethodLabel = order.deliveryMethod === 'locker_collection'
     ? 'Locker Collection'
     : order.deliveryMethod === 'home_delivery'
@@ -133,6 +134,37 @@ export default function OrderDetailPage() {
             <p className="text-[11px] text-sib-muted mt-1">Payment flow: {order.paymentFlowType || 'legacy / unknown'}</p>
           </div>
         </div>
+
+        {/* Buyer paid state */}
+        {isBuyer && isPaid && !isDelivered && !isConfirmed && !isDisputed && (
+          <div className="p-4 rounded-2xl bg-green-50 border border-green-200">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                <CheckCircle size={18} className="text-green-600" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-sm font-bold text-green-800">Order confirmed</h2>
+                <p className="text-xs text-green-700 leading-relaxed mt-1">
+                  Your item is reserved and will be shipped shortly. You'll receive updates when it's on the way.
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2 mt-3">
+              <div className="rounded-xl bg-white/70 border border-green-100 px-2 py-2">
+                <CheckCircle size={13} className="text-green-600 mb-1" />
+                <p className="text-[11px] font-semibold text-green-800 leading-tight">Payment received</p>
+              </div>
+              <div className="rounded-xl bg-white/70 border border-green-100 px-2 py-2">
+                <Package size={13} className="text-green-600 mb-1" />
+                <p className="text-[11px] font-semibold text-green-800 leading-tight">Seller preparing</p>
+              </div>
+              <div className="rounded-xl bg-white/70 border border-green-100 px-2 py-2">
+                <Truck size={13} className="text-green-600 mb-1" />
+                <p className="text-[11px] font-semibold text-green-800 leading-tight">Updates next</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── Buyer confirmation card (only for buyer, only when delivered) ── */}
         {isBuyer && isDelivered && (
@@ -298,16 +330,22 @@ export default function OrderDetailPage() {
         )}
 
         {/* ── Seller ship action (awaiting shipment) ── */}
-        {isSeller && isPaid && shipment?.status === 'awaiting_shipment' && (
+        {isSeller && isPaid && isAwaitingShipment && (
           <div className="rounded-2xl border-2 border-blue-200 bg-blue-50 overflow-hidden">
             <div className="p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Truck size={18} className="text-blue-600" />
-                <h2 className="text-sm font-bold text-blue-800">Ship this item</h2>
+                <h2 className="text-sm font-bold text-blue-800">New sale: prepare for shipment</h2>
               </div>
               <p className="text-xs text-blue-700 leading-relaxed mb-3">
-                Pack the item and ship via MaltaPost. Enter the tracking number below once shipped.
+                Pack the item securely, then enter the tracking number once it has been shipped or collected through Sib.
               </p>
+              <div className="flex items-start gap-2 p-2.5 rounded-xl bg-white/70 border border-blue-100 mb-3">
+                <ShieldCheck size={14} className="text-blue-600 flex-shrink-0 mt-0.5" />
+                <p className="text-[11px] text-blue-700 leading-relaxed">
+                  Delivery details are handled by Sib. Check this order for status updates and shipment steps.
+                </p>
+              </div>
               {shipment.shipByDeadline && (
                 <div className="mb-3">
                   <ShipByDeadline deadline={shipment.shipByDeadline} />
@@ -341,7 +379,7 @@ export default function OrderDetailPage() {
                       disabled={shipLoading}
                       className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold disabled:opacity-50"
                     >
-                      {shipLoading ? 'Processing...' : 'Confirm ready for collection'}
+                      {shipLoading ? 'Processing...' : 'Confirm shipment details'}
                     </button>
                   </div>
                 </div>

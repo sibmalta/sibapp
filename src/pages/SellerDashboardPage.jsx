@@ -321,12 +321,17 @@ export default function SellerDashboardPage() {
                 </div>
               </div>
               {needsShipping && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); navigate(`/orders/${order.id}`) }}
-                  className="mt-2 w-full py-2 rounded-lg bg-blue-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-blue-700 transition-colors"
-                >
-                  <Truck size={12} /> Ship now
-                </button>
+                <div className="mt-2">
+                  <p className="text-[11px] text-blue-700 mb-1.5">
+                    New sale. Prepare the item and open the order for shipment steps.
+                  </p>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); navigate(`/orders/${order.id}`) }}
+                    className="w-full py-2 rounded-lg bg-blue-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-blue-700 transition-colors"
+                  >
+                    <Truck size={12} /> Prepare shipment
+                  </button>
+                </div>
               )}
             </div>
           )
