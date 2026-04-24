@@ -8,7 +8,7 @@
  * etc.) and legacy fashion-only listings (flat fields like brand, size, color).
  */
 
-import { resolveCategory, getCategoryById, ALL_SUBCATEGORIES } from '../data/categories'
+import { resolveCategory, getCategoryById, ALL_SUBCATEGORIES, normalizeSubcategoryValue } from '../data/categories'
 
 /* ── Condition labels (shared) ───────────────────────────── */
 export const CONDITION_LABELS = {
@@ -47,7 +47,8 @@ function attr(listing, key) {
 
 /* ── Resolve a human-readable subcategory label ────────────── */
 function subcategoryLabel(listing) {
-  const subId = listing.subcategory || attr(listing, 'subcategory')
+  const categoryId = resolveCategory(listing.category)
+  const subId = normalizeSubcategoryValue(listing.subcategory || attr(listing, 'subcategory'), categoryId)
   if (!subId) return null
   const found = ALL_SUBCATEGORIES.find(s => s.id === subId)
   return found?.label || null

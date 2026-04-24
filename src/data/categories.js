@@ -209,6 +209,22 @@ const ALL_SUBCATEGORIES = CATEGORY_TREE.flatMap(cat =>
   })),
 )
 
+const SUBCATEGORY_LABEL_MAP = Object.fromEntries(
+  ALL_SUBCATEGORIES.map(s => [s.label.toLowerCase(), s.id]),
+)
+
+const SUBCATEGORY_ID_MAP = Object.fromEntries(
+  ALL_SUBCATEGORIES.map(s => [s.id.toLowerCase(), s.id]),
+)
+
+const SUBCATEGORY_ALIASES = {
+  'tops & t-shirts': 'tops',
+  'tops and t-shirts': 'tops',
+  tops_tshirts: 'tops',
+  tops_and_tshirts: 'tops',
+  tshirts_tops: 'tops',
+}
+
 /**
  * Quick lookup: subcategory id → parent category id.
  */
@@ -243,6 +259,35 @@ function getParentCategory(subcategoryId) {
  */
 function getSubcategories(categoryId) {
   return CATEGORY_MAP[categoryId]?.subcategories || []
+}
+
+function normalizeSubcategoryValue(rawSubcategory, categoryId = '') {
+  if (!rawSubcategory) return ''
+  const raw = String(rawSubcategory).trim()
+  if (!raw) return ''
+
+  const lower = raw.toLowerCase()
+  const normalizedKey = lower.replace(/[^\w]+/g, '_').replace(/^_+|_+$/g, '')
+  const aliasMatch = SUBCATEGORY_ALIASES[lower] || SUBCATEGORY_ALIASES[normalizedKey]
+  if (aliasMatch) return aliasMatch
+
+  const directMatch = SUBCATEGORY_ID_MAP[lower]
+  if (directMatch) return directMatch
+
+  const labelMatch = SUBCATEGORY_LABEL_MAP[lower]
+  if (labelMatch) return labelMatch
+
+  if (categoryId) {
+    const categorySubcategories = getSubcategories(categoryId)
+    const scopedMatch = categorySubcategories.find((sub) => {
+      const subLabel = sub.label.toLowerCase()
+      const subNormalized = subLabel.replace(/[^\w]+/g, '_').replace(/^_+|_+$/g, '')
+      return sub.id.toLowerCase() === lower || subLabel === lower || subNormalized === normalizedKey
+    })
+    if (scopedMatch) return scopedMatch.id
+  }
+
+  return raw
 }
 
 /**
@@ -338,6 +383,7 @@ export {
   getCategoryById,
   getParentCategory,
   getSubcategories,
+  normalizeSubcategoryValue,
   getCategoryAttributes,
   getCategoryFilters,
   isDeliveryEligible,

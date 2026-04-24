@@ -16,7 +16,7 @@ import useAuthNav from '../hooks/useAuthNav'
 import { classifyListing, getStyleLabel, STYLE_RULES } from '../lib/styleClassifier'
 import { classifyCollection, COLLECTION_IDS, getCollectionLabel } from '../lib/collectionClassifier'
 import { normalizeBrand } from '../lib/brands'
-import { CATEGORY_TREE, getSubcategories, resolveCategory, getCategoryById } from '../data/categories'
+import { CATEGORY_TREE, getSubcategories, normalizeSubcategoryValue, resolveCategory, getCategoryById } from '../data/categories'
 import { getSportChildren, getSportBrands } from '../data/sportsFilters'
 import { getShoeChildren } from '../data/shoeFilters'
 import { getSubcategoryChildren } from '../data/subcategoryChildren'
@@ -150,7 +150,15 @@ export default function BrowsePage() {
     }
 
     if (subcategory) {
-      filtered = filtered.filter(l => l.subcategory === subcategory)
+      const normalizedSelectedSubcategory = normalizeSubcategoryValue(subcategory, category)
+      filtered = filtered.filter((l) => {
+        const listingCategory = resolveCategory(l.category)
+        const normalizedListingSubcategory = normalizeSubcategoryValue(
+          l.subcategory || l.type || l.categoryType || l.attributes?.subcategory || l.attributes?.type || '',
+          listingCategory,
+        )
+        return normalizedListingSubcategory === normalizedSelectedSubcategory
+      })
     }
 
     // Third-level detail filter (sport children, shoe types, OR generic subcategory children)

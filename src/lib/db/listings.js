@@ -5,6 +5,8 @@
  * AppContext falls back to localStorage/seed data when these calls fail.
  */
 
+import { normalizeSubcategoryValue } from '../../data/categories'
+
 // ── Shape helpers ────────────────────────────────────────────────────────────
 
 /**
@@ -28,7 +30,7 @@ export function rowToListing(row) {
     description: row.description || '',
     price: Number(row.price || 0),
     category: row.category || '',
-    subcategory: row.subcategory || '',
+    subcategory: normalizeSubcategoryValue(row.subcategory || '', row.category || ''),
     type: row.type || undefined,
     categoryType: row.category_type || undefined,
     attributes: resolvedAttributes,
