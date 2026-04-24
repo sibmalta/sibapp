@@ -183,7 +183,8 @@ export function sendDisputeOpenedEmail(recipientEmail, recipientName, orderRef, 
 }
 
 export function sendItemSoldEmail(sellerEmail, sellerName, itemTitle, orderRef, salePrice, buyerName, meta = {}) {
-  sendEmail('item_sold', sellerEmail, { sellerName, itemTitle, orderRef, salePrice, buyerName }, meta)
+  return sendEmail('item_sold', sellerEmail, { sellerName, itemTitle, orderRef, salePrice, buyerName }, meta)
+}
 }
 
 export function sendShippingReminderEmail(sellerEmail, sellerName, itemTitle, orderRef, daysSinceOrder, meta = {}) {
