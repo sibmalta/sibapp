@@ -192,7 +192,7 @@ export function useListings(localListings, localLikes, currentUser) {
           styleTags: data.styleTags?.length ? data.styleTags : payload.style_tags,
           collectionTags: data.collectionTags?.length ? data.collectionTags : payload.collection_tags,
         }
-        setListings(prev => [tagged, ...prev])
+        setListings(prev => prev.some(listing => listing.id === tagged.id) ? prev : [tagged, ...prev])
         return tagged
       }
       throw new Error('DB insert returned no data and no error — unexpected response')

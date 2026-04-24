@@ -193,7 +193,7 @@ export async function createListing(supabase, sellerId, listing) {
     /schema.cache/i.test(error.message) ||
     (error.code === 'PGRST204')
   )
-  if (isNewColumnError) {
+  if (!data && isNewColumnError) {
     console.warn('[listings] New columns not in DB yet — retrying without subcategory/attributes:', {
       message: error.message,
       code: error.code,

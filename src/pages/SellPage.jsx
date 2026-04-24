@@ -390,6 +390,7 @@ export default function SellPage() {
   const { currentUser, listingsLoading, createListing, updateListing, getUserListings, calculateFees, showToast } = useApp()
   const navigate = useNavigate()
   const fileInputRef = useRef(null)
+  const submittingRef = useRef(false)
   const restoredDraftRef = useRef(false)
   const hasStepHistoryRef = useRef(false)
   const prefilledListingRef = useRef(false)
@@ -657,7 +658,12 @@ export default function SellPage() {
   /* ── Submit — build structured payload ─────────────────────── */
 
   const handleSubmit = async () => {
-    if (!validateStep1()) return
+    if (uploading || submittingRef.current) return
+    submittingRef.current = true
+    if (!validateStep1()) {
+      submittingRef.current = false
+      return
+    }
     setUploading(true)
     try {
       const ATTR_KEYS = ['model', 'material', 'author', 'isbn', 'language', 'sport', 'age_group', 'dimensions', 'format', 'power_info', 'assembly_required']
@@ -685,6 +691,7 @@ export default function SellPage() {
         colors: form.colors,
         images: form.images,
         deliverySize: form.deliverySize || getDefaultDeliverySize(form.category, form.subcategory),
+        clientCreateToken: isEditMode ? undefined : `listing-create:${currentUser.id}:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`,
       }
       console.log('[SellPage] submit listing payload', {
         mode: isEditMode ? 'edit' : 'create',
@@ -708,7 +715,10 @@ export default function SellPage() {
     } catch (err) {
       console.error(`[SellPage] ${isEditMode ? 'updateListing' : 'createListing'} error:`, err)
       showToast(err?.message || `Could not ${isEditMode ? 'save your listing changes' : 'publish your listing'}. Please try again.`, 'error')
-    } finally { setUploading(false) }
+    } finally {
+      setUploading(false)
+      submittingRef.current = false
+    }
   }
 
   const goToNextStep = () => {
@@ -1332,7 +1342,7 @@ export default function SellPage() {
 
           <div className="flex gap-3">
             <button onClick={handleStepBack} className="flex-shrink-0 px-5 py-4 rounded-2xl border border-sib-stone text-sm font-medium text-sib-text">Back</button>
-            <button onClick={handleSubmit} disabled={uploading}
+            <button onClick={handleSubmit} disabled={uploading || submittingRef.current}
               className="flex-1 bg-sib-secondary text-white font-bold py-4 rounded-2xl text-sm disabled:opacity-50 active:scale-[0.98] transition-transform">
               {uploading ? (isEditMode ? 'Saving...' : 'Publishing...') : (isEditMode ? 'Save changes' : 'Publish Listing')}
             </button>
