@@ -36,7 +36,7 @@ type EmailType =
 
 interface EmailPayload {
   type: EmailType
-  to: string
+  to?: string | null
   data?: Record<string, any>
   meta?: Record<string, any>
   related_entity_type?: string
@@ -57,15 +57,51 @@ function getServiceRoleClient() {
   return createClient(supabaseUrl, serviceRoleKey)
 }
 
+async function resolveRecipientIfNeeded(payload: EmailPayload) {
+  if (payload.to) return payload.to
+
+  const sellerId = payload.meta?.sellerId
+  if (payload.type === 'item_sold' && sellerId) {
+    const supabase = getServiceRoleClient()
+    if (!supabase) {
+      console.error('[send-email] Cannot resolve seller recipient: service role client unavailable')
+      return null
+    }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('id', sellerId)
+      .single()
+
+    if (error) {
+      console.error('[send-email] Failed to resolve seller email for item_sold:', error.message)
+      return null
+    }
+
+    const resolvedEmail = data?.email?.trim()
+    if (!resolvedEmail) {
+      console.error('[send-email] Seller email missing on profile for item_sold', { sellerId })
+      return null
+    }
+
+    console.log('[send-email] Resolved seller recipient for item_sold', { sellerId, emailFound: true })
+    payload.to = resolvedEmail
+    return resolvedEmail
+  }
+
+  return null
+}
+
 // Helper: log email send attempt to email_logs table (fire-and-forget)
-async function logEmail(payload: { type: string; to: string; data?: Record<string, any>; meta?: Record<string, any>; related_entity_type?: string; related_entity_id?: string }, subject: string, status: EmailLogStatus, resendId?: string, errorMessage?: string) {
+async function logEmail(payload: { type: string; to?: string | null; data?: Record<string, any>; meta?: Record<string, any>; related_entity_type?: string; related_entity_id?: string }, subject: string, status: EmailLogStatus, resendId?: string, errorMessage?: string) {
   try {
     const supabase = getServiceRoleClient()
     if (!supabase) return
 
     const row = {
       email_type: payload.type,
-      recipient: payload.to,
+      recipient: payload.to || 'unresolved',
       subject,
       resend_id: resendId || null,
       status,
@@ -757,13 +793,17 @@ Deno.serve(async (req) => {
     // Canonical sender — must match verified Resend domain
     const emailFrom = 'Sib <no-reply@sibmalta.com>'
 
+    const resolvedRecipient = await resolveRecipientIfNeeded(payload)
+
     if (!payload.to || !payload.type) {
       if (payload?.type || payload?.to) {
         await logEmail({
           type: payload?.type || 'invalid_request',
-          to: payload?.to || 'unknown',
+          to: payload?.to || resolvedRecipient || 'unknown',
           data: payload?.data || {},
           meta: payload?.meta || {},
+          related_entity_type: payload?.related_entity_type,
+          related_entity_id: payload?.related_entity_id,
         }, '(invalid payload)', 'failed', undefined, 'Missing required fields: to, type')
       }
       return new Response(

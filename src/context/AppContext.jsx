@@ -459,16 +459,14 @@ export function AppProvider({ children }) {
     }
 
     // Email: item sold notification to seller
-    if (seller?.email) {
-      sendItemSoldEmail(seller.email, seller.name, listing.title, orderRef, itemPrice.toFixed(2), currentUser.username, {
-        related_entity_type: 'order',
-        related_entity_id: savedOrder.id,
-        orderId: savedOrder.id,
-        listingId: listing.id,
-        sellerId: seller.id,
-        buyerId: currentUser.id,
-      })
-    }
+    sendItemSoldEmail(seller?.email || null, seller?.name || seller?.username || 'seller', listing.title, orderRef, itemPrice.toFixed(2), currentUser.username, {
+      related_entity_type: 'order',
+      related_entity_id: savedOrder.id,
+      orderId: savedOrder.id,
+      listingId: listing.id,
+      sellerId: listing.sellerId,
+      buyerId: currentUser.id,
+    })
 
     return savedOrder
   }, [currentUser, listings, users, orders, addNotification, dbCreateOrder, dbCreateShipment, showToast])
@@ -1109,17 +1107,15 @@ export function AppProvider({ children }) {
     }
 
     // Email: item sold notification to seller
-    if (seller?.email) {
-      sendItemSoldEmail(seller.email, seller.name, `${items.length}-item bundle`, orderRef, subtotal.toFixed(2), currentUser.username, {
-        related_entity_type: 'order',
-        related_entity_id: savedOrder.id,
-        orderId: savedOrder.id,
-        listingId: savedOrder.listingId,
-        sellerId: bundle.sellerId,
-        buyerId: currentUser.id,
-        bundle: true,
-      })
-    }
+    sendItemSoldEmail(seller?.email || null, seller?.name || seller?.username || 'seller', `${items.length}-item bundle`, orderRef, subtotal.toFixed(2), currentUser.username, {
+      related_entity_type: 'order',
+      related_entity_id: savedOrder.id,
+      orderId: savedOrder.id,
+      listingId: savedOrder.listingId,
+      sellerId: bundle.sellerId,
+      buyerId: currentUser.id,
+      bundle: true,
+    })
 
     // Clear bundle after order
     setBundle(null)
@@ -1385,18 +1381,16 @@ export function AppProvider({ children }) {
     }
 
     // Email seller sold notification
-    if (sellerUser?.email) {
-      sendItemSoldEmail(sellerUser.email, sellerUser.name, `${items.length}-item bundle`, orderRef, acceptedPrice.toFixed(2), buyer?.username || 'buyer', {
-        related_entity_type: 'order',
-        related_entity_id: savedOrder.id,
-        orderId: savedOrder.id,
-        listingId: savedOrder.listingId,
-        sellerId: offer.sellerId,
-        buyerId: offer.buyerId,
-        bundle: true,
-        bundleOfferId: offerId,
-      })
-    }
+    sendItemSoldEmail(sellerUser?.email || null, sellerUser?.name || sellerUser?.username || 'seller', `${items.length}-item bundle`, orderRef, acceptedPrice.toFixed(2), buyer?.username || 'buyer', {
+      related_entity_type: 'order',
+      related_entity_id: savedOrder.id,
+      orderId: savedOrder.id,
+      listingId: savedOrder.listingId,
+      sellerId: offer.sellerId,
+      buyerId: offer.buyerId,
+      bundle: true,
+      bundleOfferId: offerId,
+    })
 
     // Clear buyer's bundle if it matches
     setBundle(prev => {
