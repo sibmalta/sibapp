@@ -161,11 +161,19 @@ function buildEmail(payload: EmailPayload): { subject: string; html: string; pre
   const data = payload.data || {}
 
   const appUrl = Deno.env.get('APP_URL') || 'https://sibmalta.com'
-  const logoUrl = `${appUrl}/assets/sib-3.png`
+  const logoUrl = 'https://sibmalta.com/assets/sib-3.png'
 
   const header = `
     <div style="text-align:center;padding:24px 0 16px;">
-      <img src="${logoUrl}" alt="Sib" width="56" height="56" style="display:inline-block;width:56px;height:auto;" />
+      <a href="${appUrl}" style="display:inline-block;text-decoration:none;">
+        <img
+          src="${logoUrl}"
+          alt="Sib"
+          width="104"
+          style="display:block;width:104px;height:auto;border:0;outline:none;text-decoration:none;margin:0 auto;"
+        />
+      </a>
+      <div style="font-size:0;line-height:0;max-height:0;overflow:hidden;mso-hide:all;">Sib</div>
     </div>`
 
   const footer = `

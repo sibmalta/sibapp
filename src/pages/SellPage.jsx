@@ -229,13 +229,20 @@ function isSellDraftDirty(form) {
 
 function buildFormFromListing(listing) {
   const attributes = listing?.attributes || {}
+  const resolvedSubcategory =
+    listing?.subcategory ||
+    listing?.type ||
+    listing?.categoryType ||
+    attributes.subcategory ||
+    attributes.type ||
+    ''
   return {
     ...INITIAL_FORM,
     title: listing?.title || '',
     description: listing?.description || '',
     price: listing?.price != null ? String(listing.price) : '',
     category: listing?.category || '',
-    subcategory: listing?.subcategory || '',
+    subcategory: resolvedSubcategory,
     gender: listing?.gender || '',
     size: listing?.size || '',
     brand: listing?.brand || '',
@@ -254,7 +261,7 @@ function buildFormFromListing(listing) {
     power_info: attributes.power_info || '',
     assembly_required: attributes.assembly_required || '',
     trouser_length: attributes.trouser_length || '',
-    deliverySize: listing?.deliverySize || getDefaultDeliverySize(listing?.category, listing?.subcategory),
+    deliverySize: listing?.deliverySize || getDefaultDeliverySize(listing?.category, resolvedSubcategory),
     onePersonCarry: attributes.onePersonCarry ?? null,
   }
 }
@@ -411,6 +418,17 @@ export default function SellPage() {
   useEffect(() => {
     if (!isEditMode || !ownedListing || restoredDraft?.form || prefilledListingRef.current) return
     prefilledListingRef.current = true
+    console.log('[SellPage] edit prefill listing', {
+      id: ownedListing.id,
+      category: ownedListing.category,
+      subcategory: ownedListing.subcategory,
+      type: ownedListing.type,
+      categoryType: ownedListing.categoryType,
+      attributeSubcategory: ownedListing.attributes?.subcategory,
+      attributeType: ownedListing.attributes?.type,
+      size: ownedListing.size,
+      condition: ownedListing.condition,
+    })
     setForm(buildFormFromListing(ownedListing))
     setStep(0)
   }, [isEditMode, ownedListing, restoredDraft])
