@@ -236,6 +236,20 @@ function buildFormFromListing(listing) {
     attributes.subcategory ||
     attributes.type ||
     ''
+  const resolvedGender =
+    listing?.gender ||
+    attributes.gender ||
+    ''
+  const resolvedSize =
+    listing?.size ||
+    attributes.size ||
+    attributes.kids_size ||
+    attributes.shoe_size ||
+    ''
+  const resolvedCondition =
+    listing?.condition ||
+    attributes.condition ||
+    ''
   return {
     ...INITIAL_FORM,
     title: listing?.title || '',
@@ -243,10 +257,10 @@ function buildFormFromListing(listing) {
     price: listing?.price != null ? String(listing.price) : '',
     category: listing?.category || '',
     subcategory: resolvedSubcategory,
-    gender: listing?.gender || '',
-    size: listing?.size || '',
+    gender: resolvedGender,
+    size: resolvedSize,
     brand: listing?.brand || '',
-    condition: listing?.condition || '',
+    condition: resolvedCondition,
     colors: Array.isArray(listing?.colors) ? listing.colors : [],
     images: Array.isArray(listing?.images) ? listing.images : [],
     model: attributes.model || '',
@@ -381,10 +395,10 @@ export default function SellPage() {
   const prefilledListingRef = useRef(false)
   const isEditMode = Boolean(listingId)
   const draftStorageKey = useMemo(() => getSellDraftStorageKey(listingId), [listingId])
- const restoredDraft = useMemo(() => {
-  if (listingId) return null
-  return loadSellDraft(draftStorageKey)
-}, [draftStorageKey, listingId])
+  const restoredDraft = useMemo(() => {
+    if (listingId) return null
+    return loadSellDraft(draftStorageKey)
+  }, [draftStorageKey, listingId])
   const ownedListing = useMemo(() => {
     if (!currentUser || !listingId) return null
     return getUserListings(currentUser.id).find((listing) => listing.id === listingId) || null
@@ -410,39 +424,45 @@ export default function SellPage() {
 
   const hasDraft = useMemo(() => isSellDraftDirty(form), [form])
 
-useEffect(() => {
-  if (isEditMode) return
-  if (restoredDraftRef.current) return
-  restoredDraftRef.current = true
+  useEffect(() => {
+    if (isEditMode) return
+    if (restoredDraftRef.current) return
+    restoredDraftRef.current = true
 
-  if (restoredDraft?.form && isSellDraftDirty(restoredDraft.form)) {
-    showToast('Draft restored.')
-  }
-}, [isEditMode, restoredDraft, showToast])
+    if (restoredDraft?.form && isSellDraftDirty(restoredDraft.form)) {
+      showToast('Draft restored.')
+    }
+  }, [isEditMode, restoredDraft, showToast])
 
- useEffect(() => {
-  if (!isEditMode || !ownedListing || prefilledListingRef.current) return
+  useEffect(() => {
+    if (!isEditMode || !ownedListing || prefilledListingRef.current) return
 
-  prefilledListingRef.current = true
+    prefilledListingRef.current = true
 
-  const prefilledForm = buildFormFromListing(ownedListing)
+    const prefilledForm = buildFormFromListing(ownedListing)
 
-  console.log('[SellPage] edit prefill listing', {
-    id: ownedListing.id,
-    category: ownedListing.category,
-    subcategory: ownedListing.subcategory,
-    type: ownedListing.type,
-    categoryType: ownedListing.categoryType,
-    attributeSubcategory: ownedListing.attributes?.subcategory,
-    attributeType: ownedListing.attributes?.type,
-    resolvedSubcategory: prefilledForm.subcategory,
-    size: ownedListing.size,
-    condition: ownedListing.condition,
-  })
+    console.log('[SellPage] edit prefill listing', {
+      id: ownedListing.id,
+      category: ownedListing.category,
+      subcategory: ownedListing.subcategory,
+      type: ownedListing.type,
+      categoryType: ownedListing.categoryType,
+      attributeSubcategory: ownedListing.attributes?.subcategory,
+      attributeType: ownedListing.attributes?.type,
+      resolvedSubcategory: prefilledForm.subcategory,
+      gender: ownedListing.gender,
+      resolvedGender: prefilledForm.gender,
+      size: ownedListing.size,
+      resolvedSize: prefilledForm.size,
+      condition: ownedListing.condition,
+      resolvedCondition: prefilledForm.condition,
+      trouserLength: ownedListing.attributes?.trouser_length,
+      resolvedTrouserLength: prefilledForm.trouser_length,
+    })
 
-  setForm(prefilledForm)
-  setStep(0)
-}, [isEditMode, ownedListing])
+    setForm(prefilledForm)
+    setStep(0)
+  }, [isEditMode, ownedListing])
 
   useEffect(() => {
     if (!currentUser) return

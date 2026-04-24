@@ -12,6 +12,15 @@
  */
 export function rowToListing(row) {
   if (!row) return null
+  const resolvedAttributes = row.attributes || {}
+  const resolvedGender = row.gender || resolvedAttributes.gender || ''
+  const resolvedSize =
+    row.size ||
+    resolvedAttributes.size ||
+    resolvedAttributes.kids_size ||
+    resolvedAttributes.shoe_size ||
+    ''
+  const resolvedCondition = row.condition || resolvedAttributes.condition || ''
   return {
     id: row.id,
     sellerId: row.seller_id,
@@ -22,11 +31,11 @@ export function rowToListing(row) {
     subcategory: row.subcategory || '',
     type: row.type || undefined,
     categoryType: row.category_type || undefined,
-    attributes: row.attributes || {},
-    gender: row.gender || '',
-    size: row.size || '',
+    attributes: resolvedAttributes,
+    gender: resolvedGender,
+    size: resolvedSize,
     brand: row.brand || '',
-    condition: row.condition || '',
+    condition: resolvedCondition,
     color: row.color || '',
     colors: row.colors || (row.color ? [row.color] : []),
     images: row.images || [],
