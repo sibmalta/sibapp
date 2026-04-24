@@ -90,35 +90,7 @@ export default function ListingPage() {
     .slice(0, 4)
   const sellerOrders = useMemo(() => getUserSales(listing.sellerId), [listing.sellerId, getUserSales])
 
-  // ── Similar Items — category-aware relevance scoring ──
-  const similarItems = useMemo(() => {
-    const active = listings.filter(l => l.id !== listing.id && l.status === 'active')
-    if (active.length === 0) return []
 
-    const curResolved = resolveCategory(listing.category)
-    const curSub = (listing.subcategory || '').toLowerCase()
-    const curBrand = (listing.brand || '').toLowerCase()
-    const curGender = (listing.gender || '').toLowerCase()
-
-    const scored = active.map(l => {
-      let score = 0
-
-      const lResolved = resolveCategory(l.category)
-      if (curResolved && lResolved === curResolved) score += 5
-      if (curSub && (l.subcategory || '').toLowerCase() === curSub) score += 4
-      if (curBrand && (l.brand || '').toLowerCase() === curBrand) score += 3
-      if (curGender && (l.gender || '').toLowerCase() === curGender) score += 2
-      if (listing.condition && l.condition === listing.condition) score += 1
-
-      return { listing: l, score }
-    })
-
-    return scored
-      .filter(s => s.score > 0)
-      .sort((a, b) => b.score - a.score || new Date(b.listing.createdAt) - new Date(a.listing.createdAt))
-      .slice(0, 8)
-      .map(s => s.listing)
-  }, [listing, listings])
 
   const handleLike = () => {
     if (!currentUser) { navigate('/auth'); return }
@@ -511,7 +483,7 @@ export default function ListingPage() {
       )}
 
       {/* Similar Items */}
-      {similarItems.length > 0 && (
+      {similarItems.length > 2 && (
         <div className="px-4 pb-8 lg:px-0 lg:pt-4">
           <div className="flex items-center gap-1.5 mb-3">
             <Sparkles size={15} className="text-sib-primary" />
