@@ -14,12 +14,12 @@ export default function PageHeader({ title, right, onBack }) {
   }
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-sib-stone/60">
+    <header className="sticky top-0 z-40 bg-white/95 dark:bg-[#131918]/95 backdrop-blur-md border-b border-sib-stone/60 dark:border-[#2d3635] transition-colors">
       <div className="flex items-center h-12 px-3 lg:max-w-6xl lg:mx-auto lg:px-8">
         {/* Left: back button */}
         <button
           onClick={handleBack}
-          className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 -ml-1 active:bg-sib-sand transition-colors"
+          className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 -ml-1 active:bg-sib-sand dark:active:bg-[#1d2625] transition-colors"
           aria-label="Go back"
         >
           <ArrowLeft size={20} className="text-sib-text" />

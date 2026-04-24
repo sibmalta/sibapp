@@ -11,7 +11,7 @@ export default function Toast() {
   return (
     <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-md pointer-events-none">
       <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl shadow-lg ${
-        isSuccess ? 'bg-sib-text text-white' : 'bg-red-600 text-white'
+        isSuccess ? 'bg-sib-text text-white dark:bg-[#1f2928]' : 'bg-red-600 text-white dark:bg-[#8f3d35]'
       }`}>
         {isSuccess
           ? <CheckCircle size={18} className="flex-shrink-0" />

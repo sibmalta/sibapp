@@ -1,11 +1,13 @@
 import React from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, User, Bell, Shield, FileText, ShieldCheck, RefreshCw, Ban, ChevronRight, LogOut, HelpCircle, Mail, Lock, Store, Truck, Scale, Cookie, MapPin } from 'lucide-react'
+import { ArrowLeft, User, Bell, Shield, FileText, ShieldCheck, RefreshCw, Ban, ChevronRight, LogOut, HelpCircle, Mail, Lock, Store, Truck, Scale, Cookie, MapPin, Sun, Moon } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+import { useTheme } from '../context/ThemeContext'
 
 export default function SettingsPage() {
   const navigate = useNavigate()
   const { currentUser, logout } = useApp()
+  const { theme, setTheme } = useTheme()
 
   if (!currentUser) {
     navigate('/auth')
@@ -24,6 +26,44 @@ export default function SettingsPage() {
       </button>
 
       <h1 className="text-xl font-bold text-sib-text mb-6">Settings</h1>
+
+      <div className="mb-6">
+        <p className="text-[11px] font-semibold text-sib-muted uppercase tracking-wide mb-2">Appearance</p>
+        <div className="rounded-2xl border border-sib-stone overflow-hidden bg-white dark:bg-[#151c1b] transition-colors">
+          <div className="px-4 py-3.5 flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-sib-text">Theme</p>
+              <p className="text-xs text-sib-muted mt-0.5">Choose how Sib looks on this device.</p>
+            </div>
+            <div className="flex items-center gap-2 rounded-xl bg-sib-sand dark:bg-[#1c2423] p-1 transition-colors">
+              <button
+                type="button"
+                onClick={() => setTheme('light')}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                  theme === 'light'
+                    ? 'bg-[#f8f7f3] text-sib-text shadow-sm'
+                    : 'text-sib-muted hover:text-sib-text'
+                }`}
+              >
+                <Sun size={14} />
+                Light mode
+              </button>
+              <button
+                type="button"
+                onClick={() => setTheme('dark')}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                  theme === 'dark'
+                    ? 'bg-[#202927] text-[#f2eee7] shadow-sm'
+                    : 'text-sib-muted hover:text-sib-text'
+                }`}
+              >
+                <Moon size={14} />
+                Dark mode
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Account */}
       <div className="mb-6">

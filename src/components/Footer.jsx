@@ -34,7 +34,7 @@ export default function Footer() {
   const year = new Date().getFullYear()
 
   return (
-    <footer className="bg-[#F7F7F7] border-t border-sib-stone/50 mt-8">
+    <footer className="bg-[#F7F7F7] dark:bg-[#111716] border-t border-sib-stone/50 dark:border-[#2d3635] mt-8 transition-colors">
       <div className="max-w-lg mx-auto px-5 pt-8 pb-6 lg:max-w-6xl lg:px-8">
         {/* Logo — prominent brand anchor */}
         <div className="mb-8">

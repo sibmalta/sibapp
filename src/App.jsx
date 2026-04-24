@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { AppProvider } from './context/AppContext'
+import { ThemeProvider } from './context/ThemeContext'
 import Layout from './components/Layout'
 import Toast from './components/Toast'
 import { useAuth } from './lib/auth-context'
@@ -119,10 +120,12 @@ export default function App() {
   const base = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '') || '/'
 
   return (
-    <AppProvider>
-      <BrowserRouter basename={base}>
-        <AppRoutes />
-      </BrowserRouter>
-    </AppProvider>
+    <ThemeProvider>
+      <AppProvider>
+        <BrowserRouter basename={base}>
+          <AppRoutes />
+        </BrowserRouter>
+      </AppProvider>
+    </ThemeProvider>
   )
 }

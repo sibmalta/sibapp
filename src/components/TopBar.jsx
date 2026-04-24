@@ -106,25 +106,25 @@ export default function TopBar() {
 
   if (searchOpen) {
     return (
-      <div className="fixed inset-0 z-[999] flex flex-col bg-white">
+      <div className="fixed inset-0 z-[999] flex flex-col bg-white dark:bg-[#111716] transition-colors">
         {/* Search input bar */}
-        <div className="px-3 pt-3 pb-2 border-b border-gray-200/60 flex-shrink-0">
+        <div className="px-3 pt-3 pb-2 border-b border-gray-200/60 dark:border-[#2d3635] flex-shrink-0">
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#8d9896] pointer-events-none" />
               <input
                 autoFocus
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 onKeyDown={handleInputKeyDown}
                 placeholder="Search brands, styles, items..."
-                className="w-full bg-[#EDEDEB] rounded-lg pl-9 pr-9 py-2.5 text-[14px] text-sib-text placeholder-gray-400 outline-none border border-transparent focus:border-gray-300 focus:bg-white focus:shadow-sm transition-all"
+                className="w-full bg-[#EDEDEB] dark:bg-[#1c2423] rounded-lg pl-9 pr-9 py-2.5 text-[14px] text-sib-text dark:text-[#f2eee7] placeholder-gray-400 dark:placeholder:text-[#8d9896] outline-none border border-transparent focus:border-gray-300 dark:focus:border-[#374241] focus:bg-white dark:focus:bg-[#1c2423] focus:shadow-sm transition-all"
               />
               {query && (
                 <button
                   onMouseDown={e => e.preventDefault()}
                   onClick={() => setQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-sib-text transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#8d9896] hover:text-sib-text transition-colors"
                 >
                   <X size={14} />
                 </button>
@@ -132,7 +132,7 @@ export default function TopBar() {
             </div>
             <button
               onClick={closeAndReset}
-              className="text-sm font-semibold text-gray-500 hover:text-gray-800 transition-colors px-1 flex-shrink-0"
+              className="text-sm font-semibold text-gray-500 dark:text-[#a0aaa8] hover:text-gray-800 dark:hover:text-[#f2eee7] transition-colors px-1 flex-shrink-0"
             >
               Cancel
             </button>
@@ -156,7 +156,7 @@ export default function TopBar() {
   // On the home page: use a compact app header.
   if (isHome) {
     return (
-      <header className="sticky top-0 z-50 flex justify-between px-3 h-12 items-center bg-white/95 backdrop-blur-md border-b border-gray-200/70">
+      <header className="sticky top-0 z-50 flex justify-between px-3 h-12 items-center bg-white/95 dark:bg-[#131918]/95 backdrop-blur-md border-b border-gray-200/70 dark:border-[#2d3635] transition-colors">
         <div className="-ml-0.5">
           <img
             src={`${import.meta.env.BASE_URL}assets/sib-3.png`}
@@ -167,7 +167,7 @@ export default function TopBar() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setSearchOpen(true)}
-            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors"
+            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-[#1d2625] active:bg-gray-200 dark:active:bg-[#222c2b] transition-colors"
           >
             <Search size={18} className="text-sib-text" />
           </button>
@@ -175,7 +175,7 @@ export default function TopBar() {
             <NotifBell
               onClick={handleBellTap}
               size={18}
-              className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors text-sib-text"
+              className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-[#1d2625] active:bg-gray-200 dark:active:bg-[#222c2b] transition-colors text-sib-text"
             />
           )}
         </div>
@@ -186,30 +186,30 @@ export default function TopBar() {
   const isBrowse = location.pathname === '/browse'
 
   return (
-    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200/70 px-4 h-11 flex items-center justify-between">
+    <header className="sticky top-0 z-50 bg-white/95 dark:bg-[#131918]/95 backdrop-blur-md border-b border-gray-200/70 dark:border-[#2d3635] px-4 h-11 flex items-center justify-between transition-colors">
       <div className="flex items-center gap-2.5">
         {isBack ? (
-          <button onClick={() => navigate(-1)} className="text-gray-500 -ml-1.5 p-0.5 hover:text-gray-800 transition-colors">
+          <button onClick={() => navigate(-1)} className="text-gray-500 dark:text-[#a0aaa8] -ml-1.5 p-0.5 hover:text-gray-800 dark:hover:text-[#f2eee7] transition-colors">
             <ArrowLeft size={20} />
           </button>
         ) : null}
-        <span className="text-[15px] font-medium text-gray-900 tracking-[-0.01em]">{title || ''}</span>
+        <span className="text-[15px] font-medium text-gray-900 dark:text-[#f2eee7] tracking-[-0.01em]">{title || ''}</span>
       </div>
 
       <div className="flex items-center gap-1">
         {isBrowse && (
           <button
             onClick={() => setSearchOpen(true)}
-            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors"
+            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-[#1d2625] active:bg-gray-200 dark:active:bg-[#222c2b] transition-colors"
           >
-            <Search size={18} className="text-gray-600" />
+            <Search size={18} className="text-gray-600 dark:text-[#a0aaa8]" />
           </button>
         )}
         {currentUser && (
           <NotifBell
             onClick={handleBellTap}
             size={18}
-            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors text-gray-600"
+            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-[#1d2625] active:bg-gray-200 dark:active:bg-[#222c2b] transition-colors text-gray-600 dark:text-[#a0aaa8]"
           />
         )}
       </div>

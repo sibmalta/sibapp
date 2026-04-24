@@ -66,7 +66,7 @@ export default function BottomNav() {
   return (
     <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-40 safe-area-bottom">
       {/* Background bar */}
-      <div className="bg-white/95 backdrop-blur-xl border-t border-sib-stone/30 shadow-[0_-2px_12px_rgba(0,0,0,0.04)]">
+      <div className="bg-white/95 backdrop-blur-xl border-t border-sib-stone/30 shadow-[0_-2px_12px_rgba(0,0,0,0.04)] dark:bg-[#131918]/95 dark:border-[#2d3635] dark:shadow-[0_-4px_18px_rgba(0,0,0,0.28)] transition-colors">
         <div className="flex items-center h-16 px-1">
           {/* Left section */}
           <div className="flex flex-1 items-center justify-evenly h-full">
@@ -96,7 +96,7 @@ export default function BottomNav() {
           onClick={handleSellClick}
           className="group flex flex-col items-center"
         >
-          <div className="w-[56px] h-[56px] rounded-full bg-gradient-to-br from-sib-primaryDark to-sib-primaryLight flex items-center justify-center shadow-lg shadow-sib-primary/25 ring-[3.5px] ring-white transition-all duration-200 active:scale-90 group-hover:scale-105 group-hover:shadow-xl group-hover:shadow-sib-primary/30">
+          <div className="w-[56px] h-[56px] rounded-full bg-gradient-to-br from-sib-primaryDark to-sib-primaryLight flex items-center justify-center shadow-lg shadow-sib-primary/25 ring-[3.5px] ring-white dark:ring-[#131918] transition-all duration-200 active:scale-90 group-hover:scale-105 group-hover:shadow-xl group-hover:shadow-sib-primary/30">
             <Plus size={26} className="text-white" strokeWidth={2.5} />
           </div>
           <span className="text-[10px] font-semibold text-sib-text mt-1 leading-none">Sell</span>

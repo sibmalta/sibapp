@@ -35,7 +35,7 @@ function ListingImage({ listing, className, src }) {
 
   if (!imageSrc) {
     return (
-      <div className={`${className} flex items-center justify-center bg-sib-sand text-sib-muted`}>
+      <div className={`${className} flex items-center justify-center bg-sib-sand dark:bg-[#1c2423] text-sib-muted`}>
         <ImageIcon size={22} strokeWidth={1.7} />
       </div>
     )
@@ -209,7 +209,7 @@ export default function ListingCard({ listing, size = 'normal' }) {
       >
         <SwipeableListingImage
           listing={listing}
-          className="relative rounded-xl overflow-hidden bg-sib-sand aspect-square"
+          className="relative rounded-xl overflow-hidden bg-sib-sand dark:bg-[#1c2423] aspect-square"
           imageClassName="w-full h-full object-cover"
           onSwipe={handleImageSwipe}
         >
@@ -239,7 +239,7 @@ export default function ListingCard({ listing, size = 'normal' }) {
       {/* Image container */}
       <SwipeableListingImage
         listing={listing}
-        className="relative rounded-xl overflow-hidden bg-sib-stone/30 aspect-[3/4]"
+        className="relative rounded-xl overflow-hidden bg-sib-stone/30 dark:bg-[#212a29] aspect-[3/4]"
         imageClassName="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.06]"
         onSwipe={handleImageSwipe}
       >
