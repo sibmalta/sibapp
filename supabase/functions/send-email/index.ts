@@ -880,7 +880,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('[send-email] ERROR:', error)
     if (payload?.to && payload?.type) {
-      await logEmail(payload, subject || `(${payload.type})`, 'failed', undefined,f error.message || 'Unknown error')
+      await logEmail(payload, subject || `(${payload.type})`, 'failed', undefined, error.message || 'Unknown error')
     }
     return new Response(
       JSON.stringify({ error: error.message || 'Unknown error' }),
