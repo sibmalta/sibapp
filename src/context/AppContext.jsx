@@ -163,6 +163,7 @@ export function AppProvider({ children }) {
     loading: listingsLoading,
     dbAvailable: listingsDbAvailable,
     createListing: dbCreateListing,
+    updateListing: dbUpdateListing,
     deleteListing: dbDeleteListing,
     markSold: dbMarkSold,
     toggleLike: dbToggleLike,
@@ -355,6 +356,7 @@ export function AppProvider({ children }) {
   // Delegate to DB-backed hooks
   const updateProfile = dbUpdateProfile
   const createListing = dbCreateListing
+  const updateListing = dbUpdateListing
   const deleteListing = dbDeleteListing
   const toggleLike    = dbToggleLike
   const boostListing   = dbBoostListing
@@ -1723,7 +1725,7 @@ export function AppProvider({ children }) {
       currentUser, users, listings, listingsLoading, orders, conversations, reviews, disputes, likedListings, payoutProfiles, notifications, offers, bundle, bundleOffers, shipments, toast,
       PROTECTION_WINDOW_MS, SHIPPING_DEADLINE_MS,
       login, signup, register, logout, requestPasswordReset, validateResetToken, resetPassword, updateProfile,
-      createListing, deleteListing, boostListing, unboostListing, flagListing, approveListing, hideListing, updateStyleTags, updateCollectionTags, adminUpdateListingMeta, toggleLike,
+      createListing, updateListing, deleteListing, boostListing, unboostListing, flagListing, approveListing, hideListing, updateStyleTags, updateCollectionTags, adminUpdateListingMeta, toggleLike,
       placeOrder, getOrCreateConversation, sendMessage, markConversationRead, getUnreadConversationCount, updateOrderStatus,
       confirmDelivery, openDispute, adminOpenDispute, flagOrderOverdue, DISPUTE_REASONS,
       addNotification, markNotificationRead, markAllNotificationsRead, getUserNotifications,

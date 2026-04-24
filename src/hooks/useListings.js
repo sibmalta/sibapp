@@ -15,6 +15,7 @@ import {
   fetchUserListings as dbFetchUserListings,
   fetchListingById as dbFetchListingById,
   createListing as dbCreateListing,
+  updateListing as dbUpdateListing,
   deleteListing as dbDeleteListing,
   setListingBoosted,
   setListingFlagged,
@@ -207,6 +208,77 @@ export function useListings(localListings, localLikes, currentUser) {
     throw new Error('Listings database is unavailable. Listing was not saved.')
   }, [supabase, currentUser, dbAvailable, isAuthenticated, refreshSession])
 
+  const updateListing = useCallback(async (listingId, formData, imageFiles = []) => {
+    if (!currentUser) throw new Error('Must be logged in to edit a listing')
+
+    let imageUrls = formData.images || []
+    let filesToUpload = imageFiles
+    if (filesToUpload.length === 0 && dbAvailable && isAuthenticated && imageUrls.length > 0) {
+      filesToUpload = imageUrls
+        .filter(img => typeof img === 'string' && img.startsWith('data:'))
+        .map((dataUrl, i) => dataUrlToFile(dataUrl, `listing_${i}.jpg`))
+    }
+    if (dbAvailable && isAuthenticated && filesToUpload.length > 0) {
+      const uploads = await Promise.all(
+        filesToUpload.map((file, i) => uploadListingImage(supabase, currentUser.id, file, i))
+      )
+      const uploadedUrls = uploads.filter(r => r.url).map(r => r.url)
+      if (uploadedUrls.length > 0) {
+        let uploadIndex = 0
+        imageUrls = imageUrls.map((img) => {
+          if (typeof img === 'string' && img.startsWith('data:')) {
+            const nextUrl = uploadedUrls[uploadIndex]
+            uploadIndex += 1
+            return nextUrl || img
+          }
+          return img
+        }).filter(Boolean)
+      }
+    }
+
+    const payload = {
+      ...formData,
+      images: imageUrls,
+      style_tags: classifyListing({ ...formData, images: imageUrls }),
+      collection_tags: classifyCollection({ ...formData, images: imageUrls }),
+    }
+
+    if (dbAvailable && isAuthenticated) {
+      let client = supabase
+      let { data, error } = await dbUpdateListing(client, listingId, payload)
+      if (error && isSessionExpiredError(error)) {
+        console.warn('[useListings] updateListing session expired, attempting refresh')
+        try {
+          const refreshedSession = await refreshSession()
+          client = createAuthenticatedClient(refreshedSession.access_token)
+          ;({ data, error } = await dbUpdateListing(client, listingId, payload))
+        } catch (refreshError) {
+          console.warn('[useListings] updateListing session refresh failed:', refreshError?.message)
+          throw new Error(SESSION_EXPIRED_MESSAGE)
+        }
+      }
+      if (error) {
+        console.error('[useListings] updateListing DB error:', error.message, error.details, error.hint)
+        if (isSessionExpiredError(error)) {
+          throw new Error(SESSION_EXPIRED_MESSAGE)
+        }
+        throw new Error('Could not save your listing changes. Please try again.')
+      }
+      if (data) {
+        const tagged = {
+          ...data,
+          styleTags: data.styleTags?.length ? data.styleTags : payload.style_tags,
+          collectionTags: data.collectionTags?.length ? data.collectionTags : payload.collection_tags,
+        }
+        setListings(prev => prev.map(listing => listing.id === listingId ? tagged : listing))
+        return tagged
+      }
+      throw new Error('DB update returned no data and no error — unexpected response')
+    }
+
+    throw new Error('Listings database is unavailable. Listing changes were not saved.')
+  }, [supabase, currentUser, dbAvailable, isAuthenticated, refreshSession])
+
   // ── Delete listing ─────────────────────────────────────────────────────────
   const deleteListing = useCallback(async (listingId) => {
     // Optimistic update
@@ -346,6 +418,7 @@ export function useListings(localListings, localLikes, currentUser) {
     dbAvailable,
     // mutations
     createListing,
+    updateListing,
     deleteListing,
     markSold,
     toggleLike,

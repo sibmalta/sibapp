@@ -20,6 +20,8 @@ export default function ListingPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const wasJustPublished = searchParams.get('published') === '1'
+  const wasJustUpdated = searchParams.get('updated') === '1'
 
   // Referral tracking — ?ref=username
   const refParam = searchParams.get('ref')
@@ -204,6 +206,8 @@ if (!listing) return (
 
   const nextImg = () => setImgIndex(i => (i + 1) % listing.images.length)
   const prevImg = () => setImgIndex(i => (i - 1 + listing.images.length) % listing.images.length)
+  const handleEditListing = () => navigate(`/sell/edit/${listing.id}`)
+  const handleViewListing = () => navigate(`/listing/${listing.id}`, { replace: true })
 
   return (
     <div className="dark:bg-[#18211f] transition-colors">
@@ -285,6 +289,36 @@ if (!listing) return (
                   @{referrerDisplayName}
                 </button>
               </p>
+            </div>
+          )}
+          {(wasJustPublished || wasJustUpdated) && isOwner && (
+            <div className="rounded-2xl border border-sib-primary/20 bg-sib-primary/5 px-4 py-3 mb-4">
+              <p className="text-sm font-semibold text-sib-text">
+                {wasJustPublished ? 'Listing published' : 'Listing updated'}
+              </p>
+              <p className="text-xs text-sib-muted mt-1">
+                {wasJustPublished ? 'Your item is now live on Sib.' : 'Your latest changes are now live.'}
+              </p>
+              <div className="flex flex-wrap gap-2 mt-3">
+                <button
+                  onClick={handleViewListing}
+                  className="px-3 py-2 rounded-xl border border-sib-stone text-xs font-semibold text-sib-text hover:bg-sib-sand transition-colors"
+                >
+                  View listing
+                </button>
+                <button
+                  onClick={handleEditListing}
+                  className="px-3 py-2 rounded-xl border border-sib-stone text-xs font-semibold text-sib-text hover:bg-sib-sand transition-colors"
+                >
+                  Edit listing
+                </button>
+                <button
+                  onClick={handleShare}
+                  className="px-3 py-2 rounded-xl bg-sib-secondary text-white text-xs font-semibold hover:bg-sib-secondary/90 transition-colors"
+                >
+                  Share listing
+                </button>
+              </div>
             </div>
           )}
           {/* Title & price */}
@@ -444,12 +478,20 @@ if (!listing) return (
 
           {/* Actions */}
           {isOwner ? (
-            <button
-              onClick={handleDelete}
-              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-red-200 text-red-500 font-semibold text-sm hover:bg-red-50 transition-colors"
-            >
-              <Trash2 size={16} /> Remove listing
-            </button>
+            <div className="space-y-2.5">
+              <button
+                onClick={handleEditListing}
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-sib-stone text-sib-text font-semibold text-sm hover:bg-sib-sand transition-colors"
+              >
+                Edit listing
+              </button>
+              <button
+                onClick={handleDelete}
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl border border-red-200 text-red-500 font-semibold text-sm hover:bg-red-50 transition-colors"
+              >
+                <Trash2 size={16} /> Remove listing
+              </button>
+            </div>
           ) : listing.status === 'active' ? (
             <div className="space-y-2.5">
               <div className="flex gap-3">

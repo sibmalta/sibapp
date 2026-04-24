@@ -196,6 +196,44 @@ export async function createListing(supabase, sellerId, listing) {
   return { data: result, error }
 }
 
+/** Update an existing listing. */
+export async function updateListing(supabase, id, listing) {
+  const row = listingToRow(listing)
+
+  let { data, error } = await supabase
+    .from('listings')
+    .update(row)
+    .eq('id', id)
+    .select(BASE_SELECT)
+    .single()
+
+  const isNewColumnError = error && (
+    /(?:subcategory|attributes)/i.test(error.message) ||
+    /schema.cache/i.test(error.message) ||
+    error.code === 'PGRST204'
+  )
+  if (isNewColumnError) {
+    console.warn('[listings] updateListing — retrying without new columns:', error.message)
+    const fallbackRow = stripNewColumns(row)
+    ;({ data, error } = await supabase
+      .from('listings')
+      .update(fallbackRow)
+      .eq('id', id)
+      .select(BASE_SELECT)
+      .single())
+  }
+
+  const result = rowToListing(data)
+  if (result) {
+    if (listing.subcategory && !result.subcategory) result.subcategory = listing.subcategory
+    if (listing.attributes && Object.keys(listing.attributes).length > 0 && (!result.attributes || Object.keys(result.attributes).length === 0)) {
+      result.attributes = listing.attributes
+    }
+  }
+
+  return { data: result, error }
+}
+
 /** Soft-delete a listing (status = 'deleted'). */
 export async function deleteListing(supabase, id) {
   const { data, error } = await supabase

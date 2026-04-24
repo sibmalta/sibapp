@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import {
   Camera, X, Info, Check, ChevronDown, Search, Package, Truck,
 } from 'lucide-react'
@@ -159,10 +159,14 @@ const INITIAL_FORM = {
   onePersonCarry: null,
 }
 
-function loadSellDraft() {
+function getSellDraftStorageKey(listingId) {
+  return listingId ? `sib-sell-draft-edit-${listingId}` : SELL_DRAFT_STORAGE_KEY
+}
+
+function loadSellDraft(storageKey) {
   if (typeof window === 'undefined') return null
   try {
-    const rawDraft = window.localStorage.getItem(SELL_DRAFT_STORAGE_KEY)
+    const rawDraft = window.localStorage.getItem(storageKey)
     if (!rawDraft) return null
     const parsed = JSON.parse(rawDraft)
     if (!parsed || typeof parsed !== 'object') return null
@@ -181,17 +185,17 @@ function loadSellDraft() {
   }
 }
 
-function saveSellDraft(draft) {
+function saveSellDraft(storageKey, draft) {
   if (typeof window === 'undefined') return
-  window.localStorage.setItem(SELL_DRAFT_STORAGE_KEY, JSON.stringify({
+  window.localStorage.setItem(storageKey, JSON.stringify({
     ...draft,
     savedAt: new Date().toISOString(),
   }))
 }
 
-function clearSellDraft() {
+function clearSellDraft(storageKey) {
   if (typeof window === 'undefined') return
-  window.localStorage.removeItem(SELL_DRAFT_STORAGE_KEY)
+  window.localStorage.removeItem(storageKey)
 }
 
 function isSellDraftDirty(form) {
@@ -221,6 +225,38 @@ function isSellDraftDirty(form) {
     Boolean(form.assembly_required) ||
     form.onePersonCarry !== null
   )
+}
+
+function buildFormFromListing(listing) {
+  const attributes = listing?.attributes || {}
+  return {
+    ...INITIAL_FORM,
+    title: listing?.title || '',
+    description: listing?.description || '',
+    price: listing?.price != null ? String(listing.price) : '',
+    category: listing?.category || '',
+    subcategory: listing?.subcategory || '',
+    gender: listing?.gender || '',
+    size: listing?.size || '',
+    brand: listing?.brand || '',
+    condition: listing?.condition || '',
+    colors: Array.isArray(listing?.colors) ? listing.colors : [],
+    images: Array.isArray(listing?.images) ? listing.images : [],
+    model: attributes.model || '',
+    material: attributes.material || '',
+    author: attributes.author || '',
+    isbn: attributes.isbn || '',
+    language: attributes.language || '',
+    sport: attributes.sport || '',
+    age_group: attributes.age_group || '',
+    dimensions: attributes.dimensions || '',
+    format: attributes.format || '',
+    power_info: attributes.power_info || '',
+    assembly_required: attributes.assembly_required || '',
+    trouser_length: attributes.trouser_length || '',
+    deliverySize: listing?.deliverySize || getDefaultDeliverySize(listing?.category, listing?.subcategory),
+    onePersonCarry: attributes.onePersonCarry ?? null,
+  }
 }
 
 /* ── Image resize helper ────────────────────────────────────── */
@@ -329,12 +365,20 @@ function InlineDropdown({ label, placeholder, value, options, onChange, error, s
 /* ── Main component ─────────────────────────────────────────── */
 
 export default function SellPage() {
-  const { currentUser, createListing, calculateFees, showToast } = useApp()
+  const { listingId } = useParams()
+  const { currentUser, listingsLoading, createListing, updateListing, getUserListings, calculateFees, showToast } = useApp()
   const navigate = useNavigate()
   const fileInputRef = useRef(null)
   const restoredDraftRef = useRef(false)
   const hasStepHistoryRef = useRef(false)
-  const restoredDraft = useMemo(() => loadSellDraft(), [])
+  const prefilledListingRef = useRef(false)
+  const isEditMode = Boolean(listingId)
+  const draftStorageKey = useMemo(() => getSellDraftStorageKey(listingId), [listingId])
+  const restoredDraft = useMemo(() => loadSellDraft(draftStorageKey), [draftStorageKey])
+  const ownedListing = useMemo(() => {
+    if (!currentUser || !listingId) return null
+    return getUserListings(currentUser.id).find((listing) => listing.id === listingId) || null
+  }, [currentUser, getUserListings, listingId])
 
   // 2-step flow: 0 = Photos & Details (with inline category), 1 = Price & Delivery
   const [step, setStep] = useState(restoredDraft?.step === 1 ? 1 : 0)
@@ -347,6 +391,13 @@ export default function SellPage() {
     if (!currentUser) navigate('/auth')
   }, [currentUser, navigate])
 
+  useEffect(() => {
+    if (!isEditMode || !currentUser || listingsLoading) return
+    if (ownedListing) return
+    showToast('You can only edit your own listings.', 'error')
+    navigate('/profile', { replace: true })
+  }, [isEditMode, currentUser, listingsLoading, ownedListing, navigate, showToast])
+
   const hasDraft = useMemo(() => isSellDraftDirty(form), [form])
 
   useEffect(() => {
@@ -358,13 +409,20 @@ export default function SellPage() {
   }, [restoredDraft, showToast])
 
   useEffect(() => {
+    if (!isEditMode || !ownedListing || restoredDraft?.form || prefilledListingRef.current) return
+    prefilledListingRef.current = true
+    setForm(buildFormFromListing(ownedListing))
+    setStep(0)
+  }, [isEditMode, ownedListing, restoredDraft])
+
+  useEffect(() => {
     if (!currentUser) return
     if (!hasDraft) {
-      clearSellDraft()
+      clearSellDraft(draftStorageKey)
       return
     }
-    saveSellDraft({ form, step })
-  }, [currentUser, form, hasDraft, step])
+    saveSellDraft(draftStorageKey, { form, step })
+  }, [currentUser, draftStorageKey, form, hasDraft, step])
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined
@@ -564,7 +622,7 @@ export default function SellPage() {
       const sizeType = isFashionCategory ? getFashionSizeType(form.subcategory) : null
       const finalSize = sizeType === 'watch' ? 'One Size' : form.size
 
-      const listing = await createListing({
+      const listingPayload = {
         title: form.title,
         description: form.description,
         price: parseFloat(form.price),
@@ -578,18 +636,21 @@ export default function SellPage() {
         colors: form.colors,
         images: form.images,
         deliverySize: form.deliverySize || getDefaultDeliverySize(form.category, form.subcategory),
-      })
+      }
+      const listing = isEditMode
+        ? await updateListing(listingId, listingPayload)
+        : await createListing(listingPayload)
       if (!listing || !listing.id) {
-        showToast('Failed to create listing — no data returned.', 'error')
+        showToast(`Failed to ${isEditMode ? 'update' : 'create'} listing — no data returned.`, 'error')
         setUploading(false)
         return
       }
-      clearSellDraft()
-      showToast('Listing published!')
-      navigate(`/listing/${listing.id}`)
+      clearSellDraft(draftStorageKey)
+      showToast(isEditMode ? 'Listing updated!' : 'Listing published!')
+      navigate(`/listing/${listing.id}${isEditMode ? '?updated=1' : '?published=1'}`)
     } catch (err) {
-      console.error('[SellPage] createListing error:', err)
-      showToast(err?.message || 'Could not publish your listing. Please try again.', 'error')
+      console.error(`[SellPage] ${isEditMode ? 'updateListing' : 'createListing'} error:`, err)
+      showToast(err?.message || `Could not ${isEditMode ? 'save your listing changes' : 'publish your listing'}. Please try again.`, 'error')
     } finally { setUploading(false) }
   }
 
@@ -602,7 +663,7 @@ export default function SellPage() {
   }
 
   const handleSaveDraft = () => {
-    saveSellDraft({ form, step })
+    saveSellDraft(draftStorageKey, { form, step })
     showToast('Draft saved.')
   }
 
@@ -622,8 +683,8 @@ export default function SellPage() {
       {/* ═══════ STEP 0 — Photos & Details (with inline category) ═══════ */}
       {step === 0 && (
         <>
-          <h2 className="text-xl font-bold text-sib-text mb-1">Add your item</h2>
-          <p className="text-xs text-sib-muted mb-5">Photos, details, and a few quick picks.</p>
+          <h2 className="text-xl font-bold text-sib-text mb-1">{isEditMode ? 'Edit your listing' : 'Add your item'}</h2>
+          <p className="text-xs text-sib-muted mb-5">{isEditMode ? 'Update your photos, details, price, and delivery settings.' : 'Photos, details, and a few quick picks.'}</p>
 
           {/* Photos */}
           <div className="mb-5">
@@ -1216,7 +1277,7 @@ export default function SellPage() {
             <button onClick={handleStepBack} className="flex-shrink-0 px-5 py-4 rounded-2xl border border-sib-stone text-sm font-medium text-sib-text">Back</button>
             <button onClick={handleSubmit} disabled={uploading}
               className="flex-1 bg-sib-secondary text-white font-bold py-4 rounded-2xl text-sm disabled:opacity-50 active:scale-[0.98] transition-transform">
-              {uploading ? 'Publishing...' : 'Publish Listing'}
+              {uploading ? (isEditMode ? 'Saving...' : 'Publishing...') : (isEditMode ? 'Save changes' : 'Publish Listing')}
             </button>
           </div>
         </>
