@@ -145,6 +145,84 @@ const BRAND_PLACEHOLDERS = {
   books: 'e.g. Penguin, HarperCollins, Self-Published...',
 }
 
+const SELL_DRAFT_STORAGE_KEY = 'sib-sell-draft-v1'
+
+const INITIAL_FORM = {
+  title: '', description: '', price: '',
+  category: '', subcategory: '',
+  gender: '', size: '', trouser_length: '', brand: '', condition: '',
+  colors: [], images: [],
+  model: '', material: '', author: '',
+  isbn: '', language: '', sport: '', age_group: '', dimensions: '',
+  format: '', power_info: '', assembly_required: '',
+  deliverySize: '',
+  onePersonCarry: null,
+}
+
+function loadSellDraft() {
+  if (typeof window === 'undefined') return null
+  try {
+    const rawDraft = window.localStorage.getItem(SELL_DRAFT_STORAGE_KEY)
+    if (!rawDraft) return null
+    const parsed = JSON.parse(rawDraft)
+    if (!parsed || typeof parsed !== 'object') return null
+    return {
+      form: {
+        ...INITIAL_FORM,
+        ...(parsed.form || {}),
+        colors: Array.isArray(parsed.form?.colors) ? parsed.form.colors : [],
+        images: Array.isArray(parsed.form?.images) ? parsed.form.images : [],
+      },
+      step: parsed.step === 1 ? 1 : 0,
+    }
+  } catch (error) {
+    console.warn('[SellPage] Failed to load draft:', error)
+    return null
+  }
+}
+
+function saveSellDraft(draft) {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(SELL_DRAFT_STORAGE_KEY, JSON.stringify({
+    ...draft,
+    savedAt: new Date().toISOString(),
+  }))
+}
+
+function clearSellDraft() {
+  if (typeof window === 'undefined') return
+  window.localStorage.removeItem(SELL_DRAFT_STORAGE_KEY)
+}
+
+function isSellDraftDirty(form) {
+  return (
+    form.images.length > 0 ||
+    Boolean(form.category) ||
+    Boolean(form.subcategory) ||
+    Boolean(form.title.trim()) ||
+    Boolean(form.description.trim()) ||
+    Boolean(form.size) ||
+    Boolean(form.condition) ||
+    Boolean(form.gender) ||
+    Boolean(form.brand.trim()) ||
+    Boolean(form.deliverySize) ||
+    Boolean(form.price) ||
+    form.colors.length > 0 ||
+    Boolean(form.model.trim()) ||
+    Boolean(form.material.trim()) ||
+    Boolean(form.author.trim()) ||
+    Boolean(form.isbn.trim()) ||
+    Boolean(form.language) ||
+    Boolean(form.sport.trim()) ||
+    Boolean(form.age_group) ||
+    Boolean(form.dimensions.trim()) ||
+    Boolean(form.format) ||
+    Boolean(form.power_info.trim()) ||
+    Boolean(form.assembly_required) ||
+    form.onePersonCarry !== null
+  )
+}
+
 /* ── Image resize helper ────────────────────────────────────── */
 
 function resizeImage(file, maxWidth = 800, quality = 0.8) {
@@ -254,27 +332,82 @@ export default function SellPage() {
   const { currentUser, createListing, calculateFees, showToast } = useApp()
   const navigate = useNavigate()
   const fileInputRef = useRef(null)
+  const restoredDraftRef = useRef(false)
+  const hasStepHistoryRef = useRef(false)
+  const restoredDraft = useMemo(() => loadSellDraft(), [])
 
   // 2-step flow: 0 = Photos & Details (with inline category), 1 = Price & Delivery
-  const [step, setStep] = useState(0)
+  const [step, setStep] = useState(restoredDraft?.step === 1 ? 1 : 0)
   const [uploading, setUploading] = useState(false)
   const [errors, setErrors] = useState({})
 
-  const [form, setForm] = useState({
-    title: '', description: '', price: '',
-    category: '', subcategory: '',
-    gender: '', size: '', trouser_length: '', brand: '', condition: '',
-    colors: [], images: [],
-    model: '', material: '', author: '',
-    isbn: '', language: '', sport: '', age_group: '', dimensions: '',
-    format: '', power_info: '', assembly_required: '',
-    deliverySize: '',
-    onePersonCarry: null, // null = unanswered, true/false = answered
-  })
+  const [form, setForm] = useState(restoredDraft?.form || INITIAL_FORM)
 
   useEffect(() => {
     if (!currentUser) navigate('/auth')
   }, [currentUser, navigate])
+
+  const hasDraft = useMemo(() => isSellDraftDirty(form), [form])
+
+  useEffect(() => {
+    if (restoredDraftRef.current) return
+    restoredDraftRef.current = true
+    if (restoredDraft?.form && isSellDraftDirty(restoredDraft.form)) {
+      showToast('Draft restored.')
+    }
+  }, [restoredDraft, showToast])
+
+  useEffect(() => {
+    if (!currentUser) return
+    if (!hasDraft) {
+      clearSellDraft()
+      return
+    }
+    saveSellDraft({ form, step })
+  }, [currentUser, form, hasDraft, step])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+
+    if (step === 1 && !hasStepHistoryRef.current) {
+      window.history.pushState({ sellStep: 1 }, '', window.location.href)
+      hasStepHistoryRef.current = true
+    }
+
+    if (step === 0) {
+      hasStepHistoryRef.current = false
+    }
+
+    return undefined
+  }, [step])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+
+    const handlePopState = (event) => {
+      if (step > 0) {
+        event.preventDefault?.()
+        setStep((currentStep) => Math.max(0, currentStep - 1))
+        window.history.pushState({ sellStep: 0 }, '', window.location.href)
+      }
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [step])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+
+    const handleBeforeUnload = (event) => {
+      if (!hasDraft) return
+      event.preventDefault()
+      event.returnValue = ''
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [hasDraft])
 
   if (!currentUser) return null
 
@@ -284,14 +417,34 @@ export default function SellPage() {
   }
 
   const handleCategoryChange = (catId) => {
+    const nextAttributes = getCategoryAttributes(catId)
     const forceBulky = isForceBulky(catId, '')
     setForm(prev => ({
-      ...prev, category: catId, subcategory: '', size: '', trouser_length: '', gender: '',
-      brand: '', model: '', material: '', author: '',
-      isbn: '', language: '', sport: '', age_group: '', dimensions: '',
-      format: '', power_info: '', assembly_required: '', colors: [],
+      ...prev,
+      category: catId,
+      subcategory: '',
+      size: '',
+      trouser_length: '',
+      gender: nextAttributes.includes('kids_gender')
+        ? (KIDS_GENDERS.includes(prev.gender) ? prev.gender : '')
+        : nextAttributes.includes('gender')
+          ? (GENDERS.includes(prev.gender) ? prev.gender : '')
+          : '',
+      brand: nextAttributes.includes('brand') ? prev.brand : '',
+      model: nextAttributes.includes('model') ? prev.model : '',
+      material: nextAttributes.includes('material') ? prev.material : '',
+      author: nextAttributes.includes('author') ? prev.author : '',
+      isbn: nextAttributes.includes('isbn') ? prev.isbn : '',
+      language: nextAttributes.includes('language') ? prev.language : '',
+      sport: nextAttributes.includes('sport') ? prev.sport : '',
+      age_group: nextAttributes.includes('age_group') && !nextAttributes.includes('kids_size') ? prev.age_group : '',
+      dimensions: nextAttributes.includes('dimensions') ? prev.dimensions : '',
+      format: nextAttributes.includes('format') ? prev.format : '',
+      power_info: nextAttributes.includes('power_info') ? prev.power_info : '',
+      assembly_required: nextAttributes.includes('assembly_required') ? prev.assembly_required : '',
+      colors: nextAttributes.includes('colour') ? prev.colors : [],
       deliverySize: getDefaultDeliverySize(catId, ''),
-      onePersonCarry: forceBulky ? false : null,
+      onePersonCarry: forceBulky ? false : prev.onePersonCarry,
     }))
     setErrors(prev => ({ ...prev, category: null, subcategory: null, images: null }))
   }
@@ -324,6 +477,7 @@ export default function SellPage() {
   const needsClothingSize = !isFashionCategory && attributes.includes('size') && !needsShoeSize && form.category !== 'sports'
   const needsKidsSize = attributes.includes('kids_size')
   const needsKidsGender = attributes.includes('kids_gender')
+  const shouldShowAgeGroup = attributes.includes('age_group') && !needsKidsSize
 
   const categoryOptions = useMemo(() => CATEGORY_TREE.map(c => ({ value: c.id, label: c.label })), [])
   const typeOptions = useMemo(() => subcategories.map(s => ({ value: s.id, label: s.label })), [subcategories])
@@ -355,6 +509,8 @@ export default function SellPage() {
 
   const validateStep0 = () => {
     const e = {}
+    if (!form.category) e.category = 'Select a category'
+    if (form.category && typeOptions.length > 0 && !form.subcategory) e.subcategory = 'Select a type'
     if (!form.title.trim()) e.title = 'Required'
     if (form.title.trim() && !e.title) {
       const tc = moderateContent(form.title, 'title')
@@ -428,12 +584,26 @@ export default function SellPage() {
         setUploading(false)
         return
       }
+      clearSellDraft()
       showToast('Listing published!')
       navigate(`/listing/${listing.id}`)
     } catch (err) {
       console.error('[SellPage] createListing error:', err)
       showToast(err?.message || 'Could not publish your listing. Please try again.', 'error')
     } finally { setUploading(false) }
+  }
+
+  const goToNextStep = () => {
+    if (validateStep0()) setStep(1)
+  }
+
+  const handleStepBack = () => {
+    setStep((currentStep) => Math.max(0, currentStep - 1))
+  }
+
+  const handleSaveDraft = () => {
+    saveSellDraft({ form, step })
+    showToast('Draft saved.')
   }
 
   const fees = form.price && !isNaN(form.price) ? calculateFees(parseFloat(form.price)) : null
@@ -481,8 +651,10 @@ export default function SellPage() {
             {errors.images && <p className="text-red-500 text-xs mt-1">{errors.images}</p>}
           </div>
 
+          <div className="flex flex-col">
+
           {/* Title */}
-          <div className="mb-4">
+          <div className="mb-4 order-3">
             <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">Title</label>
             <input value={form.title} onChange={e => set('title', e.target.value)} placeholder={TITLE_PLACEHOLDERS[form.category] || 'Give your item a clear title'}
               className={`w-full border rounded-xl px-4 py-3 text-sm outline-none text-sib-text placeholder-sib-muted ${errors.title ? 'border-red-400' : 'border-sib-stone'}`} />
@@ -490,7 +662,7 @@ export default function SellPage() {
           </div>
 
           {/* Description */}
-          <div className="mb-4">
+          <div className="mb-4 order-4">
             <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">Description</label>
             <textarea value={form.description} onChange={e => set('description', e.target.value)} placeholder={DESCRIPTION_PLACEHOLDERS[form.category] || 'Describe the item — condition, any flaws...'} rows={3}
               className={`w-full border rounded-xl px-4 py-3 text-sm outline-none text-sib-text placeholder-sib-muted resize-none ${errors.description ? 'border-red-400' : 'border-sib-stone'}`} />
@@ -498,30 +670,36 @@ export default function SellPage() {
           </div>
 
           {/* ── Inline Category dropdown ──────────────────── */}
-          <InlineDropdown
-            label="Category"
-            placeholder="Select a category"
-            value={form.category}
-            options={categoryOptions}
-            onChange={handleCategoryChange}
-            error={errors.category}
-            searchable
-          />
+          <div className="order-1">
+            <InlineDropdown
+              label="Category"
+              placeholder="Select a category"
+              value={form.category}
+              options={categoryOptions}
+              onChange={handleCategoryChange}
+              error={errors.category}
+              searchable
+            />
+          </div>
 
           {/* ── Inline Type dropdown (appears after category) ── */}
           {form.category && typeOptions.length > 0 && (
-            <InlineDropdown
-              label="Type"
-              placeholder="Select a type"
-              value={form.subcategory}
-              options={typeOptions}
-              onChange={handleTypeChange}
-              error={errors.subcategory}
-              searchable={typeOptions.length > 8}
-            />
+            <div className="order-2">
+              <InlineDropdown
+                label="Type"
+                placeholder="Select a type"
+                value={form.subcategory}
+                options={typeOptions}
+                onChange={handleTypeChange}
+                error={errors.subcategory}
+                searchable={typeOptions.length > 8}
+              />
+            </div>
           )}
 
           {/* ── Dynamic attribute fields ──────────────────── */}
+
+          </div>
 
           {attributes.includes('brand') && (
             <div className="mb-4">
@@ -800,10 +978,10 @@ export default function SellPage() {
             </div>
           )}
 
-          {attributes.includes('age_group') && (
-            <div className="mb-4">
-              <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">Age Group</label>
-              <div className="flex flex-wrap gap-2">
+            {shouldShowAgeGroup && (
+              <div className="mb-4">
+                <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">Age Group</label>
+                <div className="flex flex-wrap gap-2">
                 {AGE_GROUPS.map(a => (
                   <button key={a} onClick={() => set('age_group', a)}
                     className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${form.age_group === a ? 'bg-sib-primary text-white' : 'bg-sib-sand text-sib-muted'}`}>{a}</button>
@@ -864,8 +1042,17 @@ export default function SellPage() {
             </div>
           )}
 
-          <button onClick={() => { if (validateStep0()) setStep(1) }}
-            className="w-full bg-sib-secondary text-white font-bold py-4 rounded-2xl text-sm active:scale-[0.98] transition-transform">Continue</button>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={handleSaveDraft}
+              className="flex-shrink-0 px-5 py-4 rounded-2xl border border-sib-stone text-sm font-medium text-sib-text"
+            >
+              Save draft
+            </button>
+            <button onClick={goToNextStep}
+              className="flex-1 bg-sib-secondary text-white font-bold py-4 rounded-2xl text-sm active:scale-[0.98] transition-transform">Continue</button>
+          </div>
         </>
       )}
 
@@ -1026,7 +1213,7 @@ export default function SellPage() {
           )}
 
           <div className="flex gap-3">
-            <button onClick={() => setStep(0)} className="flex-shrink-0 px-5 py-4 rounded-2xl border border-sib-stone text-sm font-medium text-sib-text">Back</button>
+            <button onClick={handleStepBack} className="flex-shrink-0 px-5 py-4 rounded-2xl border border-sib-stone text-sm font-medium text-sib-text">Back</button>
             <button onClick={handleSubmit} disabled={uploading}
               className="flex-1 bg-sib-secondary text-white font-bold py-4 rounded-2xl text-sm disabled:opacity-50 active:scale-[0.98] transition-transform">
               {uploading ? 'Publishing...' : 'Publish Listing'}

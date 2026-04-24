@@ -12,12 +12,20 @@ function firstValue(...values) {
 
 function getOrderId(notif) {
   return firstValue(
+    notif.actionOrderId,
+    notif.action_order_id,
     notif.orderId,
     notif.order_id,
+    notif.orderRef,
+    notif.order_ref,
     notif.metadata?.orderId,
     notif.metadata?.order_id,
+    notif.metadata?.orderRef,
+    notif.metadata?.order_ref,
     notif.data?.orderId,
     notif.data?.order_id,
+    notif.data?.orderRef,
+    notif.data?.order_ref,
     notif.related_entity_type === 'order' ? notif.related_entity_id : null,
     notif.relatedEntityType === 'order' ? notif.relatedEntityId : null
   )
@@ -90,11 +98,11 @@ const NOTIF_CONFIG = {
 const DEFAULT_CONFIG = { icon: Bell, color: 'bg-sib-sand text-sib-muted', link: '/notifications' }
 
 function resolveNotificationTarget(notif) {
+  if (notif.actionTarget && notif.actionTarget !== '/') return notif.actionTarget
+  if (notif.targetPath && notif.targetPath !== '/') return notif.targetPath
   const orderId = getOrderId(notif)
   if (orderId) return `/orders/${orderId}`
   if (getConversationId(notif)) return messageTarget(notif)
-  if (notif.actionTarget && notif.actionTarget !== '/') return notif.actionTarget
-  if (notif.targetPath && notif.targetPath !== '/') return notif.targetPath
   if (isOperationalShippingNotification(notif)) return SELLER_SHIPMENT_QUEUE
   const cfg = NOTIF_CONFIG[notif.type] || DEFAULT_CONFIG
   return cfg.linkFn ? cfg.linkFn(notif) : cfg.link

@@ -466,28 +466,57 @@ export function AuthProvider({ children }) {
 
   // ── Update user metadata ──
   const updateUserMetadata = useCallback(async (metadata) => {
-    if (!session?.access_token) throw new Error('Not authenticated');
+      let accessToken = session?.access_token;
 
-    const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-        'apikey': SUPABASE_ANON_KEY,
-      },
-      body: JSON.stringify({ data: metadata }),
-    });
+      const persistUpdatedUser = (data, nextAccessToken) => {
+        setUser(data);
+        const updated = {
+          ...(session || {}),
+          access_token: nextAccessToken || session?.access_token,
+          refresh_token: session?.refresh_token,
+          user: data,
+        };
+        storeSession(updated);
+        setSession(updated);
+        return data;
+      };
 
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'Failed to update profile');
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        if (!accessToken) throw new Error('Not authenticated');
 
-    setUser(data);
-    const updated = { ...session, user: data };
-    storeSession(updated);
-    setSession(updated);
+        const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+            'apikey': SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ data: metadata }),
+        });
 
-    return data;
-  }, [session]);
+        const data = await res.json();
+        if (res.ok) {
+          return persistUpdatedUser(data, accessToken);
+        }
+
+        const message = data?.message || 'Failed to update profile';
+        const lowerMessage = String(message).toLowerCase();
+        const shouldRefresh = attempt === 0 && (
+          lowerMessage.includes('jwt expired') ||
+          lowerMessage.includes('invalid jwt') ||
+          (lowerMessage.includes('session') && lowerMessage.includes('expired'))
+        );
+
+        if (!shouldRefresh) {
+          throw new Error(message);
+        }
+
+        const refreshedSession = await refreshSession();
+        accessToken = refreshedSession.access_token;
+      }
+
+      throw new Error('Your session expired. Please log in again to update your profile.');
+    }, [refreshSession, session]);
 
   return (
     <AuthContext.Provider value={{

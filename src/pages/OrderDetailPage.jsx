@@ -20,6 +20,10 @@ function formatCountdown(ms) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
+function normalizeOrderIdentifier(value) {
+  return String(value || '').trim().toLowerCase()
+}
+
 export default function OrderDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -39,7 +43,15 @@ export default function OrderDetailPage() {
   const [trackingInput, setTrackingInput] = useState('')
   const [shipLoading, setShipLoading] = useState(false)
 
-  const order = orders.find(o => o.id === id)
+  const routeOrderIdentifier = normalizeOrderIdentifier(id)
+  const order = orders.find((candidate) => (
+    routeOrderIdentifier &&
+    [
+      candidate.id,
+      candidate.orderRef,
+      candidate.order_ref,
+    ].some((value) => normalizeOrderIdentifier(value) === routeOrderIdentifier)
+  ))
   const shipment = order ? getShipmentByOrderId(order.id) : null
 
   // Countdown timer for 48h protection window
@@ -61,7 +73,13 @@ export default function OrderDetailPage() {
     return () => clearInterval(interval)
   }, [order?.deliveredAt, order?.trackingStatus, PROTECTION_WINDOW_MS])
 
-  if (!order) return <div className="text-center py-20 text-sib-muted">Order not found.</div>
+  if (!order) {
+    return (
+      <div className="text-center py-20 text-sib-muted">
+        {id ? `We couldn't find an order for reference ${id}.` : 'Order not found.'}
+      </div>
+    )
+  }
 
   const listing = getListingById(order.listingId)
   const seller = getUserById(order.sellerId)

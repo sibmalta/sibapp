@@ -8,6 +8,8 @@ import UserRating from '../components/UserRating'
 import ListingCard from '../components/ListingCard'
 import { SELLER_BADGE_DEFS, getSellerBadgeDef } from '../components/SellerTrustBadges'
 
+const SOLD_ORDER_STATUSES = new Set(['paid', 'shipped', 'delivered', 'confirmed', 'completed'])
+
 function AdminProfileCard({ profileUser, isOwnProfile, navigate, currentUser }) {
   return (
     <div className="lg:max-w-5xl lg:mx-auto lg:px-8">
@@ -111,7 +113,7 @@ export default function ProfilePage() {
   const { username } = useParams()
   const navigate = useNavigate()
   const authNav = useAuthNav()
-  const { currentUser, getUserByUsername, getUserListings, likedListings, getListingById } = useApp()
+  const { currentUser, getUserByUsername, getUserListings, getUserSales, likedListings, getListingById } = useApp()
 
   const isOwnProfile = !username || (currentUser && currentUser.username === username)
   const profileUser = isOwnProfile ? currentUser : getUserByUsername(username)
@@ -139,9 +141,44 @@ export default function ProfilePage() {
   const userListings = getUserListings(profileUser.id)
   const activeListings = userListings.filter(l => l.status === 'active')
   const soldListings = userListings.filter(l => l.status === 'sold')
+  const sellerSales = getUserSales(profileUser.id).filter((order) => SOLD_ORDER_STATUSES.has(order.trackingStatus || order.status))
+  const soldEntries = []
+  const seenSoldListingIds = new Set()
+
+  soldListings.forEach((listing) => {
+    seenSoldListingIds.add(listing.id)
+    soldEntries.push({ type: 'listing', id: listing.id, listing: { ...listing, status: 'sold' } })
+  })
+
+  sellerSales.forEach((order) => {
+    const orderListingIds = Array.isArray(order.bundleListingIds) && order.bundleListingIds.length
+      ? order.bundleListingIds
+      : [order.listingId]
+
+    orderListingIds.forEach((listingId, index) => {
+      if (!listingId || seenSoldListingIds.has(listingId)) return
+      seenSoldListingIds.add(listingId)
+      const listing = getListingById(listingId)
+      if (listing) {
+        soldEntries.push({ type: 'listing', id: listingId, listing: { ...listing, status: 'sold' } })
+        return
+      }
+
+      soldEntries.push({
+        type: 'order',
+        id: `${order.id}-${listingId}`,
+        order,
+        title: order.isBundle
+          ? `${order.listingTitle || 'Bundle item'}${index > 0 ? ` (${index + 1})` : ''}`
+          : (order.listingTitle || 'Sold item'),
+        image: index === 0 ? order.listingImage : null,
+      })
+    })
+  })
+
   const likedItems = isOwnProfile
-    ? likedListings.map(id => getListingById(id)).filter(Boolean)
-    : []
+      ? likedListings.map(id => getListingById(id)).filter(Boolean)
+      : []
 
   const rating = profileUser.rating || 0
   const reviewCount = profileUser.reviewCount || 0
@@ -158,8 +195,8 @@ export default function ProfilePage() {
   }
   // Auto-computed badges
   if (profileUser.verified) trustBadges.push({ label: 'Verified Seller', icon: ShieldCheck, color: 'text-blue-600 bg-blue-50 border-blue-100' })
-  if (soldListings.length >= 5) trustBadges.push({ label: 'Top Seller', icon: Award, color: 'text-amber-700 bg-amber-50 border-amber-100' })
-  if (soldListings.length >= 1) trustBadges.push({ label: 'Fast Shipper', icon: Zap, color: 'text-emerald-700 bg-emerald-50 border-emerald-100' })
+  if (soldEntries.length >= 5) trustBadges.push({ label: 'Top Seller', icon: Award, color: 'text-amber-700 bg-amber-50 border-amber-100' })
+  if (soldEntries.length >= 1) trustBadges.push({ label: 'Fast Shipper', icon: Zap, color: 'text-emerald-700 bg-emerald-50 border-emerald-100' })
   if (reviewCount >= 3 && rating >= 4) trustBadges.push({ label: 'Buyer Trusted', icon: Heart, color: 'text-rose-600 bg-rose-50 border-rose-100' })
 
   return (
@@ -268,7 +305,7 @@ export default function ProfilePage() {
               </div>
               <div className="w-px bg-sib-stone/60" />
               <div className="flex-1 text-center py-3 bg-sib-sand/50 dark:bg-[#26322f] transition-colors">
-                <p className="text-lg font-extrabold text-sib-text dark:text-[#f4efe7] leading-none">{soldListings.length}</p>
+                <p className="text-lg font-extrabold text-sib-text dark:text-[#f4efe7] leading-none">{soldEntries.length}</p>
                 <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] mt-1 font-medium">Sold</p>
               </div>
               <div className="w-px bg-sib-stone/60" />
@@ -340,14 +377,41 @@ export default function ProfilePage() {
           )
         )}
         {tab === 'sold' && (
-          soldListings.length === 0 ? (
+          soldEntries.length === 0 ? (
             <p className="text-center py-12 text-sm text-sib-muted dark:text-[#aeb8b4]">No sold items yet.</p>
           ) : (
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-5">
-              {soldListings.map(l => <ListingCard key={l.id} listing={l} />)}
-            </div>
-          )
-        )}
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-5">
+                {soldEntries.map((entry) => (
+                  entry.type === 'listing' ? (
+                    <ListingCard key={entry.id} listing={entry.listing} />
+                  ) : (
+                    <button
+                      key={entry.id}
+                      type="button"
+                      onClick={() => navigate(`/orders/${entry.order.id}`)}
+                      className="group text-left rounded-2xl overflow-hidden border border-sib-stone/60 dark:border-[rgba(242,238,231,0.10)] bg-white dark:bg-[#202b28] hover:border-sib-primary/40 transition-colors"
+                    >
+                      <div className="aspect-[4/3] bg-sib-sand dark:bg-[#26322f] overflow-hidden">
+                        {entry.image ? (
+                          <img src={entry.image} alt={entry.title} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-sib-muted dark:text-[#aeb8b4] text-xs font-semibold">
+                            Sold
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-3">
+                        <p className="text-[13px] font-semibold text-sib-text dark:text-[#f4efe7] line-clamp-2">{entry.title}</p>
+                        <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] mt-1">
+                          Order #{entry.order.orderRef || entry.order.id?.slice(-8)}
+                        </p>
+                      </div>
+                    </button>
+                  )
+                ))}
+              </div>
+            )
+          )}
         {tab === 'liked' && isOwnProfile && (
           likedItems.length === 0 ? (
             <p className="text-center py-12 text-sm text-sib-muted dark:text-[#aeb8b4]">You haven't liked anything yet.</p>

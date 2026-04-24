@@ -10,6 +10,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useSupabase } from '../lib/useSupabase'
 import { useAuth } from '../lib/auth-context'
+import { createAuthenticatedClient } from '../lib/supabase'
 import {
   fetchAllProfiles,
   fetchProfileById,
@@ -21,6 +22,26 @@ import { uploadAvatar, dataUrlToFile } from '../lib/storage'
 import { SEED_USERS as FALLBACK_SEED_USERS } from '../data/seedData'
 
 const SUPABASE_ENABLED = true
+const PROFILE_SESSION_EXPIRED_MESSAGE = 'Your session expired. Please log in again to update your profile.'
+
+function isSessionExpiredError(error) {
+  const message = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase()
+  return (
+    message.includes('jwt expired') ||
+    message.includes('invalid jwt') ||
+    (message.includes('expired') && message.includes('jwt')) ||
+    (message.includes('session') && message.includes('expired')) ||
+    error?.code === 'PGRST301'
+  )
+}
+
+function getProfileUpdateErrorMessage(error, fallback = 'Failed to update profile.') {
+  if (isSessionExpiredError(error)) return PROFILE_SESSION_EXPIRED_MESSAGE
+  const message = error?.message || ''
+  if (message.toLowerCase().includes('bucket')) return 'Profile photo upload is not available right now. Please try again shortly.'
+  if (message.toLowerCase().includes('storage')) return 'Profile photo upload failed. Please try again.'
+  return message || fallback
+}
 
 /**
  * useProfiles(localUsers, currentUser)
@@ -30,7 +51,7 @@ const SUPABASE_ENABLED = true
  */
 export function useProfiles(localUsers, currentUser) {
   const { supabase, isAuthenticated } = useSupabase()
-  const { updateUserMetadata } = useAuth()
+  const { updateUserMetadata, refreshSession } = useAuth()
 
   const [users, setUsers] = useState(localUsers)
   const [dbAvailable, setDbAvailable] = useState(false)
@@ -70,45 +91,96 @@ export function useProfiles(localUsers, currentUser) {
     }
   }, [supabase, currentUser?.id, dbAvailable])
 
+  const prepareProfileUpdates = useCallback(async (client, updates, avatarFile = null) => {
+    let finalUpdates = { ...updates }
+
+    if (avatarFile) {
+      const { url, error: uploadErr } = await uploadAvatar(client, currentUser.id, avatarFile)
+      if (uploadErr) {
+        console.error('[useProfiles] avatar upload failed:', {
+          bucket: 'avatars',
+          message: uploadErr.message,
+          userId: currentUser.id,
+        })
+        return { finalUpdates: null, error: uploadErr }
+      }
+      finalUpdates.avatar = url
+    } else if (updates.avatar && updates.avatar.startsWith('data:')) {
+      try {
+        const file = dataUrlToFile(updates.avatar)
+        const { url, error: uploadErr } = await uploadAvatar(client, currentUser.id, file)
+        if (uploadErr) {
+          console.error('[useProfiles] base64 avatar upload failed:', {
+            bucket: 'avatars',
+            message: uploadErr.message,
+            userId: currentUser.id,
+          })
+          return { finalUpdates: null, error: uploadErr }
+        }
+        finalUpdates.avatar = url
+      } catch (error) {
+        console.error('[useProfiles] base64 avatar conversion failed:', error.message)
+        return { finalUpdates: null, error }
+      }
+    }
+
+    return { finalUpdates, error: null }
+  }, [currentUser?.id])
+
   // ── Update profile ─────────────────────────────────────────────────────────
   const updateProfile = useCallback(async (updates, avatarFile = null) => {
     if (!currentUser?.id) return { error: 'Not logged in' }
 
     let finalUpdates = { ...updates }
+    let client = supabase
+    let savedProfile = null
 
-    // Upload avatar to Storage if a new file is provided
-    if (avatarFile && dbAvailable && isAuthenticated) {
-      const { url, error: uploadErr } = await uploadAvatar(supabase, currentUser.id, avatarFile)
-      if (!uploadErr && url) {
-        finalUpdates.avatar = url
-      } else if (uploadErr) {
-        console.warn('[useProfiles] avatar upload error:', uploadErr.message)
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const { finalUpdates: preparedUpdates, error: prepareError } = await prepareProfileUpdates(client, updates, avatarFile)
+      if (prepareError) {
+        if (attempt === 0 && isSessionExpiredError(prepareError)) {
+          try {
+            const refreshedSession = await refreshSession()
+            client = createAuthenticatedClient(refreshedSession.access_token)
+            continue
+          } catch (refreshError) {
+            console.error('[useProfiles] session refresh failed during avatar upload:', refreshError.message)
+            return { error: PROFILE_SESSION_EXPIRED_MESSAGE }
+          }
+        }
+        return { error: getProfileUpdateErrorMessage(prepareError, 'Failed to upload profile photo.') }
       }
-    } else if (
-      !avatarFile &&
-      updates.avatar &&
-      updates.avatar.startsWith('data:') &&
-      dbAvailable &&
-      isAuthenticated
-    ) {
-      // Legacy base64 → upload to Storage
-      try {
-        const file = dataUrlToFile(updates.avatar)
-        const { url, error: uploadErr } = await uploadAvatar(supabase, currentUser.id, file)
-        if (!uploadErr && url) finalUpdates.avatar = url
-      } catch (e) {
-        console.warn('[useProfiles] base64 avatar conversion error:', e.message)
+
+      finalUpdates = preparedUpdates
+
+      if (dbAvailable && isAuthenticated) {
+        const { data, error } = await dbUpdateProfile(client, currentUser.id, finalUpdates)
+        if (error) {
+          console.error('[useProfiles] updateProfile DB error:', {
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            userId: currentUser.id,
+          })
+          if (attempt === 0 && isSessionExpiredError(error)) {
+            try {
+              const refreshedSession = await refreshSession()
+              client = createAuthenticatedClient(refreshedSession.access_token)
+              continue
+            } catch (refreshError) {
+              console.error('[useProfiles] session refresh failed during profile update:', refreshError.message)
+              return { error: PROFILE_SESSION_EXPIRED_MESSAGE }
+            }
+          }
+          return { error: getProfileUpdateErrorMessage(error) }
+        }
+        savedProfile = data
       }
+
+      break
     }
 
-    // Optimistic local update
-    setUsers(prev => prev.map(u => u.id === currentUser.id ? { ...u, ...finalUpdates } : u))
-
-    // Supabase DB update
-    if (dbAvailable && isAuthenticated) {
-      const { error } = await dbUpdateProfile(supabase, currentUser.id, finalUpdates)
-      if (error) console.warn('[useProfiles] updateProfile DB error:', error.message)
-    }
+    setUsers(prev => prev.map(u => u.id === currentUser.id ? { ...u, ...(savedProfile || finalUpdates) } : u))
 
     // Always sync to auth metadata so buildAppUser stays fresh
     if (updateUserMetadata) {
@@ -121,12 +193,13 @@ export function useProfiles(localUsers, currentUser) {
           location: finalUpdates.location,
         })
       } catch (e) {
-        console.warn('[useProfiles] updateUserMetadata error:', e.message)
+        console.error('[useProfiles] updateUserMetadata error:', e.message)
+        return { error: getProfileUpdateErrorMessage(e) }
       }
     }
 
     return { error: null }
-  }, [supabase, currentUser?.id, dbAvailable, isAuthenticated, updateUserMetadata])
+  }, [supabase, currentUser?.id, dbAvailable, isAuthenticated, prepareProfileUpdates, refreshSession, updateUserMetadata])
 
   // ── Admin mutations ────────────────────────────────────────────────────────
   const suspendUser = useCallback(async (userId) => {

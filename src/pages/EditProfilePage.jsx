@@ -2,7 +2,6 @@ import React, { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Camera, ChevronDown, X } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import { useAuth } from '../lib/auth-context'
 import UserAvatar from '../components/UserAvatar'
 import { moderateContent, moderateUsername } from '../lib/moderation'
 
@@ -31,7 +30,6 @@ function parsePhone(fullPhone) {
 
 export default function EditProfilePage() {
   const { currentUser, updateProfile, showToast } = useApp()
-  const { updateUserMetadata } = useAuth()
   const navigate = useNavigate()
   const fileInputRef = useRef(null)
   const [saving, setSaving] = useState(false)
@@ -46,6 +44,7 @@ export default function EditProfilePage() {
     phoneNumber: parsed.number,
   })
   const [avatarPreview, setAvatarPreview] = useState(null)
+  const [avatarFile, setAvatarFile] = useState(null)
   const [showCodes, setShowCodes] = useState(false)
 
   if (!currentUser) { navigate('/auth'); return null }
@@ -59,6 +58,7 @@ export default function EditProfilePage() {
       showToast('Image must be under 5 MB.', 'error')
       return
     }
+    setAvatarFile(file)
     const reader = new FileReader()
     reader.onload = (ev) => setAvatarPreview(ev.target.result)
     reader.readAsDataURL(file)
@@ -66,6 +66,7 @@ export default function EditProfilePage() {
 
   const removeAvatar = () => {
     setAvatarPreview(null)
+    setAvatarFile(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -92,20 +93,14 @@ export default function EditProfilePage() {
       bio: form.bio.trim(),
       phone: form.phoneNumber ? `${form.callingCode}${form.phoneNumber.replace(/\s/g, '')}` : '',
     }
-    if (avatarPreview) {
-      updates.avatar = avatarPreview
-    }
-
     setSaving(true)
     try {
-      // Persist to Supabase Auth user_metadata (survives session restores)
-      await updateUserMetadata(updates)
-      // Also update local users array for marketplace display
-      updateProfile(updates)
+      const { error } = await updateProfile(updates, avatarFile)
+      if (error) throw new Error(error)
       showToast('Profile updated!')
       navigate('/profile')
     } catch (err) {
-      showToast(err?.message || 'Failed to save profile.', 'error')
+      showToast(err?.message || 'Failed to update profile.', 'error')
     } finally {
       setSaving(false)
     }
