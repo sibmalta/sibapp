@@ -14,7 +14,7 @@ export default function UserRating({ rating, reviewCount, size = 'md', showStars
   // No reviews at all
   if (count === 0) {
     return (
-      <span className={`text-sib-muted ${size === 'sm' ? 'text-xs' : 'text-sm'} italic ${className}`}>
+      <span className={`text-sib-muted dark:text-[#aeb8b4] ${size === 'sm' ? 'text-xs' : 'text-sm'} italic ${className}`}>
         No reviews yet
       </span>
     )
@@ -40,8 +40,8 @@ export default function UserRating({ rating, reviewCount, size = 'md', showStars
       {!showStars && (
         <Star size={starSize} className="text-sib-primary fill-sib-primary" />
       )}
-      <span className={`${boldSize} font-extrabold text-sib-text leading-none`}>{avg.toFixed(1)}</span>
-      <span className={`${textSize} text-sib-muted`}>
+      <span className={`${boldSize} font-extrabold text-sib-text dark:text-[#f4efe7] leading-none`}>{avg.toFixed(1)}</span>
+      <span className={`${textSize} text-sib-muted dark:text-[#aeb8b4]`}>
         {count < 3 ? (
           <>· New seller</>
         ) : (

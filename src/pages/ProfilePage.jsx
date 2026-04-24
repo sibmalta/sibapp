@@ -23,7 +23,7 @@ function AdminProfileCard({ profileUser, isOwnProfile, navigate, currentUser }) 
               onClick={() => navigate(-1)}
             className="w-9 h-9 rounded-full border border-white/60 dark:border-[rgba(242,238,231,0.10)] bg-white/70 dark:bg-[#26322f]/90 backdrop-blur-sm flex items-center justify-center shadow-sm hover:bg-white dark:hover:bg-[#30403c] transition-colors"
             >
-              <ArrowLeft size={16} className="text-sib-text" />
+              <ArrowLeft size={16} className="text-sib-text dark:text-[#f4efe7]" />
             </button>
           ) : <div />}
           <div className="flex gap-2">
@@ -32,7 +32,7 @@ function AdminProfileCard({ profileUser, isOwnProfile, navigate, currentUser }) 
                 onClick={() => navigate('/settings')}
                 className="w-9 h-9 rounded-full border border-white/60 dark:border-[rgba(242,238,231,0.10)] bg-white/70 dark:bg-[#26322f]/90 backdrop-blur-sm flex items-center justify-center shadow-sm hover:bg-white dark:hover:bg-[#30403c] transition-colors"
               >
-                <Settings size={16} className="text-sib-text" />
+                <Settings size={16} className="text-sib-text dark:text-[#f4efe7]" />
               </button>
             )}
           </div>
@@ -56,14 +56,14 @@ function AdminProfileCard({ profileUser, isOwnProfile, navigate, currentUser }) 
 
               <div className="flex-1 min-w-0 pt-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="text-xl font-bold text-sib-text truncate">@{profileUser.username}</h1>
+                  <h1 className="text-xl font-bold text-sib-text dark:text-[#f4efe7] truncate">@{profileUser.username}</h1>
                   {/* Admin badge — indigo/purple, distinct from blue "Verified Seller" */}
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-600 border border-indigo-600">
                     <Shield size={11} className="text-white" />
                     <span className="text-[10px] font-bold text-white tracking-wide">Admin</span>
                   </span>
                 </div>
-                <p className="text-sm text-sib-muted mt-1.5 leading-relaxed">
+                <p className="text-sm text-sib-muted dark:text-[#aeb8b4] mt-1.5 leading-relaxed">
                   {profileUser.bio || 'Official Sib account — support, moderation and platform updates.'}
                 </p>
               </div>
@@ -126,7 +126,7 @@ export default function ProfilePage() {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-3">
         <p className="text-4xl">👤</p>
-        <p className="font-semibold text-sib-text">User not found</p>
+        <p className="font-semibold text-sib-text dark:text-[#f4efe7]">User not found</p>
       </div>
     )
   }
@@ -176,7 +176,7 @@ export default function ProfilePage() {
               onClick={() => navigate(-1)}
               className="w-9 h-9 rounded-full border border-white/60 dark:border-[rgba(242,238,231,0.10)] bg-white/70 dark:bg-[#26322f]/90 backdrop-blur-sm flex items-center justify-center shadow-sm hover:bg-white dark:hover:bg-[#30403c] transition-colors"
             >
-              <ArrowLeft size={16} className="text-sib-text" />
+              <ArrowLeft size={16} className="text-sib-text dark:text-[#f4efe7]" />
             </button>
           ) : <div />}
           <div className="flex gap-2">
@@ -192,7 +192,7 @@ export default function ProfilePage() {
                   onClick={() => navigate('/settings')}
                   className="w-9 h-9 rounded-full border border-white/60 dark:border-[rgba(242,238,231,0.10)] bg-white/70 dark:bg-[#26322f]/90 backdrop-blur-sm flex items-center justify-center shadow-sm hover:bg-white dark:hover:bg-[#30403c] transition-colors"
                 >
-                  <Settings size={16} className="text-sib-text" />
+                  <Settings size={16} className="text-sib-text dark:text-[#f4efe7]" />
                 </button>
               </>
             ) : (
@@ -221,7 +221,7 @@ export default function ProfilePage() {
 
               <div className="flex-1 min-w-0 pt-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="text-xl font-bold text-sib-text truncate">@{profileUser.username}</h1>
+                  <h1 className="text-xl font-bold text-sib-text dark:text-[#f4efe7] truncate">@{profileUser.username}</h1>
                   {profileUser.verified && (
                     <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-[#26322f] border border-blue-100 dark:border-[rgba(242,238,231,0.10)]">
                       <ShieldCheck size={12} className="text-blue-600" />
@@ -263,37 +263,37 @@ export default function ProfilePage() {
             {/* Stats row */}
             <div className="flex gap-0 mt-4 border border-sib-stone/60 rounded-xl overflow-hidden">
               <div className="flex-1 text-center py-3 bg-sib-sand/50 dark:bg-[#26322f] transition-colors">
-                <p className="text-lg font-extrabold text-sib-text leading-none">{activeListings.length}</p>
-                <p className="text-[11px] text-sib-muted mt-1 font-medium">Listings</p>
+                <p className="text-lg font-extrabold text-sib-text dark:text-[#f4efe7] leading-none">{activeListings.length}</p>
+                <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] mt-1 font-medium">Listings</p>
               </div>
               <div className="w-px bg-sib-stone/60" />
               <div className="flex-1 text-center py-3 bg-sib-sand/50 dark:bg-[#26322f] transition-colors">
-                <p className="text-lg font-extrabold text-sib-text leading-none">{soldListings.length}</p>
-                <p className="text-[11px] text-sib-muted mt-1 font-medium">Sold</p>
+                <p className="text-lg font-extrabold text-sib-text dark:text-[#f4efe7] leading-none">{soldListings.length}</p>
+                <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] mt-1 font-medium">Sold</p>
               </div>
               <div className="w-px bg-sib-stone/60" />
               <div className="flex-1 text-center py-3 bg-sib-sand/50 dark:bg-[#26322f] transition-colors">
-                <p className="text-lg font-extrabold text-sib-text leading-none">{daysSinceJoin < 365 ? `${Math.ceil(daysSinceJoin / 30)}mo` : `${Math.floor(daysSinceJoin / 365)}y`}</p>
-                <p className="text-[11px] text-sib-muted mt-1 font-medium">Member</p>
+                <p className="text-lg font-extrabold text-sib-text dark:text-[#f4efe7] leading-none">{daysSinceJoin < 365 ? `${Math.ceil(daysSinceJoin / 30)}mo` : `${Math.floor(daysSinceJoin / 365)}y`}</p>
+                <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] mt-1 font-medium">Member</p>
               </div>
             </div>
 
             {/* Bio - compact */}
             {profileUser.bio && (
-              <p className="text-sm text-sib-muted mt-3 leading-relaxed line-clamp-2">{profileUser.bio}</p>
+              <p className="text-sm text-sib-muted dark:text-[#aeb8b4] mt-3 leading-relaxed line-clamp-2">{profileUser.bio}</p>
             )}
 
             {/* Seller activity indicators */}
             <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3 pt-3 border-t border-sib-stone/40">
-              <span className="inline-flex items-center gap-1.5 text-[11px] text-sib-muted">
+              <span className="inline-flex items-center gap-1.5 text-[11px] text-sib-muted dark:text-[#aeb8b4]">
                 <Clock size={11} className="text-emerald-500" />
                 <span>Active today</span>
               </span>
-              <span className="inline-flex items-center gap-1.5 text-[11px] text-sib-muted">
+              <span className="inline-flex items-center gap-1.5 text-[11px] text-sib-muted dark:text-[#aeb8b4]">
                 <Truck size={11} className="text-sib-primary" />
                 <span>Collected within 1–2 days</span>
               </span>
-              <span className="inline-flex items-center gap-1.5 text-[11px] text-sib-muted">
+              <span className="inline-flex items-center gap-1.5 text-[11px] text-sib-muted dark:text-[#aeb8b4]">
                 <MessageCircle size={11} className="text-blue-500" />
                 <span>Replies within hours</span>
               </span>
@@ -313,7 +313,7 @@ export default function ProfilePage() {
             key={t.id}
             onClick={() => setTab(t.id)}
             className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-semibold border-b-2 transition-colors ${
-              tab === t.id ? 'border-sib-primary text-sib-primary' : 'border-transparent text-sib-muted'
+              tab === t.id ? 'border-sib-primary text-sib-primary dark:text-[#e8751a]' : 'border-transparent text-sib-muted dark:text-[#aeb8b4]'
             }`}
           >
             <t.icon size={14} /> {t.label}
@@ -326,7 +326,7 @@ export default function ProfilePage() {
         {tab === 'listings' && (
           activeListings.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-sib-muted text-sm">No active listings.</p>
+              <p className="text-sib-muted dark:text-[#aeb8b4] text-sm">No active listings.</p>
               {isOwnProfile && (
                 <button onClick={() => authNav('/sell')} className="mt-3 bg-sib-secondary text-white px-5 py-2.5 rounded-full text-sm font-semibold hover:bg-sib-secondary/90">
                   List something
@@ -341,7 +341,7 @@ export default function ProfilePage() {
         )}
         {tab === 'sold' && (
           soldListings.length === 0 ? (
-            <p className="text-center py-12 text-sm text-sib-muted">No sold items yet.</p>
+            <p className="text-center py-12 text-sm text-sib-muted dark:text-[#aeb8b4]">No sold items yet.</p>
           ) : (
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-5">
               {soldListings.map(l => <ListingCard key={l.id} listing={l} />)}
@@ -350,7 +350,7 @@ export default function ProfilePage() {
         )}
         {tab === 'liked' && isOwnProfile && (
           likedItems.length === 0 ? (
-            <p className="text-center py-12 text-sm text-sib-muted">You haven't liked anything yet.</p>
+            <p className="text-center py-12 text-sm text-sib-muted dark:text-[#aeb8b4]">You haven't liked anything yet.</p>
           ) : (
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-5">
               {likedItems.map(l => <ListingCard key={l.id} listing={l} />)}

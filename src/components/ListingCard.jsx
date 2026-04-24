@@ -220,7 +220,7 @@ export default function ListingCard({ listing, size = 'normal' }) {
           )}
         </SwipeableListingImage>
         <div className="mt-1.5">
-          <p className="text-xs text-sib-text font-medium line-clamp-1">{listing.title}</p>
+          <p className="text-xs text-sib-text dark:text-[#f4efe7] font-medium line-clamp-1">{listing.title}</p>
           <p className="text-sm font-bold text-sib-primary">€{listing.price}</p>
         </div>
       </div>
@@ -286,7 +286,7 @@ export default function ListingCard({ listing, size = 'normal' }) {
             </span>
           )}
           {listing.condition && (
-            <span className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-white/90 backdrop-blur-sm text-sib-text ml-auto">
+              <span className="flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-white/90 dark:bg-[#26322f]/90 backdrop-blur-sm text-sib-text dark:text-[#f4efe7] ml-auto">
               <span className={`w-1.5 h-1.5 rounded-full ${CONDITION_DOT[listing.condition] || 'bg-gray-400'}`} />
               {CONDITION_LABELS[listing.condition] || listing.condition}
             </span>

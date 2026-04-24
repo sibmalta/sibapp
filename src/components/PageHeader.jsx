@@ -22,13 +22,13 @@ export default function PageHeader({ title, right, onBack }) {
           className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 -ml-1 active:bg-sib-sand dark:active:bg-[#1d2625] transition-colors"
           aria-label="Go back"
         >
-          <ArrowLeft size={20} className="text-sib-text" />
+          <ArrowLeft size={20} className="text-sib-text dark:text-[#f4efe7]" />
         </button>
 
         {/* Center: title */}
         <div className="flex-1 text-center">
           {title && (
-            <h1 className="text-[15px] font-bold text-sib-text truncate px-2">{title}</h1>
+            <h1 className="text-[15px] font-bold text-sib-text dark:text-[#f4efe7] truncate px-2">{title}</h1>
           )}
         </div>
 

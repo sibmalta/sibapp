@@ -111,20 +111,20 @@ export default function TopBar() {
         <div className="px-3 pt-3 pb-2 border-b border-gray-200/60 dark:border-[#2d3635] flex-shrink-0">
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#8d9896] pointer-events-none" />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#aeb8b4] pointer-events-none" />
               <input
                 autoFocus
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 onKeyDown={handleInputKeyDown}
                 placeholder="Search brands, styles, items..."
-                className="w-full bg-[#EDEDEB] dark:bg-[#1c2423] rounded-lg pl-9 pr-9 py-2.5 text-[14px] text-sib-text dark:text-[#f2eee7] placeholder-gray-400 dark:placeholder:text-[#8d9896] outline-none border border-transparent focus:border-gray-300 dark:focus:border-[#374241] focus:bg-white dark:focus:bg-[#1c2423] focus:shadow-sm transition-all"
+                className="w-full bg-[#EDEDEB] dark:bg-[#26322f] rounded-lg pl-9 pr-9 py-2.5 text-[14px] text-sib-text dark:text-[#f4efe7] placeholder-gray-400 dark:placeholder:text-[#aeb8b4] outline-none border border-transparent focus:border-gray-300 dark:focus:border-[rgba(242,238,231,0.18)] focus:bg-white dark:focus:bg-[#30403c] focus:shadow-sm transition-all"
               />
               {query && (
                 <button
                   onMouseDown={e => e.preventDefault()}
                   onClick={() => setQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#8d9896] hover:text-sib-text transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-[#aeb8b4] hover:text-sib-text dark:hover:text-[#f4efe7] transition-colors"
                 >
                   <X size={14} />
                 </button>
@@ -132,7 +132,7 @@ export default function TopBar() {
             </div>
             <button
               onClick={closeAndReset}
-              className="text-sm font-semibold text-gray-500 dark:text-[#a0aaa8] hover:text-gray-800 dark:hover:text-[#f2eee7] transition-colors px-1 flex-shrink-0"
+              className="text-sm font-semibold text-gray-500 dark:text-[#aeb8b4] hover:text-gray-800 dark:hover:text-[#f4efe7] transition-colors px-1 flex-shrink-0"
             >
               Cancel
             </button>
@@ -169,13 +169,13 @@ export default function TopBar() {
             onClick={() => setSearchOpen(true)}
             className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-[#1d2625] active:bg-gray-200 dark:active:bg-[#222c2b] transition-colors"
           >
-            <Search size={18} className="text-sib-text" />
+            <Search size={18} className="text-sib-text dark:text-[#f4efe7]" />
           </button>
           {currentUser && (
             <NotifBell
               onClick={handleBellTap}
               size={18}
-              className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-[#1d2625] active:bg-gray-200 dark:active:bg-[#222c2b] transition-colors text-sib-text"
+              className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-[#1d2625] active:bg-gray-200 dark:active:bg-[#222c2b] transition-colors text-sib-text dark:text-[#f4efe7]"
             />
           )}
         </div>
