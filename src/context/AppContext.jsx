@@ -3,6 +3,7 @@ import { useAuth } from '../lib/auth-context'
 import { useListings as useListingsHook } from '../hooks/useListings'
 import { useProfiles as useProfilesHook } from '../hooks/useProfiles'
 import { useOrders as useOrdersHook } from '../hooks/useOrders'
+import { useNotifications as useNotificationsHook } from '../hooks/useNotifications'
 import { SEED_USERS, SEED_MESSAGES, SEED_REVIEWS } from '../data/seedData'
 import {
   sendOfferReceivedEmail, sendOfferAcceptedEmail, sendOfferDeclinedEmail, sendOfferCounteredEmail,
@@ -206,23 +207,20 @@ export function AppProvider({ children }) {
   const [conversations, setConversations] = useState(() => loadFromStorage('sib_conversations', SEED_MESSAGES))
   const [reviews, setReviews] = useState(() => loadFromStorage('sib_reviews', SEED_REVIEWS))
   const [payoutProfiles, setPayoutProfiles] = useState(() => loadFromStorage('sib_payoutProfiles', {}))
-  const [notifications, setNotifications] = useState(() => loadFromStorage('sib_notifications', []))
   const [offers, setOffers] = useState(() => loadFromStorage('sib_offers', []))
   const [bundle, setBundle] = useState(() => loadFromStorage('sib_bundle', null))
   const [bundleOffers, setBundleOffers] = useState(() => loadFromStorage('sib_bundleOffers', []))
   const [toast, setToast] = useState(null)
 
   // ── Notification helpers (must be before effects that depend on it) ──
-  const addNotification = useCallback((notif) => {
-    const newNotif = {
-      id: `n${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      read: false,
-      createdAt: new Date().toISOString(),
-      ...notif,
-    }
-    setNotifications(prev => [newNotif, ...prev])
-    return newNotif
-  }, [])
+  const {
+    notifications,
+    addNotification,
+    markNotificationRead,
+    markAllNotificationsRead,
+    getUserNotifications,
+    refreshNotifications,
+  } = useNotificationsHook(currentUser)
 
   // ── Shipping reminder timer: check every 60s ──────────────────────
   useEffect(() => {
@@ -272,7 +270,6 @@ export function AppProvider({ children }) {
   // Disputes no longer saved to localStorage — DB is sole source of truth
   useEffect(() => { if (!listingsDbAvailable) saveToStorage('sib_likes', likedListings) }, [likedListings, listingsDbAvailable])
   useEffect(() => { saveToStorage('sib_payoutProfiles', payoutProfiles) }, [payoutProfiles])
-  useEffect(() => { saveToStorage('sib_notifications', notifications) }, [notifications])
   useEffect(() => { saveToStorage('sib_offers', offers) }, [offers])
   useEffect(() => { saveToStorage('sib_bundle', bundle) }, [bundle])
   useEffect(() => { saveToStorage('sib_bundleOffers', bundleOffers) }, [bundleOffers])
@@ -442,7 +439,7 @@ export function AppProvider({ children }) {
       listingId: listing.id,
       status: 'awaiting_shipment',
       actionTarget: `/orders/${savedOrder.id}`,
-      type: 'ship_reminder',
+      type: 'new_sale',
       title: 'New sale — ship within 3 days',
       message: `You have a new order (${orderRef}) — ${deliveryLabel}. Please ship via MaltaPost within 3 business days.`,
     })
@@ -549,17 +546,6 @@ export function AppProvider({ children }) {
     }).length
   }, [conversations])
 
-  const markNotificationRead = useCallback((notifId) => {
-    setNotifications(prev => prev.map(n => n.id === notifId ? { ...n, read: true } : n))
-  }, [])
-
-  const markAllNotificationsRead = useCallback((userId) => {
-    setNotifications(prev => prev.map(n => n.userId === userId ? { ...n, read: true } : n))
-  }, [])
-
-  const getUserNotifications = useCallback((userId) => {
-    return notifications.filter(n => n.userId === userId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-  }, [notifications])
 
   // ── Order status with delivery confirmation flow ───────────────────
   const updateOrderStatus = useCallback(async (orderId, status) => {
@@ -1728,7 +1714,7 @@ export function AppProvider({ children }) {
       createListing, updateListing, deleteListing, boostListing, unboostListing, flagListing, approveListing, hideListing, updateStyleTags, updateCollectionTags, adminUpdateListingMeta, toggleLike,
       placeOrder, getOrCreateConversation, sendMessage, markConversationRead, getUnreadConversationCount, updateOrderStatus,
       confirmDelivery, openDispute, adminOpenDispute, flagOrderOverdue, DISPUTE_REASONS,
-      addNotification, markNotificationRead, markAllNotificationsRead, getUserNotifications,
+      addNotification, markNotificationRead, markAllNotificationsRead, getUserNotifications, refreshNotifications,
       createOffer, acceptOffer, declineOffer, counterOffer, getOfferById, getListingOffers, getUserActiveOfferOnListing,
       addToBundle, removeFromBundle, clearBundle, isInBundle, calculateBundleFees, placeBundleOrder,
       createBundleOffer, acceptBundleOffer, declineBundleOffer, counterBundleOffer, getBundleOfferById, placeBundleOfferOrder,

@@ -68,6 +68,7 @@ function isOperationalShippingNotification(notif) {
 }
 
 const NOTIF_CONFIG = {
+  new_sale:             { icon: Truck,           color: 'bg-blue-100 text-blue-600',    linkFn: (n) => orderTarget(n, SELLER_SHIPMENT_QUEUE) },
   offer_received:       { icon: Tag,            color: 'bg-blue-100 text-blue-600',    link: '/offers' },
   offer_accepted:       { icon: CheckCircle,    color: 'bg-green-100 text-green-600',  link: '/offers' },
   offer_declined:       { icon: XCircle,        color: 'bg-red-100 text-red-600',      link: '/offers' },
@@ -121,7 +122,7 @@ function timeAgo(dateStr) {
 }
 
 export default function NotificationsPage() {
-  const { currentUser, getUserNotifications, markNotificationRead, markAllNotificationsRead } = useApp()
+  const { currentUser, getUserNotifications, markNotificationRead, markAllNotificationsRead, refreshNotifications } = useApp()
   const navigate = useNavigate()
 
   const notifications = currentUser ? getUserNotifications(currentUser.id) : []
@@ -130,8 +131,10 @@ export default function NotificationsPage() {
   useEffect(() => {
     if (!currentUser) {
       navigate('/auth')
+      return
     }
-  }, [currentUser, navigate])
+    refreshNotifications()
+  }, [currentUser, navigate, refreshNotifications])
 
   if (!currentUser) return null
 
