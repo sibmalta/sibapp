@@ -10,7 +10,7 @@ export default function HowItWorksPage() {
   const navigate = useNavigate()
 
   return (
-    <div className="pb-10 bg-white min-h-screen">
+    <div className="pb-10 bg-white dark:bg-[#18211f] min-h-screen transition-colors">
       {/* Header */}
       <div className="px-4 pt-5 pb-4">
         <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-xs text-sib-muted font-medium mb-3 hover:text-sib-text transition-colors">
@@ -181,7 +181,7 @@ export default function HowItWorksPage() {
               color: 'bg-sky-50 text-sky-600',
             },
           ].map(({ icon: Icon, title, desc, color }) => (
-            <div key={title} className="p-3.5 rounded-xl border border-sib-stone/50 bg-white flex gap-3">
+            <div key={title} className="p-3.5 rounded-xl border border-sib-stone/50 dark:border-[rgba(242,238,231,0.10)] bg-white dark:bg-[#202b28] flex gap-3 transition-colors">
               <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}>
                 <Icon size={16} />
               </div>
@@ -206,7 +206,7 @@ export default function HowItWorksPage() {
         </div>
 
         <div className="space-y-3">
-          <div className="p-3.5 rounded-xl bg-sib-sand border border-sib-stone/50">
+          <div className="p-3.5 rounded-xl bg-sib-sand dark:bg-[#202b28] border border-sib-stone/50 dark:border-[rgba(242,238,231,0.10)] transition-colors">
             <p className="text-sm font-semibold text-sib-text mb-1">When can I open a dispute?</p>
             <p className="text-xs text-sib-muted leading-relaxed">
               You can open a dispute within 48 hours of receiving your item if it doesn't match the listing description,
@@ -214,7 +214,7 @@ export default function HowItWorksPage() {
             </p>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-sib-sand border border-sib-stone/50">
+          <div className="p-3.5 rounded-xl bg-sib-sand dark:bg-[#202b28] border border-sib-stone/50 dark:border-[rgba(242,238,231,0.10)] transition-colors">
             <p className="text-sm font-semibold text-sib-text mb-1">What happens during a dispute?</p>
             <p className="text-xs text-sib-muted leading-relaxed">
               Sib reviews the dispute, communicates with both buyer and seller, and makes a fair decision.
@@ -222,7 +222,7 @@ export default function HowItWorksPage() {
             </p>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-sib-sand border border-sib-stone/50">
+          <div className="p-3.5 rounded-xl bg-sib-sand dark:bg-[#202b28] border border-sib-stone/50 dark:border-[rgba(242,238,231,0.10)] transition-colors">
             <p className="text-sm font-semibold text-sib-text mb-1">How do refunds work?</p>
             <p className="text-xs text-sib-muted leading-relaxed">
               If your dispute is upheld, you'll receive a full refund to your original payment method.
@@ -242,14 +242,14 @@ export default function HowItWorksPage() {
         </button>
         <button
           onClick={() => navigate('/buyer-protection')}
-          className="w-full py-3 rounded-2xl border border-sib-stone text-sib-text text-sm font-semibold flex items-center justify-center gap-1.5 hover:bg-sib-sand transition-colors"
+          className="w-full py-3 rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] text-sib-text dark:text-[#f4efe7] text-sm font-semibold flex items-center justify-center gap-1.5 hover:bg-sib-sand dark:hover:bg-[#26322f] transition-colors"
         >
           <ShieldCheck size={14} className="text-sib-primary" />
           Buyer Protection Details
         </button>
         <button
           onClick={() => navigate('/faq')}
-          className="w-full py-3 rounded-2xl border border-sib-stone text-sib-text text-sm font-semibold flex items-center justify-center gap-1.5 hover:bg-sib-sand transition-colors"
+          className="w-full py-3 rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] text-sib-text dark:text-[#f4efe7] text-sm font-semibold flex items-center justify-center gap-1.5 hover:bg-sib-sand dark:hover:bg-[#26322f] transition-colors"
         >
           FAQs
           <ChevronRight size={14} className="text-sib-muted" />

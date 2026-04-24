@@ -197,7 +197,7 @@ export default function ListingPage() {
   const prevImg = () => setImgIndex(i => (i - 1 + listing.images.length) % listing.images.length)
 
   return (
-    <div>
+    <div className="dark:bg-[#18211f] transition-colors">
       <PageHeader
         right={
           <div className="flex items-center gap-1">
@@ -218,7 +218,7 @@ export default function ListingPage() {
       <div className="lg:flex lg:gap-10">
         {/* Image carousel */}
         <div className="lg:flex-1 lg:max-w-[560px]">
-          <div className="relative bg-sib-sand aspect-[4/5] overflow-hidden lg:rounded-2xl">
+          <div className="relative bg-sib-sand dark:bg-[#26322f] aspect-[4/5] overflow-hidden lg:rounded-2xl transition-colors">
             <img
               src={listing.images[imgIndex]}
               alt={listing.title}
@@ -226,10 +226,10 @@ export default function ListingPage() {
             />
             {listing.images.length > 1 && (
               <>
-                <button onClick={prevImg} className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center shadow">
+                <button onClick={prevImg} className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 dark:bg-[#26322f]/90 dark:text-[#f4efe7] flex items-center justify-center shadow">
                   <ChevronLeft size={18} />
                 </button>
-                <button onClick={nextImg} className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center shadow">
+                <button onClick={nextImg} className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 dark:bg-[#26322f]/90 dark:text-[#f4efe7] flex items-center justify-center shadow">
                   <ChevronRight size={18} />
                 </button>
                 <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
@@ -294,9 +294,9 @@ export default function ListingPage() {
             const tags = getDetailTags(listing)
             if (!tags.length) return null
             const TAG_VARIANT = {
-              category: 'bg-sib-sand text-sib-muted',
+              category: 'bg-sib-sand dark:bg-[#26322f] text-sib-muted dark:text-[#aeb8b4]',
               condition: 'bg-blue-50 text-blue-700',
-              default: 'bg-sib-sand text-sib-muted capitalize',
+              default: 'bg-sib-sand dark:bg-[#26322f] text-sib-muted dark:text-[#aeb8b4] capitalize',
             }
             return (
               <div className="flex flex-wrap gap-2 mb-4">
@@ -331,7 +331,7 @@ export default function ListingPage() {
                     : 'Estimated 2–3 working days via MaltaPost'
                 return (
                   <>
-                    <div className="flex items-center gap-3 p-3.5 rounded-2xl border border-sib-stone bg-sib-warm mb-3">
+                    <div className="flex items-center gap-3 p-3.5 rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-sib-warm dark:bg-[#202b28] mb-3 transition-colors">
                       <Truck size={16} className="text-sib-primary flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-sib-text">
@@ -380,7 +380,7 @@ export default function ListingPage() {
           {/* Seller */}
           <div
             onClick={() => navigate(`/profile/${seller?.username}`)}
-            className="flex items-center gap-3 p-3 rounded-2xl bg-sib-sand mb-5 cursor-pointer active:opacity-80 hover:bg-sib-stone/40 transition-colors"
+            className="flex items-center gap-3 p-3 rounded-2xl bg-sib-sand dark:bg-[#26322f] mb-5 cursor-pointer active:opacity-80 hover:bg-sib-stone/40 dark:hover:bg-[#30403c] transition-colors"
           >
             <UserAvatar user={seller} size="md" />
             <div className="flex-1 min-w-0">

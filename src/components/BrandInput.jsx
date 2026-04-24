@@ -142,7 +142,7 @@ export default function BrandInput({ value, onChange, error, className = '', pla
     return (
       <>
         {text.slice(0, idx)}
-        <span className="font-bold text-sib-text">{text.slice(idx, idx + q.length)}</span>
+        <span className="font-bold text-sib-text dark:text-[#f4efe7]">{text.slice(idx, idx + q.length)}</span>
         {text.slice(idx + q.length)}
       </>
     )
@@ -159,13 +159,13 @@ export default function BrandInput({ value, onChange, error, className = '', pla
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         autoComplete="off"
-        className={`w-full border rounded-xl px-4 py-3 text-sm outline-none text-sib-text placeholder-sib-muted ${error ? 'border-red-400' : 'border-sib-stone'} ${className}`}
+        className={`w-full border rounded-xl px-4 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-white dark:bg-[#26322f] ${error ? 'border-red-400' : 'border-sib-stone dark:border-[rgba(242,238,231,0.10)]'} ${className}`}
       />
 
       {showDropdown && (
         <ul
           ref={listRef}
-          className="absolute z-50 left-0 right-0 mt-1 bg-white border border-sib-stone/60 rounded-xl shadow-lg max-h-52 overflow-y-auto py-1"
+          className="absolute z-50 left-0 right-0 mt-1 bg-white dark:bg-[#202b28] border border-sib-stone/60 dark:border-[rgba(242,238,231,0.10)] rounded-xl shadow-lg max-h-52 overflow-y-auto py-1"
         >
           {suggestions.map((brand, i) => (
             <li
@@ -174,7 +174,7 @@ export default function BrandInput({ value, onChange, error, className = '', pla
               className={`px-4 py-2.5 text-sm cursor-pointer transition-colors ${
                 i === activeIdx
                   ? 'bg-sib-primary/10 text-sib-text'
-                  : 'text-sib-muted hover:bg-gray-50'
+                  : 'text-sib-muted dark:text-[#aeb8b4] hover:bg-gray-50 dark:hover:bg-[#26322f]'
               }`}
             >
               {highlight(brand)}

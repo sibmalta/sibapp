@@ -124,7 +124,7 @@ export default function BundlePage() {
         {/* Items list */}
         <div className="space-y-2 mb-5">
           {items.map(listing => (
-            <div key={listing.id} className="flex items-center gap-3 p-3 rounded-2xl bg-white border border-sib-stone/40">
+            <div key={listing.id} className="flex items-center gap-3 p-3 rounded-2xl bg-white dark:bg-[#202b28] border border-sib-stone/40 dark:border-[rgba(242,238,231,0.10)] transition-colors">
               <img
                 src={listing.images[0]}
                 alt={listing.title}
@@ -206,13 +206,13 @@ export default function BundlePage() {
       {showOfferModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowOfferModal(false)} />
-          <div className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-xl animate-slide-up">
+          <div className="relative w-full sm:max-w-md bg-white dark:bg-[#202b28] rounded-t-3xl sm:rounded-2xl shadow-xl dark:border dark:border-[rgba(242,238,231,0.10)] animate-slide-up transition-colors">
             <div className="flex items-center justify-between px-5 pt-5 pb-3">
               <div className="flex items-center gap-2">
                 <Tag size={18} className="text-sib-primary" />
                 <h2 className="text-lg font-bold text-sib-text">Bundle Offer</h2>
               </div>
-              <button onClick={() => setShowOfferModal(false)} className="w-8 h-8 rounded-full bg-sib-sand flex items-center justify-center hover:bg-sib-stone transition-colors">
+              <button onClick={() => setShowOfferModal(false)} className="w-8 h-8 rounded-full bg-sib-sand dark:bg-[#26322f] flex items-center justify-center hover:bg-sib-stone dark:hover:bg-[#30403c] transition-colors">
                 <X size={16} className="text-sib-muted" />
               </button>
             </div>
@@ -245,7 +245,7 @@ export default function BundlePage() {
                     value={offerPrice}
                     onChange={e => { setOfferPrice(e.target.value); setOfferError('') }}
                     placeholder={`e.g. ${Math.round(subtotal * 0.7)}`}
-                    className="w-full border border-sib-stone rounded-xl pl-9 pr-4 py-3.5 text-lg font-bold text-sib-text outline-none focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20"
+                    className="w-full border border-sib-stone dark:border-[rgba(242,238,231,0.10)] rounded-xl pl-9 pr-4 py-3.5 text-lg font-bold text-sib-text dark:text-[#f4efe7] bg-white dark:bg-[#26322f] outline-none focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20"
                   />
                   {offerPrice && !isNaN(parseFloat(offerPrice)) && parseFloat(offerPrice) < subtotal && discount > 0 && (
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 px-2 py-0.5 rounded-full bg-green-50 text-green-700 text-xs font-bold">

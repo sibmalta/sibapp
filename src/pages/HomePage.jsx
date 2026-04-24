@@ -176,12 +176,12 @@ export default function HomePage() {
   }
 
   return (
-    <div className="pb-4 lg:max-w-7xl lg:mx-auto bg-[#FAFAF9]">
-      <section className="lg:hidden bg-white px-4 pt-3 pb-4 border-b border-sib-stone/50">
+    <div className="pb-4 lg:max-w-7xl lg:mx-auto bg-[#FAFAF9] dark:bg-[#18211f] transition-colors">
+      <section className="lg:hidden bg-white dark:bg-[#202b28] px-4 pt-3 pb-4 border-b border-sib-stone/50 dark:border-[rgba(242,238,231,0.10)] transition-colors">
         <div className="flex items-end justify-between gap-3 mb-3">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.18em] text-sib-muted font-bold">Sib marketplace</p>
-            <h1 className="text-[22px] font-extrabold text-sib-text leading-tight tracking-tight">Find your next pre-loved thing</h1>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-sib-muted dark:text-[#aeb8b4] font-bold">Sib marketplace</p>
+            <h1 className="text-[22px] font-extrabold text-sib-text dark:text-[#f4efe7] leading-tight tracking-tight">Find your next pre-loved thing</h1>
           </div>
           <button
             onClick={() => authNav('/sell')}
@@ -197,7 +197,7 @@ export default function HomePage() {
             value={mobileSearch}
             onChange={e => setMobileSearch(e.target.value)}
             placeholder="Search brands, styles, items..."
-            className="w-full rounded-2xl border border-sib-stone bg-sib-sand/70 py-3 pl-10 pr-4 text-sm font-medium text-sib-text placeholder-sib-muted outline-none focus:border-sib-primary focus:bg-white transition-colors"
+            className="w-full rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-sib-sand/70 dark:bg-[#26322f] py-3 pl-10 pr-4 text-sm font-medium text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] outline-none focus:border-sib-primary focus:bg-white dark:focus:bg-[#30403c] transition-colors"
           />
           <SearchAutocomplete
             query={mobileSearch}
@@ -226,7 +226,7 @@ export default function HomePage() {
         </section>
       )}
       {/* ── Hero — typography-driven ────────────────────────── */}
-      <div className="relative hidden overflow-hidden bg-white lg:block">
+      <div className="relative hidden overflow-hidden bg-white dark:bg-[#202b28] lg:block transition-colors">
         {/* Subtle ambient glow accents */}
         <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full opacity-[0.05]"
           style={{ background: 'radial-gradient(circle, #C68A2E 0%, transparent 70%)' }} />
@@ -259,7 +259,7 @@ export default function HomePage() {
             </button>
             <button
               onClick={() => navigate('/browse')}
-              className="border border-sib-text/12 text-sib-text font-semibold text-[15px] py-4 px-7 rounded-2xl active:scale-95 transition-transform bg-white sm:text-base sm:px-9 sm:py-[18px] lg:text-[17px] lg:px-10 lg:py-5 hover:bg-gray-50"
+              className="border border-sib-text/12 dark:border-[rgba(242,238,231,0.18)] text-sib-text dark:text-[#f4efe7] font-semibold text-[15px] py-4 px-7 rounded-2xl active:scale-95 transition-transform bg-white dark:bg-[#26322f] sm:text-base sm:px-9 sm:py-[18px] lg:text-[17px] lg:px-10 lg:py-5 hover:bg-gray-50 dark:hover:bg-[#30403c]"
             >
               Browse
             </button>
@@ -291,7 +291,7 @@ export default function HomePage() {
 
       {/* ── Sell Banner — high-visibility conversion strip ─────── */}
       <section className="hidden mt-5 mb-2 px-4 lg:block lg:max-w-6xl lg:mx-auto lg:px-8">
-        <div className="rounded-2xl bg-[#F3F1EC] px-5 py-7 sm:py-9 md:py-10 lg:px-10 lg:py-12 flex flex-col md:flex-row md:items-center md:justify-between gap-5 md:gap-8">
+        <div className="rounded-2xl bg-[#F3F1EC] dark:bg-[#202b28] border border-transparent dark:border-[rgba(242,238,231,0.10)] px-5 py-7 sm:py-9 md:py-10 lg:px-10 lg:py-12 flex flex-col md:flex-row md:items-center md:justify-between gap-5 md:gap-8 transition-colors">
           <div className="min-w-0">
             <h2 className="text-[24px] sm:text-[28px] lg:text-[32px] font-extrabold text-sib-text leading-tight tracking-tight">
               Sell for free

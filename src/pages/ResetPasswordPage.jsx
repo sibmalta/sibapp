@@ -52,7 +52,7 @@ export default function ResetPasswordPage() {
     return (
       <div className="flex flex-col items-center px-5 pt-3 pb-6">
         <div className="w-full max-w-sm">
-          <div className="bg-white rounded-3xl p-6 shadow-sm text-center">
+          <div className="bg-white dark:bg-[#202b28] rounded-3xl p-6 shadow-sm dark:border dark:border-[rgba(242,238,231,0.10)] text-center transition-colors">
             <div className="w-10 h-10 border-4 border-sib-sand border-t-sib-secondary rounded-full animate-spin mx-auto mb-4" />
             <h2 className="text-base font-bold text-sib-text mb-2">Preparing reset</h2>
             <p className="text-sm text-sib-muted leading-relaxed">
@@ -68,7 +68,7 @@ export default function ResetPasswordPage() {
     return (
       <div className="flex flex-col items-center px-5 pt-3 pb-6">
         <div className="w-full max-w-sm">
-          <div className="bg-white rounded-3xl p-6 shadow-sm text-center">
+          <div className="bg-white dark:bg-[#202b28] rounded-3xl p-6 shadow-sm dark:border dark:border-[rgba(242,238,231,0.10)] text-center transition-colors">
             <div className="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-7 h-7 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
@@ -101,7 +101,7 @@ export default function ResetPasswordPage() {
     return (
       <div className="flex flex-col items-center px-5 pt-3 pb-6">
         <div className="w-full max-w-sm">
-          <div className="bg-white rounded-3xl p-6 shadow-sm text-center">
+          <div className="bg-white dark:bg-[#202b28] rounded-3xl p-6 shadow-sm dark:border dark:border-[rgba(242,238,231,0.10)] text-center transition-colors">
             <div className="w-14 h-14 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-7 h-7 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -134,10 +134,10 @@ export default function ResetPasswordPage() {
           </p>
         </div>
 
-        <div className="bg-white rounded-3xl p-6 shadow-sm">
+        <div className="bg-white dark:bg-[#202b28] rounded-3xl p-6 shadow-sm dark:border dark:border-[rgba(242,238,231,0.10)] transition-colors">
           <form onSubmit={handleSubmit} className="space-y-4">
             {errors.general && (
-              <div className="bg-red-50 text-red-600 text-xs rounded-xl p-3">
+              <div className="bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-300 text-xs rounded-xl p-3">
                 {errors.general}
               </div>
             )}
@@ -151,8 +151,8 @@ export default function ResetPasswordPage() {
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setErrors(prev => ({ ...prev, password: null, general: null })) }}
                 placeholder="Min. 6 characters"
-                className={`w-full border rounded-xl px-4 py-3 text-sm outline-none text-sib-text placeholder-sib-muted ${
-                  errors.password ? 'border-red-400' : 'border-sib-stone'
+                className={`w-full border rounded-xl px-4 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-white dark:bg-[#26322f] ${
+                  errors.password ? 'border-red-400' : 'border-sib-stone dark:border-[rgba(242,238,231,0.10)]'
                 } focus:border-sib-secondary transition-colors`}
               />
               {errors.password && <p className="text-red-500 text-xs mt-1.5">{errors.password}</p>}
@@ -167,8 +167,8 @@ export default function ResetPasswordPage() {
                 value={confirmPassword}
                 onChange={(e) => { setConfirmPassword(e.target.value); setErrors(prev => ({ ...prev, confirm: null, general: null })) }}
                 placeholder="Re-enter your password"
-                className={`w-full border rounded-xl px-4 py-3 text-sm outline-none text-sib-text placeholder-sib-muted ${
-                  errors.confirm ? 'border-red-400' : 'border-sib-stone'
+                className={`w-full border rounded-xl px-4 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-white dark:bg-[#26322f] ${
+                  errors.confirm ? 'border-red-400' : 'border-sib-stone dark:border-[rgba(242,238,231,0.10)]'
                 } focus:border-sib-secondary transition-colors`}
               />
               {errors.confirm && <p className="text-red-500 text-xs mt-1.5">{errors.confirm}</p>}

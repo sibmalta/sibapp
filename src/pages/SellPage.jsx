@@ -211,9 +211,9 @@ function InlineDropdown({ label, placeholder, value, options, onChange, error, s
       </button>
 
       {open && (
-        <div className="mt-1 border border-sib-stone rounded-xl bg-white shadow-lg overflow-hidden z-30 relative max-h-60 overflow-y-auto">
+        <div className="mt-1 border border-sib-stone dark:border-[rgba(242,238,231,0.10)] rounded-xl bg-white dark:bg-[#202b28] shadow-lg overflow-hidden z-30 relative max-h-60 overflow-y-auto transition-colors">
           {searchable && (
-            <div className="sticky top-0 bg-white border-b border-sib-stone/50 px-3 py-2 flex items-center gap-2">
+            <div className="sticky top-0 bg-white dark:bg-[#202b28] border-b border-sib-stone/50 dark:border-[rgba(242,238,231,0.10)] px-3 py-2 flex items-center gap-2 transition-colors">
               <Search size={14} className="text-sib-muted flex-shrink-0" />
               <input
                 ref={inputRef}

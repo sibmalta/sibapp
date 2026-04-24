@@ -193,11 +193,11 @@ function StripeCheckoutForm({ fees, onSuccess, onError }) {
     <form onSubmit={handleSubmit}>
       {!elementReady && (
         <div className="mb-4 space-y-3 animate-pulse">
-          <div className="h-12 bg-sib-sand rounded-xl" />
-          <div className="h-12 bg-sib-sand rounded-xl" />
+          <div className="h-12 bg-sib-sand dark:bg-[#26322f] rounded-xl" />
+          <div className="h-12 bg-sib-sand dark:bg-[#26322f] rounded-xl" />
           <div className="flex gap-3">
-            <div className="h-12 bg-sib-sand rounded-xl flex-1" />
-            <div className="h-12 bg-sib-sand rounded-xl w-24" />
+            <div className="h-12 bg-sib-sand dark:bg-[#26322f] rounded-xl flex-1" />
+            <div className="h-12 bg-sib-sand dark:bg-[#26322f] rounded-xl w-24" />
           </div>
         </div>
       )}
@@ -256,7 +256,7 @@ function StripeCheckoutForm({ fees, onSuccess, onError }) {
       </div>
 
       {errorMsg && (
-        <div className="flex items-start gap-2 p-3 rounded-xl bg-red-50 border border-red-200 mb-4">
+        <div className="flex items-start gap-2 p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/40 mb-4">
           <AlertCircle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />
           <p className="text-sm text-red-700">{errorMsg}</p>
         </div>
@@ -618,7 +618,7 @@ export default function CheckoutPage() {
                       }}
                       placeholder="Full name"
                       disabled={addressConfirmed}
-                      className="w-full border border-sib-stone rounded-xl px-4 py-3 text-sm outline-none text-sib-text placeholder-sib-muted focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20 disabled:bg-sib-sand disabled:opacity-70"
+                      className="w-full border border-sib-stone dark:border-[rgba(242,238,231,0.10)] rounded-xl px-4 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-white dark:bg-[#26322f] focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20 disabled:bg-sib-sand dark:disabled:bg-[#26322f] disabled:opacity-70"
                     />
                   </div>
 
@@ -634,7 +634,7 @@ export default function CheckoutPage() {
                       }}
                       placeholder="Phone number"
                       disabled={addressConfirmed}
-                      className="w-full border border-sib-stone rounded-xl px-4 py-3 text-sm outline-none text-sib-text placeholder-sib-muted focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20 disabled:bg-sib-sand disabled:opacity-70"
+                      className="w-full border border-sib-stone dark:border-[rgba(242,238,231,0.10)] rounded-xl px-4 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-white dark:bg-[#26322f] focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20 disabled:bg-sib-sand dark:disabled:bg-[#26322f] disabled:opacity-70"
                     />
                   </div>
                 </div>
@@ -650,9 +650,9 @@ export default function CheckoutPage() {
                     }}
                     placeholder="Street address"
                     disabled={addressConfirmed}
-                    className={`w-full border rounded-xl px-4 py-3 text-sm outline-none text-sib-text placeholder-sib-muted ${
-                      errors.address ? 'border-red-400' : 'border-sib-stone'
-                    } focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20 disabled:bg-sib-sand disabled:opacity-70`}
+                    className={`w-full border rounded-xl px-4 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-white dark:bg-[#26322f] ${
+                      errors.address ? 'border-red-400' : 'border-sib-stone dark:border-[rgba(242,238,231,0.10)]'
+                    } focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20 disabled:bg-sib-sand dark:disabled:bg-[#26322f] disabled:opacity-70`}
                   />
                   {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address}</p>}
                 </div>
@@ -669,9 +669,9 @@ export default function CheckoutPage() {
                       }}
                       placeholder="City / Town"
                       disabled={addressConfirmed}
-                      className={`w-full border rounded-xl px-4 py-3 text-sm outline-none text-sib-text placeholder-sib-muted ${
-                        errors.city ? 'border-red-400' : 'border-sib-stone'
-                      } focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20 disabled:bg-sib-sand disabled:opacity-70`}
+                      className={`w-full border rounded-xl px-4 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-white dark:bg-[#26322f] ${
+                        errors.city ? 'border-red-400' : 'border-sib-stone dark:border-[rgba(242,238,231,0.10)]'
+                      } focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20 disabled:bg-sib-sand dark:disabled:bg-[#26322f] disabled:opacity-70`}
                     />
                     {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
                   </div>
@@ -688,9 +688,9 @@ export default function CheckoutPage() {
                       placeholder="Postcode"
                       maxLength={8}
                       disabled={addressConfirmed}
-                      className={`w-full border rounded-xl px-4 py-3 text-sm outline-none text-sib-text placeholder-sib-muted ${
-                        errors.postcode ? 'border-red-400' : 'border-sib-stone'
-                      } focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20 disabled:bg-sib-sand disabled:opacity-70`}
+                      className={`w-full border rounded-xl px-4 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-white dark:bg-[#26322f] ${
+                        errors.postcode ? 'border-red-400' : 'border-sib-stone dark:border-[rgba(242,238,231,0.10)]'
+                      } focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20 disabled:bg-sib-sand dark:disabled:bg-[#26322f] disabled:opacity-70`}
                     />
                     {errors.postcode && <p className="text-red-500 text-xs mt-1">{errors.postcode}</p>}
                   </div>
@@ -705,7 +705,7 @@ export default function CheckoutPage() {
                   }}
                   placeholder="Delivery notes (optional)"
                   disabled={addressConfirmed}
-                  className="w-full border border-sib-stone rounded-xl px-4 py-3 text-sm outline-none text-sib-text placeholder-sib-muted focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20 disabled:bg-sib-sand disabled:opacity-70"
+                  className="w-full border border-sib-stone dark:border-[rgba(242,238,231,0.10)] rounded-xl px-4 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-white dark:bg-[#26322f] focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20 disabled:bg-sib-sand dark:disabled:bg-[#26322f] disabled:opacity-70"
                 />
 
                 {!addressConfirmed && (

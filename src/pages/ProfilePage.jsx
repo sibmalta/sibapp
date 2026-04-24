@@ -21,7 +21,7 @@ function AdminProfileCard({ profileUser, isOwnProfile, navigate, currentUser }) 
           {!isOwnProfile ? (
             <button
               onClick={() => navigate(-1)}
-              className="w-9 h-9 rounded-full border border-white/60 bg-white/70 backdrop-blur-sm flex items-center justify-center shadow-sm hover:bg-white transition-colors"
+            className="w-9 h-9 rounded-full border border-white/60 dark:border-[rgba(242,238,231,0.10)] bg-white/70 dark:bg-[#26322f]/90 backdrop-blur-sm flex items-center justify-center shadow-sm hover:bg-white dark:hover:bg-[#30403c] transition-colors"
             >
               <ArrowLeft size={16} className="text-sib-text" />
             </button>
@@ -30,7 +30,7 @@ function AdminProfileCard({ profileUser, isOwnProfile, navigate, currentUser }) 
             {isOwnProfile && (
               <button
                 onClick={() => navigate('/settings')}
-                className="w-9 h-9 rounded-full border border-white/60 bg-white/70 backdrop-blur-sm flex items-center justify-center shadow-sm hover:bg-white transition-colors"
+                className="w-9 h-9 rounded-full border border-white/60 dark:border-[rgba(242,238,231,0.10)] bg-white/70 dark:bg-[#26322f]/90 backdrop-blur-sm flex items-center justify-center shadow-sm hover:bg-white dark:hover:bg-[#30403c] transition-colors"
               >
                 <Settings size={16} className="text-sib-text" />
               </button>
@@ -40,7 +40,7 @@ function AdminProfileCard({ profileUser, isOwnProfile, navigate, currentUser }) 
 
         {/* Admin profile card */}
         <div className="relative px-4 pb-5 pt-1 lg:pb-6">
-          <div className="bg-white rounded-2xl shadow-sm border border-indigo-100 p-5 lg:p-6">
+          <div className="bg-white dark:bg-[#202b28] rounded-2xl shadow-sm border border-indigo-100 dark:border-[rgba(242,238,231,0.10)] p-5 lg:p-6 transition-colors">
             {/* Avatar + identity */}
             <div className="flex items-start gap-4">
               <div className="relative flex-shrink-0">
@@ -70,25 +70,25 @@ function AdminProfileCard({ profileUser, isOwnProfile, navigate, currentUser }) 
             </div>
 
             {/* Platform info instead of seller stats */}
-            <div className="mt-5 p-4 rounded-xl bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100/80">
+            <div className="mt-5 p-4 rounded-xl bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-[#26322f] dark:to-[#30403c] border border-indigo-100/80 dark:border-[rgba(242,238,231,0.10)] transition-colors">
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center">
                   <Info size={12} className="text-white" />
                 </div>
                 <p className="text-xs font-bold text-indigo-900 uppercase tracking-wider">Official Platform Account</p>
               </div>
-              <p className="text-sm text-indigo-800/80 leading-relaxed">
+              <p className="text-sm text-indigo-800/80 dark:text-[#f4efe7] leading-relaxed">
                 This is the official Sib account. It is used for platform support, content moderation and community updates. It is not a buyer or seller.
               </p>
             </div>
 
             {/* Contact info */}
-            <div className="flex flex-wrap gap-x-5 gap-y-2 mt-4 pt-4 border-t border-indigo-100/60">
-              <span className="inline-flex items-center gap-1.5 text-[12px] text-indigo-700/80">
+            <div className="flex flex-wrap gap-x-5 gap-y-2 mt-4 pt-4 border-t border-indigo-100/60 dark:border-[rgba(242,238,231,0.10)]">
+              <span className="inline-flex items-center gap-1.5 text-[12px] text-indigo-700/80 dark:text-[#aeb8b4]">
                 <Mail size={12} className="text-indigo-500" />
                 <a href="mailto:info@sibmalta.com" className="hover:underline">info@sibmalta.com</a>
               </span>
-              <span className="inline-flex items-center gap-1.5 text-[12px] text-indigo-700/80">
+              <span className="inline-flex items-center gap-1.5 text-[12px] text-indigo-700/80 dark:text-[#aeb8b4]">
                 <MapPin size={12} className="text-indigo-500" />
                 <span>Malta</span>
               </span>
@@ -99,7 +99,7 @@ function AdminProfileCard({ profileUser, isOwnProfile, navigate, currentUser }) 
 
       {/* No tabs, no listings — just an informational footer */}
       <div className="px-4 py-8 text-center">
-        <p className="text-sm text-sib-muted">
+          <p className="text-sm text-sib-muted dark:text-[#aeb8b4]">
           Need help? <a href="mailto:info@sibmalta.com" className="text-indigo-600 font-semibold hover:underline">Contact us</a> or visit the <button onClick={() => navigate('/contact')} className="text-indigo-600 font-semibold hover:underline">Help Centre</button>.
         </p>
       </div>
@@ -174,7 +174,7 @@ export default function ProfilePage() {
           {!isOwnProfile ? (
             <button
               onClick={() => navigate(-1)}
-              className="w-9 h-9 rounded-full border border-white/60 bg-white/70 backdrop-blur-sm flex items-center justify-center shadow-sm hover:bg-white transition-colors"
+              className="w-9 h-9 rounded-full border border-white/60 dark:border-[rgba(242,238,231,0.10)] bg-white/70 dark:bg-[#26322f]/90 backdrop-blur-sm flex items-center justify-center shadow-sm hover:bg-white dark:hover:bg-[#30403c] transition-colors"
             >
               <ArrowLeft size={16} className="text-sib-text" />
             </button>
@@ -184,13 +184,13 @@ export default function ProfilePage() {
               <>
                 <button
                   onClick={() => navigate('/seller')}
-                  className="w-9 h-9 rounded-full border border-white/60 bg-white/70 backdrop-blur-sm flex items-center justify-center shadow-sm hover:bg-white transition-colors"
+                  className="w-9 h-9 rounded-full border border-white/60 dark:border-[rgba(242,238,231,0.10)] bg-white/70 dark:bg-[#26322f]/90 backdrop-blur-sm flex items-center justify-center shadow-sm hover:bg-white dark:hover:bg-[#30403c] transition-colors"
                 >
                   <Wallet size={16} className="text-sib-primary" />
                 </button>
                 <button
                   onClick={() => navigate('/settings')}
-                  className="w-9 h-9 rounded-full border border-white/60 bg-white/70 backdrop-blur-sm flex items-center justify-center shadow-sm hover:bg-white transition-colors"
+                  className="w-9 h-9 rounded-full border border-white/60 dark:border-[rgba(242,238,231,0.10)] bg-white/70 dark:bg-[#26322f]/90 backdrop-blur-sm flex items-center justify-center shadow-sm hover:bg-white dark:hover:bg-[#30403c] transition-colors"
                 >
                   <Settings size={16} className="text-sib-text" />
                 </button>
@@ -201,7 +201,7 @@ export default function ProfilePage() {
                   if (!currentUser) { navigate('/auth'); return }
                   navigate(`/messages?new=${profileUser.id}`)
                 }}
-                className="px-4 py-2 rounded-full bg-white/80 backdrop-blur-sm border border-white/60 text-sib-primary text-sm font-semibold shadow-sm hover:bg-white transition-colors"
+                className="px-4 py-2 rounded-full bg-white/80 dark:bg-[#26322f]/90 backdrop-blur-sm border border-white/60 dark:border-[rgba(242,238,231,0.10)] text-sib-primary text-sm font-semibold shadow-sm hover:bg-white dark:hover:bg-[#30403c] transition-colors"
               >
                 Message
               </button>
@@ -211,19 +211,19 @@ export default function ProfilePage() {
 
         {/* Profile card */}
         <div className="relative px-4 pb-5 pt-1 lg:pb-6">
-          <div className="bg-white rounded-2xl shadow-sm border border-sib-stone/50 p-5 lg:p-6">
+          <div className="bg-white dark:bg-[#202b28] rounded-2xl shadow-sm border border-sib-stone/50 dark:border-[rgba(242,238,231,0.10)] p-5 lg:p-6 transition-colors">
             {/* Avatar + Username + Badges row */}
             <div className="flex items-start gap-4">
               <div className="relative flex-shrink-0">
-                <UserAvatar user={profileUser} size="xl" className="ring-[3px] ring-white shadow-md" />
-                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-2 border-white" title="Online" />
+                <UserAvatar user={profileUser} size="xl" className="ring-[3px] ring-white dark:ring-[#202b28] shadow-md" />
+                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full border-2 border-white dark:border-[#202b28]" title="Online" />
               </div>
 
               <div className="flex-1 min-w-0 pt-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="text-xl font-bold text-sib-text truncate">@{profileUser.username}</h1>
                   {profileUser.verified && (
-                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-blue-50 border border-blue-100">
+                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-[#26322f] border border-blue-100 dark:border-[rgba(242,238,231,0.10)]">
                       <ShieldCheck size={12} className="text-blue-600" />
                       <span className="text-[10px] font-semibold text-blue-600">Verified</span>
                     </span>
@@ -235,7 +235,7 @@ export default function ProfilePage() {
                   onClick={() => navigate(`/reviews/${profileUser.username}`)}
                   className="flex items-center gap-2 mt-2 group"
                 >
-                  <div className="bg-sib-primary/5 rounded-lg px-2.5 py-1.5 group-hover:bg-sib-primary/10 transition-colors">
+                  <div className="bg-sib-primary/5 dark:bg-[#26322f] rounded-lg px-2.5 py-1.5 group-hover:bg-sib-primary/10 dark:group-hover:bg-[#30403c] transition-colors">
                     <UserRating rating={rating} reviewCount={reviewCount} size="lg" showStars={false} />
                   </div>
                   {reviewCount > 0 && (
@@ -262,17 +262,17 @@ export default function ProfilePage() {
 
             {/* Stats row */}
             <div className="flex gap-0 mt-4 border border-sib-stone/60 rounded-xl overflow-hidden">
-              <div className="flex-1 text-center py-3 bg-sib-sand/50">
+              <div className="flex-1 text-center py-3 bg-sib-sand/50 dark:bg-[#26322f] transition-colors">
                 <p className="text-lg font-extrabold text-sib-text leading-none">{activeListings.length}</p>
                 <p className="text-[11px] text-sib-muted mt-1 font-medium">Listings</p>
               </div>
               <div className="w-px bg-sib-stone/60" />
-              <div className="flex-1 text-center py-3 bg-sib-sand/50">
+              <div className="flex-1 text-center py-3 bg-sib-sand/50 dark:bg-[#26322f] transition-colors">
                 <p className="text-lg font-extrabold text-sib-text leading-none">{soldListings.length}</p>
                 <p className="text-[11px] text-sib-muted mt-1 font-medium">Sold</p>
               </div>
               <div className="w-px bg-sib-stone/60" />
-              <div className="flex-1 text-center py-3 bg-sib-sand/50">
+              <div className="flex-1 text-center py-3 bg-sib-sand/50 dark:bg-[#26322f] transition-colors">
                 <p className="text-lg font-extrabold text-sib-text leading-none">{daysSinceJoin < 365 ? `${Math.ceil(daysSinceJoin / 30)}mo` : `${Math.floor(daysSinceJoin / 365)}y`}</p>
                 <p className="text-[11px] text-sib-muted mt-1 font-medium">Member</p>
               </div>
@@ -303,7 +303,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-t border-b border-sib-stone">
+      <div className="flex border-t border-b border-sib-stone dark:border-[rgba(242,238,231,0.10)]">
         {[
           { id: 'listings', label: 'Listings', icon: Package },
           { id: 'sold', label: 'Sold', icon: ShoppingBag },
@@ -322,7 +322,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Content */}
-      <div className="px-4 pt-4 pb-6">
+      <div className="px-4 pt-4 pb-6 dark:bg-[#202b28] dark:border dark:border-[rgba(242,238,231,0.10)] dark:rounded-2xl transition-colors">
         {tab === 'listings' && (
           activeListings.length === 0 ? (
             <div className="text-center py-12">

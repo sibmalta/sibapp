@@ -115,18 +115,18 @@ export default function ChatListPage() {
             <div
               key={conv.id}
               onClick={() => navigate(`/messages/${conv.id}`)}
-              className={`flex items-center gap-3.5 px-4 py-4 cursor-pointer transition-colors hover:bg-gray-50 active:bg-sib-sand ${
-                i < sorted.length - 1 ? 'border-b border-gray-100' : ''
+              className={`flex items-center gap-3.5 px-4 py-4 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-[#26322f] active:bg-sib-sand ${
+                i < sorted.length - 1 ? 'border-b border-gray-100 dark:border-[rgba(242,238,231,0.10)]' : ''
               }`}
             >
               {/* Avatar with listing thumbnail overlay */}
               <div className="relative flex-shrink-0">
                 <UserAvatar user={other} size="md" />
                 {listing?.images?.[0] && (
-                  <img
+                    <img
                     src={listing.images[0]}
                     alt=""
-                    className="absolute -bottom-1 -right-1 w-5 h-5 rounded-md object-cover border-2 border-white shadow-sm"
+                    className="absolute -bottom-1 -right-1 w-5 h-5 rounded-md object-cover border-2 border-white dark:border-[#202b28] shadow-sm"
                   />
                 )}
               </div>

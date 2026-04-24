@@ -37,7 +37,7 @@ function SendBlockedModal({ reasons, violationCount, onDismiss }) {
   const isRepeatOffender = violationCount >= 3
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 px-4 pb-6">
-      <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-slide-up">
+      <div className="bg-white dark:bg-[#202b28] rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-slide-up border border-transparent dark:border-[rgba(242,238,231,0.10)] transition-colors">
         <div className="px-5 pt-5 pb-4 bg-red-50">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-red-100">
@@ -281,7 +281,7 @@ export default function ChatPage() {
         )}
 
         {/* Input */}
-        <div className="border-t border-sib-stone bg-white px-4 py-3 flex items-end gap-3">
+        <div className="border-t border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-white dark:bg-[#202b28] px-4 py-3 flex items-end gap-3 transition-colors">
           <textarea
             ref={inputRef}
             value={text}

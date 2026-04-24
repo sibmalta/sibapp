@@ -6,7 +6,7 @@ export default function AboutPage() {
   const navigate = useNavigate()
 
   return (
-    <div className="pb-10 bg-white min-h-screen">
+    <div className="pb-10 bg-white dark:bg-[#18211f] min-h-screen transition-colors">
       {/* Header */}
       <div className="px-4 pt-5 pb-4">
         <button
@@ -89,7 +89,7 @@ export default function AboutPage() {
               color: 'bg-violet-50 text-violet-600',
             },
           ].map(({ icon: Icon, title, desc, color }) => (
-            <div key={title} className="p-3.5 rounded-xl border border-sib-stone/50 bg-white flex gap-3">
+            <div key={title} className="p-3.5 rounded-xl border border-sib-stone/50 dark:border-[rgba(242,238,231,0.10)] bg-white dark:bg-[#202b28] flex gap-3 transition-colors">
               <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}>
                 <Icon size={16} />
               </div>
@@ -128,7 +128,7 @@ export default function AboutPage() {
         </button>
         <Link
           to="/how-it-works"
-          className="w-full py-3 rounded-2xl border border-sib-stone text-sib-text text-sm font-semibold flex items-center justify-center gap-1.5 hover:bg-sib-sand transition-colors"
+          className="w-full py-3 rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] text-sib-text dark:text-[#f4efe7] text-sm font-semibold flex items-center justify-center gap-1.5 hover:bg-sib-sand dark:hover:bg-[#26322f] transition-colors"
         >
           See How It Works
         </Link>

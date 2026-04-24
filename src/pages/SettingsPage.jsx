@@ -29,13 +29,13 @@ export default function SettingsPage() {
 
       <div className="mb-6">
         <p className="text-[11px] font-semibold text-sib-muted uppercase tracking-wide mb-2">Appearance</p>
-        <div className="rounded-2xl border border-sib-stone overflow-hidden bg-white dark:bg-[#151c1b] transition-colors">
+        <div className="rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] overflow-hidden bg-white dark:bg-[#202b28] transition-colors">
           <div className="px-4 py-3.5 flex items-center justify-between gap-4">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-sib-text">Theme</p>
               <p className="text-xs text-sib-muted mt-0.5">Choose how Sib looks on this device.</p>
             </div>
-            <div className="flex items-center gap-2 rounded-xl bg-sib-sand dark:bg-[#1c2423] p-1 transition-colors">
+            <div className="flex items-center gap-2 rounded-xl bg-sib-sand dark:bg-[#26322f] p-1 transition-colors">
               <button
                 type="button"
                 onClick={() => setTheme('light')}
@@ -53,7 +53,7 @@ export default function SettingsPage() {
                 onClick={() => setTheme('dark')}
                 className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
                   theme === 'dark'
-                    ? 'bg-[#202927] text-[#f2eee7] shadow-sm'
+                    ? 'bg-[#30403c] text-[#f4efe7] shadow-sm'
                     : 'text-sib-muted hover:text-sib-text'
                 }`}
               >
@@ -68,10 +68,10 @@ export default function SettingsPage() {
       {/* Account */}
       <div className="mb-6">
         <p className="text-[11px] font-semibold text-sib-muted uppercase tracking-wide mb-2">Account</p>
-        <div className="rounded-2xl border border-sib-stone overflow-hidden divide-y divide-sib-stone">
+        <div className="rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] overflow-hidden divide-y divide-sib-stone dark:divide-[rgba(242,238,231,0.10)] bg-white dark:bg-[#202b28] transition-colors">
           <Link
             to="/profile/edit"
-            className="flex items-center gap-3 px-4 py-3.5 active:bg-sib-sand transition-colors"
+            className="flex items-center gap-3 px-4 py-3.5 active:bg-sib-sand dark:active:bg-[#26322f] transition-colors"
           >
             <User size={16} className="text-sib-muted flex-shrink-0" />
             <span className="text-sm text-sib-text flex-1">Edit Profile</span>
@@ -108,7 +108,7 @@ export default function SettingsPage() {
       {/* Legal & Policies */}
       <div className="mb-6">
         <p className="text-[11px] font-semibold text-sib-muted uppercase tracking-wide mb-2">Legal & Policies</p>
-        <div className="rounded-2xl border border-sib-stone overflow-hidden divide-y divide-sib-stone">
+        <div className="rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] overflow-hidden divide-y divide-sib-stone dark:divide-[rgba(242,238,231,0.10)] bg-white dark:bg-[#202b28] transition-colors">
           {[
             { to: '/terms', icon: FileText, label: 'Terms & Conditions' },
             { to: '/privacy', icon: Lock, label: 'Privacy Policy' },
@@ -123,7 +123,7 @@ export default function SettingsPage() {
             <Link
               key={item.to}
               to={item.to}
-              className="flex items-center gap-3 px-4 py-3.5 active:bg-sib-sand transition-colors"
+              className="flex items-center gap-3 px-4 py-3.5 active:bg-sib-sand dark:active:bg-[#26322f] transition-colors"
             >
               <item.icon size={16} className="text-sib-muted flex-shrink-0" />
               <span className="text-sm text-sib-text flex-1">{item.label}</span>
@@ -136,7 +136,7 @@ export default function SettingsPage() {
       {/* Help & Support */}
       <div className="mb-6">
         <p className="text-[11px] font-semibold text-sib-muted uppercase tracking-wide mb-2">Help & Support</p>
-        <div className="rounded-2xl border border-sib-stone overflow-hidden divide-y divide-sib-stone">
+        <div className="rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] overflow-hidden divide-y divide-sib-stone dark:divide-[rgba(242,238,231,0.10)] bg-white dark:bg-[#202b28] transition-colors">
           {[
             { to: '/faq', icon: HelpCircle, label: 'FAQ' },
             { to: '/contact', icon: Mail, label: 'Contact Support' },
@@ -144,7 +144,7 @@ export default function SettingsPage() {
             <Link
               key={item.to}
               to={item.to}
-              className="flex items-center gap-3 px-4 py-3.5 active:bg-sib-sand transition-colors"
+              className="flex items-center gap-3 px-4 py-3.5 active:bg-sib-sand dark:active:bg-[#26322f] transition-colors"
             >
               <item.icon size={16} className="text-sib-muted flex-shrink-0" />
               <span className="text-sm text-sib-text flex-1">{item.label}</span>

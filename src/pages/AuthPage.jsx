@@ -193,7 +193,7 @@ export default function AuthPage() {
     return (
       <div className="flex flex-col items-center px-5 pt-3 pb-6">
         <div className="w-full max-w-sm">
-          <div className="bg-white rounded-3xl p-6 shadow-sm text-center">
+          <div className="bg-white dark:bg-[#202b28] rounded-3xl p-6 shadow-sm dark:border dark:border-[rgba(242,238,231,0.10)] text-center transition-colors">
             <div className="w-14 h-14 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-7 h-7 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -222,7 +222,7 @@ export default function AuthPage() {
                 {checkingVerification ? 'Checking verification...' : "I've verified my email"}
               </button>
             </div>
-            <div className="mt-5 pt-4 border-t border-sib-sand">
+            <div className="mt-5 pt-4 border-t border-sib-sand dark:border-[rgba(242,238,231,0.10)]">
               <button
                 onClick={() => { setVerificationPending(false); setMode('login') }}
                 className="text-sm text-sib-muted hover:text-sib-secondary transition-colors"
@@ -265,15 +265,15 @@ export default function AuthPage() {
           <p className="text-sm text-sib-muted mt-0.5">Malta's easiest second-hand marketplace</p>
         </div>
 
-        <div className="bg-white rounded-3xl p-6 shadow-sm">
+        <div className="bg-white dark:bg-[#202b28] rounded-3xl p-6 shadow-sm dark:border dark:border-[rgba(242,238,231,0.10)] transition-colors">
           {/* Mode toggle */}
-          <div className="flex bg-sib-sand rounded-xl p-1 mb-5">
+          <div className="flex bg-sib-sand dark:bg-[#26322f] rounded-xl p-1 mb-5 transition-colors">
             {['login', 'register'].map(m => (
               <button
                 key={m}
                 onClick={() => { setMode(m); setErrors({}) }}
                 className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all capitalize ${
-                  mode === m ? 'bg-white text-sib-text shadow-sm' : 'text-sib-muted'
+                  mode === m ? 'bg-white dark:bg-[#30403c] text-sib-text dark:text-[#f4efe7] shadow-sm' : 'text-sib-muted dark:text-[#aeb8b4]'
                 }`}
               >
                 {m === 'login' ? 'Log In' : 'Sign Up'}
@@ -289,12 +289,12 @@ export default function AuthPage() {
                     value={form.name}
                     onChange={e => set('name', e.target.value)}
                     placeholder="Full name"
-                    className={`w-full border rounded-xl px-4 py-3 text-sm outline-none text-sib-text placeholder-sib-muted ${errors.name ? 'border-red-400' : 'border-sib-stone'}`}
+                    className={`w-full border rounded-xl px-4 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-white dark:bg-[#26322f] ${errors.name ? 'border-red-400' : 'border-sib-stone dark:border-[rgba(242,238,231,0.10)]'}`}
                   />
                   {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
                 </div>
                 <div>
-                  <div className={`flex items-center border rounded-xl overflow-hidden ${errors.username ? 'border-red-400' : 'border-sib-stone'}`}>
+                  <div className={`flex items-center border rounded-xl overflow-hidden bg-white dark:bg-[#26322f] ${errors.username ? 'border-red-400' : 'border-sib-stone dark:border-[rgba(242,238,231,0.10)]'}`}>
                     <span className="pl-4 pr-1 text-sm text-sib-muted select-none">@</span>
                     <input
                       value={form.username}
@@ -302,7 +302,7 @@ export default function AuthPage() {
                       placeholder="username"
                       autoCapitalize="none"
                       autoCorrect="off"
-                      className="flex-1 pr-4 py-3 text-sm outline-none text-sib-text placeholder-sib-muted bg-transparent"
+                      className="flex-1 pr-4 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-transparent"
                     />
                   </div>
                   {errors.username && <p className="text-red-500 text-xs mt-1">{errors.username}</p>}
@@ -317,7 +317,7 @@ export default function AuthPage() {
                 placeholder={mode === 'login' ? 'Email or username' : 'Email address'}
                 autoCapitalize="none"
                 autoCorrect="off"
-                className={`w-full border rounded-xl px-4 py-3 text-sm outline-none text-sib-text placeholder-sib-muted ${errors.email ? 'border-red-400' : 'border-sib-stone'}`}
+                className={`w-full border rounded-xl px-4 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-white dark:bg-[#26322f] ${errors.email ? 'border-red-400' : 'border-sib-stone dark:border-[rgba(242,238,231,0.10)]'}`}
               />
               {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
             </div>
@@ -327,7 +327,7 @@ export default function AuthPage() {
                 value={form.password}
                 onChange={e => set('password', e.target.value)}
                 placeholder="Password"
-                className={`w-full border rounded-xl px-4 py-3 text-sm outline-none text-sib-text placeholder-sib-muted ${errors.password ? 'border-red-400' : 'border-sib-stone'}`}
+                className={`w-full border rounded-xl px-4 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-white dark:bg-[#26322f] ${errors.password ? 'border-red-400' : 'border-sib-stone dark:border-[rgba(242,238,231,0.10)]'}`}
               />
               {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
               {mode === 'login' && (

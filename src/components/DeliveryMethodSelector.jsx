@@ -123,18 +123,18 @@ export default function DeliveryMethodSelector({
                 className={`w-full flex items-center gap-3 p-4 rounded-2xl border-2 transition-all text-left ${
                   isSelected
                     ? 'border-sib-primary bg-sib-primary/5'
-                    : 'border-sib-stone bg-white hover:border-sib-muted/40'
+                    : 'border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-white dark:bg-[#202b28] hover:border-sib-muted/40 dark:hover:bg-[#26322f]'
                 } ${disabled ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
               >
                 <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${
-                  isSelected ? 'border-sib-primary bg-sib-primary' : 'border-sib-stone bg-white'
+                  isSelected ? 'border-sib-primary bg-sib-primary' : 'border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-white dark:bg-[#26322f]'
                 }`}>
                   {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
                 </div>
                 <IconComp size={16} className={isSelected ? 'text-sib-primary flex-shrink-0' : 'text-sib-muted flex-shrink-0'} />
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-semibold ${isSelected ? 'text-sib-text' : 'text-sib-muted'}`}>{method.name}</p>
-                  <p className="text-xs text-sib-muted">{method.description}</p>
+                  <p className={`text-sm font-semibold ${isSelected ? 'text-sib-text dark:text-[#f4efe7]' : 'text-sib-muted dark:text-[#aeb8b4]'}`}>{method.name}</p>
+                  <p className="text-xs text-sib-muted dark:text-[#aeb8b4]">{method.description}</p>
                 </div>
                 <span className={`text-sm font-bold flex-shrink-0 ${isSelected ? 'text-sib-primary' : 'text-sib-muted'}`}>
                   €{method.price.toFixed(2)}
@@ -150,8 +150,8 @@ export default function DeliveryMethodSelector({
                       type="button"
                       disabled={disabled}
                       onClick={() => setLockerDropdownOpen(prev => !prev)}
-                      className={`w-full flex items-center justify-between gap-2 p-3 rounded-xl border text-left text-sm ${
-                        selectedLocker ? 'border-sib-primary text-sib-text' : 'border-sib-stone text-sib-muted'
+                      className={`w-full flex items-center justify-between gap-2 p-3 rounded-xl border text-left text-sm bg-white dark:bg-[#26322f] ${
+                        selectedLocker ? 'border-sib-primary text-sib-text dark:text-[#f4efe7]' : 'border-sib-stone dark:border-[rgba(242,238,231,0.10)] text-sib-muted dark:text-[#aeb8b4]'
                       } ${disabled ? 'opacity-70' : ''}`}
                     >
                       <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -164,14 +164,14 @@ export default function DeliveryMethodSelector({
                     </button>
 
                     {lockerDropdownOpen && (
-                      <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-sib-stone rounded-xl shadow-lg max-h-60 overflow-hidden">
-                        <div className="p-2 border-b border-sib-stone/50">
+                      <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white dark:bg-[#202b28] border border-sib-stone dark:border-[rgba(242,238,231,0.10)] rounded-xl shadow-lg max-h-60 overflow-hidden">
+                        <div className="p-2 border-b border-sib-stone/50 dark:border-[rgba(242,238,231,0.10)]">
                           <input
                             type="text"
                             placeholder="Search locations..."
                             value={lockerSearch}
                             onChange={e => setLockerSearch(e.target.value)}
-                            className="w-full px-3 py-2 text-sm border border-sib-stone rounded-lg outline-none focus:border-sib-primary text-sib-text placeholder-sib-muted"
+                            className="w-full px-3 py-2 text-sm border border-sib-stone dark:border-[rgba(242,238,231,0.10)] rounded-lg outline-none focus:border-sib-primary text-sib-text dark:text-[#f4efe7] bg-white dark:bg-[#26322f] placeholder-sib-muted dark:placeholder:text-[#aeb8b4]"
                             autoFocus
                           />
                         </div>
@@ -188,8 +188,8 @@ export default function DeliveryMethodSelector({
                                 setLockerDropdownOpen(false)
                                 setLockerSearch('')
                               }}
-                              className={`w-full text-left px-3 py-2.5 text-sm hover:bg-sib-sand transition-colors border-b border-sib-stone/20 last:border-0 ${
-                                selectedLockerId === locker.id ? 'bg-sib-primary/5 font-semibold text-sib-text' : 'text-sib-text'
+                              className={`w-full text-left px-3 py-2.5 text-sm hover:bg-sib-sand dark:hover:bg-[#26322f] transition-colors border-b border-sib-stone/20 dark:border-[rgba(242,238,231,0.10)] last:border-0 ${
+                                selectedLockerId === locker.id ? 'bg-sib-primary/5 font-semibold text-sib-text dark:text-[#f4efe7]' : 'text-sib-text dark:text-[#f4efe7]'
                               }`}
                             >
                               <p className="font-medium text-sm">{locker.locationName}</p>
@@ -202,7 +202,7 @@ export default function DeliveryMethodSelector({
                   </div>
 
                   {selectedLocker && (
-                    <div className="mt-2 p-2.5 rounded-xl bg-blue-50 border border-blue-100">
+                    <div className="mt-2 p-2.5 rounded-xl bg-blue-50 dark:bg-[#26322f] border border-blue-100 dark:border-[rgba(242,238,231,0.10)]">
                       <p className="text-xs font-medium text-blue-800">{selectedLocker.locationName}</p>
                       <p className="text-[11px] text-blue-600 mt-0.5">{selectedLocker.fullAddress}</p>
                     </div>

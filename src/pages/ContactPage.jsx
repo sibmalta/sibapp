@@ -51,7 +51,7 @@ export default function ContactPage() {
         </button>
 
         <div className="flex flex-col items-center text-center py-12">
-          <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mb-4">
+          <div className="w-14 h-14 rounded-full bg-green-100 dark:bg-[#26322f] flex items-center justify-center mb-4">
             <CheckCircle size={28} className="text-green-600" />
           </div>
           <h1 className="text-xl font-bold text-sib-text mb-2">Message Sent</h1>
@@ -96,7 +96,7 @@ export default function ContactPage() {
       </p>
 
       {/* Quick links */}
-      <div className="p-4 rounded-2xl bg-sib-warm border border-sib-stone mb-6">
+      <div className="p-4 rounded-2xl bg-sib-warm dark:bg-[#202b28] border border-sib-stone dark:border-[rgba(242,238,231,0.10)] mb-6 transition-colors">
         <div className="flex items-center gap-2 mb-2">
           <HelpCircle size={15} className="text-sib-primary" />
           <p className="text-xs font-semibold text-sib-muted uppercase tracking-wide">Before you write</p>
@@ -121,7 +121,7 @@ export default function ContactPage() {
             value={form.name}
             onChange={(e) => handleChange('name', e.target.value)}
             placeholder="Your name"
-            className="w-full px-4 py-3 text-sm text-sib-text bg-white border border-sib-stone rounded-xl focus:outline-none focus:ring-2 focus:ring-sib-primary/30 focus:border-sib-primary placeholder:text-sib-stone transition-colors"
+            className="w-full px-4 py-3 text-sm text-sib-text dark:text-[#f4efe7] bg-white dark:bg-[#26322f] border border-sib-stone dark:border-[rgba(242,238,231,0.10)] rounded-xl focus:outline-none focus:ring-2 focus:ring-sib-primary/30 focus:border-sib-primary placeholder:text-sib-stone dark:placeholder:text-[#aeb8b4] transition-colors"
           />
         </div>
 
@@ -135,7 +135,7 @@ export default function ContactPage() {
             value={form.email}
             onChange={(e) => handleChange('email', e.target.value)}
             placeholder="your@email.com"
-            className="w-full px-4 py-3 text-sm text-sib-text bg-white border border-sib-stone rounded-xl focus:outline-none focus:ring-2 focus:ring-sib-primary/30 focus:border-sib-primary placeholder:text-sib-stone transition-colors"
+            className="w-full px-4 py-3 text-sm text-sib-text dark:text-[#f4efe7] bg-white dark:bg-[#26322f] border border-sib-stone dark:border-[rgba(242,238,231,0.10)] rounded-xl focus:outline-none focus:ring-2 focus:ring-sib-primary/30 focus:border-sib-primary placeholder:text-sib-stone dark:placeholder:text-[#aeb8b4] transition-colors"
           />
         </div>
 
@@ -147,7 +147,7 @@ export default function ContactPage() {
           <select
             value={form.topic}
             onChange={(e) => handleChange('topic', e.target.value)}
-            className="w-full px-4 py-3 text-sm text-sib-text bg-white border border-sib-stone rounded-xl focus:outline-none focus:ring-2 focus:ring-sib-primary/30 focus:border-sib-primary appearance-none transition-colors"
+            className="w-full px-4 py-3 text-sm text-sib-text dark:text-[#f4efe7] bg-white dark:bg-[#26322f] border border-sib-stone dark:border-[rgba(242,238,231,0.10)] rounded-xl focus:outline-none focus:ring-2 focus:ring-sib-primary/30 focus:border-sib-primary appearance-none transition-colors"
             style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23697073\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpath d=\'m6 9 6 6 6-6\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 14px center' }}
           >
             <option value="" disabled>Select a topic</option>
@@ -167,7 +167,7 @@ export default function ContactPage() {
             onChange={(e) => handleChange('message', e.target.value)}
             placeholder="Describe your issue or question..."
             rows={5}
-            className="w-full px-4 py-3 text-sm text-sib-text bg-white border border-sib-stone rounded-xl focus:outline-none focus:ring-2 focus:ring-sib-primary/30 focus:border-sib-primary placeholder:text-sib-stone resize-none transition-colors"
+            className="w-full px-4 py-3 text-sm text-sib-text dark:text-[#f4efe7] bg-white dark:bg-[#26322f] border border-sib-stone dark:border-[rgba(242,238,231,0.10)] rounded-xl focus:outline-none focus:ring-2 focus:ring-sib-primary/30 focus:border-sib-primary placeholder:text-sib-stone dark:placeholder:text-[#aeb8b4] resize-none transition-colors"
           />
         </div>
 
@@ -200,7 +200,7 @@ export default function ContactPage() {
       </div>
 
       {/* Email fallback */}
-      <div className="mt-6 p-4 rounded-2xl border border-sib-stone">
+      <div className="mt-6 p-4 rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-white dark:bg-[#202b28] transition-colors">
         <p className="text-xs font-semibold text-sib-muted uppercase tracking-wide mb-1.5">Email us directly</p>
         <a href="mailto:info@sibmalta.com" className="text-sm font-semibold text-sib-primary">
           info@sibmalta.com
