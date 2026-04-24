@@ -182,7 +182,7 @@ export default function HomePage() {
 
           {/* Headline */}
           <h1 className="text-[38px] font-extrabold leading-[1.04] tracking-tight text-sib-text dark:text-[#f4efe7] mb-5 max-w-[340px] sm:text-[46px] sm:max-w-[420px] md:text-[56px] md:max-w-[520px] lg:text-[72px] lg:max-w-[700px] xl:text-[82px] xl:max-w-[800px] lg:mb-7">
-            Discover pre&#8209;loved things you'll love
+            Discover pre&#8209;loved finds you’ll love
           </h1>
 
           {/* Subtext */}
