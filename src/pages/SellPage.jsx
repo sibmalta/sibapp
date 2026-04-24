@@ -409,8 +409,11 @@ export default function SellPage() {
   const [step, setStep] = useState(restoredDraft?.step === 1 ? 1 : 0)
   const [uploading, setUploading] = useState(false)
   const [errors, setErrors] = useState({})
-
   const [form, setForm] = useState(restoredDraft?.form || INITIAL_FORM)
+
+useEffect(() => {
+  window.scrollTo(0, 0)
+}, [step])
 
   useEffect(() => {
     if (!currentUser) navigate('/auth')
