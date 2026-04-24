@@ -193,7 +193,7 @@ function renderSuggestionList(suggestions, activeIndex, setActiveIndex, onSelect
               <LogIn size={14} className="text-sib-primary" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[13px] text-sib-text font-medium leading-snug">{item.label}</p>
+              <p className="text-[13px] text-sib-text dark:text-[#f4efe7] font-medium leading-snug">{item.label}</p>
               <p className="text-[11px] text-sib-primary font-semibold mt-0.5">Sign up free</p>
             </div>
             <ArrowUpRight size={12} className="text-sib-primary/50 flex-shrink-0" />

@@ -82,11 +82,11 @@ export default function ChatListPage() {
     return (
       <div className="flex flex-col h-[calc(100dvh-7.5rem)] lg:h-[calc(100dvh-4rem)]">
         <div className="flex-1 flex flex-col items-center justify-center px-8">
-          <div className="w-16 h-16 rounded-full bg-sib-sand flex items-center justify-center mb-4">
+          <div className="w-16 h-16 rounded-full bg-sib-sand dark:bg-[#26322f] flex items-center justify-center mb-4">
             <MessageCircle size={28} className="text-sib-muted" />
           </div>
-          <p className="text-[17px] font-bold text-sib-text">No messages yet</p>
-          <p className="text-[13px] text-sib-muted text-center mt-1.5 max-w-[260px] leading-snug">
+          <p className="text-[17px] font-bold text-sib-text dark:text-[#f4efe7]">No messages yet</p>
+          <p className="text-[13px] text-sib-muted dark:text-[#aeb8b4] text-center mt-1.5 max-w-[260px] leading-snug">
             When you message a seller or receive a message, it will appear here.
           </p>
           <button
@@ -135,19 +135,19 @@ export default function ChatListPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 min-w-0">
-                    <p className={`text-[14px] truncate ${isUnread ? 'font-bold text-sib-text' : 'font-semibold text-sib-text'}`}>
+                    <p className={`text-[14px] truncate ${isUnread ? 'font-bold text-sib-text dark:text-[#f4efe7]' : 'font-semibold text-sib-text dark:text-[#f4efe7]'}`}>
                       {other?.username || 'User'}
                     </p>
                     <OfficialBadge user={other} size="sm" />
                   </div>
                   {lastMsg && (
-                    <span className={`text-[11px] flex-shrink-0 ${isUnread ? 'text-sib-primary font-semibold' : 'text-sib-muted'}`}>
+                    <span className={`text-[11px] flex-shrink-0 ${isUnread ? 'text-sib-primary dark:text-[#e8751a] font-semibold' : 'text-sib-muted dark:text-[#aeb8b4]'}`}>
                       {formatTimestamp(lastMsg.timestamp)}
                     </span>
                   )}
                 </div>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <p className={`text-[13px] line-clamp-1 flex-1 ${isUnread ? 'text-sib-text font-medium' : 'text-gray-500'}`}>
+                  <p className={`text-[13px] line-clamp-1 flex-1 ${isUnread ? 'text-sib-text dark:text-[#f4efe7] font-medium' : 'text-gray-500 dark:text-[#aeb8b4]'}`}>
                     {lastMsg ? (
                       lastMsg.flagged ? (
                         <span className="inline-flex items-center gap-1 text-amber-600">
@@ -157,13 +157,13 @@ export default function ChatListPage() {
                       ) : (
                         <>
                           {lastMsg.senderId === currentUser.id && (
-                            <span className="text-gray-400">You: </span>
+                            <span className="text-gray-400 dark:text-[#aeb8b4]">You: </span>
                           )}
                           {lastMsg.text}
                         </>
                       )
                     ) : (
-                      <span className="text-gray-400 italic">Re: {listing?.title || 'item'}</span>
+                      <span className="text-gray-400 dark:text-[#aeb8b4] italic">Re: {listing?.title || 'item'}</span>
                     )}
                   </p>
                   {isUnread && (
@@ -172,7 +172,7 @@ export default function ChatListPage() {
                 </div>
                 {/* Listing context line */}
                 {listing && (
-                  <p className="text-[11px] text-gray-400 mt-0.5 truncate">
+                  <p className="text-[11px] text-gray-400 dark:text-[#aeb8b4] mt-0.5 truncate">
                     {listing.title} · €{listing.price}
                   </p>
                 )}

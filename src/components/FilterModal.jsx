@@ -70,7 +70,7 @@ export default function FilterModal({
           <div className="pt-2 pb-0 lg:pt-0">
             <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-[#42514d] mx-auto mb-2 lg:hidden" />
             <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 dark:border-[rgba(242,238,231,0.10)]">
-              <h2 className="text-[15px] font-bold text-sib-text">Filters & Sort</h2>
+              <h2 className="text-[15px] font-bold text-sib-text dark:text-[#f4efe7]">Filters & Sort</h2>
               <div className="flex items-center gap-3">
                 {activeFilterCount > 0 && (
                   <button

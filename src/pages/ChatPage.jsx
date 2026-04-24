@@ -51,13 +51,13 @@ function SendBlockedModal({ reasons, violationCount, onDismiss }) {
             </div>
           </div>
         </div>
-        <div className="px-5 py-4 border-b border-sib-stone">
+        <div className="px-5 py-4 border-b border-sib-stone dark:border-[rgba(242,238,231,0.10)]">
           <p className="text-xs font-semibold text-sib-muted uppercase tracking-wide mb-2">Detected</p>
           <ul className="space-y-1.5">
             {reasons.map((r, i) => (
               <li key={i} className="flex items-start gap-2">
                 <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5 bg-red-400" />
-                <span className="text-xs text-sib-text">{r}</span>
+                <span className="text-xs text-sib-text dark:text-[#f4efe7]">{r}</span>
               </li>
             ))}
           </ul>
@@ -117,7 +117,7 @@ export default function ChatPage() {
   if (!currentUser) { navigate('/auth'); return null }
 
   const conv = getConversation(id)
-  if (!conv) return <div className="text-center py-20 text-sib-muted">Conversation not found.</div>
+  if (!conv) return <div className="text-center py-20 text-sib-muted dark:text-[#aeb8b4]">Conversation not found.</div>
 
   const otherId = conv.participants.find(p => p !== currentUser.id)
   const other = getUserById(otherId)
@@ -215,12 +215,12 @@ export default function ChatPage() {
         {listing && (
           <div
             onClick={() => navigate(`/listing/${listing.id}`)}
-            className="flex items-center gap-3 px-4 py-3 border-b border-sib-stone bg-sib-warm cursor-pointer"
+            className="flex items-center gap-3 px-4 py-3 border-b border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-sib-warm dark:bg-[#202b28] cursor-pointer transition-colors"
           >
-            <img src={listing.images[0]} alt="" className="w-10 h-10 rounded-xl object-cover bg-sib-sand" />
+            <img src={listing.images[0]} alt="" className="w-10 h-10 rounded-xl object-cover bg-sib-sand dark:bg-[#26322f]" />
             <div className="flex-1 min-w-0">
-              <p className="text-xs text-sib-muted">Enquiring about</p>
-              <p className="text-sm font-semibold text-sib-text line-clamp-1">{listing.title}</p>
+              <p className="text-xs text-sib-muted dark:text-[#aeb8b4]">Enquiring about</p>
+              <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7] line-clamp-1">{listing.title}</p>
             </div>
             <span className="text-sm font-bold text-sib-primary">€{listing.price}</span>
           </div>
@@ -242,10 +242,10 @@ export default function ChatPage() {
             <div className="text-center py-8">
               <UserAvatar user={other} size="lg" className="mx-auto mb-3" />
               <div className="flex items-center justify-center gap-1.5">
-                <p className="text-sm font-semibold text-sib-text">@{other?.username}</p>
+                <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7]">@{other?.username}</p>
                 <OfficialBadge user={other} size="sm" />
               </div>
-              <p className="text-xs text-sib-muted mt-1">Say hi to start the conversation!</p>
+              <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mt-1">Say hi to start the conversation!</p>
             </div>
           )}
           {conv.messages.map(msg => {
@@ -257,10 +257,10 @@ export default function ChatPage() {
               <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} gap-2`}>
                 {!isMe && <UserAvatar user={other} size="xs" className="flex-shrink-0 self-end" />}
                 <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm ${
-                  isMe ? 'bg-sib-primary text-white rounded-br-sm' : 'bg-sib-sand text-sib-text rounded-bl-sm'
+                  isMe ? 'bg-sib-primary text-white rounded-br-sm' : 'bg-sib-sand dark:bg-[#26322f] text-sib-text dark:text-[#f4efe7] rounded-bl-sm'
                 }`}>
                   <p>{msg.text}</p>
-                  <p className={`text-[10px] mt-1 ${isMe ? 'text-white/70' : 'text-sib-muted'}`}>
+                  <p className={`text-[10px] mt-1 ${isMe ? 'text-white/70' : 'text-sib-muted dark:text-[#aeb8b4]'}`}>
                     {new Date(msg.timestamp).toLocaleTimeString('en-MT', { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
@@ -290,12 +290,12 @@ export default function ChatPage() {
             placeholder={isRestricted ? 'Messaging restricted...' : 'Type a message...'}
             rows={1}
             disabled={isRestricted}
-            className={`flex-1 rounded-2xl px-4 py-2.5 text-sm text-sib-text placeholder-sib-muted outline-none resize-none max-h-24 transition-colors ${
+            className={`flex-1 rounded-2xl px-4 py-2.5 text-sm text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] outline-none resize-none max-h-24 transition-colors ${
               isRestricted
                 ? 'bg-red-50 border border-red-200 opacity-60 cursor-not-allowed'
                 : analysis?.flagged
                   ? 'bg-red-50 border border-red-200'
-                  : 'bg-sib-sand border border-transparent'
+                  : 'bg-sib-sand dark:bg-[#26322f] border border-transparent'
             }`}
           />
           <button

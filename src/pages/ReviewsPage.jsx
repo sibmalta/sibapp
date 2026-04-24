@@ -16,7 +16,7 @@ export default function ReviewsPage() {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-3">
         <p className="text-4xl">👤</p>
-        <p className="font-semibold text-sib-text">User not found</p>
+        <p className="font-semibold text-sib-text dark:text-[#f4efe7]">User not found</p>
         <button onClick={() => navigate(-1)} className="text-sib-primary text-sm font-medium">Go back</button>
       </div>
     )
@@ -39,19 +39,19 @@ export default function ReviewsPage() {
   return (
     <div className="pb-10">
       {/* Header */}
-      <div className="px-4 py-3 flex items-center gap-3 border-b border-sib-stone">
-        <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full bg-sib-sand flex items-center justify-center">
-          <ArrowLeft size={18} className="text-sib-text" />
+      <div className="px-4 py-3 flex items-center gap-3 border-b border-sib-stone dark:border-[rgba(242,238,231,0.10)]">
+        <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full bg-sib-sand dark:bg-[#26322f] flex items-center justify-center transition-colors">
+          <ArrowLeft size={18} className="text-sib-text dark:text-[#f4efe7]" />
         </button>
-        <h1 className="text-base font-bold text-sib-text">Reviews</h1>
+        <h1 className="text-base font-bold text-sib-text dark:text-[#f4efe7]">Reviews</h1>
       </div>
 
       <div className="px-4 py-5 space-y-5 lg:max-w-2xl lg:mx-auto">
         {/* Seller summary */}
-        <div className="flex items-center gap-3 p-4 rounded-2xl bg-sib-sand">
+        <div className="flex items-center gap-3 p-4 rounded-2xl bg-sib-sand dark:bg-[#26322f] transition-colors">
           <UserAvatar user={user} size="md" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-sib-text">@{user.username}</p>
+            <p className="text-sm font-bold text-sib-text dark:text-[#f4efe7]">@{user.username}</p>
             <div className="mt-1">
               <UserRating rating={avgRating} reviewCount={userReviews.length} size="md" />
             </div>
@@ -63,15 +63,15 @@ export default function ReviewsPage() {
           <div className="space-y-1.5">
             {distribution.map(({ star, count }) => (
               <div key={star} className="flex items-center gap-2">
-                <span className="text-xs text-sib-muted w-3 text-right">{star}</span>
+                <span className="text-xs text-sib-muted dark:text-[#aeb8b4] w-3 text-right">{star}</span>
                 <Star size={11} className="text-sib-primary fill-sib-primary flex-shrink-0" />
-                <div className="flex-1 h-2 bg-sib-sand rounded-full overflow-hidden">
+                <div className="flex-1 h-2 bg-sib-sand dark:bg-[#26322f] rounded-full overflow-hidden transition-colors">
                   <div
                     className="h-full bg-sib-primary rounded-full transition-all"
                     style={{ width: `${(count / maxCount) * 100}%` }}
                   />
                 </div>
-                <span className="text-xs text-sib-muted w-5 text-right">{count}</span>
+                <span className="text-xs text-sib-muted dark:text-[#aeb8b4] w-5 text-right">{count}</span>
               </div>
             ))}
           </div>
@@ -81,12 +81,12 @@ export default function ReviewsPage() {
         {userReviews.length === 0 ? (
           <div className="text-center py-12">
             <Star size={32} className="mx-auto text-sib-stone mb-2" />
-            <p className="font-semibold text-sib-text">No reviews yet</p>
-            <p className="text-sm text-sib-muted mt-1">This seller has no reviews.</p>
+            <p className="font-semibold text-sib-text dark:text-[#f4efe7]">No reviews yet</p>
+            <p className="text-sm text-sib-muted dark:text-[#aeb8b4] mt-1">This seller has no reviews.</p>
           </div>
         ) : (
           <div className="space-y-3">
-            <p className="text-xs font-semibold text-sib-text uppercase tracking-wide">
+            <p className="text-xs font-semibold text-sib-text dark:text-[#f4efe7] uppercase tracking-wide">
               All Reviews ({userReviews.length})
             </p>
             {userReviews.map(review => {
@@ -94,13 +94,13 @@ export default function ReviewsPage() {
               const order = orders.find(o => o.id === review.orderId)
               const isVerified = !!order
               return (
-                <div key={review.id} className="p-4 rounded-2xl border border-sib-stone">
+                <div key={review.id} className="p-4 rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-white dark:bg-[#202b28] transition-colors">
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <UserAvatar user={reviewer} size="xs" />
                       <div>
-                        <p className="text-xs font-semibold text-sib-text">@{reviewer?.username || 'user'}</p>
-                        <p className="text-[10px] text-sib-muted">
+                        <p className="text-xs font-semibold text-sib-text dark:text-[#f4efe7]">@{reviewer?.username || 'user'}</p>
+                        <p className="text-[10px] text-sib-muted dark:text-[#aeb8b4]">
                           {new Date(review.createdAt).toLocaleDateString('en-MT', {
                             day: 'numeric', month: 'short', year: 'numeric'
                           })}
@@ -117,7 +117,7 @@ export default function ReviewsPage() {
                       ))}
                     </div>
                   </div>
-                  <p className="text-sm text-sib-text leading-relaxed">{review.comment}</p>
+                  <p className="text-sm text-sib-text dark:text-[#f4efe7] leading-relaxed">{review.comment}</p>
                   {isVerified && (
                     <div className="flex items-center gap-1.5 mt-2">
                       <ShieldCheck size={12} className="text-green-600" />

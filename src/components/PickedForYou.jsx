@@ -109,7 +109,7 @@ export default function PickedForYou() {
           {personalised
             ? <Sparkles size={15} className="text-sib-primary" />
             : <Flame size={15} className="text-sib-secondary" />}
-          <h2 className="text-base font-bold text-sib-text lg:text-lg">
+          <h2 className="text-base font-bold text-sib-text dark:text-[#f4efe7] lg:text-lg">
             {personalised ? 'Picked for You' : 'Trending Now'}
           </h2>
         </div>
@@ -120,7 +120,7 @@ export default function PickedForYou() {
           See all <ArrowRight size={13} />
         </button>
       </div>
-      <p className="px-4 text-[11px] text-sib-muted mb-3 lg:px-0 lg:text-xs lg:mb-4">
+      <p className="px-4 text-[11px] text-sib-muted dark:text-[#aeb8b4] mb-3 lg:px-0 lg:text-xs lg:mb-4">
         {personalised
           ? 'Based on your recent browsing'
           : 'Popular items across Malta right now'}

@@ -43,7 +43,7 @@ export default function Footer() {
             alt="Sib"
             className="h-14 md:h-20 w-auto"
           />
-          <p className="text-[13px] text-sib-muted mt-3 leading-relaxed max-w-xs">
+          <p className="text-[13px] text-sib-muted dark:text-[#aeb8b4] mt-3 leading-relaxed max-w-xs">
             Malta's marketplace for second-hand fashion, electronics, and more.
           </p>
         </div>
@@ -52,7 +52,7 @@ export default function Footer() {
         <div className="grid grid-cols-2 gap-y-6 gap-x-4 sm:grid-cols-3 lg:flex lg:gap-16 mb-8">
           {FOOTER_SECTIONS.map(section => (
             <div key={section.title}>
-              <h3 className="text-xs font-bold text-sib-text uppercase tracking-wider mb-3">
+              <h3 className="text-xs font-bold text-sib-text dark:text-[#f4efe7] uppercase tracking-wider mb-3">
                 {section.title}
               </h3>
               <ul className="space-y-2">
@@ -60,7 +60,7 @@ export default function Footer() {
                   <li key={link.to}>
                     <Link
                       to={link.to}
-                      className="text-sm text-sib-muted hover:text-sib-text transition-colors"
+                      className="text-sm text-sib-muted dark:text-[#aeb8b4] hover:text-sib-text dark:hover:text-[#f4efe7] transition-colors"
                     >
                       {link.label}
                     </Link>
@@ -75,7 +75,7 @@ export default function Footer() {
         <div className="h-px bg-sib-stone/60 mb-4" />
 
         {/* Copyright */}
-        <p className="text-[11px] text-sib-muted text-center">
+        <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] text-center">
           &copy; {year} Sib Malta. All rights reserved.
         </p>
       </div>

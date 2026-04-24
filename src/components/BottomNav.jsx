@@ -99,7 +99,7 @@ export default function BottomNav() {
           <div className="w-[56px] h-[56px] rounded-full bg-gradient-to-br from-sib-primaryDark to-sib-primaryLight flex items-center justify-center shadow-lg shadow-sib-primary/25 ring-[3.5px] ring-white dark:ring-[#131918] transition-all duration-200 active:scale-90 group-hover:scale-105 group-hover:shadow-xl group-hover:shadow-sib-primary/30">
             <Plus size={26} className="text-white" strokeWidth={2.5} />
           </div>
-          <span className="text-[10px] font-semibold text-sib-text mt-1 leading-none">Sell</span>
+          <span className="text-[10px] font-semibold text-sib-text dark:text-[#f4efe7] mt-1 leading-none">Sell</span>
         </NavLink>
       </div>
     </nav>

@@ -39,6 +39,34 @@ html.dark textarea::placeholder {
   color: #aeb8b4;
 }
 
+html.dark .text-sib-text {
+  color: #f4efe7;
+}
+
+html.dark .text-sib-muted {
+  color: #aeb8b4;
+}
+
+html.dark .text-gray-900,
+html.dark .text-gray-800,
+html.dark .text-gray-700,
+html.dark .text-gray-600 {
+  color: #d6d0c8;
+}
+
+html.dark .text-gray-500,
+html.dark .text-gray-400 {
+  color: #aeb8b4;
+}
+
+html.dark .hover\:text-sib-text:hover {
+  color: #f4efe7;
+}
+
+html.dark .group:hover .group-hover\:text-sib-text {
+  color: #f4efe7;
+}
+
 h1, h2, h3, h4, h5, h6 {
   font-family: 'Quicksand', system-ui, sans-serif;
   font-weight: 700;

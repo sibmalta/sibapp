@@ -21,19 +21,19 @@ export default function SettingsPage() {
 
   return (
     <div className="px-4 py-5 pb-10 max-w-lg mx-auto">
-      <button onClick={() => navigate(-1)} className="inline-flex items-center gap-1.5 text-sib-muted text-sm font-medium mb-4">
+      <button onClick={() => navigate(-1)} className="inline-flex items-center gap-1.5 text-sib-muted dark:text-[#aeb8b4] text-sm font-medium mb-4">
         <ArrowLeft size={16} /> Back
       </button>
 
-      <h1 className="text-xl font-bold text-sib-text mb-6">Settings</h1>
+      <h1 className="text-xl font-bold text-sib-text dark:text-[#f4efe7] mb-6">Settings</h1>
 
       <div className="mb-6">
         <p className="text-[11px] font-semibold text-sib-muted uppercase tracking-wide mb-2">Appearance</p>
         <div className="rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] overflow-hidden bg-white dark:bg-[#202b28] transition-colors">
           <div className="px-4 py-3.5 flex items-center justify-between gap-4">
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-sib-text">Theme</p>
-              <p className="text-xs text-sib-muted mt-0.5">Choose how Sib looks on this device.</p>
+              <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7]">Theme</p>
+              <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mt-0.5">Choose how Sib looks on this device.</p>
             </div>
             <div className="flex items-center gap-2 rounded-xl bg-sib-sand dark:bg-[#26322f] p-1 transition-colors">
               <button
@@ -42,7 +42,7 @@ export default function SettingsPage() {
                 className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
                   theme === 'light'
                     ? 'bg-[#f8f7f3] text-sib-text shadow-sm'
-                    : 'text-sib-muted hover:text-sib-text'
+                    : 'text-sib-muted dark:text-[#aeb8b4] hover:text-sib-text dark:hover:text-[#f4efe7]'
                 }`}
               >
                 <Sun size={14} />
@@ -54,7 +54,7 @@ export default function SettingsPage() {
                 className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
                   theme === 'dark'
                     ? 'bg-[#30403c] text-[#f4efe7] shadow-sm'
-                    : 'text-sib-muted hover:text-sib-text'
+                    : 'text-sib-muted dark:text-[#aeb8b4] hover:text-sib-text dark:hover:text-[#f4efe7]'
                 }`}
               >
                 <Moon size={14} />
@@ -74,7 +74,7 @@ export default function SettingsPage() {
             className="flex items-center gap-3 px-4 py-3.5 active:bg-sib-sand dark:active:bg-[#26322f] transition-colors"
           >
             <User size={16} className="text-sib-muted flex-shrink-0" />
-            <span className="text-sm text-sib-text flex-1">Edit Profile</span>
+            <span className="text-sm text-sib-text dark:text-[#f4efe7] flex-1">Edit Profile</span>
             <ChevronRight size={14} className="text-sib-stone" />
           </Link>
           <Link
@@ -82,7 +82,7 @@ export default function SettingsPage() {
             className="flex items-center gap-3 px-4 py-3.5 active:bg-sib-sand transition-colors"
           >
             <MapPin size={16} className="text-sib-muted flex-shrink-0" />
-            <span className="text-sm text-sib-text flex-1">Delivery Address</span>
+            <span className="text-sm text-sib-text dark:text-[#f4efe7] flex-1">Delivery Address</span>
             <ChevronRight size={14} className="text-sib-stone" />
           </Link>
         </div>
@@ -126,7 +126,7 @@ export default function SettingsPage() {
               className="flex items-center gap-3 px-4 py-3.5 active:bg-sib-sand dark:active:bg-[#26322f] transition-colors"
             >
               <item.icon size={16} className="text-sib-muted flex-shrink-0" />
-              <span className="text-sm text-sib-text flex-1">{item.label}</span>
+              <span className="text-sm text-sib-text dark:text-[#f4efe7] flex-1">{item.label}</span>
               <ChevronRight size={14} className="text-sib-stone" />
             </Link>
           ))}
@@ -147,7 +147,7 @@ export default function SettingsPage() {
               className="flex items-center gap-3 px-4 py-3.5 active:bg-sib-sand dark:active:bg-[#26322f] transition-colors"
             >
               <item.icon size={16} className="text-sib-muted flex-shrink-0" />
-              <span className="text-sm text-sib-text flex-1">{item.label}</span>
+              <span className="text-sm text-sib-text dark:text-[#f4efe7] flex-1">{item.label}</span>
               <ChevronRight size={14} className="text-sib-stone" />
             </Link>
           ))}
