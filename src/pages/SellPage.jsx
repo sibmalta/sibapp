@@ -381,7 +381,10 @@ export default function SellPage() {
   const prefilledListingRef = useRef(false)
   const isEditMode = Boolean(listingId)
   const draftStorageKey = useMemo(() => getSellDraftStorageKey(listingId), [listingId])
-  const restoredDraft = useMemo(() => loadSellDraft(draftStorageKey), [draftStorageKey])
+ const restoredDraft = useMemo(() => {
+  if (listingId) return null
+  return loadSellDraft(draftStorageKey)
+}, [draftStorageKey, listingId])
   const ownedListing = useMemo(() => {
     if (!currentUser || !listingId) return null
     return getUserListings(currentUser.id).find((listing) => listing.id === listingId) || null
@@ -407,13 +410,15 @@ export default function SellPage() {
 
   const hasDraft = useMemo(() => isSellDraftDirty(form), [form])
 
-  useEffect(() => {
-    if (restoredDraftRef.current) return
-    restoredDraftRef.current = true
-    if (restoredDraft?.form && isSellDraftDirty(restoredDraft.form)) {
-      showToast('Draft restored.')
-    }
-  }, [restoredDraft, showToast])
+useEffect(() => {
+  if (isEditMode) return
+  if (restoredDraftRef.current) return
+  restoredDraftRef.current = true
+
+  if (restoredDraft?.form && isSellDraftDirty(restoredDraft.form)) {
+    showToast('Draft restored.')
+  }
+}, [isEditMode, restoredDraft, showToast])
 
  useEffect(() => {
   if (!isEditMode || !ownedListing || prefilledListingRef.current) return

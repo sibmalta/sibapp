@@ -12,13 +12,6 @@
  */
 export function rowToListing(row) {
   if (!row) return null
-  const resolvedSubcategory =
-    row.subcategory ||
-    row.type ||
-    row.category_type ||
-    row.attributes?.subcategory ||
-    row.attributes?.type ||
-    ''
   return {
     id: row.id,
     sellerId: row.seller_id,
@@ -26,7 +19,9 @@ export function rowToListing(row) {
     description: row.description || '',
     price: Number(row.price || 0),
     category: row.category || '',
-    subcategory: resolvedSubcategory,
+    subcategory: row.subcategory || '',
+    type: row.type || undefined,
+    categoryType: row.category_type || undefined,
     attributes: row.attributes || {},
     gender: row.gender || '',
     size: row.size || '',
@@ -64,18 +59,12 @@ export function rowToListing(row) {
  */
 export function listingToRow(listing) {
   const row = {}
-  const resolvedSubcategory =
-    listing.subcategory ||
-    listing.type ||
-    listing.categoryType ||
-    listing.attributes?.subcategory ||
-    listing.attributes?.type
   if (listing.sellerId !== undefined) row.seller_id = listing.sellerId
   if (listing.title !== undefined) row.title = listing.title
   if (listing.description !== undefined) row.description = listing.description
   if (listing.price !== undefined) row.price = listing.price
   if (listing.category !== undefined) row.category = listing.category
-  if (resolvedSubcategory !== undefined) row.subcategory = resolvedSubcategory
+  row.subcategory = listing.subcategory || null
   if (listing.attributes !== undefined && Object.keys(listing.attributes).length > 0) row.attributes = listing.attributes
   if (listing.gender !== undefined) row.gender = listing.gender
   if (listing.size !== undefined) row.size = listing.size
