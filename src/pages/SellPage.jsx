@@ -432,7 +432,7 @@ export default function SellPage() {
       navigate(`/listing/${listing.id}`)
     } catch (err) {
       console.error('[SellPage] createListing error:', err)
-      showToast(`Error creating listing: ${err.message || 'Unknown error'}`, 'error')
+      showToast(err?.message || 'Could not publish your listing. Please try again.', 'error')
     } finally { setUploading(false) }
   }
 

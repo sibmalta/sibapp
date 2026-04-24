@@ -8,6 +8,8 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSupabase } from '../lib/useSupabase'
+import { useAuth } from '../lib/auth-context'
+import { createAuthenticatedClient } from '../lib/supabase'
 import {
   fetchActiveListings,
   fetchUserListings as dbFetchUserListings,
@@ -28,6 +30,18 @@ import { classifyListing, backfillStyleTags } from '../lib/styleClassifier'
 import { classifyCollection, backfillCollectionTags } from '../lib/collectionClassifier'
 
 const SUPABASE_ENABLED = true // flip to false to force localStorage-only mode
+const SESSION_EXPIRED_MESSAGE = 'Your session expired. Please log in again to publish your listing.'
+
+function isSessionExpiredError(error) {
+  const message = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase()
+  return (
+    message.includes('jwt expired') ||
+    message.includes('invalid jwt') ||
+    message.includes('expired') && message.includes('jwt') ||
+    message.includes('session') && message.includes('expired') ||
+    error?.code === 'PGRST301'
+  )
+}
 
 /**
  * Persist backfilled style_tags to DB for listings that were missing them.
@@ -72,6 +86,7 @@ async function persistBackfilledTags(supabase, originalData, taggedData) {
  */
 export function useListings(localListings, localLikes, currentUser) {
   const { supabase, isAuthenticated } = useSupabase()
+  const { refreshSession } = useAuth()
 
   // When Supabase is enabled, start empty to prevent flash of stale seed data
   const [listings, setListings] = useState(SUPABASE_ENABLED ? [] : localListings)
@@ -149,11 +164,25 @@ export function useListings(localListings, localLikes, currentUser) {
     payload.collection_tags = classifyCollection(payload)
 
     if (dbAvailable && isAuthenticated) {
-      const { data, error } = await dbCreateListing(supabase, currentUser.id, payload)
+      let client = supabase
+      let { data, error } = await dbCreateListing(client, currentUser.id, payload)
+      if (error && isSessionExpiredError(error)) {
+        console.warn('[useListings] createListing session expired, attempting refresh')
+        try {
+          const refreshedSession = await refreshSession()
+          client = createAuthenticatedClient(refreshedSession.access_token)
+          ;({ data, error } = await dbCreateListing(client, currentUser.id, payload))
+        } catch (refreshError) {
+          console.warn('[useListings] createListing session refresh failed:', refreshError?.message)
+          throw new Error(SESSION_EXPIRED_MESSAGE)
+        }
+      }
       if (error) {
         console.error('[useListings] createListing DB error:', error.message, error.details, error.hint)
-        // Surface the error instead of silently falling back
-        throw new Error(`DB insert failed: ${error.message}${error.hint ? ` (hint: ${error.hint})` : ''}`)
+        if (isSessionExpiredError(error)) {
+          throw new Error(SESSION_EXPIRED_MESSAGE)
+        }
+        throw new Error('Could not publish your listing. Please try again.')
       }
       if (data) {
         // Backfill style_tags and collection_tags if DB didn't persist them (columns might not exist yet)
@@ -176,7 +205,7 @@ export function useListings(localListings, localLikes, currentUser) {
 
     // Local fallback — only when DB is genuinely unreachable or user isn't authenticated
     throw new Error('Listings database is unavailable. Listing was not saved.')
-  }, [supabase, currentUser, dbAvailable, isAuthenticated])
+  }, [supabase, currentUser, dbAvailable, isAuthenticated, refreshSession])
 
   // ── Delete listing ─────────────────────────────────────────────────────────
   const deleteListing = useCallback(async (listingId) => {
@@ -261,10 +290,29 @@ export function useListings(localListings, localLikes, currentUser) {
     // Optimistic update
     setListings(prev => prev.map(l => l.id === listingId ? { ...l, ...updates } : l))
     if (dbAvailable) {
-      const { error } = await dbAdminUpdateListingMeta(supabase, listingId, updates)
-      if (error) console.warn('[useListings] adminUpdateListingMeta DB error:', error.message)
+      let client = supabase
+      let { error } = await dbAdminUpdateListingMeta(client, listingId, updates)
+      if (error && isSessionExpiredError(error)) {
+        console.warn('[useListings] adminUpdateListingMeta session expired, attempting refresh')
+        try {
+          const refreshedSession = await refreshSession()
+          client = createAuthenticatedClient(refreshedSession.access_token)
+          ;({ error } = await dbAdminUpdateListingMeta(client, listingId, updates))
+        } catch (refreshError) {
+          console.warn('[useListings] adminUpdateListingMeta session refresh failed:', refreshError?.message)
+          return { error: SESSION_EXPIRED_MESSAGE }
+        }
+      }
+      if (error) {
+        if (isSessionExpiredError(error)) {
+          console.warn('[useListings] adminUpdateListingMeta blocked by expired session')
+          return { error: SESSION_EXPIRED_MESSAGE }
+        }
+        console.warn('[useListings] adminUpdateListingMeta DB error:', error.message)
+      }
     }
-  }, [supabase, dbAvailable])
+    return { error: null }
+  }, [supabase, dbAvailable, refreshSession])
 
   // ── Update collection tags (admin) ──────────────────────────────────────────
   const updateCollectionTags = useCallback(async (listingId, collectionTags, manualCollectionTags) => {
@@ -274,9 +322,9 @@ export function useListings(localListings, localLikes, currentUser) {
     if (dbAvailable) {
       const updates = { collection_tags: collectionTags }
       if (manualCollectionTags !== undefined) updates.manual_collection_tags = manualCollectionTags
-      await dbAdminUpdateListingMeta(supabase, listingId, { collectionTags, manualCollectionTags })
+      await adminUpdateListingMeta(listingId, { collectionTags, manualCollectionTags })
     }
-  }, [supabase, dbAvailable])
+  }, [adminUpdateListingMeta, dbAvailable])
 
   // ── Lookup helpers (sync, no DB call — work on in-memory state) ───────────
   const getListingById = useCallback((id) => listings.find(l => l.id === id), [listings])

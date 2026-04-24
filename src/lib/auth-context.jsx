@@ -133,6 +133,31 @@ export function AuthProvider({ children }) {
     }
   }, [scheduleRefresh]);
 
+  const refreshSession = useCallback(async () => {
+    const stored = getStoredSession();
+    const refreshToken = session?.refresh_token || stored?.refresh_token;
+    if (!refreshToken) {
+      throw new Error('No refresh token available');
+    }
+
+    const result = await refreshSessionFn(refreshToken);
+    if (!result) {
+      storeSession(null);
+      setSession(null);
+      setUser(null);
+      setRecoveryMode(false);
+      throw new Error('Session refresh failed');
+    }
+
+    const refreshedSession = {
+      access_token: result.access_token,
+      refresh_token: result.refresh_token,
+      user: result.user,
+    };
+    applySession(refreshedSession, { isRecovery: false });
+    return refreshedSession;
+  }, [applySession, refreshSessionFn, session?.refresh_token]);
+
   // ── Init: check hash callback or restore session ──
   useEffect(() => {
     let cancelled = false;
@@ -478,6 +503,7 @@ export function AuthProvider({ children }) {
       resendVerification,
       checkEmailVerification,
       updateUserMetadata,
+      refreshSession,
     }}>
       {children}
     </AuthContext.Provider>

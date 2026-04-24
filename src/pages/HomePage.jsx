@@ -235,17 +235,17 @@ export default function HomePage() {
 
         <div className="relative px-5 pt-14 pb-12 lg:max-w-5xl lg:mx-auto lg:px-12 lg:pt-20 lg:pb-16">
           {/* Eyebrow */}
-          <p className="text-[10px] uppercase tracking-[0.3em] text-sib-muted font-semibold mb-4 lg:text-[12px] lg:mb-5">
+          <p className="text-[10px] uppercase tracking-[0.3em] text-sib-muted dark:text-[#aeb8b4] font-semibold mb-4 lg:text-[12px] lg:mb-5">
             Sib — Malta's marketplace
           </p>
 
           {/* Headline */}
-          <h1 className="text-[38px] font-extrabold leading-[1.04] tracking-tight text-sib-text mb-5 max-w-[340px] sm:text-[46px] sm:max-w-[420px] md:text-[56px] md:max-w-[520px] lg:text-[72px] lg:max-w-[700px] xl:text-[82px] xl:max-w-[800px] lg:mb-7">
+          <h1 className="text-[38px] font-extrabold leading-[1.04] tracking-tight text-sib-text dark:text-[#f4efe7] mb-5 max-w-[340px] sm:text-[46px] sm:max-w-[420px] md:text-[56px] md:max-w-[520px] lg:text-[72px] lg:max-w-[700px] xl:text-[82px] xl:max-w-[800px] lg:mb-7">
             Discover pre&#8209;loved things you'll love
           </h1>
 
           {/* Subtext */}
-          <p className="text-[14px] text-sib-muted leading-[1.6] font-medium mb-8 max-w-[380px] sm:text-[15px] lg:text-[18px] lg:max-w-[500px] lg:mb-10">
+          <p className="text-[14px] text-sib-muted dark:text-[#aeb8b4] leading-[1.6] font-medium mb-8 max-w-[380px] sm:text-[15px] lg:text-[18px] lg:max-w-[500px] lg:mb-10">
             Buy and sell second-hand with secure payments, tracked delivery, and buyer protection across Malta.
           </p>
 
@@ -271,8 +271,8 @@ export default function HomePage() {
       <section className="pt-4 pb-2 lg:pt-6 lg:max-w-6xl lg:mx-auto lg:px-8">
         <div className="px-4 mb-2.5 lg:mb-3.5 lg:px-0 flex items-end justify-between">
           <div>
-            <h2 className="text-[17px] font-extrabold text-sib-text tracking-tight lg:text-xl">Browse by Category</h2>
-            <p className="hidden text-[11px] text-sib-muted mt-0.5 font-medium lg:block lg:text-xs">Find exactly what you're looking for</p>
+            <h2 className="text-[17px] font-extrabold text-sib-text dark:text-[#f4efe7] tracking-tight lg:text-xl">Browse by Category</h2>
+            <p className="hidden text-[11px] text-sib-muted dark:text-[#aeb8b4] mt-0.5 font-medium lg:block lg:text-xs">Find exactly what you're looking for</p>
           </div>
           <button onClick={() => navigate('/browse')} className="text-xs font-semibold text-sib-primary flex items-center gap-0.5 lg:text-sm">
             View all <ArrowRight size={12} />
@@ -293,10 +293,10 @@ export default function HomePage() {
       <section className="hidden mt-5 mb-2 px-4 lg:block lg:max-w-6xl lg:mx-auto lg:px-8">
         <div className="rounded-2xl bg-[#F3F1EC] dark:bg-[#202b28] border border-transparent dark:border-[rgba(242,238,231,0.10)] px-5 py-7 sm:py-9 md:py-10 lg:px-10 lg:py-12 flex flex-col md:flex-row md:items-center md:justify-between gap-5 md:gap-8 transition-colors">
           <div className="min-w-0">
-            <h2 className="text-[24px] sm:text-[28px] lg:text-[32px] font-extrabold text-sib-text leading-tight tracking-tight">
+            <h2 className="text-[24px] sm:text-[28px] lg:text-[32px] font-extrabold text-sib-text dark:text-[#f4efe7] leading-tight tracking-tight">
               Sell for free
             </h2>
-            <p className="text-[14px] sm:text-[15px] lg:text-base text-sib-muted mt-1.5 leading-relaxed max-w-md">
+            <p className="text-[14px] sm:text-[15px] lg:text-base text-sib-muted dark:text-[#aeb8b4] mt-1.5 leading-relaxed max-w-md">
               No fees. No hassle. List in under a minute — we handle delivery.
             </p>
           </div>
@@ -318,13 +318,13 @@ export default function HomePage() {
           <div className="flex items-center justify-between px-4 mb-1 lg:px-0">
             <div className="flex items-center gap-1.5">
               <Flame size={15} className="text-sib-secondary" />
-              <h2 className="text-[17px] font-extrabold text-sib-text tracking-tight lg:text-xl">Trending Now</h2>
+              <h2 className="text-[17px] font-extrabold text-sib-text dark:text-[#f4efe7] tracking-tight lg:text-xl">Trending Now</h2>
             </div>
             <button onClick={() => navigate('/browse')} className="flex items-center gap-0.5 text-xs text-sib-primary font-semibold lg:text-sm">
               See all <ArrowRight size={13} />
             </button>
           </div>
-          <p className="px-4 text-[11px] text-sib-muted mb-3 font-medium lg:px-0 lg:text-xs">Most viewed &amp; saved across Malta right now</p>
+          <p className="px-4 text-[11px] text-sib-muted dark:text-[#aeb8b4] mb-3 font-medium lg:px-0 lg:text-xs">Most viewed &amp; saved across Malta right now</p>
           <div className="flex gap-3 overflow-x-auto px-4 pb-1 scrollbar-none lg:hidden">
             {trendingNow.slice(0, 6).map(listing => (
               <div key={listing.id} className="flex-shrink-0 w-36">
@@ -348,7 +348,7 @@ export default function HomePage() {
               {forYouPersonalised
                 ? <Sparkles size={15} className="text-sib-primary" />
                 : <Tag size={15} className="text-sib-secondary" />}
-              <h2 className="text-[15px] font-extrabold text-sib-text lg:text-lg">
+              <h2 className="text-[15px] font-extrabold text-sib-text dark:text-[#f4efe7] lg:text-lg">
                 {forYouPersonalised ? 'For You' : 'Just Listed'}
               </h2>
             </div>
@@ -356,7 +356,7 @@ export default function HomePage() {
               See all <ArrowRight size={13} />
             </button>
           </div>
-          <p className="px-4 text-[11px] text-sib-muted mb-3 lg:px-0 lg:text-xs">
+          <p className="px-4 text-[11px] text-sib-muted dark:text-[#aeb8b4] mb-3 lg:px-0 lg:text-xs">
             {forYouPersonalised ? 'Personalised picks based on your activity' : 'Fresh arrivals across Malta'}
           </p>
           <div className="flex gap-3 overflow-x-auto px-4 pb-1 scrollbar-none lg:hidden">
@@ -380,13 +380,13 @@ export default function HomePage() {
           <div className="flex items-center justify-between px-4 mb-1 lg:px-0">
             <div className="flex items-center gap-1.5">
               <Eye size={15} className="text-sib-primary" />
-              <h2 className="text-[15px] font-extrabold text-sib-text lg:text-lg">Continue Browsing</h2>
+              <h2 className="text-[15px] font-extrabold text-sib-text dark:text-[#f4efe7] lg:text-lg">Continue Browsing</h2>
             </div>
             <button onClick={() => navigate('/browse')} className="flex items-center gap-0.5 text-xs text-sib-primary font-semibold lg:text-sm">
               See all <ArrowRight size={13} />
             </button>
           </div>
-          <p className="px-4 text-[11px] text-sib-muted mb-3 lg:px-0 lg:text-xs">Based on what you've been looking at</p>
+          <p className="px-4 text-[11px] text-sib-muted dark:text-[#aeb8b4] mb-3 lg:px-0 lg:text-xs">Based on what you've been looking at</p>
           <div className="flex gap-3 overflow-x-auto px-4 pb-1 scrollbar-none lg:hidden">
             {continueBrowsing.slice(0, 6).map(listing => (
               <div key={listing.id} className="flex-shrink-0 w-36">
@@ -411,13 +411,13 @@ export default function HomePage() {
           <div className="flex items-center justify-between px-4 mb-1 lg:px-0">
             <div className="flex items-center gap-1.5">
               <Zap size={14} className="text-sib-primary fill-sib-primary" />
-              <h2 className="text-[15px] font-extrabold text-sib-text lg:text-lg">Featured</h2>
+              <h2 className="text-[15px] font-extrabold text-sib-text dark:text-[#f4efe7] lg:text-lg">Featured</h2>
             </div>
             <button onClick={() => navigate('/browse')} className="flex items-center gap-0.5 text-xs text-sib-primary font-semibold lg:text-sm">
               See all <ArrowRight size={13} />
             </button>
           </div>
-          <p className="px-4 text-[11px] text-sib-muted mb-3 lg:px-0 lg:text-xs">Boosted for extra visibility</p>
+          <p className="px-4 text-[11px] text-sib-muted dark:text-[#aeb8b4] mb-3 lg:px-0 lg:text-xs">Boosted for extra visibility</p>
           <div className="flex gap-3 overflow-x-auto px-4 pb-1 scrollbar-none lg:hidden">
             {boostedListings.slice(0, 6).map(listing => (
               <div key={listing.id} className="flex-shrink-0 w-36">
