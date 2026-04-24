@@ -180,7 +180,7 @@ function buildEmail(payload: EmailPayload): { subject: string; html: string; pre
     <div style="text-align:center;padding:20px 0 8px;border-top:1px solid #F3F4F6;margin-top:28px;">
       <p style="font-size:11px;color:#9CA3AF;margin:0;">Sib — Malta's second-hand marketplace</p>
       <p style="font-size:11px;color:#9CA3AF;margin:4px 0 0;">This is a transactional email related to your Sib account activity.</p>
-      <p style="font-size:11px;color:#9CA3AF;margin:4px 0 0;">Questions? Contact support@sibmalta.com</p>
+      <p style="font-size:11px;color:#9CA3AF;margin:4px 0 0;">Questions? Contact info@sibmalta.com</p>
       <p style="font-size:11px;color:#9CA3AF;margin:4px 0 0;">(c) ${new Date().getFullYear()} Sib, Malta</p>
     </div>`
 
@@ -371,7 +371,11 @@ function buildEmail(payload: EmailPayload): { subject: string; html: string; pre
 
     // SELLER EMAILS
     case 'item_sold': {
-      const { sellerName, itemTitle, orderRef, salePrice, buyerName } = data
+  const { sellerName, itemTitle, orderRef, salePrice, buyerName } = data
+  const orderId = payload.meta?.orderId || payload.related_entity_id || payload.meta?.related_entity_id
+  const saleUrl = orderId ? `${appUrl}/orders/${orderId}` : `${appUrl}/orders`
+const orderId = payload.meta?.orderId || payload.related_entity_id || payload.meta?.related_entity_id
+const saleUrl = orderId ? `${appUrl}/orders/${orderId}` : `${appUrl}/orders`
       const ph = `Your item "${itemTitle}" has sold on Sib.`
       return {
         subject: `Item sold - "${itemTitle}"`,
@@ -389,7 +393,7 @@ function buildEmail(payload: EmailPayload): { subject: string; html: string; pre
           <p style="font-size:13px;color:#6B7280;text-align:center;">
             Please prepare it for shipment and check Sib for delivery instructions. Buyer contact details are kept private.
           </p>
-          ${btn('View Sale', `${appUrl}/seller`)}
+          ${btn('View Sale', saleUrl)}
         `),
       }
     }
@@ -489,7 +493,7 @@ function buildEmail(payload: EmailPayload): { subject: string; html: string; pre
             ${details ? `<p style="font-size:13px;color:#6B7280;margin:6px 0 0;">${details}</p>` : ''}
           `)}
           <p style="font-size:13px;color:#6B7280;text-align:center;">
-            If you believe this was a mistake, contact support@sibmalta.com.
+            If you believe this was a mistake, contact info@sibmalta.com.
           </p>
         `),
       }
@@ -622,7 +626,7 @@ function buildEmail(payload: EmailPayload): { subject: string; html: string; pre
           <p style="font-size:13px;color:#6B7280;text-align:center;">
             The buyer has been refunded. No further action is required from you.
           </p>
-          ${btn('View Sales', `${appUrl}/seller`)}
+          ${btn('View Sale', saleUrl)}
         `),
       }
     }
@@ -651,7 +655,7 @@ function buildEmail(payload: EmailPayload): { subject: string; html: string; pre
             </p>
           `)}
           <p style="font-size:13px;color:#6B7280;text-align:center;">
-            Questions? Contact support@sibmalta.com.
+            Questions? Contact info@sibmalta.com.
           </p>
           ${btn('View Order', `${appUrl}/orders`)}
         `),
@@ -830,12 +834,12 @@ Deno.serve(async (req) => {
     const resendBody = JSON.stringify({
       from: emailFrom,
       to: [payload.to],
-      reply_to: 'support@sibmalta.com',
+      reply_to: 'info@sibmalta.com',
       subject,
       html,
       text: textBody,
       headers: {
-        'List-Unsubscribe': '<mailto:support@sibmalta.com?subject=unsubscribe>',
+        'List-Unsubscribe': '<mailto:info@sibmalta.com?subject=unsubscribe>',
         'X-Entity-Ref-ID': `sib-${payload.type}-${Date.now()}`,
       },
       tags: [
@@ -876,7 +880,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('[send-email] ERROR:', error)
     if (payload?.to && payload?.type) {
-      await logEmail(payload, subject || `(${payload.type})`, 'failed', undefined, error.message || 'Unknown error')
+      await logEmail(payload, subject || `(${payload.type})`, 'failed', undefined,f error.message || 'Unknown error')
     }
     return new Response(
       JSON.stringify({ error: error.message || 'Unknown error' }),
