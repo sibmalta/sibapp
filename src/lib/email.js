@@ -1,211 +1,97 @@
-// Email sender via Edge Function.
-// Every email is also logged locally in localStorage for the admin email log.
-
-const EMAIL_LOG_KEY = 'sib_emailLogs'
-const MAX_LOG_ENTRIES = 500
-
-function getEmailLogs() {
-  try {
-    const raw = localStorage.getItem(EMAIL_LOG_KEY)
-    return raw ? JSON.parse(raw) : []
-  } catch {
-    return []
-  }
+export function sendOrderConfirmedEmail(buyerEmail, buyerName, orderRef, itemTitle, totalPrice, deliveryMethod, meta = {}) {
+  return sendEmail('order_confirmed', buyerEmail, { buyerName, orderRef, itemTitle, totalPrice, deliveryMethod }, meta)
 }
 
-function appendEmailLog(entry) {
-  try {
-    const logs = getEmailLogs()
-    logs.unshift(entry)
-    if (logs.length > MAX_LOG_ENTRIES) logs.length = MAX_LOG_ENTRIES
-    localStorage.setItem(EMAIL_LOG_KEY, JSON.stringify(logs))
-  } catch {}
+export function sendPaymentConfirmedEmail(buyerEmail, buyerName, orderRef, totalPrice, meta = {}) {
+  return sendEmail('payment_confirmed', buyerEmail, { buyerName, orderRef, totalPrice }, meta)
 }
 
-function normalizeEmailOptions(options = {}) {
-  const meta = options.meta || {}
-  return {
-    meta,
-    related_entity_type: options.related_entity_type || meta.related_entity_type || meta.relatedEntityType || null,
-    related_entity_id: options.related_entity_id || meta.related_entity_id || meta.relatedEntityId || null,
-  }
+export function sendItemShippedEmail(buyerEmail, buyerName, itemTitle, orderRef, sellerName, meta = {}) {
+  return sendEmail('item_shipped', buyerEmail, { buyerName, itemTitle, orderRef, sellerName }, meta)
 }
 
-function buildLocalLogEntry(type, to, status, payload, extra = {}) {
-  const now = new Date().toISOString()
-  return {
-    id: extra.id || `el_${Date.now()}`,
-    email_type: type,
-    recipient: to,
-    status,
-    resend_id: extra.resendId || null,
-    subject: extra.subject || `(${type})`,
-    error_message: extra.errorMessage || null,
-    related_entity_type: extra.related_entity_type || null,
-    related_entity_id: extra.related_entity_id || null,
-    payload,
-    sent_at: extra.sentAt || now,
-    created_at: extra.createdAt || now,
-    details: extra.details || null,
-  }
+export function sendItemDeliveredEmail(buyerEmail, buyerName, itemTitle, orderRef, meta = {}) {
+  return sendEmail('item_delivered', buyerEmail, { buyerName, itemTitle, orderRef }, meta)
 }
 
-export { getEmailLogs }
-
-// ✅ FIXED FUNCTION (this was broken)
-async function sendEmail(type, to, data, meta = {}) {
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-  const options = normalizeEmailOptions(meta)
-
-  const payload = {
-    data: data || {},
-    meta: options.meta,
-  }
-
-  console.log(`[email] sendEmail called - type=${type}, to=${to}`)
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    const msg = `Supabase not configured`
-    console.error(`[email] ${msg}`)
-    appendEmailLog(buildLocalLogEntry(type, to, 'failed', payload, {
-      errorMessage: msg,
-      related_entity_type: options.related_entity_type,
-      related_entity_id: options.related_entity_id,
-    }))
-    return { ok: false, error: msg }
-  }
-
-  const endpoint = `${supabaseUrl}/functions/v1/send-email`
-
-  try {
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: supabaseAnonKey,
-        Authorization: `Bearer ${supabaseAnonKey}`,
-      },
-      body: JSON.stringify({
-        type,
-        to,
-        data,
-        meta: options.meta,
-        related_entity_type: options.related_entity_type,
-        related_entity_id: options.related_entity_id,
-      }),
-    })
-
-    const json = await res.json()
-
-    if (res.ok) {
-      appendEmailLog(buildLocalLogEntry(type, to, 'success', payload))
-      return { ok: true, id: json.id }
-    }
-
-    appendEmailLog(buildLocalLogEntry(type, to, 'failed', payload, {
-      errorMessage: json.error || 'Email failed',
-    }))
-
-    return { ok: false, error: json.error }
-  } catch (err) {
-    appendEmailLog(buildLocalLogEntry(type, to, 'failed', payload, {
-      errorMessage: err.message,
-    }))
-    return { ok: false, error: err.message }
-  }
+export function sendRefundConfirmedEmail(buyerEmail, buyerName, orderRef, refundAmount, itemTitle, meta = {}) {
+  return sendEmail('refund_confirmed', buyerEmail, { buyerName, orderRef, refundAmount, itemTitle }, meta)
 }
 
-// ✅ ALL FUNCTIONS NOW CORRECT
-
-export function sendOrderConfirmedEmail(...args) {
-  return sendEmail('order_confirmed', ...args)
+export function sendDisputeOpenedEmail(recipientEmail, recipientName, orderRef, reason, role = 'buyer', meta = {}) {
+  return sendEmail('dispute_opened', recipientEmail, {
+    recipientName,
+    buyerName: recipientName,
+    orderRef,
+    reason,
+    role,
+  }, meta)
 }
 
-export function sendPaymentConfirmedEmail(...args) {
-  return sendEmail('payment_confirmed', ...args)
+export function sendItemSoldEmail(sellerEmail, sellerName, itemTitle, orderRef, salePrice, buyerName, meta = {}) {
+  return sendEmail('item_sold', sellerEmail, { sellerName, itemTitle, orderRef, salePrice, buyerName }, meta)
 }
 
-export function sendItemShippedEmail(...args) {
-  return sendEmail('item_shipped', ...args)
+export function sendShippingReminderEmail(sellerEmail, sellerName, itemTitle, orderRef, daysSinceOrder, meta = {}) {
+  return sendEmail('shipping_reminder', sellerEmail, { sellerName, itemTitle, orderRef, daysSinceOrder }, meta)
 }
 
-export function sendItemDeliveredEmail(...args) {
-  return sendEmail('item_delivered', ...args)
+export function sendPayoutReleasedEmail(sellerEmail, sellerName, orderRef, payoutAmount, itemTitle, meta = {}) {
+  return sendEmail('payout_released', sellerEmail, { sellerName, orderRef, payoutAmount, itemTitle }, meta)
 }
 
-export function sendRefundConfirmedEmail(...args) {
-  return sendEmail('refund_confirmed', ...args)
+export function sendOfferReceivedEmail(sellerEmail, itemTitle, offerPrice, buyerName, meta = {}) {
+  return sendEmail('offer_received', sellerEmail, { itemTitle, offerPrice, buyerName }, meta)
 }
 
-export function sendDisputeOpenedEmail(...args) {
-  return sendEmail('dispute_opened', ...args)
+export function sendOfferAcceptedEmail(buyerEmail, itemTitle, acceptedPrice, sellerName, meta = {}) {
+  return sendEmail('offer_accepted', buyerEmail, { itemTitle, acceptedPrice, sellerName }, meta)
 }
 
-export function sendItemSoldEmail(...args) {
-  return sendEmail('item_sold', ...args)
+export function sendOfferDeclinedEmail(buyerEmail, itemTitle, declinedPrice, sellerName, meta = {}) {
+  return sendEmail('offer_declined', buyerEmail, { itemTitle, declinedPrice, sellerName }, meta)
 }
 
-export function sendShippingReminderEmail(...args) {
-  return sendEmail('shipping_reminder', ...args)
+export function sendOfferCounteredEmail(buyerEmail, itemTitle, originalPrice, counterPrice, sellerName, meta = {}) {
+  return sendEmail('offer_countered', buyerEmail, { itemTitle, originalPrice, counterPrice, sellerName }, meta)
 }
 
-export function sendPayoutReleasedEmail(...args) {
-  return sendEmail('payout_released', ...args)
+export function sendOrderCancelledEmail(buyerEmail, buyerName, orderRef, itemTitle, refundAmount, meta = {}) {
+  return sendEmail('order_cancelled', buyerEmail, { buyerName, orderRef, itemTitle, refundAmount }, meta)
 }
 
-export function sendOfferReceivedEmail(...args) {
-  return sendEmail('offer_received', ...args)
+export function sendOrderCancelledSellerEmail(sellerEmail, sellerName, orderRef, itemTitle, meta = {}) {
+  return sendEmail('order_cancelled_seller', sellerEmail, { sellerName, orderRef, itemTitle }, meta)
 }
 
-export function sendOfferAcceptedEmail(...args) {
-  return sendEmail('offer_accepted', ...args)
+export function sendDisputeResolvedEmail(userEmail, userName, orderRef, resolution, meta = {}) {
+  return sendEmail('dispute_resolved', userEmail, { userName, orderRef, resolution }, meta)
 }
 
-export function sendOfferDeclinedEmail(...args) {
-  return sendEmail('offer_declined', ...args)
+export function sendDisputeMessageEmail(userEmail, userName, orderRef, messagePreview, meta = {}) {
+  return sendEmail('dispute_message', userEmail, { userName, orderRef, messagePreview }, meta)
 }
 
-export function sendOfferCounteredEmail(...args) {
-  return sendEmail('offer_countered', ...args)
+export function sendBundleOfferReceivedEmail(sellerEmail, itemCount, offerPrice, originalTotal, buyerName, meta = {}) {
+  return sendEmail('bundle_offer_received', sellerEmail, { itemCount, offerPrice, originalTotal, buyerName }, meta)
 }
 
-export function sendOrderCancelledEmail(...args) {
-  return sendEmail('order_cancelled', ...args)
+export function sendBundleOfferAcceptedEmail(buyerEmail, itemCount, acceptedPrice, sellerName, meta = {}) {
+  return sendEmail('bundle_offer_accepted', buyerEmail, { itemCount, acceptedPrice, sellerName }, meta)
 }
 
-export function sendOrderCancelledSellerEmail(...args) {
-  return sendEmail('order_cancelled_seller', ...args)
+export function sendBundleOfferDeclinedEmail(buyerEmail, itemCount, declinedPrice, sellerName, meta = {}) {
+  return sendEmail('bundle_offer_declined', buyerEmail, { itemCount, declinedPrice, sellerName }, meta)
 }
 
-export function sendDisputeResolvedEmail(...args) {
-  return sendEmail('dispute_resolved', ...args)
+export function sendBundleOfferCounteredEmail(buyerEmail, itemCount, originalPrice, counterPrice, sellerName, meta = {}) {
+  return sendEmail('bundle_offer_countered', buyerEmail, { itemCount, originalPrice, counterPrice, sellerName }, meta)
 }
 
-export function sendDisputeMessageEmail(...args) {
-  return sendEmail('dispute_message', ...args)
+export function sendSuspiciousActivityEmail(userEmail, userName, message, meta = {}) {
+  return sendEmail('suspicious_activity', userEmail, { userName, message }, meta)
 }
 
-export function sendBundleOfferReceivedEmail(...args) {
-  return sendEmail('bundle_offer_received', ...args)
-}
-
-export function sendBundleOfferAcceptedEmail(...args) {
-  return sendEmail('bundle_offer_accepted', ...args)
-}
-
-export function sendBundleOfferDeclinedEmail(...args) {
-  return sendEmail('bundle_offer_declined', ...args)
-}
-
-export function sendBundleOfferCounteredEmail(...args) {
-  return sendEmail('bundle_offer_countered', ...args)
-}
-
-export function sendSuspiciousActivityEmail(...args) {
-  return sendEmail('suspicious_activity', ...args)
-}
-
-export function sendModerationNoticeEmail(...args) {
-  return sendEmail('moderation_notice', ...args)
+export function sendModerationNoticeEmail(userEmail, userName, action, reason, details, meta = {}) {
+  return sendEmail('moderation_notice', userEmail, { userName, action, reason, details }, meta)
 }
