@@ -431,9 +431,9 @@ export default function BrowsePage() {
   }, [query, conditions, sizes, colors, brands, maxPrice, styleTag, genderFilter, sportDetail, activeSportDetailLabel, sportAttributes, category])
 
   return (
-    <div className="min-h-screen bg-[#F5F5F4] lg:max-w-7xl lg:mx-auto">
+    <div className="min-h-screen bg-[#F5F5F4] dark:bg-[#18211f] lg:max-w-7xl lg:mx-auto transition-colors">
       {/* ── Sticky search bar — white band, tight to header ── */}
-      <div className={`sticky top-0 bg-white border-b border-gray-200/60 lg:static lg:bg-transparent lg:border-none ${searchFocused ? 'z-[9999]' : 'z-30'}`}>
+      <div className={`sticky top-0 bg-white dark:bg-[#202b28] border-b border-gray-200/60 dark:border-[rgba(242,238,231,0.10)] lg:static lg:bg-transparent lg:dark:bg-transparent lg:border-none ${searchFocused ? 'z-[9999]' : 'z-30'} transition-colors`}>
         {/* Search input — hidden on mobile (TopBar overlay handles mobile search) */}
         <div className="hidden lg:block px-3 pt-2 pb-1.5 lg:px-8 lg:py-3">
           <div className="relative lg:max-w-md">
@@ -444,7 +444,7 @@ export default function BrowsePage() {
               onFocus={() => setSearchFocused(true)}
               onBlur={() => setTimeout(() => setSearchFocused(false), 350)}
               placeholder="Search brands, styles, items..."
-              className="w-full bg-[#EDEDEB] rounded-lg pl-9 pr-9 py-2 text-[14px] text-sib-text placeholder-gray-400 outline-none border border-transparent focus:border-gray-300 focus:bg-white focus:shadow-sm transition-all"
+              className="w-full bg-[#EDEDEB] dark:bg-[#26322f] rounded-lg pl-9 pr-9 py-2 text-[14px] text-sib-text dark:text-[#f4efe7] placeholder-gray-400 dark:placeholder:text-[#aeb8b4] outline-none border border-transparent dark:border-[rgba(242,238,231,0.08)] focus:border-gray-300 dark:focus:border-[rgba(242,238,231,0.18)] focus:bg-white dark:focus:bg-[#30403c] focus:shadow-sm transition-all"
             />
             {query && (
               <button
@@ -487,8 +487,8 @@ export default function BrowsePage() {
                 onClick={() => { setCategory(c.value); setSubcategory(''); setSportDetail(''); }}
                 className={`flex-shrink-0 px-4 py-2 rounded-full text-[13px] font-bold tracking-tight transition-all duration-150 whitespace-nowrap ${
                   category === c.value
-                    ? 'bg-sib-text text-white shadow-sm'
-                    : 'bg-[#EDEDEB] text-gray-600 hover:text-sib-text hover:bg-gray-200/80'
+                    ? 'bg-sib-text dark:bg-sib-primary text-white shadow-sm'
+                    : 'bg-[#EDEDEB] dark:bg-[#26322f] text-gray-600 dark:text-[#aeb8b4] hover:text-sib-text dark:hover:text-[#f4efe7] hover:bg-gray-200/80 dark:hover:bg-[#30403c]'
                 }`}
               >
                 {c.label}
@@ -510,7 +510,7 @@ export default function BrowsePage() {
             : visibleSubs
 
           return (
-            <div className="border-t border-gray-100 pt-2 pb-2.5">
+            <div className="border-t border-gray-100 dark:border-[rgba(242,238,231,0.10)] pt-2 pb-2.5">
               <div className="overflow-x-auto scrollbar-none">
                 <div className="flex gap-1.5 px-3 lg:px-8 lg:flex-wrap">
                   {displaySubs.map(sub => sub && (
@@ -520,7 +520,7 @@ export default function BrowsePage() {
                       className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all duration-150 whitespace-nowrap ${
                         subcategory === sub.id
                           ? 'bg-sib-primary/12 text-sib-primary border border-sib-primary/25'
-                          : 'bg-white text-gray-500 border border-gray-200 hover:border-gray-300 hover:text-gray-700'
+                          : 'bg-white dark:bg-[#26322f] text-gray-500 dark:text-[#aeb8b4] border border-gray-200 dark:border-[rgba(242,238,231,0.10)] hover:border-gray-300 dark:hover:border-[rgba(242,238,231,0.18)] hover:text-gray-700 dark:hover:text-[#f4efe7]'
                       }`}
                     >
                       {sub.label}
@@ -529,7 +529,7 @@ export default function BrowsePage() {
                   {hasOverflow && (
                     <button
                       onClick={() => setSubcategorySheetOpen(true)}
-                      className="flex-shrink-0 flex items-center gap-0.5 px-3 py-1.5 rounded-full text-[12px] font-semibold bg-white text-gray-500 border border-gray-200 hover:border-gray-300 hover:text-gray-700 transition-all duration-150 whitespace-nowrap lg:hidden"
+                      className="flex-shrink-0 flex items-center gap-0.5 px-3 py-1.5 rounded-full text-[12px] font-semibold bg-white dark:bg-[#26322f] text-gray-500 dark:text-[#aeb8b4] border border-gray-200 dark:border-[rgba(242,238,231,0.10)] hover:border-gray-300 dark:hover:border-[rgba(242,238,231,0.18)] hover:text-gray-700 dark:hover:text-[#f4efe7] transition-all duration-150 whitespace-nowrap lg:hidden"
                     >
                       + More
                     </button>
@@ -542,7 +542,7 @@ export default function BrowsePage() {
                       className={`hidden lg:inline-flex flex-shrink-0 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all duration-150 whitespace-nowrap ${
                         subcategory === sub.id
                           ? 'bg-sib-primary/12 text-sib-primary border border-sib-primary/25'
-                          : 'bg-white text-gray-500 border border-gray-200 hover:border-gray-300 hover:text-gray-700'
+                          : 'bg-white dark:bg-[#26322f] text-gray-500 dark:text-[#aeb8b4] border border-gray-200 dark:border-[rgba(242,238,231,0.10)] hover:border-gray-300 dark:hover:border-[rgba(242,238,231,0.18)] hover:text-gray-700 dark:hover:text-[#f4efe7]'
                       }`}
                     >
                       {sub.label}
@@ -557,17 +557,17 @@ export default function BrowsePage() {
 
       {/* ── Row 3: Third-level chips — horizontal scroll ── */}
       {hasThirdLevel && (
-        <div className="bg-[#F5F5F4] border-b border-gray-200/40">
+        <div className="bg-[#F5F5F4] dark:bg-[#18211f] border-b border-gray-200/40 dark:border-[rgba(242,238,231,0.10)] transition-colors">
           <div className="px-3 pt-2.5 pb-2.5 lg:px-8 lg:max-w-7xl lg:mx-auto">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Type</p>
+            <p className="text-[10px] font-semibold text-gray-400 dark:text-[#aeb8b4] uppercase tracking-wider mb-1.5">Type</p>
             <div className="overflow-x-auto scrollbar-none">
               <div className="flex gap-1.5 lg:flex-wrap">
                 <button
                   onClick={() => setSportDetail('')}
                   className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all duration-150 whitespace-nowrap ${
                     !sportDetail
-                      ? 'bg-white text-sib-text border border-gray-300 shadow-sm'
-                      : 'bg-transparent text-gray-400 border border-gray-200/60 hover:border-gray-300 hover:text-gray-500'
+                      ? 'bg-white dark:bg-[#26322f] text-sib-text dark:text-[#f4efe7] border border-gray-300 dark:border-[rgba(242,238,231,0.14)] shadow-sm'
+                      : 'bg-transparent text-gray-400 dark:text-[#aeb8b4] border border-gray-200/60 dark:border-[rgba(242,238,231,0.10)] hover:border-gray-300 dark:hover:border-[rgba(242,238,231,0.18)] hover:text-gray-500 dark:hover:text-[#f4efe7]'
                   }`}
                 >
                   All{isShoes ? ' shoes' : (activeSubLabel && !isSports ? ` ${activeSubLabel.toLowerCase()}` : '')}
@@ -580,8 +580,8 @@ export default function BrowsePage() {
                       onClick={() => setSportDetail(active ? '' : child.id)}
                       className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all duration-150 whitespace-nowrap ${
                         active
-                          ? 'bg-white text-sib-text border border-gray-300 shadow-sm'
-                          : 'bg-transparent text-gray-400 border border-gray-200/60 hover:border-gray-300 hover:text-gray-500'
+                          ? 'bg-white dark:bg-[#26322f] text-sib-text dark:text-[#f4efe7] border border-gray-300 dark:border-[rgba(242,238,231,0.14)] shadow-sm'
+                          : 'bg-transparent text-gray-400 dark:text-[#aeb8b4] border border-gray-200/60 dark:border-[rgba(242,238,231,0.10)] hover:border-gray-300 dark:hover:border-[rgba(242,238,231,0.18)] hover:text-gray-500 dark:hover:text-[#f4efe7]'
                       }`}
                     >
                       {child.label}
@@ -637,7 +637,7 @@ export default function BrowsePage() {
       <div className="lg:flex lg:gap-6 lg:px-8 lg:py-4">
         {/* Desktop sidebar */}
         <aside className="hidden lg:block lg:w-72 lg:flex-shrink-0">
-          <div className="sticky top-4 space-y-5 bg-white rounded-xl p-4 border border-gray-200/60 max-h-[calc(100vh-80px)] overflow-y-auto pb-4 scrollbar-none">
+          <div className="sticky top-4 space-y-5 bg-white dark:bg-[#202b28] rounded-xl p-4 border border-gray-200/60 dark:border-[rgba(242,238,231,0.10)] max-h-[calc(100vh-80px)] overflow-y-auto pb-4 scrollbar-none transition-colors">
             <div className="flex items-center justify-between">
               <p className="text-sm font-bold text-sib-text">Filters</p>
               {activeFilterCount > 0 && (
@@ -675,12 +675,12 @@ export default function BrowsePage() {
               allBrands={allBrands}
             />
 
-            <div className="pt-4 border-t border-gray-200">
+            <div className="pt-4 border-t border-gray-200 dark:border-[rgba(242,238,231,0.10)]">
               <p className="text-xs font-bold text-sib-text uppercase tracking-wide mb-2">Sort by</p>
               <select
                 value={sort}
                 onChange={e => setSort(e.target.value)}
-                className="w-full text-sm font-medium text-sib-text bg-white border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-sib-primary transition-colors"
+                className="w-full text-sm font-medium text-sib-text dark:text-[#f4efe7] bg-white dark:bg-[#26322f] border border-gray-200 dark:border-[rgba(242,238,231,0.10)] rounded-lg px-3 py-2 outline-none focus:border-sib-primary transition-colors"
               >
                 {SORT_OPTIONS.map(o => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -691,19 +691,19 @@ export default function BrowsePage() {
         </aside>
 
         {/* Results grid */}
-        <div className="flex-1 px-2.5 pt-1.5 pb-24 lg:px-0 lg:pt-0 lg:pb-6">
+        <div className="flex-1 px-2.5 pt-1.5 pb-24 lg:px-0 lg:pt-0 lg:pb-6 dark:bg-[#202b28] dark:border dark:border-[rgba(242,238,231,0.10)] dark:rounded-2xl dark:p-3 transition-colors">
           {/* Style header banner */}
           {activeStyleRule && (
             <div className="flex items-center gap-2 px-1 mb-2">
               <span className="text-xl">{activeStyleRule.emoji}</span>
               <h2 className="text-lg font-bold text-sib-text">{activeStyleRule.label}</h2>
-              <span className="text-xs text-sib-muted ml-1">{results.length} item{results.length !== 1 ? 's' : ''}</span>
+              <span className="text-xs text-sib-muted dark:text-[#aeb8b4] ml-1">{results.length} item{results.length !== 1 ? 's' : ''}</span>
             </div>
           )}
 
           {/* Desktop result count */}
           {!activeStyleRule && (
-            <p className="hidden lg:block text-sm text-sib-muted font-medium mb-3">{results.length} item{results.length !== 1 ? 's' : ''}</p>
+            <p className="hidden lg:block text-sm text-sib-muted dark:text-[#aeb8b4] font-medium mb-3">{results.length} item{results.length !== 1 ? 's' : ''}</p>
           )}
 
           {/* Vintage trust banner */}

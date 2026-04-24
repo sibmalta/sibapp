@@ -35,7 +35,7 @@ function ListingImage({ listing, className, src }) {
 
   if (!imageSrc) {
     return (
-      <div className={`${className} flex items-center justify-center bg-sib-sand dark:bg-[#1c2423] text-sib-muted`}>
+      <div className={`${className} flex items-center justify-center bg-sib-sand dark:bg-[#26322f] text-sib-muted dark:text-[#aeb8b4]`}>
         <ImageIcon size={22} strokeWidth={1.7} />
       </div>
     )
@@ -209,7 +209,7 @@ export default function ListingCard({ listing, size = 'normal' }) {
       >
         <SwipeableListingImage
           listing={listing}
-          className="relative rounded-xl overflow-hidden bg-sib-sand dark:bg-[#1c2423] aspect-square"
+          className="relative rounded-xl overflow-hidden bg-sib-sand dark:bg-[#26322f] aspect-square"
           imageClassName="w-full h-full object-cover"
           onSwipe={handleImageSwipe}
         >
@@ -239,7 +239,7 @@ export default function ListingCard({ listing, size = 'normal' }) {
       {/* Image container */}
       <SwipeableListingImage
         listing={listing}
-        className="relative rounded-xl overflow-hidden bg-sib-stone/30 dark:bg-[#212a29] aspect-[3/4]"
+        className="relative rounded-xl overflow-hidden bg-sib-stone/30 dark:bg-[#26322f] aspect-[3/4]"
         imageClassName="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.06]"
         onSwipe={handleImageSwipe}
       >
@@ -297,10 +297,10 @@ export default function ListingCard({ listing, size = 'normal' }) {
       {/* Info — category-aware subtitle */}
       <div className="mt-1.5 px-0.5 space-y-0">
         {subtitle && (
-          <p className="text-[11px] text-sib-muted font-medium truncate leading-tight">{subtitle}</p>
+          <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] font-medium truncate leading-tight">{subtitle}</p>
         )}
-        <p className="text-[13px] text-sib-text font-semibold line-clamp-1 leading-snug">{listing.title}</p>
-        <p className="text-sm font-bold text-sib-text mt-0.5">€{listing.price}</p>
+        <p className="text-[13px] text-sib-text dark:text-[#f4efe7] font-semibold line-clamp-1 leading-snug">{listing.title}</p>
+        <p className="text-sm font-bold text-sib-text dark:text-[#f4efe7] mt-0.5">€{listing.price}</p>
       </div>
     </div>
   )

@@ -72,11 +72,11 @@ export default function DesktopNav() {
 
   const linkClass = ({ isActive }) =>
     `flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
-      isActive ? 'text-sib-primary bg-sib-primary/5 dark:bg-sib-primary/15' : 'text-sib-muted hover:text-sib-text hover:bg-sib-sand dark:hover:bg-[#1d2625]'
+      isActive ? 'text-sib-primary bg-sib-primary/5 dark:bg-sib-primary/15' : 'text-sib-muted hover:text-sib-text hover:bg-sib-sand dark:text-[#aeb8b4] dark:hover:text-[#f4efe7] dark:hover:bg-[#26322f]'
     }`
 
   return (
-    <header className="hidden lg:block sticky top-0 z-50 bg-white border-b border-sib-stone/60 dark:bg-[#131918] dark:border-[#2d3635] transition-colors">
+    <header className="hidden lg:block sticky top-0 z-50 bg-white border-b border-sib-stone/60 dark:bg-[#202b28] dark:border-[rgba(242,238,231,0.10)] transition-colors">
       <div className="max-w-7xl mx-auto px-6 xl:px-10">
         <div className="flex items-center justify-between h-[72px]">
           {/* Logo — enlarged, tight padding */}
@@ -98,7 +98,7 @@ export default function DesktopNav() {
                 onFocus={() => setSearchFocused(true)}
                 onBlur={() => setTimeout(() => setSearchFocused(false), 250)}
                 placeholder="Search brands, styles, items..."
-                className="w-full bg-sib-sand rounded-xl pl-10 pr-9 py-2.5 text-sm text-sib-text placeholder-sib-muted outline-none focus:ring-2 focus:ring-sib-primary/20 transition-shadow dark:bg-[#1c2423] dark:text-[#f2eee7] dark:placeholder:text-[#94a19e]"
+                className="w-full bg-sib-sand rounded-xl pl-10 pr-9 py-2.5 text-sm text-sib-text placeholder-sib-muted outline-none focus:ring-2 focus:ring-sib-primary/20 transition-shadow dark:bg-[#26322f] dark:text-[#f4efe7] dark:placeholder:text-[#aeb8b4]"
               />
               {query && (
                 <button
@@ -141,7 +141,7 @@ export default function DesktopNav() {
               <>
                 <button
                   onClick={() => navigate('/messages')}
-                  className="relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-sib-muted hover:text-sib-text hover:bg-sib-sand dark:hover:bg-[#1d2625] transition-colors"
+                  className="relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-sib-muted hover:text-sib-text hover:bg-sib-sand dark:text-[#aeb8b4] dark:hover:text-[#f4efe7] dark:hover:bg-[#26322f] transition-colors"
                 >
                   <div className="relative">
                     <MessageCircle size={18} />
@@ -160,12 +160,12 @@ export default function DesktopNav() {
                 <DesktopNotifBell
                   onClick={handleBellTap}
                   size={18}
-                  className="flex items-center justify-center w-10 h-10 rounded-xl text-sib-muted hover:text-sib-text hover:bg-sib-sand dark:hover:bg-[#1d2625] transition-colors"
+                  className="flex items-center justify-center w-10 h-10 rounded-xl text-sib-muted hover:text-sib-text hover:bg-sib-sand dark:text-[#aeb8b4] dark:hover:text-[#f4efe7] dark:hover:bg-[#26322f] transition-colors"
                 />
 
                 <button
                   onClick={() => navigate('/profile')}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-sib-muted hover:text-sib-text hover:bg-sib-sand dark:hover:bg-[#1d2625] transition-colors"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-sib-muted hover:text-sib-text hover:bg-sib-sand dark:text-[#aeb8b4] dark:hover:text-[#f4efe7] dark:hover:bg-[#26322f] transition-colors"
                 >
                   <User size={18} />
                   <span className="hidden xl:inline">Profile</span>

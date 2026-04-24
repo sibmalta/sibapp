@@ -213,7 +213,7 @@ function CollapsibleSection({ title, defaultOpen = true, count = 0, children }) 
           className={`text-sib-muted transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
         />
       </button>
-      <div className={`overflow-hidden transition-all duration-200 ${open ? 'max-h-[800px] opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
+      <div className={`overflow-hidden transition-all duration-200 ${open ? 'max-h-[80vh] opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
         {children}
       </div>
     </section>
@@ -400,7 +400,7 @@ export default function FilterPanel({
         className={`${small ? 'min-w-[36px] px-2 py-1.5 text-[11px]' : 'min-w-[40px] px-2.5 py-1.5 text-xs'} rounded-lg font-medium text-center transition-all duration-150 ${
           active
             ? 'bg-sib-primary text-white shadow-sm shadow-sib-primary/30'
-            : 'bg-white text-sib-text border border-sib-stone hover:border-sib-primary/40 hover:bg-sib-warm'
+            : 'bg-white dark:bg-[#26322f] text-sib-text dark:text-[#f4efe7] border border-sib-stone dark:border-[rgba(242,238,231,0.10)] hover:border-sib-primary/40 hover:bg-sib-warm dark:hover:bg-[#30403c]'
         }`}
       >
         {size}
@@ -415,7 +415,7 @@ export default function FilterPanel({
       className={`px-3.5 py-2 rounded-full text-xs font-semibold transition-all duration-150 ${
         active
           ? 'bg-sib-primary text-white shadow-sm shadow-sib-primary/30'
-          : 'bg-white text-sib-text border border-sib-stone hover:border-sib-primary/40 hover:bg-sib-warm'
+          : 'bg-white dark:bg-[#26322f] text-sib-text dark:text-[#f4efe7] border border-sib-stone dark:border-[rgba(242,238,231,0.10)] hover:border-sib-primary/40 hover:bg-sib-warm dark:hover:bg-[#30403c]'
       }`}
     >
       {children}
@@ -447,7 +447,7 @@ export default function FilterPanel({
                   className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all duration-150 ${
                     active
                       ? 'bg-sib-secondary text-white shadow-sm shadow-sib-secondary/25'
-                      : 'bg-white text-sib-text border border-sib-stone hover:border-sib-secondary/40 hover:bg-sib-warm'
+                      : 'bg-white dark:bg-[#26322f] text-sib-text dark:text-[#f4efe7] border border-sib-stone dark:border-[rgba(242,238,231,0.10)] hover:border-sib-secondary/40 hover:bg-sib-warm dark:hover:bg-[#30403c]'
                   }`}
                 >
                   <qf.Icon size={12} className={active ? 'text-white' : 'text-sib-muted'} />
@@ -462,7 +462,7 @@ export default function FilterPanel({
       {/* ── Gender Switch (fashion categories only) ── */}
       {isFashion && setGenderFilter && (
         <section>
-          <div className="flex bg-sib-sand rounded-xl p-0.5">
+          <div className="flex bg-sib-sand dark:bg-[#26322f] rounded-xl p-0.5">
             {GENDER_TABS.map(g => {
               const active = genderFilter === g.value
               return (
@@ -471,8 +471,8 @@ export default function FilterPanel({
                   onClick={() => setGenderFilter(active ? '' : g.value)}
                   className={`flex-1 py-2.5 rounded-[10px] text-xs font-bold text-center transition-all duration-200 ${
                     active
-                      ? 'bg-white text-sib-text shadow-sm'
-                      : 'text-sib-muted hover:text-sib-text'
+                      ? 'bg-white dark:bg-[#30403c] text-sib-text dark:text-[#f4efe7] shadow-sm'
+                      : 'text-sib-muted dark:text-[#aeb8b4] hover:text-sib-text dark:hover:text-[#f4efe7]'
                   }`}
                 >
                   {g.label}
@@ -486,7 +486,7 @@ export default function FilterPanel({
       {/* ── Gender Switch (Kids & Baby — Boy / Girl / Unisex) ── */}
       {isKids && show('kids_gender') && setGenderFilter && (
         <section>
-          <div className="flex bg-sib-sand rounded-xl p-0.5">
+          <div className="flex bg-sib-sand dark:bg-[#26322f] rounded-xl p-0.5">
             {KIDS_GENDER_TABS.map(g => {
               const active = genderFilter === g.value
               return (
@@ -495,8 +495,8 @@ export default function FilterPanel({
                   onClick={() => setGenderFilter(active ? '' : g.value)}
                   className={`flex-1 py-2.5 rounded-[10px] text-xs font-bold text-center transition-all duration-200 ${
                     active
-                      ? 'bg-white text-sib-text shadow-sm'
-                      : 'text-sib-muted hover:text-sib-text'
+                      ? 'bg-white dark:bg-[#30403c] text-sib-text dark:text-[#f4efe7] shadow-sm'
+                      : 'text-sib-muted dark:text-[#aeb8b4] hover:text-sib-text dark:hover:text-[#f4efe7]'
                   }`}
                 >
                   {g.label}
@@ -633,7 +633,7 @@ export default function FilterPanel({
               value={brandSearch}
               onChange={e => setBrandSearch(e.target.value)}
               placeholder="Search brands..."
-              className="w-full pl-8 pr-8 py-2 text-xs bg-white border border-sib-stone rounded-xl outline-none focus:border-sib-primary placeholder-sib-muted transition-colors"
+              className="w-full pl-8 pr-8 py-2 text-xs bg-white dark:bg-[#26322f] border border-sib-stone dark:border-[rgba(242,238,231,0.10)] rounded-xl outline-none focus:border-sib-primary placeholder-sib-muted dark:placeholder:text-[#aeb8b4] transition-colors"
             />
             {brandSearch && (
               <button
@@ -675,7 +675,7 @@ export default function FilterPanel({
                 <button
                   key={b}
                   onClick={() => toggleBrand(b)}
-                  className="px-3 py-1.5 rounded-full text-[11px] font-medium bg-white text-sib-text border border-sib-stone hover:border-sib-primary/40 hover:bg-sib-warm transition-all duration-150"
+                  className="px-3 py-1.5 rounded-full text-[11px] font-medium bg-white dark:bg-[#26322f] text-sib-text dark:text-[#f4efe7] border border-sib-stone dark:border-[rgba(242,238,231,0.10)] hover:border-sib-primary/40 hover:bg-sib-warm dark:hover:bg-[#30403c] transition-all duration-150"
                 >
                   {b}
                 </button>
@@ -749,7 +749,7 @@ export default function FilterPanel({
                   <div
                     className={`w-7 h-7 rounded-full transition-all duration-150 ${
                       active
-                        ? 'ring-2 ring-sib-primary ring-offset-2 scale-110'
+                        ? 'ring-2 ring-sib-primary ring-offset-2 dark:ring-offset-[#202b28] scale-110'
                         : c.border
                           ? 'border border-gray-300 hover:scale-105'
                           : 'hover:scale-105'
@@ -783,7 +783,7 @@ export default function FilterPanel({
                     className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-left transition-all duration-150 ${
                       active
                         ? 'bg-sib-primary/10 border border-sib-primary/30'
-                        : 'bg-white border border-sib-stone hover:border-sib-primary/30 hover:bg-sib-warm'
+                        : 'bg-white dark:bg-[#26322f] border border-sib-stone dark:border-[rgba(242,238,231,0.10)] hover:border-sib-primary/30 hover:bg-sib-warm dark:hover:bg-[#30403c]'
                     }`}
                   >
                     <div className={`w-4.5 h-4.5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
@@ -824,7 +824,7 @@ export default function FilterPanel({
                 value={priceInput}
                 onChange={handlePriceInput}
                 onBlur={handlePriceBlur}
-                className="w-20 pl-6 pr-2 py-1.5 text-sm font-bold text-sib-text bg-white border border-sib-stone rounded-lg outline-none focus:border-sib-primary transition-colors"
+                className="w-20 pl-6 pr-2 py-1.5 text-sm font-bold text-sib-text dark:text-[#f4efe7] bg-white dark:bg-[#26322f] border border-sib-stone dark:border-[rgba(242,238,231,0.10)] rounded-lg outline-none focus:border-sib-primary transition-colors"
               />
             </div>
           </div>
@@ -873,7 +873,7 @@ export default function FilterPanel({
                   className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold transition-all duration-150 ${
                     active
                       ? 'bg-sib-primary text-white shadow-sm shadow-sib-primary/30'
-                      : 'bg-white text-sib-text border border-sib-stone hover:border-sib-primary/40 hover:bg-sib-warm'
+                      : 'bg-white dark:bg-[#26322f] text-sib-text dark:text-[#f4efe7] border border-sib-stone dark:border-[rgba(242,238,231,0.10)] hover:border-sib-primary/40 hover:bg-sib-warm dark:hover:bg-[#30403c]'
                   }`}
                 >
                   <d.Icon size={13} className={active ? 'text-white' : 'text-sib-muted'} />
@@ -898,7 +898,7 @@ export default function FilterPanel({
                   className={`px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all duration-150 ${
                     active
                       ? 'bg-sib-primary text-white shadow-sm shadow-sib-primary/30'
-                      : 'bg-white text-sib-text border border-sib-stone hover:border-sib-primary/40 hover:bg-sib-warm'
+                      : 'bg-white dark:bg-[#26322f] text-sib-text dark:text-[#f4efe7] border border-sib-stone dark:border-[rgba(242,238,231,0.10)] hover:border-sib-primary/40 hover:bg-sib-warm dark:hover:bg-[#30403c]'
                   }`}
                 >
                   {c.label}
@@ -922,7 +922,7 @@ export default function FilterPanel({
                   className={`px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-150 ${
                     active
                       ? 'bg-sib-primary text-white shadow-sm shadow-sib-primary/30'
-                      : 'bg-white text-sib-text border border-sib-stone hover:border-sib-primary/40 hover:bg-sib-warm'
+                      : 'bg-white dark:bg-[#26322f] text-sib-text dark:text-[#f4efe7] border border-sib-stone dark:border-[rgba(242,238,231,0.10)] hover:border-sib-primary/40 hover:bg-sib-warm dark:hover:bg-[#30403c]'
                   }`}
                 >
                   {b}
@@ -966,7 +966,7 @@ export default function FilterPanel({
                   className={`px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-150 ${
                     active
                       ? 'bg-sib-primary text-white shadow-sm shadow-sib-primary/30'
-                      : 'bg-white text-sib-text border border-sib-stone hover:border-sib-primary/40 hover:bg-sib-warm'
+                      : 'bg-white dark:bg-[#26322f] text-sib-text dark:text-[#f4efe7] border border-sib-stone dark:border-[rgba(242,238,231,0.10)] hover:border-sib-primary/40 hover:bg-sib-warm dark:hover:bg-[#30403c]'
                   }`}
                 >
                   {b}

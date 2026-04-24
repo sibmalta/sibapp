@@ -11,7 +11,7 @@ html {
 }
 
 html.dark {
-  background-color: #0f1514;
+  background-color: #18211f;
 }
 
 body {
@@ -24,54 +24,19 @@ body {
 }
 
 html.dark body {
-  background-color: #0f1514;
-  color: #F2EEE7;
-}
-
-html.dark .bg-white {
-  background-color: #151c1b !important;
-}
-
-html.dark .bg-white\/95 {
-  background-color: rgba(19, 25, 24, 0.95) !important;
-}
-
-html.dark .bg-sib-warm {
-  background-color: #0f1514 !important;
-}
-
-html.dark .bg-sib-sand {
-  background-color: #1c2423 !important;
-}
-
-html.dark .text-sib-text {
-  color: #f2eee7 !important;
-}
-
-html.dark .text-sib-muted {
-  color: #a0aaa8 !important;
-}
-
-html.dark .border-sib-stone,
-html.dark .border-sib-stone\/30,
-html.dark .border-sib-stone\/50,
-html.dark .border-sib-stone\/60 {
-  border-color: #2d3635 !important;
-}
-
-html.dark .divide-sib-stone > :not([hidden]) ~ :not([hidden]) {
-  border-color: #2d3635 !important;
+  background-color: #18211f;
+  color: #f4efe7;
 }
 
 html.dark input,
 html.dark textarea,
 html.dark select {
-  color: #f2eee7;
+  color: #f4efe7;
 }
 
 html.dark input::placeholder,
 html.dark textarea::placeholder {
-  color: #8d9896;
+  color: #aeb8b4;
 }
 
 h1, h2, h3, h4, h5, h6 {

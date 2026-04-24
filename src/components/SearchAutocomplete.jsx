@@ -113,7 +113,7 @@ const SearchAutocomplete = forwardRef(function SearchAutocomplete(
   return (
     <div
       onMouseDown={e => e.preventDefault()}
-      className={`absolute left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-sib-stone/40 overflow-hidden z-[9999] max-h-[60vh] overflow-y-auto ${className}`}
+      className={`absolute left-0 right-0 top-full mt-1 bg-white dark:bg-[#202b28] rounded-xl shadow-lg border border-sib-stone/40 dark:border-[rgba(242,238,231,0.10)] overflow-hidden z-[9999] max-h-[60vh] overflow-y-auto ${className}`}
       ref={listRef}
     >
       {renderSuggestionList(suggestions, activeIndex, setActiveIndex, onSelect, query)}
@@ -186,7 +186,7 @@ function renderSuggestionList(suggestions, activeIndex, setActiveIndex, onSelect
             onMouseEnter={() => setActiveIndex(i)}
             onClick={() => onSelect(item)}
             className={`w-full flex items-center gap-3 px-3 py-3.5 text-left transition-colors ${
-              isActive ? 'bg-sib-primary/5' : 'hover:bg-sib-sand/50'
+              isActive ? 'bg-sib-primary/5 dark:bg-sib-primary/12' : 'hover:bg-sib-sand/50 dark:hover:bg-[#26322f]'
             }`}
           >
             <div className="w-8 h-8 rounded-full bg-sib-primary/10 flex items-center justify-center flex-shrink-0">
@@ -205,7 +205,7 @@ function renderSuggestionList(suggestions, activeIndex, setActiveIndex, onSelect
     return (
       <React.Fragment key={`${item.type}-${item.label}-${i}`}>
         {sectionHeader && (
-          <p className="px-3 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-sib-muted/70">
+          <p className="px-3 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-sib-muted/70 dark:text-[#aeb8b4]">
             {sectionHeader}
           </p>
         )}
@@ -214,7 +214,7 @@ function renderSuggestionList(suggestions, activeIndex, setActiveIndex, onSelect
           onMouseEnter={() => setActiveIndex(i)}
           onClick={() => onSelect(item)}
           className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors ${
-            isActive ? 'bg-sib-sand' : 'hover:bg-sib-sand/50'
+            isActive ? 'bg-sib-sand dark:bg-[#26322f]' : 'hover:bg-sib-sand/50 dark:hover:bg-[#26322f]'
           }`}
         >
           {item.type === 'user' && item.avatar ? (
@@ -226,12 +226,12 @@ function renderSuggestionList(suggestions, activeIndex, setActiveIndex, onSelect
           ) : item.image ? (
             <img src={item.image} alt="" className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
           ) : (
-            <div className="w-8 h-8 rounded-lg bg-sib-sand flex items-center justify-center flex-shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-sib-sand dark:bg-[#26322f] flex items-center justify-center flex-shrink-0">
               <SuggestionIcon type={item.type} />
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <p className="text-sm text-sib-text truncate">
+            <p className="text-sm text-sib-text dark:text-[#f4efe7] truncate">
               {item.type === 'user' ? (
                 <>@{highlightMatch(item.label, query.replace(/^@/, ''))}</>
               ) : (
@@ -239,7 +239,7 @@ function renderSuggestionList(suggestions, activeIndex, setActiveIndex, onSelect
               )}
             </p>
             {subtext && (
-              <p className="text-[11px] text-sib-muted truncate">{subtext}</p>
+              <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] truncate">{subtext}</p>
             )}
           </div>
           {item.price != null && (
@@ -267,4 +267,3 @@ function highlightMatch(text, query) {
     </>
   )
 }
-
