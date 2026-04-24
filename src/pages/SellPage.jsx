@@ -686,6 +686,14 @@ export default function SellPage() {
         images: form.images,
         deliverySize: form.deliverySize || getDefaultDeliverySize(form.category, form.subcategory),
       }
+      console.log('[SellPage] submit listing payload', {
+        mode: isEditMode ? 'edit' : 'create',
+        category: form.category,
+        subcategory: form.subcategory,
+        gender: form.gender,
+        size: finalSize,
+        deliverySize: listingPayload.deliverySize,
+      })
       const listing = isEditMode
         ? await updateListing(listingId, listingPayload)
         : await createListing(listingPayload)

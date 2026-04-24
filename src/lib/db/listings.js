@@ -172,6 +172,13 @@ export async function createListing(supabase, sellerId, listing) {
   delete row.updated_at // let DB default handle created_at & updated_at on insert
   const insertRow = { ...row, seller_id: sellerId }
 
+  console.log('[listings] createListing insert payload', {
+    sellerId,
+    category: listing.category,
+    payloadSubcategory: listing.subcategory,
+    rowSubcategory: insertRow.subcategory,
+  })
+
   let { data, error } = await supabase
     .from('listings')
     .insert(insertRow)
@@ -187,7 +194,12 @@ export async function createListing(supabase, sellerId, listing) {
     (error.code === 'PGRST204')
   )
   if (isNewColumnError) {
-    console.warn('[listings] New columns not in DB yet — retrying without subcategory/attributes:', error.message)
+    console.warn('[listings] New columns not in DB yet — retrying without subcategory/attributes:', {
+      message: error.message,
+      code: error.code,
+      hint: error.hint,
+      rowSubcategory: insertRow.subcategory,
+    })
     const fallbackRow = stripNewColumns(insertRow)
     ;({ data, error } = await supabase
       .from('listings')
@@ -197,6 +209,12 @@ export async function createListing(supabase, sellerId, listing) {
   }
 
   const result = rowToListing(data)
+  console.log('[listings] createListing result', {
+    id: result?.id,
+    rowSubcategory: data?.subcategory,
+    resultSubcategory: result?.subcategory,
+    usedFallback: Boolean(isNewColumnError),
+  })
 
   // Merge structured fields back onto the result even if DB didn't persist them
   if (result) {
@@ -213,6 +231,13 @@ export async function createListing(supabase, sellerId, listing) {
 export async function updateListing(supabase, id, listing) {
   const row = listingToRow(listing)
 
+  console.log('[listings] updateListing payload', {
+    id,
+    category: listing.category,
+    payloadSubcategory: listing.subcategory,
+    rowSubcategory: row.subcategory,
+  })
+
   let { data, error } = await supabase
     .from('listings')
     .update(row)
@@ -226,7 +251,12 @@ export async function updateListing(supabase, id, listing) {
     error.code === 'PGRST204'
   )
   if (isNewColumnError) {
-    console.warn('[listings] updateListing — retrying without new columns:', error.message)
+    console.warn('[listings] updateListing — retrying without new columns:', {
+      message: error.message,
+      code: error.code,
+      hint: error.hint,
+      rowSubcategory: row.subcategory,
+    })
     const fallbackRow = stripNewColumns(row)
     ;({ data, error } = await supabase
       .from('listings')
@@ -237,6 +267,12 @@ export async function updateListing(supabase, id, listing) {
   }
 
   const result = rowToListing(data)
+  console.log('[listings] updateListing result', {
+    id: result?.id,
+    rowSubcategory: data?.subcategory,
+    resultSubcategory: result?.subcategory,
+    usedFallback: Boolean(isNewColumnError),
+  })
   if (result) {
     if (listing.subcategory && !result.subcategory) result.subcategory = listing.subcategory
     if (listing.attributes && Object.keys(listing.attributes).length > 0 && (!result.attributes || Object.keys(result.attributes).length === 0)) {
