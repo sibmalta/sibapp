@@ -129,9 +129,8 @@ export default function OrderDetailPage() {
           <img src={listing?.images?.[0]} alt={listing?.title} className="w-16 h-16 rounded-xl object-cover flex-shrink-0 bg-sib-stone" />
           <div className="min-w-0">
             <p className="text-sm font-semibold text-sib-text line-clamp-2">{listing?.title}</p>
-            <p className="text-xs text-sib-muted mt-0.5">{order.orderRef || `#${order.id?.slice(-8)}`}</p>
+            <p className="text-xs text-sib-muted mt-0.5">{order.orderRef ? `Order #${order.orderRef}` : `Order #${order.id?.slice(-8)}`}</p>
             <p className="text-base font-bold text-sib-primary mt-1">€{order.totalPrice?.toFixed(2)}</p>
-            <p className="text-[11px] text-sib-muted mt-1">Payment flow: {order.paymentFlowType || 'legacy / unknown'}</p>
           </div>
         </div>
 
