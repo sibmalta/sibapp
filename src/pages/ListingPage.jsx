@@ -74,21 +74,58 @@ export default function ListingPage() {
     })
   }, [refParam, listing?.id])
 
-  if (!listing) return (
-    <div className="flex flex-col items-center justify-center h-64 gap-3">
-      <p className="text-4xl">😕</p>
-      <p className="text-sib-text font-semibold">Listing not found</p>
-      <button onClick={() => navigate('/browse')} className="text-sib-primary text-sm font-medium">Browse all items</button>
-    </div>
-  )
+  const seller = listing ? getUserById(listing.sellerId) : null
+const liked = listing ? likedListings.includes(listing.id) : false
+const isOwner = listing ? currentUser?.id === listing.sellerId : false
 
-  const seller = getUserById(listing.sellerId)
-  const liked = likedListings.includes(listing.id)
-  const isOwner = currentUser?.id === listing.sellerId
-  const sellerOtherListings = getUserListings(listing.sellerId)
-    .filter(l => l.id !== listing.id && l.status === 'active')
-    .slice(0, 4)
-  const sellerOrders = useMemo(() => getUserSales(listing.sellerId), [listing.sellerId, getUserSales])
+const sellerOtherListings = listing
+  ? getUserListings(listing.sellerId)
+      .filter(l => l.id !== listing.id && l.status === 'active')
+      .slice(0, 4)
+  : []
+
+const sellerOrders = useMemo(() => {
+  if (!listing) return []
+  return getUserSales(listing.sellerId)
+}, [listing?.sellerId, getUserSales])
+
+// ── Similar Items — strict relevance only ──
+const similarItems = useMemo(() => {
+  if (!listing) return []
+
+  const currentCategory = listing.category || ''
+  const currentSubcategory = listing.subcategory || ''
+  const currentResolved = resolveCategory(currentCategory)
+
+  return listings
+    .filter(l => {
+      if (!l || l.id === listing.id) return false
+      if (l.status !== 'active') return false
+
+      const sameSubcategory =
+        currentSubcategory &&
+        (l.subcategory || '').toLowerCase() === currentSubcategory.toLowerCase()
+
+      const sameExactCategory =
+        currentCategory &&
+        (l.category || '').toLowerCase() === currentCategory.toLowerCase()
+
+      const sameResolvedCategory =
+        currentResolved &&
+        resolveCategory(l.category) === currentResolved
+
+      return Boolean(sameSubcategory || sameExactCategory || sameResolvedCategory)
+    })
+    .slice(0, 8)
+}, [listing, listings])
+
+if (!listing) return (
+  <div className="flex flex-col items-center justify-center h-64 gap-3">
+    <p className="text-4xl">😕</p>
+    <p className="text-sib-text font-semibold">Listing not found</p>
+    <button onClick={() => navigate('/browse')} className="text-sib-primary text-sm font-medium">Browse all items</button>
+  </div>
+)
 
 
 
@@ -483,7 +520,7 @@ export default function ListingPage() {
       )}
 
       {/* Similar Items */}
-      {similarItems.length > 2 && (
+      {similarItems.length >= 2 && (
         <div className="px-4 pb-8 lg:px-0 lg:pt-4">
           <div className="flex items-center gap-1.5 mb-3">
             <Sparkles size={15} className="text-sib-primary" />
