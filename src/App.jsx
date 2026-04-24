@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from
 import { AppProvider } from './context/AppContext'
 import { ThemeProvider } from './context/ThemeContext'
 import Layout from './components/Layout'
+import ScrollToTop from './components/ScrollToTop'
 import Toast from './components/Toast'
 import { useAuth } from './lib/auth-context'
 
@@ -123,6 +124,7 @@ export default function App() {
     <ThemeProvider>
       <AppProvider>
         <BrowserRouter basename={base}>
+          <ScrollToTop />
           <AppRoutes />
         </BrowserRouter>
       </AppProvider>
