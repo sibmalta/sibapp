@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Sparkles, ArrowRight, Flame } from 'lucide-react'
+import { Sparkles, ArrowRight } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { getHistory, hasActivity } from '../lib/browsingHistory'
 import ListingCard from './ListingCard'
@@ -15,37 +15,22 @@ import ListingCard from './ListingCard'
  *  +2  title/description contains a recent search term
  *  +1  more recent listings get a small recency boost
  *
- * If the user has no browsing history the section falls back
- * to trending (most views) + just-listed items so the row
- * is never empty.
+ * This section only renders when there is enough signed-in
+ * browsing activity to produce useful recommendations.
  */
 
 const MAX_ITEMS = 8
 
 export default function PickedForYou() {
-  const { listings } = useApp()
+  const { currentUser, listings } = useApp()
   const navigate = useNavigate()
+  const personalised = Boolean(currentUser) && hasActivity()
 
   const picks = useMemo(() => {
+    if (!personalised) return []
     const active = listings.filter(l => l.status === 'active')
     if (active.length === 0) return []
-
-    const personalised = hasActivity()
-    const history = personalised ? getHistory() : null
-
-    if (!personalised) {
-      // Fallback: trending + newest mix
-      const trending = [...active].sort((a, b) => (b.views || 0) - (a.views || 0))
-      const newest = [...active].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-      // Interleave: pick 4 trending then 4 newest, dedup
-      const seen = new Set()
-      const merged = []
-      for (const l of [...trending.slice(0, 6), ...newest.slice(0, 6)]) {
-        if (!seen.has(l.id)) { seen.add(l.id); merged.push(l) }
-        if (merged.length >= MAX_ITEMS) break
-      }
-      return merged
-    }
+    const history = getHistory()
 
     // ── Score every active listing ───────────────────────────
     const { searches, viewedIds, categories, brands, genders } = history
@@ -82,36 +67,18 @@ export default function PickedForYou() {
       })
       .sort((a, b) => b.score - a.score || (b.listing.views || 0) - (a.listing.views || 0))
 
-    // If not enough scored items have a positive score, pad with trending fallback
     const positive = scored.filter(s => s.score > 0).map(s => s.listing)
-
-    if (positive.length >= MAX_ITEMS) return positive.slice(0, MAX_ITEMS)
-
-    // Pad with remaining items sorted by views
-    const seen = new Set(positive.map(l => l.id))
-    const rest = scored.filter(s => s.score === 0).map(s => s.listing)
-    const padded = [...positive]
-    for (const l of rest) {
-      if (!seen.has(l.id)) { seen.add(l.id); padded.push(l) }
-      if (padded.length >= MAX_ITEMS) break
-    }
-    return padded
-  }, [listings])
+    return positive.slice(0, MAX_ITEMS)
+  }, [listings, personalised])
 
   if (picks.length === 0) return null
-
-  const personalised = hasActivity()
 
   return (
     <section className="mb-6 lg:max-w-6xl lg:mx-auto lg:px-8">
       <div className="flex items-center justify-between px-4 mb-1 lg:px-0">
         <div className="flex items-center gap-1.5">
-          {personalised
-            ? <Sparkles size={15} className="text-sib-primary" />
-            : <Flame size={15} className="text-sib-secondary" />}
-          <h2 className="text-base font-bold text-sib-text dark:text-[#f4efe7] lg:text-lg">
-            {personalised ? 'Picked for You' : 'Trending Now'}
-          </h2>
+          <Sparkles size={15} className="text-sib-primary" />
+          <h2 className="text-base font-bold text-sib-text dark:text-[#f4efe7] lg:text-lg">Picked for You</h2>
         </div>
         <button
           onClick={() => navigate('/browse')}
@@ -121,9 +88,7 @@ export default function PickedForYou() {
         </button>
       </div>
       <p className="px-4 text-[11px] text-sib-muted dark:text-[#aeb8b4] mb-3 lg:px-0 lg:text-xs lg:mb-4">
-        {personalised
-          ? 'Based on your recent browsing'
-          : 'Popular items across Malta right now'}
+        Based on your recent browsing
       </p>
 
       {/* Mobile: horizontal scroll. Desktop: grid */}

@@ -1,18 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  ArrowRight, Zap, ChevronRight, Flame, Eye, Sparkles, Tag, Search,
+  ArrowRight, Search,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import ListingCard from '../components/ListingCard'
 import useScrollRestore from '../hooks/useScrollRestore'
 import PickedForYou from '../components/PickedForYou'
-import useForYou from '../hooks/useForYou'
 import useAuthNav from '../hooks/useAuthNav'
 import CategoryBento from '../components/CategoryBento'
 import SearchAutocomplete from '../components/SearchAutocomplete'
 import { CATEGORY_TREE, resolveCategory } from '../data/categories'
-import { getHistory, hasActivity } from '../lib/browsingHistory'
 
 /* ── Category image map — curated Unsplash photos keyed by category id ── */
 const CATEGORY_IMAGES = {
@@ -57,7 +55,7 @@ function ListingRowSkeleton() {
 }
 
 export default function HomePage() {
-  const { listings, listingsLoading } = useApp()
+  const { currentUser, listings, listingsLoading } = useApp()
   const navigate = useNavigate()
   const authNav = useAuthNav()
   const [mobileSearch, setMobileSearch] = useState('')
@@ -69,7 +67,6 @@ export default function HomePage() {
   useScrollRestore('/')
 
   const activeListings = listings.filter(l => l.status === 'active' && isRenderableListing(l))
-  const boostedListings = activeListings.filter(l => l.boosted)
 
   const freshListings = useMemo(() => {
     return [...activeListings]
@@ -112,62 +109,6 @@ export default function HomePage() {
       if (resolved) counts[resolved] = (counts[resolved] || 0) + 1
     }
     return counts
-  }, [activeListings])
-
-  // ── "For You" personalised hook (DB-backed) ───────────────
-  const { forYou, isPersonalised: forYouPersonalised } = useForYou()
-
-  // ── Continue browsing — personalised from history ─────────
-  const continueBrowsing = useMemo(() => {
-    if (!hasActivity()) return []
-    const h = getHistory()
-    const scored = new Map()
-
-    for (const listing of activeListings) {
-      let score = 0
-      if (h.viewedIds.includes(listing.id)) score -= 100
-      // Category matching — resolve legacy categories for fair comparison
-      if (listing.category) {
-        const resolved = resolveCategory(listing.category)
-        if (h.categories.some(c => c === listing.category.toLowerCase() || resolveCategory(c) === resolved)) score += 3
-      }
-      if (listing.brand && h.brands.some(b => listing.brand.toLowerCase() === b)) score += 4
-      // Style matching (still useful for fashion listings)
-      if (h.styles?.length > 0) {
-        const listingStyles = listing.manualStyleTags?.length ? listing.manualStyleTags : (listing.styleTags || [])
-        for (const s of h.styles) {
-          if (listingStyles.includes(s)) { score += 3; break }
-        }
-      }
-      if (h.searches?.length > 0) {
-        const text = `${listing.title} ${listing.description || ''} ${listing.brand || ''}`.toLowerCase()
-        for (const q of h.searches) {
-          if (text.includes(q)) { score += 2; break }
-        }
-      }
-      if (score > 0) scored.set(listing.id, { listing, score })
-    }
-
-    return [...scored.values()]
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 8)
-      .map(s => s.listing)
-  }, [activeListings])
-
-  // ── Trending Now — high-view + recent listings ───────────
-  const trendingNow = useMemo(() => {
-    if (activeListings.length === 0) return []
-    const now = Date.now()
-    const DAY = 24 * 60 * 60 * 1000
-    return [...activeListings]
-      .map(l => {
-        const age = now - new Date(l.createdAt).getTime()
-        const recency = age < 2 * DAY ? 5 : age < 7 * DAY ? 3 : age < 14 * DAY ? 1 : 0
-        return { listing: l, score: (l.views || 0) * 2 + recency + (l.saves || 0) * 3 }
-      })
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 8)
-      .map(s => s.listing)
   }, [activeListings])
 
   // ── Category click handler ────────────────────────────────
@@ -213,7 +154,7 @@ export default function HomePage() {
       ) : freshListings.length > 0 && (
         <section className="lg:hidden pt-4 pb-1 px-4">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-[17px] font-extrabold text-sib-text dark:text-[#f4efe7] tracking-tight">For you</h2>
+            <h2 className="text-[17px] font-extrabold text-sib-text dark:text-[#f4efe7] tracking-tight">Fresh Finds</h2>
             <button onClick={() => navigate('/browse?sort=newest')} className="flex items-center gap-0.5 text-xs text-sib-primary font-semibold">
               See all <ArrowRight size={13} />
             </button>
@@ -267,6 +208,27 @@ export default function HomePage() {
         </div>
       </div>
 
+      {listingsLoading ? (
+        <section className="hidden lg:block pt-6 lg:max-w-6xl lg:mx-auto lg:px-8">
+          <ListingRowSkeleton />
+        </section>
+      ) : freshListings.length > 0 && (
+        <section className="hidden lg:block pt-6 pb-2 lg:max-w-6xl lg:mx-auto lg:px-8">
+          <div className="flex items-center justify-between mb-1">
+            <h2 className="text-[17px] font-extrabold text-sib-text dark:text-[#f4efe7] tracking-tight lg:text-xl">Fresh Finds</h2>
+            <button onClick={() => navigate('/browse?sort=newest')} className="flex items-center gap-0.5 text-xs text-sib-primary font-semibold lg:text-sm">
+              See all <ArrowRight size={13} />
+            </button>
+          </div>
+          <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] mb-3 font-medium lg:text-xs">Latest listings across Malta</p>
+          <div className="grid lg:grid-cols-4 lg:gap-4">
+            {freshListings.map(listing => (
+              <ListingCard key={listing.id} listing={listing} />
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* ── Browse by Category — bento / masonry layout ────────── */}
       <section className="pt-4 pb-2 lg:pt-6 lg:max-w-6xl lg:mx-auto lg:px-8">
         <div className="px-4 mb-2.5 lg:mb-3.5 lg:px-0 flex items-end justify-between">
@@ -289,149 +251,7 @@ export default function HomePage() {
         />
       </section>
 
-      {/* ── Sell Banner — high-visibility conversion strip ─────── */}
-      <section className="hidden mt-5 mb-2 px-4 lg:block lg:max-w-6xl lg:mx-auto lg:px-8">
-        <div className="rounded-2xl bg-[#F3F1EC] dark:bg-[#202b28] border border-transparent dark:border-[rgba(242,238,231,0.10)] px-5 py-7 sm:py-9 md:py-10 lg:px-10 lg:py-12 flex flex-col md:flex-row md:items-center md:justify-between gap-5 md:gap-8 transition-colors">
-          <div className="min-w-0">
-            <h2 className="text-[24px] sm:text-[28px] lg:text-[32px] font-extrabold text-sib-text dark:text-[#f4efe7] leading-tight tracking-tight">
-              Sell for free
-            </h2>
-            <p className="text-[14px] sm:text-[15px] lg:text-base text-sib-muted dark:text-[#aeb8b4] mt-1.5 leading-relaxed max-w-md">
-              No fees. No hassle. List in under a minute — we handle delivery.
-            </p>
-          </div>
-          <button
-            onClick={() => authNav('/sell')}
-            className="inline-flex items-center justify-center gap-2 px-8 py-3.5 sm:py-4 rounded-full bg-sib-primary text-white text-[15px] sm:text-base font-bold shadow-sm hover:bg-sib-primary/90 active:scale-[0.97] transition-all flex-shrink-0 self-start md:self-center"
-          >
-            Sell an item
-            <ChevronRight size={17} strokeWidth={2.5} className="flex-shrink-0" />
-          </button>
-        </div>
-      </section>
-
-      {/* ── Trending Now ──────────────────────────────────────── */}
-      {listingsLoading ? (
-        <ListingRowSkeleton />
-      ) : trendingNow.length > 0 && (
-        <section className="pt-6 pb-2 lg:max-w-6xl lg:mx-auto lg:px-8">
-          <div className="flex items-center justify-between px-4 mb-1 lg:px-0">
-            <div className="flex items-center gap-1.5">
-              <Flame size={15} className="text-sib-secondary" />
-              <h2 className="text-[17px] font-extrabold text-sib-text dark:text-[#f4efe7] tracking-tight lg:text-xl">Trending Now</h2>
-            </div>
-            <button onClick={() => navigate('/browse')} className="flex items-center gap-0.5 text-xs text-sib-primary font-semibold lg:text-sm">
-              See all <ArrowRight size={13} />
-            </button>
-          </div>
-          <p className="px-4 text-[11px] text-sib-muted dark:text-[#aeb8b4] mb-3 font-medium lg:px-0 lg:text-xs">Most viewed &amp; saved across Malta right now</p>
-          <div className="flex gap-3 overflow-x-auto px-4 pb-1 scrollbar-none lg:hidden">
-            {trendingNow.slice(0, 6).map(listing => (
-              <div key={listing.id} className="flex-shrink-0 w-36">
-                <ListingCard listing={listing} size="small" />
-              </div>
-            ))}
-          </div>
-          <div className="hidden lg:grid lg:grid-cols-4 lg:gap-4">
-            {trendingNow.map(listing => (
-              <ListingCard key={listing.id} listing={listing} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* ── For You (DB-backed personalisation) ────────────────── */}
-      {forYou.length > 0 && (
-        <section className="pt-6 mb-3 lg:max-w-6xl lg:mx-auto lg:px-8">
-          <div className="flex items-center justify-between px-4 mb-1 lg:px-0">
-            <div className="flex items-center gap-1.5">
-              {forYouPersonalised
-                ? <Sparkles size={15} className="text-sib-primary" />
-                : <Tag size={15} className="text-sib-secondary" />}
-              <h2 className="text-[15px] font-extrabold text-sib-text dark:text-[#f4efe7] lg:text-lg">
-                {forYouPersonalised ? 'For You' : 'Just Listed'}
-              </h2>
-            </div>
-            <button onClick={() => navigate('/browse')} className="flex items-center gap-0.5 text-xs text-sib-primary font-semibold lg:text-sm">
-              See all <ArrowRight size={13} />
-            </button>
-          </div>
-          <p className="px-4 text-[11px] text-sib-muted dark:text-[#aeb8b4] mb-3 lg:px-0 lg:text-xs">
-            {forYouPersonalised ? 'Personalised picks based on your activity' : 'Fresh arrivals across Malta'}
-          </p>
-          <div className="flex gap-3 overflow-x-auto px-4 pb-1 scrollbar-none lg:hidden">
-            {forYou.slice(0, 6).map(listing => (
-              <div key={listing.id} className="flex-shrink-0 w-36">
-                <ListingCard listing={listing} size="small" />
-              </div>
-            ))}
-          </div>
-          <div className="hidden lg:grid lg:grid-cols-4 lg:gap-4">
-            {forYou.map(listing => (
-              <ListingCard key={listing.id} listing={listing} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* ── Continue Browsing (personalised — only if history) ── */}
-      {continueBrowsing.length > 0 && (
-        <section className="pt-4 mb-3 lg:max-w-6xl lg:mx-auto lg:px-8">
-          <div className="flex items-center justify-between px-4 mb-1 lg:px-0">
-            <div className="flex items-center gap-1.5">
-              <Eye size={15} className="text-sib-primary" />
-              <h2 className="text-[15px] font-extrabold text-sib-text dark:text-[#f4efe7] lg:text-lg">Continue Browsing</h2>
-            </div>
-            <button onClick={() => navigate('/browse')} className="flex items-center gap-0.5 text-xs text-sib-primary font-semibold lg:text-sm">
-              See all <ArrowRight size={13} />
-            </button>
-          </div>
-          <p className="px-4 text-[11px] text-sib-muted dark:text-[#aeb8b4] mb-3 lg:px-0 lg:text-xs">Based on what you've been looking at</p>
-          <div className="flex gap-3 overflow-x-auto px-4 pb-1 scrollbar-none lg:hidden">
-            {continueBrowsing.slice(0, 6).map(listing => (
-              <div key={listing.id} className="flex-shrink-0 w-36">
-                <ListingCard listing={listing} size="small" />
-              </div>
-            ))}
-          </div>
-          <div className="hidden lg:grid lg:grid-cols-4 lg:gap-4">
-            {continueBrowsing.map(listing => (
-              <ListingCard key={listing.id} listing={listing} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* ── Picked for You / Trending ─────────────────────────── */}
-      <PickedForYou />
-
-      {/* ── Featured (boosted) — compact row ──────────────────── */}
-      {boostedListings.length > 0 && (
-        <section className="mb-5 lg:max-w-6xl lg:mx-auto lg:px-8">
-          <div className="flex items-center justify-between px-4 mb-1 lg:px-0">
-            <div className="flex items-center gap-1.5">
-              <Zap size={14} className="text-sib-primary fill-sib-primary" />
-              <h2 className="text-[15px] font-extrabold text-sib-text dark:text-[#f4efe7] lg:text-lg">Featured</h2>
-            </div>
-            <button onClick={() => navigate('/browse')} className="flex items-center gap-0.5 text-xs text-sib-primary font-semibold lg:text-sm">
-              See all <ArrowRight size={13} />
-            </button>
-          </div>
-          <p className="px-4 text-[11px] text-sib-muted dark:text-[#aeb8b4] mb-3 lg:px-0 lg:text-xs">Boosted for extra visibility</p>
-          <div className="flex gap-3 overflow-x-auto px-4 pb-1 scrollbar-none lg:hidden">
-            {boostedListings.slice(0, 6).map(listing => (
-              <div key={listing.id} className="flex-shrink-0 w-36">
-                <ListingCard listing={listing} size="small" />
-              </div>
-            ))}
-          </div>
-          <div className="hidden lg:grid lg:grid-cols-4 lg:gap-4">
-            {boostedListings.map(listing => (
-              <ListingCard key={listing.id} listing={listing} />
-            ))}
-          </div>
-        </section>
-      )}
+      {currentUser && <PickedForYou />}
 
 
     </div>
