@@ -415,23 +415,29 @@ export default function SellPage() {
     }
   }, [restoredDraft, showToast])
 
-  useEffect(() => {
-    if (!isEditMode || !ownedListing || restoredDraft?.form || prefilledListingRef.current) return
-    prefilledListingRef.current = true
-    console.log('[SellPage] edit prefill listing', {
-      id: ownedListing.id,
-      category: ownedListing.category,
-      subcategory: ownedListing.subcategory,
-      type: ownedListing.type,
-      categoryType: ownedListing.categoryType,
-      attributeSubcategory: ownedListing.attributes?.subcategory,
-      attributeType: ownedListing.attributes?.type,
-      size: ownedListing.size,
-      condition: ownedListing.condition,
-    })
-    setForm(buildFormFromListing(ownedListing))
-    setStep(0)
-  }, [isEditMode, ownedListing, restoredDraft])
+ useEffect(() => {
+  if (!isEditMode || !ownedListing || prefilledListingRef.current) return
+
+  prefilledListingRef.current = true
+
+  const prefilledForm = buildFormFromListing(ownedListing)
+
+  console.log('[SellPage] edit prefill listing', {
+    id: ownedListing.id,
+    category: ownedListing.category,
+    subcategory: ownedListing.subcategory,
+    type: ownedListing.type,
+    categoryType: ownedListing.categoryType,
+    attributeSubcategory: ownedListing.attributes?.subcategory,
+    attributeType: ownedListing.attributes?.type,
+    resolvedSubcategory: prefilledForm.subcategory,
+    size: ownedListing.size,
+    condition: ownedListing.condition,
+  })
+
+  setForm(prefilledForm)
+  setStep(0)
+}, [isEditMode, ownedListing])
 
   useEffect(() => {
     if (!currentUser) return
