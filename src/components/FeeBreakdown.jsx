@@ -33,13 +33,13 @@ export default function FeeBreakdown({
         <div className="flex justify-between items-center">
           <span className="flex items-center gap-1.5">
             <ShieldCheck size={isSmall ? 12 : 14} className="text-green-600 flex-shrink-0" />
-            <span className={`text-green-700 font-semibold ${labelClass}`}>Sib Buyer Protection</span>
+            <span className={`text-green-700 dark:text-green-300 font-semibold ${labelClass}`}>Sib Buyer Protection</span>
           </span>
-          <span className={`text-green-700 font-semibold ${labelClass} flex-shrink-0 ml-3`}>
+          <span className={`text-green-700 dark:text-green-300 font-semibold ${labelClass} flex-shrink-0 ml-3`}>
             €{fee.toFixed(2)}
           </span>
         </div>
-        <p className={`${helperClass} text-sib-muted leading-tight mt-0.5 pl-[22px]`}>
+        <p className={`${helperClass} text-sib-muted dark:text-[#aeb8b4] leading-tight mt-0.5 pl-[22px]`}>
           €0.75 + 5% of listing price
         </p>
       </div>
@@ -50,13 +50,13 @@ export default function FeeBreakdown({
           <div className="flex justify-between items-center">
             <span className="flex items-center gap-1.5">
               <Truck size={isSmall ? 12 : 14} className="text-blue-600 flex-shrink-0" />
-              <span className={`text-blue-700 font-semibold ${labelClass}`}>Tracked Delivery</span>
+              <span className={`text-blue-700 dark:text-blue-300 font-semibold ${labelClass}`}>Tracked Delivery</span>
             </span>
-            <span className={`text-blue-700 font-semibold ${labelClass} flex-shrink-0 ml-3`}>
+            <span className={`text-blue-700 dark:text-blue-300 font-semibold ${labelClass} flex-shrink-0 ml-3`}>
               €{deliveryFee.toFixed(2)}
             </span>
           </div>
-          <p className={`${helperClass} text-sib-muted leading-tight mt-0.5 pl-[22px]`}>
+          <p className={`${helperClass} text-sib-muted dark:text-[#aeb8b4] leading-tight mt-0.5 pl-[22px]`}>
             Paid by the buyer
           </p>
         </div>
@@ -64,7 +64,7 @@ export default function FeeBreakdown({
 
       {/* Delivery hint for sell page / pre-checkout — only if no deliveryFee shown */}
       {showDeliveryHint && (typeof deliveryFee !== 'number') && (
-        <p className={`${helperClass} text-sib-muted/70 leading-tight mt-1.5 pl-[22px] italic`}>
+        <p className={`${helperClass} text-sib-muted/70 dark:text-[#aeb8b4] leading-tight mt-1.5 pl-[22px] italic`}>
           Delivery fee is selected by the buyer at checkout.
         </p>
       )}

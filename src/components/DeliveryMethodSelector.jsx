@@ -74,7 +74,7 @@ export default function DeliveryMethodSelector({
                 onClick={() => onSelect(method.id)}
                 className={`w-full flex items-center gap-3 p-4 rounded-2xl border-2 transition-all text-left ${
                   isSelected
-                    ? 'border-sib-primary bg-sib-primary/5'
+                    ? 'border-sib-primary bg-sib-primary/5 dark:bg-[#26322f]'
                     : 'border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-white dark:bg-[#202b28] hover:border-sib-muted/40 dark:hover:bg-[#26322f]'
                 } ${disabled ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
               >
