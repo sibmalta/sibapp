@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Package, ShoppingBag, Truck } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+import { useAuth } from '../lib/auth-context'
 import useAuthNav from '../hooks/useAuthNav'
 import PageHeader from '../components/PageHeader'
 import { ShipmentStatusBadge } from '../components/ShipmentTracker'
@@ -123,6 +124,7 @@ function getSellerOrderState(order, shipment) {
 
 export default function OrdersPage() {
   const { currentUser, getUserOrders, getUserSales, getListingById, getUserById, getShipmentByOrderId } = useApp()
+  const { loading: authLoading } = useAuth()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const authNav = useAuthNav()
@@ -140,8 +142,24 @@ export default function OrdersPage() {
     setTab(nextTab)
   }, [searchParams])
 
+  useEffect(() => {
+    if (!authLoading && !currentUser) {
+      navigate('/auth', { replace: true, state: { from: '/orders' } })
+    }
+  }, [authLoading, currentUser, navigate])
+
+  if (authLoading) {
+    return (
+      <div>
+        <PageHeader title="Orders" />
+        <div className="flex items-center justify-center py-20 text-sm text-sib-muted">
+          Loading orders...
+        </div>
+      </div>
+    )
+  }
+
   if (!currentUser) {
-    navigate('/auth')
     return null
   }
 
