@@ -262,7 +262,16 @@ export default function ChatPage() {
   }
 
   const renderOfferMessage = (msg) => {
-    const offer = getOfferById?.(msg.offerId)
+    const offer = getOfferById?.(msg.offerId) || {
+      id: msg.offerId,
+      listingId: msg.listingId,
+      buyerId: msg.buyerId,
+      sellerId: msg.sellerId,
+      price: msg.offerPrice,
+      counterPrice: msg.counterPrice || null,
+      acceptedPrice: msg.acceptedPrice || null,
+      status: msg.status || 'pending',
+    }
     const offerListing = getListingById(msg.listingId || offer?.listingId)
     const status = offer?.status || msg.status || 'pending'
     const displayPrice = offer?.counterPrice || offer?.acceptedPrice || msg.offerPrice || offer?.price

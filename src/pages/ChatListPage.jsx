@@ -121,6 +121,25 @@ export default function ChatListPage() {
           const listing = getListingById(conv.listingId)
           const lastMsg = conv.messages[conv.messages.length - 1]
           const isUnread = lastMsg && lastMsg.senderId !== currentUser.id && !lastMsg.read
+          const previewText = (() => {
+            if (!lastMsg) return null
+            if (lastMsg.flagged) return null
+            if (lastMsg.type === 'offer') {
+              const amount = Number(lastMsg.offerPrice || lastMsg.counterPrice || lastMsg.acceptedPrice || 0)
+              const label = lastMsg.eventType === 'offer_countered'
+                ? 'Counter offer'
+                : lastMsg.eventType === 'offer_accepted'
+                  ? 'Offer accepted'
+                  : lastMsg.eventType === 'offer_declined'
+                    ? 'Offer declined'
+                    : lastMsg.senderId === currentUser.id
+                      ? 'Offer sent'
+                      : 'Offer received'
+              return amount > 0 ? `${label}: €${amount.toFixed(2)}` : label
+            }
+            if (lastMsg.type === 'system_event' || lastMsg.type === 'order_event') return lastMsg.title || lastMsg.text
+            return lastMsg.text
+          })()
 
           return (
             <div
@@ -170,7 +189,7 @@ export default function ChatListPage() {
                           {lastMsg.senderId === currentUser.id && (
                             <span className="text-gray-400 dark:text-[#aeb8b4]">You: </span>
                           )}
-                          {lastMsg.text}
+                          {previewText || lastMsg.text}
                         </>
                       )
                     ) : (

@@ -168,7 +168,8 @@ export function useConversations(currentUser, seedConversations = []) {
   }, [])
 
   const addMessage = useCallback(async (conversationId, message) => {
-    const conversation = conversations.find(c => c.id === conversationId)
+    const knownConversation = conversations.find(c => c.id === conversationId)
+    const conversation = knownConversation || message.conversation || null
     if (!conversation) return { data: null, error: { message: 'Conversation not found' } }
 
     const recipientId = message.recipientId || conversation.participants.find(id => id !== message.senderId) || null
@@ -185,7 +186,16 @@ export function useConversations(currentUser, seedConversations = []) {
       ...(message.metadata || {}),
     }
 
-    addLocalMessage(conversationId, optimisticMessage)
+    if (knownConversation) {
+      addLocalMessage(conversationId, optimisticMessage)
+    } else {
+      mergeConversation({
+        ...conversation,
+        id: conversationId,
+        messages: [...(conversation.messages || []), optimisticMessage],
+        updatedAt: optimisticMessage.timestamp,
+      })
+    }
 
     if (!isAuthenticated) return { data: optimisticMessage, error: null }
 
@@ -237,7 +247,7 @@ export function useConversations(currentUser, seedConversations = []) {
     })))
 
     return { data, error: null }
-  }, [addLocalMessage, conversations, currentUser?.id, isAuthenticated, supabase])
+  }, [addLocalMessage, conversations, currentUser?.id, isAuthenticated, mergeConversation, supabase])
 
   const markConversationRead = useCallback(async (conversationId) => {
     if (!currentUser?.id) return

@@ -5,6 +5,7 @@ import { useProfiles as useProfilesHook } from '../hooks/useProfiles'
 import { useOrders as useOrdersHook } from '../hooks/useOrders'
 import { useNotifications as useNotificationsHook } from '../hooks/useNotifications'
 import { useConversations as useConversationsHook } from '../hooks/useConversations'
+import { useOffers as useOffersHook } from '../hooks/useOffers'
 import { SEED_USERS, SEED_MESSAGES, SEED_REVIEWS } from '../data/seedData'
 import {
   sendOfferReceivedEmail, sendOfferAcceptedEmail, sendOfferDeclinedEmail, sendOfferCounteredEmail,
@@ -226,7 +227,6 @@ export function AppProvider({ children }) {
 
   const [reviews, setReviews] = useState(() => loadFromStorage('sib_reviews', SEED_REVIEWS))
   const [payoutProfiles, setPayoutProfiles] = useState(() => loadFromStorage('sib_payoutProfiles', {}))
-  const [offers, setOffers] = useState(() => loadFromStorage('sib_offers', []))
   const [bundle, setBundle] = useState(() => loadFromStorage('sib_bundle', null))
   const [bundleOffers, setBundleOffers] = useState(() => loadFromStorage('sib_bundleOffers', []))
   const [toast, setToast] = useState(null)
@@ -240,6 +240,14 @@ export function AppProvider({ children }) {
     getUserNotifications,
     refreshNotifications,
   } = useNotificationsHook(currentUser)
+
+  const {
+    offers,
+    setOffers,
+    createOffer: dbCreateOffer,
+    patchOffer: dbPatchOffer,
+    refreshOffers,
+  } = useOffersHook(currentUser)
 
   // ── Shipping reminder timer: check every 60s ──────────────────────
   useEffect(() => {
@@ -288,7 +296,6 @@ export function AppProvider({ children }) {
   // Disputes no longer saved to localStorage — DB is sole source of truth
   useEffect(() => { if (!listingsDbAvailable) saveToStorage('sib_likes', likedListings) }, [likedListings, listingsDbAvailable])
   useEffect(() => { saveToStorage('sib_payoutProfiles', payoutProfiles) }, [payoutProfiles])
-  useEffect(() => { saveToStorage('sib_offers', offers) }, [offers])
   useEffect(() => { saveToStorage('sib_bundle', bundle) }, [bundle])
   useEffect(() => { saveToStorage('sib_bundleOffers', bundleOffers) }, [bundleOffers])
   // Shipments no longer saved to localStorage — DB is sole source of truth
@@ -523,11 +530,13 @@ export function AppProvider({ children }) {
     return createConversationForUsers(userAId, userBId, listingId)
   }, [createConversationForUsers])
 
-  const addConversationEvent = useCallback((conversationId, event) => {
-    if (!conversationId) return null
+  const addConversationEvent = useCallback(async (conversationOrId, event) => {
+    const conversationId = typeof conversationOrId === 'string' ? conversationOrId : conversationOrId?.id
+    if (!conversationId) return { data: null, error: { message: 'Conversation missing for event.' } }
     const newMsg = {
       id: `ev${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       senderId: event.senderId || 'system',
+      recipientId: event.recipientId || conversationOrId?.participants?.find(id => id !== (event.senderId || 'system')) || null,
       text: event.text || event.title || '',
       timestamp: event.timestamp || new Date().toISOString(),
       type: event.type || 'system_event',
@@ -535,13 +544,32 @@ export function AppProvider({ children }) {
       read: false,
       ...event,
     }
-    setConversations(prev => prev.map(c => (
-      c.id === conversationId
-        ? { ...c, messages: [...c.messages, newMsg] }
-        : c
-    )))
-    return newMsg
-  }, [])
+    const metadata = { ...event }
+    delete metadata.senderId
+    delete metadata.recipientId
+    delete metadata.text
+    delete metadata.type
+    delete metadata.eventType
+    delete metadata.timestamp
+
+    const result = await dbAddMessage(conversationId, {
+      ...newMsg,
+      conversation: typeof conversationOrId === 'string' ? undefined : conversationOrId,
+      metadata,
+    })
+
+    if (result?.error) {
+      console.error('[conversation-event] failed to persist event', {
+        conversationId,
+        eventType: newMsg.eventType,
+        message: result.error.message,
+        code: result.error.code || null,
+      })
+      return result
+    }
+
+    return { data: result?.data || newMsg, error: null }
+  }, [dbAddMessage])
 
   // sendMessage(convId, senderId, text, flagged?)
   const sendMessage = useCallback(async (conversationId, senderIdOrText, textArg, flagged = false) => {
@@ -981,7 +1009,7 @@ export function AppProvider({ children }) {
   const MAX_ACTIVE_OFFERS_PER_USER = 10
   const OFFER_EXPIRY_MS = 24 * 60 * 60 * 1000 // 24 hours
 
-  const createOffer = useCallback((listingId, price) => {
+  const createOffer = useCallback(async (listingId, price) => {
     if (!currentUser) return { error: 'Login required.' }
     const listing = listings.find(l => l.id === listingId)
     if (!listing) return { error: 'Listing not found.' }
@@ -1011,15 +1039,40 @@ export function AppProvider({ children }) {
       updatedAt: now.toISOString(),
       expiresAt: new Date(now.getTime() + OFFER_EXPIRY_MS).toISOString(),
     }
-    setOffers(prev => [newOffer, ...prev])
-
     const conversation = getOrCreateConversationForUsers(currentUser.id, listing.sellerId, listingId)
-    addConversationEvent(conversation.id, {
+    if (!conversation?.id) {
+      console.error('[offers] conversation creation failed before offer send', {
+        listingId,
+        buyerId: currentUser.id,
+        sellerId: listing.sellerId,
+      })
+      return { error: 'We could not open the message thread for this offer. Please try again.' }
+    }
+
+    const offerWithConversation = { ...newOffer, conversationId: conversation.id }
+    const savedOfferResult = await dbCreateOffer(offerWithConversation)
+    if (savedOfferResult?.error) {
+      console.error('[offers] offer persistence failed; message/notification/email skipped', {
+        listingId,
+        buyerId: currentUser.id,
+        sellerId: listing.sellerId,
+        conversationId: conversation.id,
+        message: savedOfferResult.error.message,
+        code: savedOfferResult.error.code || null,
+      })
+      return { error: savedOfferResult.error.message || 'We could not save this offer. Please try again.' }
+    }
+    const savedOffer = savedOfferResult?.data || offerWithConversation
+
+    const eventResult = await addConversationEvent(conversation, {
       type: 'offer',
       eventType: 'offer_received',
       senderId: currentUser.id,
-      offerId: newOffer.id,
+      recipientId: listing.sellerId,
+      offerId: savedOffer.id,
       listingId,
+      buyerId: currentUser.id,
+      sellerId: listing.sellerId,
       title: 'Offer received',
       text: `@${currentUser.username} offered €${price} on "${listing.title}"`,
       offerPrice: price,
@@ -1029,45 +1082,92 @@ export function AppProvider({ children }) {
       status: 'pending',
     })
 
-    addNotification({
+    if (eventResult?.error) {
+      console.error('[offers] offer message persistence failed after offer insert', {
+        offerId: savedOffer.id,
+        listingId,
+        conversationId: conversation.id,
+        message: eventResult.error.message,
+        code: eventResult.error.code || null,
+      })
+      return { error: 'Offer could not be added to the message thread. Please try again.' }
+    }
+
+    const notificationResult = await addNotification({
       userId: listing.sellerId,
       type: 'offer_received',
       title: 'New offer received',
       message: `@${currentUser.username} offered €${price} on "${listing.title}"`,
-      offerId: newOffer.id,
       listingId,
       conversationId: conversation.id,
       actionTarget: `/messages/${conversation.id}`,
+      metadata: {
+        offerId: savedOffer.id,
+        buyerId: currentUser.id,
+        buyerName: currentUser.username || currentUser.name || '',
+        offerPrice: price,
+      },
+      data: {
+        offerId: savedOffer.id,
+        buyerId: currentUser.id,
+        buyerName: currentUser.username || currentUser.name || '',
+        offerPrice: price,
+      },
+    })
+    console.info('[offers] offer notification result', {
+      offerId: savedOffer.id,
+      conversationId: conversation.id,
+      sellerId: listing.sellerId,
+      notificationId: notificationResult?.id || null,
+      ok: !!notificationResult,
     })
 
     // Email: notify seller about new offer
     const seller = users.find(u => u.id === listing.sellerId)
     if (seller?.email) {
-      sendOfferReceivedEmail(seller.email, listing.title, price, currentUser.username, {
-        offerId: newOffer.id,
+      const emailResult = await sendOfferReceivedEmail(seller.email, listing.title, price, currentUser.username, {
+        offerId: savedOffer.id,
         listingId,
         conversationId: conversation.id,
         buyerId: currentUser.id,
         sellerId: listing.sellerId,
         related_entity_type: 'offer',
-        related_entity_id: newOffer.id,
+        related_entity_id: savedOffer.id,
+      })
+      console.info('[offers] offer email result', {
+        offerId: savedOffer.id,
+        conversationId: conversation.id,
+        sellerEmail: seller.email,
+        ok: !!emailResult,
+      })
+    } else {
+      console.warn('[offers] seller has no email; offer email skipped', {
+        offerId: savedOffer.id,
+        sellerId: listing.sellerId,
       })
     }
 
-    return { offer: newOffer }
-  }, [currentUser, listings, offers, users, addNotification, getOrCreateConversationForUsers, addConversationEvent])
+    return { offer: savedOffer, conversationId: conversation.id }
+  }, [currentUser, listings, offers, users, addNotification, getOrCreateConversationForUsers, addConversationEvent, dbCreateOffer])
 
-  const acceptOffer = useCallback((offerId) => {
+  const acceptOffer = useCallback(async (offerId) => {
     const now = new Date()
+    const offer = offers.find(o => o.id === offerId)
+    const acceptedPrice = offer?.counterPrice || offer?.price
+    if (offer) {
+      const { error } = await dbPatchOffer(offerId, { status: 'accepted', acceptedPrice, updatedAt: now.toISOString() })
+      if (error) {
+        showToast('Failed to accept offer: ' + error.message, 'error')
+        return
+      }
+    }
     setOffers(prev => prev.map(o => {
       if (o.id !== offerId) return o
       const acceptedPrice = o.counterPrice || o.price
       return { ...o, status: 'accepted', acceptedPrice, updatedAt: now.toISOString() }
     }))
-    const offer = offers.find(o => o.id === offerId)
     if (offer) {
       const listing = listings.find(l => l.id === offer.listingId)
-      const acceptedPrice = offer.counterPrice || offer.price
       const notifyUserId = offer.status === 'countered' ? offer.sellerId : offer.buyerId
       const acceptor = users.find(u => u.id === (offer.status === 'countered' ? offer.buyerId : offer.sellerId))
       const conversation = getOrCreateConversationForUsers(offer.buyerId, offer.sellerId, offer.listingId)
@@ -1111,15 +1211,22 @@ export function AppProvider({ children }) {
         })
       }
     }
-  }, [offers, listings, users, addNotification, currentUser, getOrCreateConversationForUsers, addConversationEvent])
+  }, [offers, listings, users, addNotification, currentUser, getOrCreateConversationForUsers, addConversationEvent, dbPatchOffer, showToast])
 
-  const declineOffer = useCallback((offerId) => {
+  const declineOffer = useCallback(async (offerId) => {
     const now = new Date()
+    const offer = offers.find(o => o.id === offerId)
+    if (offer) {
+      const { error } = await dbPatchOffer(offerId, { status: 'declined', updatedAt: now.toISOString() })
+      if (error) {
+        showToast('Failed to decline offer: ' + error.message, 'error')
+        return
+      }
+    }
     setOffers(prev => prev.map(o => {
       if (o.id !== offerId) return o
       return { ...o, status: 'declined', updatedAt: now.toISOString() }
     }))
-    const offer = offers.find(o => o.id === offerId)
     if (offer) {
       const listing = listings.find(l => l.id === offer.listingId)
       const notifyUserId = offer.status === 'countered' ? offer.sellerId : offer.buyerId
@@ -1165,10 +1272,23 @@ export function AppProvider({ children }) {
         })
       }
     }
-  }, [offers, listings, users, addNotification, currentUser, getOrCreateConversationForUsers, addConversationEvent])
+  }, [offers, listings, users, addNotification, currentUser, getOrCreateConversationForUsers, addConversationEvent, dbPatchOffer, showToast])
 
-  const counterOffer = useCallback((offerId, counterPrice) => {
+  const counterOffer = useCallback(async (offerId, counterPrice) => {
     const now = new Date()
+    const offer = offers.find(o => o.id === offerId)
+    if (offer) {
+      const { error } = await dbPatchOffer(offerId, {
+        status: 'countered',
+        counterPrice,
+        updatedAt: now.toISOString(),
+        expiresAt: new Date(now.getTime() + OFFER_EXPIRY_MS).toISOString(),
+      })
+      if (error) {
+        showToast('Failed to counter offer: ' + error.message, 'error')
+        return
+      }
+    }
     setOffers(prev => prev.map(o => {
       if (o.id !== offerId) return o
       return {
@@ -1179,7 +1299,6 @@ export function AppProvider({ children }) {
         expiresAt: new Date(now.getTime() + OFFER_EXPIRY_MS).toISOString(),
       }
     }))
-    const offer = offers.find(o => o.id === offerId)
     if (offer) {
       const listing = listings.find(l => l.id === offer.listingId)
       const seller = users.find(u => u.id === offer.sellerId)
@@ -1223,7 +1342,7 @@ export function AppProvider({ children }) {
         })
       }
     }
-  }, [offers, listings, users, addNotification, getOrCreateConversationForUsers, addConversationEvent])
+  }, [offers, listings, users, addNotification, getOrCreateConversationForUsers, addConversationEvent, dbPatchOffer, showToast])
 
   const recoverOfferConversationFromLink = useCallback((params = {}) => {
     const {

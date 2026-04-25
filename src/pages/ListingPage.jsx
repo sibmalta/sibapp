@@ -168,8 +168,8 @@ if (!listing) return (
     setShowOfferModal(true)
   }
 
-  const handleSubmitOffer = (price) => {
-    const result = createOffer(listing.id, price)
+  const handleSubmitOffer = async (price) => {
+    const result = await createOffer(listing.id, price)
     if (result.error) {
       showToast(result.error, 'error')
     } else {
