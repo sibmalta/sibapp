@@ -61,7 +61,7 @@ export default function DeliveryMethodSelector({
 
   return (
     <div className="mb-5">
-      <p className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-2">Fulfilment method</p>
+      <p className="text-xs font-semibold text-sib-text dark:text-[#f4efe7] uppercase tracking-wide mb-2">Fulfilment method</p>
       <div className="space-y-2">
         {methods.map(method => {
           const isSelected = selected === method.id
@@ -83,19 +83,19 @@ export default function DeliveryMethodSelector({
                 }`}>
                   {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
                 </div>
-                <IconComp size={16} className={isSelected ? 'text-sib-primary flex-shrink-0' : 'text-sib-muted flex-shrink-0'} />
+                <IconComp size={16} className={isSelected ? 'text-sib-primary flex-shrink-0' : 'text-sib-muted dark:text-[#aeb8b4] flex-shrink-0'} />
                 <div className="flex-1 min-w-0">
                   <p className={`text-sm font-semibold ${isSelected ? 'text-sib-text dark:text-[#f4efe7]' : 'text-sib-muted dark:text-[#aeb8b4]'}`}>{method.name}</p>
                   <p className="text-xs text-sib-muted dark:text-[#aeb8b4]">{method.description}</p>
                 </div>
-                <span className={`text-sm font-bold flex-shrink-0 ${isSelected ? 'text-sib-primary' : 'text-sib-muted'}`}>
+                <span className={`text-sm font-bold flex-shrink-0 ${isSelected ? 'text-sib-primary' : 'text-sib-muted dark:text-[#aeb8b4]'}`}>
                   €{method.price.toFixed(2)}
                 </span>
               </button>
 
               {method.id === 'locker_collection' && isSelected && (
                 <div className="mt-2 ml-8">
-                  <p className="text-xs text-sib-muted mb-1.5">Choose a MaltaPost locker location</p>
+                  <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mb-1.5">Choose a MaltaPost locker location</p>
                   <div className="relative">
                     <button
                       type="button"
@@ -106,12 +106,12 @@ export default function DeliveryMethodSelector({
                       } ${disabled ? 'opacity-70' : ''}`}
                     >
                       <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <MapPin size={14} className="flex-shrink-0 text-sib-muted" />
+                        <MapPin size={14} className="flex-shrink-0 text-sib-muted dark:text-[#aeb8b4]" />
                         <span className="truncate">
                           {selectedLocker ? selectedLocker.locationName : 'Select locker location...'}
                         </span>
                       </div>
-                      <ChevronDown size={14} className={`flex-shrink-0 text-sib-muted transition-transform ${lockerDropdownOpen ? 'rotate-180' : ''}`} />
+                      <ChevronDown size={14} className={`flex-shrink-0 text-sib-muted dark:text-[#aeb8b4] transition-transform ${lockerDropdownOpen ? 'rotate-180' : ''}`} />
                     </button>
 
                     {lockerDropdownOpen && (
@@ -128,7 +128,7 @@ export default function DeliveryMethodSelector({
                         </div>
                         <div className="overflow-y-auto max-h-44">
                           {filteredLockers.length === 0 && (
-                            <p className="text-xs text-sib-muted p-3 text-center">No matching locations</p>
+                            <p className="text-xs text-sib-muted dark:text-[#aeb8b4] p-3 text-center">No matching locations</p>
                           )}
                           {filteredLockers.map(locker => (
                             <button
@@ -144,7 +144,7 @@ export default function DeliveryMethodSelector({
                               }`}
                             >
                               <p className="font-medium text-sm">{locker.locationName}</p>
-                              <p className="text-[11px] text-sib-muted mt-0.5">{locker.fullAddress}</p>
+                              <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] mt-0.5">{locker.fullAddress}</p>
                             </button>
                           ))}
                         </div>
@@ -154,15 +154,15 @@ export default function DeliveryMethodSelector({
 
                   {selectedLocker && (
                     <div className="mt-2 p-2.5 rounded-xl bg-blue-50 dark:bg-[#26322f] border border-blue-100 dark:border-[rgba(242,238,231,0.10)]">
-                      <p className="text-xs font-medium text-blue-800">{selectedLocker.locationName}</p>
-                      <p className="text-[11px] text-blue-600 mt-0.5">{selectedLocker.fullAddress}</p>
+                      <p className="text-xs font-medium text-blue-800 dark:text-[#f4efe7]">{selectedLocker.locationName}</p>
+                      <p className="text-[11px] text-blue-600 dark:text-[#aeb8b4] mt-0.5">{selectedLocker.fullAddress}</p>
                     </div>
                   )}
 
                   {method.helpText && (
                     <div className="flex items-start gap-1.5 mt-2 px-0.5">
-                      <Info size={11} className="text-sib-muted flex-shrink-0 mt-0.5" />
-                      <p className="text-[11px] text-sib-muted leading-tight">{method.helpText}</p>
+                      <Info size={11} className="text-sib-muted dark:text-[#aeb8b4] flex-shrink-0 mt-0.5" />
+                      <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] leading-tight">{method.helpText}</p>
                     </div>
                   )}
                 </div>

@@ -66,18 +66,18 @@ export default function ShipmentTracker({ shipment }) {
               <React.Fragment key={step.key}>
                 <div className="flex flex-col items-center flex-shrink-0">
                   <div className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
-                    done ? 'bg-sib-primary' : 'bg-sib-stone'
+                    done ? 'bg-sib-primary' : 'bg-sib-stone dark:bg-[#30403c]'
                   }`}>
-                    <step.icon size={16} className={done ? 'text-white' : 'text-sib-muted'} />
+                    <step.icon size={16} className={done ? 'text-white' : 'text-sib-muted dark:text-[#aeb8b4]'} />
                   </div>
                   <p className={`text-[10px] font-medium mt-1.5 text-center max-w-[64px] leading-tight ${
-                    active ? 'text-sib-primary' : done ? 'text-sib-text' : 'text-sib-muted'
+                    active ? 'text-sib-primary dark:text-[#e8751a]' : done ? 'text-sib-text dark:text-[#f4efe7]' : 'text-sib-muted dark:text-[#aeb8b4]'
                   }`}>
                     {step.label}
                   </p>
                 </div>
                 {i < steps.length - 1 && (
-                  <div className={`flex-1 h-0.5 mx-1 mb-5 rounded-full ${i < currentIdx ? 'bg-sib-primary' : 'bg-sib-stone'}`} />
+                  <div className={`flex-1 h-0.5 mx-1 mb-5 rounded-full ${i < currentIdx ? 'bg-sib-primary' : 'bg-sib-stone dark:bg-[#30403c]'}`} />
                 )}
               </React.Fragment>
             )
@@ -111,14 +111,14 @@ export default function ShipmentTracker({ shipment }) {
       {/* Shipment details */}
       <div className="space-y-2">
         {shipment.trackingNumber && (
-          <div className="flex items-center justify-between p-3 rounded-xl bg-sib-sand">
+          <div className="flex items-center justify-between p-3 rounded-xl bg-sib-sand dark:bg-[#26322f] transition-colors">
             <div>
-              <p className="text-[11px] text-sib-muted">Tracking number</p>
-              <p className="text-sm font-semibold text-sib-text font-mono">{shipment.trackingNumber}</p>
+              <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4]">Tracking number</p>
+              <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7] font-mono">{shipment.trackingNumber}</p>
             </div>
             <div className="text-right">
-              <p className="text-[11px] text-sib-muted">Courier</p>
-              <p className="text-sm font-semibold text-sib-text">{shipment.courier || 'MaltaPost'}</p>
+              <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4]">Courier</p>
+              <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7]">{shipment.courier || 'MaltaPost'}</p>
             </div>
           </div>
         )}
@@ -134,27 +134,27 @@ export default function ShipmentTracker({ shipment }) {
         {/* Timestamps */}
         <div className="grid grid-cols-2 gap-2">
           {shipment.createdAt && (
-            <div className="p-2.5 rounded-xl bg-sib-sand">
-              <p className="text-[10px] text-sib-muted">Created</p>
-              <p className="text-xs font-medium text-sib-text">{new Date(shipment.createdAt).toLocaleDateString('en-MT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+            <div className="p-2.5 rounded-xl bg-sib-sand dark:bg-[#26322f] transition-colors">
+              <p className="text-[10px] text-sib-muted dark:text-[#aeb8b4]">Created</p>
+              <p className="text-xs font-medium text-sib-text dark:text-[#f4efe7]">{new Date(shipment.createdAt).toLocaleDateString('en-MT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
             </div>
           )}
           {shipment.shippedAt && (
-            <div className="p-2.5 rounded-xl bg-sib-sand">
-              <p className="text-[10px] text-sib-muted">Shipped</p>
-              <p className="text-xs font-medium text-sib-text">{new Date(shipment.shippedAt).toLocaleDateString('en-MT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+            <div className="p-2.5 rounded-xl bg-sib-sand dark:bg-[#26322f] transition-colors">
+              <p className="text-[10px] text-sib-muted dark:text-[#aeb8b4]">Shipped</p>
+              <p className="text-xs font-medium text-sib-text dark:text-[#f4efe7]">{new Date(shipment.shippedAt).toLocaleDateString('en-MT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
             </div>
           )}
           {shipment.inTransitAt && (
-            <div className="p-2.5 rounded-xl bg-sib-sand">
-              <p className="text-[10px] text-sib-muted">In transit</p>
-              <p className="text-xs font-medium text-sib-text">{new Date(shipment.inTransitAt).toLocaleDateString('en-MT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+            <div className="p-2.5 rounded-xl bg-sib-sand dark:bg-[#26322f] transition-colors">
+              <p className="text-[10px] text-sib-muted dark:text-[#aeb8b4]">In transit</p>
+              <p className="text-xs font-medium text-sib-text dark:text-[#f4efe7]">{new Date(shipment.inTransitAt).toLocaleDateString('en-MT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
             </div>
           )}
           {shipment.deliveredAt && (
-            <div className="p-2.5 rounded-xl bg-sib-sand">
-              <p className="text-[10px] text-sib-muted">Delivered</p>
-              <p className="text-xs font-medium text-sib-text">{new Date(shipment.deliveredAt).toLocaleDateString('en-MT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+            <div className="p-2.5 rounded-xl bg-sib-sand dark:bg-[#26322f] transition-colors">
+              <p className="text-[10px] text-sib-muted dark:text-[#aeb8b4]">Delivered</p>
+              <p className="text-xs font-medium text-sib-text dark:text-[#f4efe7]">{new Date(shipment.deliveredAt).toLocaleDateString('en-MT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
             </div>
           )}
           {shipment.failedAt && (

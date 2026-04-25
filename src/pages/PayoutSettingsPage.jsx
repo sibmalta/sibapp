@@ -137,27 +137,27 @@ export default function PayoutSettingsPage() {
   const setupButtonDisabled = loading || error === '__CONFIG_MISSING__' || !session?.access_token
 
   return (
-    <div className="pb-10 bg-white min-h-screen">
-      <div className="px-4 py-3 flex items-center gap-3 border-b border-gray-100">
-        <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full bg-gray-50 flex items-center justify-center">
-          <ArrowLeft size={18} className="text-gray-600" />
+    <div className="pb-10 bg-white dark:bg-[#18211f] min-h-screen transition-colors">
+      <div className="px-4 py-3 flex items-center gap-3 border-b border-gray-100 dark:border-[rgba(242,238,231,0.10)]">
+        <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full bg-gray-50 dark:bg-[#26322f] flex items-center justify-center transition-colors">
+          <ArrowLeft size={18} className="text-gray-600 dark:text-[#aeb8b4]" />
         </button>
-        <h1 className="text-base font-semibold text-gray-900">Payments</h1>
+        <h1 className="text-base font-semibold text-gray-900 dark:text-[#f4efe7]">Payments</h1>
       </div>
 
       <div className="px-4 pt-6 pb-4 space-y-6">
         {checking ? (
           <div className="flex items-center justify-center py-10">
-            <Loader2 size={20} className="animate-spin text-gray-400" />
-            <span className="ml-2 text-sm text-gray-400">Checking status...</span>
+            <Loader2 size={20} className="animate-spin text-gray-400 dark:text-[#aeb8b4]" />
+            <span className="ml-2 text-sm text-gray-400 dark:text-[#aeb8b4]">Checking status...</span>
           </div>
         ) : isActive ? (
-          <div className="rounded-2xl border border-green-100 bg-green-50 p-5">
+          <div className="rounded-2xl border border-green-100 dark:border-green-500/20 bg-green-50 dark:bg-[#20322b] p-5 transition-colors">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
                 <CheckCircle size={20} className="text-green-600" />
               </div>
-              <p className="text-base font-semibold text-green-800">
+              <p className="text-base font-semibold text-green-800 dark:text-green-300">
                 You’re ready to receive payouts
               </p>
             </div>
@@ -165,22 +165,22 @@ export default function PayoutSettingsPage() {
             <button
               onClick={handleOpenDashboard}
               disabled={loading}
-              className="mt-4 w-full py-3 rounded-xl text-sm font-medium border border-green-200 text-green-700 bg-white hover:bg-green-50 active:bg-green-100 flex items-center justify-center gap-2 disabled:opacity-60 transition-colors"
+              className="mt-4 w-full py-3 rounded-xl text-sm font-medium border border-green-200 dark:border-green-500/20 text-green-700 dark:text-green-300 bg-white dark:bg-[#26322f] hover:bg-green-50 dark:hover:bg-[#30403c] active:bg-green-100 flex items-center justify-center gap-2 disabled:opacity-60 transition-colors"
             >
               {loading ? <Loader2 size={15} className="animate-spin" /> : 'Manage payout account'}
             </button>
           </div>
         ) : (
-          <div className="rounded-2xl border border-gray-100 bg-white p-5 space-y-4">
+            <div className="rounded-2xl border border-gray-100 dark:border-[rgba(242,238,231,0.10)] bg-white dark:bg-[#202b28] p-5 space-y-4 transition-colors">
             <div>
-              <h2 className="text-base font-semibold text-gray-900">Get paid for your sales</h2>
-              <p className="text-[13px] text-gray-500 leading-relaxed mt-1">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-[#f4efe7]">Get paid for your sales</h2>
+              <p className="text-[13px] text-gray-500 dark:text-[#aeb8b4] leading-relaxed mt-1">
                 Complete a quick verification so we can send your payouts.
               </p>
             </div>
 
             {error === '__CONFIG_MISSING__' ? (
-              <p className="text-[13px] text-gray-500 leading-relaxed">
+              <p className="text-[13px] text-gray-500 dark:text-[#aeb8b4] leading-relaxed">
                 Payment setup is being configured. You&apos;ll be able to continue verification shortly.
               </p>
             ) : error ? (
@@ -204,7 +204,7 @@ export default function PayoutSettingsPage() {
           </div>
         )}
 
-        <p className="text-[11px] text-gray-400 leading-relaxed pt-2">
+        <p className="text-[11px] text-gray-400 dark:text-[#aeb8b4] leading-relaxed pt-2">
           Payments are handled by Stripe. Sib does not store your card or banking details.
         </p>
       </div>

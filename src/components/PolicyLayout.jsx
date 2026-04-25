@@ -79,9 +79,9 @@ export function PolicyBullets({ items }) {
 export function PolicyCallout({ icon: CIcon, variant = 'info', title, children }) {
   const styles = {
     info: 'bg-sib-warm dark:bg-[#26322f] border-sib-stone dark:border-[rgba(242,238,231,0.10)]',
-    success: 'bg-green-50 border-green-200',
-    warning: 'bg-amber-50 border-amber-200',
-    danger: 'bg-red-50 border-red-100',
+    success: 'bg-green-50 dark:bg-[#20322b] border-green-200 dark:border-green-500/20',
+    warning: 'bg-amber-50 dark:bg-[#332d20] border-amber-200 dark:border-amber-500/20',
+    danger: 'bg-red-50 dark:bg-[#362322] border-red-100 dark:border-red-500/20',
   }
   const iconStyles = {
     info: 'text-sib-primary',
@@ -102,7 +102,7 @@ export function PolicyCallout({ icon: CIcon, variant = 'info', title, children }
 
 export function PolicyCoveredItem({ icon: ItemIcon, iconClass, title, description }) {
   return (
-    <div className="flex items-start gap-2.5 p-3 rounded-xl bg-green-50">
+    <div className="flex items-start gap-2.5 p-3 rounded-xl bg-green-50 dark:bg-[#20322b] border border-transparent dark:border-green-500/20 transition-colors">
       {ItemIcon && <ItemIcon size={16} className={`${iconClass || 'text-green-600'} flex-shrink-0 mt-0.5`} />}
       <div>
         <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7]">{title}</p>
@@ -114,7 +114,7 @@ export function PolicyCoveredItem({ icon: ItemIcon, iconClass, title, descriptio
 
 export function PolicyNotCoveredItem({ icon: ItemIcon, iconClass, title, description }) {
   return (
-    <div className="flex items-start gap-2.5 p-3 rounded-xl bg-red-50">
+    <div className="flex items-start gap-2.5 p-3 rounded-xl bg-red-50 dark:bg-[#362322] border border-transparent dark:border-red-500/20 transition-colors">
       {ItemIcon && <ItemIcon size={16} className={`${iconClass || 'text-red-500'} flex-shrink-0 mt-0.5`} />}
       <div>
         <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7]">{title}</p>

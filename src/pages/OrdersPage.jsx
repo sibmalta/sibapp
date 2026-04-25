@@ -152,7 +152,7 @@ export default function OrdersPage() {
     return (
       <div>
         <PageHeader title="Orders" />
-        <div className="flex items-center justify-center py-20 text-sm text-sib-muted">
+        <div className="flex items-center justify-center py-20 text-sm text-sib-muted dark:text-[#aeb8b4]">
           Loading orders...
         </div>
       </div>
@@ -201,7 +201,7 @@ export default function OrdersPage() {
     <div>
       <PageHeader title="Orders" />
 
-      <div className="flex border-b border-sib-stone">
+      <div className="flex border-b border-sib-stone dark:border-[rgba(242,238,231,0.10)]">
         {[
           { id: 'buying', label: 'Purchases', icon: ShoppingBag },
           { id: 'selling', label: 'Sales', icon: Package },
@@ -210,7 +210,7 @@ export default function OrdersPage() {
             key={t.id}
             onClick={() => selectTab(t.id)}
             className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-semibold border-b-2 transition-colors ${
-              tab === t.id ? 'border-sib-primary text-sib-primary' : 'border-transparent text-sib-muted'
+              tab === t.id ? 'border-sib-primary text-sib-primary dark:text-[#e8751a]' : 'border-transparent text-sib-muted dark:text-[#aeb8b4]'
             }`}
           >
             <t.icon size={16} /> {t.label}
@@ -219,7 +219,7 @@ export default function OrdersPage() {
       </div>
 
       {tab === 'selling' && (
-        <div className="px-4 py-3 border-b border-sib-stone overflow-x-auto">
+        <div className="px-4 py-3 border-b border-sib-stone dark:border-[rgba(242,238,231,0.10)] overflow-x-auto">
           <div className="flex gap-2 min-w-max">
             {SELLER_FILTERS.map(filter => (
               <button
@@ -228,7 +228,7 @@ export default function OrdersPage() {
                 className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
                   sellerFilter === filter.id
                     ? 'bg-sib-primary text-white'
-                    : 'bg-sib-sand text-sib-muted hover:bg-sib-stone/60'
+                    : 'bg-sib-sand dark:bg-[#26322f] text-sib-muted dark:text-[#aeb8b4] hover:bg-sib-stone/60 dark:hover:bg-[#30403c]'
                 }`}
               >
                 {filter.label}
@@ -241,8 +241,8 @@ export default function OrdersPage() {
       {displayed.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-3">
           <p className="text-5xl">{tab === 'buying' ? '🛍️' : '📦'}</p>
-          <p className="font-semibold text-sib-text">No {tab === 'buying' ? 'purchases' : 'sales'} yet</p>
-          <p className="text-sm text-sib-muted text-center px-8">
+          <p className="font-semibold text-sib-text dark:text-[#f4efe7]">No {tab === 'buying' ? 'purchases' : 'sales'} yet</p>
+          <p className="text-sm text-sib-muted dark:text-[#aeb8b4] text-center px-8">
             {shipmentFilter === 'awaiting_shipment'
               ? 'No sales are currently awaiting shipment.'
               : tab === 'buying' ? 'Browse and buy something you love.' : 'Seller sales will appear here after checkout.'}
@@ -254,7 +254,7 @@ export default function OrdersPage() {
           )}
         </div>
       ) : (
-        <div className="divide-y divide-sib-stone">
+        <div className="divide-y divide-sib-stone dark:divide-[rgba(242,238,231,0.10)]">
           {displayed.map(order => {
             const listing = getListingById(order.listingId)
             const other = getUserById(tab === 'buying' ? order.sellerId : order.buyerId)
@@ -271,13 +271,13 @@ export default function OrdersPage() {
               <div
                 key={order.id}
                 onClick={() => navigate(`/orders/${order.id}`)}
-                className="flex gap-3 px-4 py-4 cursor-pointer active:bg-sib-warm"
+                className="flex gap-3 px-4 py-4 cursor-pointer bg-white dark:bg-[#202b28] active:bg-sib-warm dark:active:bg-[#30403c] transition-colors"
               >
-                <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-sib-sand">
+                <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-sib-sand dark:bg-[#26322f]">
                   {itemImage ? (
                     <img src={itemImage} alt={itemTitle} className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-[10px] font-semibold text-sib-muted">
+                    <div className="w-full h-full flex items-center justify-center text-[10px] font-semibold text-sib-muted dark:text-[#aeb8b4]">
                       Order
                     </div>
                   )}
@@ -286,25 +286,25 @@ export default function OrdersPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-sib-text line-clamp-1">{itemTitle}</p>
-                      <p className="text-[11px] text-sib-muted font-mono mt-0.5">Order #{orderRef}</p>
+                      <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7] line-clamp-1">{itemTitle}</p>
+                      <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] font-mono mt-0.5">Order #{orderRef}</p>
                     </div>
                     <span className="text-sm font-bold text-sib-primary flex-shrink-0">
                       €{formatMoney(tab === 'selling' ? order.itemPrice : order.totalPrice)}
                     </span>
                   </div>
 
-                  <p className="text-xs text-sib-muted mt-0.5">
+                  <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mt-0.5">
                     {tab === 'buying' ? 'From' : 'Buyer'} @{buyerReference}
                   </p>
 
                   {tab === 'selling' && (
                     <div className="mt-2 grid gap-1.5 text-[11px]">
-                      <p className="text-sib-muted">Order date: {formatOrderDate(order.createdAt)}</p>
-                      <p className="text-sib-text font-semibold">Sale price: €{formatMoney(order.itemPrice)}</p>
-                      <p className="text-sib-text font-semibold">Fulfilment method: {titleCaseFulfilment(fulfilmentMethod)}</p>
-                      <p className="text-sib-muted">Fulfilment fee: €{formatMoney(fulfilmentFee)}</p>
-                      <p className="text-sib-muted leading-snug">Seller next step: {sellerState.nextStep}</p>
+                      <p className="text-sib-muted dark:text-[#aeb8b4]">Order date: {formatOrderDate(order.createdAt)}</p>
+                      <p className="text-sib-text dark:text-[#f4efe7] font-semibold">Sale price: €{formatMoney(order.itemPrice)}</p>
+                      <p className="text-sib-text dark:text-[#f4efe7] font-semibold">Fulfilment method: {titleCaseFulfilment(fulfilmentMethod)}</p>
+                      <p className="text-sib-muted dark:text-[#aeb8b4]">Fulfilment fee: €{formatMoney(fulfilmentFee)}</p>
+                      <p className="text-sib-muted dark:text-[#aeb8b4] leading-snug">Seller next step: {sellerState.nextStep}</p>
                     </div>
                   )}
 
@@ -328,7 +328,7 @@ export default function OrdersPage() {
                     {shipment && <ShipmentStatusBadge status={shipment.status} />}
 
                     {shipment?.trackingNumber && (
-                      <span className="text-[10px] text-sib-muted font-mono flex items-center gap-0.5">
+                      <span className="text-[10px] text-sib-muted dark:text-[#aeb8b4] font-mono flex items-center gap-0.5">
                         <Truck size={9} /> {shipment.trackingNumber}
                       </span>
                     )}

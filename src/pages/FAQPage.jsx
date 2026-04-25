@@ -123,21 +123,21 @@ const FAQ_SECTIONS = [
 
 function AccordionItem({ question, answer, isOpen, onToggle }) {
   return (
-    <div className="border-b border-sib-stone last:border-b-0">
+    <div className="border-b border-sib-stone dark:border-[rgba(242,238,231,0.10)] last:border-b-0">
       <button
         onClick={onToggle}
-        className="w-full flex items-start gap-3 px-4 py-3.5 text-left active:bg-sib-sand transition-colors"
+        className="w-full flex items-start gap-3 px-4 py-3.5 text-left active:bg-sib-sand dark:active:bg-[#30403c] transition-colors"
       >
-        <span className="flex-1 text-sm font-semibold text-sib-text leading-snug">{question}</span>
+        <span className="flex-1 text-sm font-semibold text-sib-text dark:text-[#f4efe7] leading-snug">{question}</span>
         {isOpen ? (
-          <ChevronUp size={16} className="text-sib-muted flex-shrink-0 mt-0.5" />
+          <ChevronUp size={16} className="text-sib-muted dark:text-[#aeb8b4] flex-shrink-0 mt-0.5" />
         ) : (
-          <ChevronDown size={16} className="text-sib-muted flex-shrink-0 mt-0.5" />
+          <ChevronDown size={16} className="text-sib-muted dark:text-[#aeb8b4] flex-shrink-0 mt-0.5" />
         )}
       </button>
       {isOpen && (
         <div className="px-4 pb-4 -mt-1">
-          <p className="text-sm text-sib-muted leading-relaxed">{answer}</p>
+          <p className="text-sm text-sib-muted dark:text-[#aeb8b4] leading-relaxed">{answer}</p>
         </div>
       )}
     </div>
@@ -155,15 +155,15 @@ export default function FAQPage() {
 
   return (
     <div className="px-4 py-5 pb-10 max-w-lg mx-auto">
-      <button onClick={() => navigate(-1)} className="inline-flex items-center gap-1.5 text-sib-muted text-sm font-medium mb-4">
+      <button onClick={() => navigate(-1)} className="inline-flex items-center gap-1.5 text-sib-muted dark:text-[#aeb8b4] text-sm font-medium mb-4">
         <ArrowLeft size={16} /> Back
       </button>
 
       <div className="flex items-center gap-2.5 mb-2">
         <HelpCircle size={22} className="text-sib-primary flex-shrink-0" />
-        <h1 className="text-xl font-bold text-sib-text">Frequently Asked Questions</h1>
+        <h1 className="text-xl font-bold text-sib-text dark:text-[#f4efe7]">Frequently Asked Questions</h1>
       </div>
-      <p className="text-sm text-sib-muted mb-6">
+      <p className="text-sm text-sib-muted dark:text-[#aeb8b4] mb-6">
         Everything you need to know about buying and selling on Sib.
       </p>
 
@@ -172,9 +172,9 @@ export default function FAQPage() {
           <div key={section.title}>
             <div className="flex items-center gap-2 mb-2">
               <section.icon size={15} className="text-sib-secondary flex-shrink-0" />
-              <p className="text-[11px] font-semibold text-sib-muted uppercase tracking-wide">{section.title}</p>
+              <p className="text-[11px] font-semibold text-sib-muted dark:text-[#aeb8b4] uppercase tracking-wide">{section.title}</p>
             </div>
-            <div className="rounded-2xl border border-sib-stone overflow-hidden bg-white">
+            <div className="rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] overflow-hidden bg-white dark:bg-[#202b28] transition-colors">
               {section.items.map((item, iIdx) => (
                 <AccordionItem
                   key={iIdx}
@@ -190,12 +190,12 @@ export default function FAQPage() {
       </div>
 
       {/* Still need help? */}
-      <div className="mt-8 p-4 rounded-2xl bg-sib-warm border border-sib-stone">
+      <div className="mt-8 p-4 rounded-2xl bg-sib-warm dark:bg-[#26322f] border border-sib-stone dark:border-[rgba(242,238,231,0.10)] transition-colors">
         <div className="flex items-center gap-2 mb-2">
           <MessageCircle size={16} className="text-sib-primary" />
-          <p className="text-sm font-bold text-sib-text">Still have questions?</p>
+          <p className="text-sm font-bold text-sib-text dark:text-[#f4efe7]">Still have questions?</p>
         </div>
-        <p className="text-xs text-sib-muted leading-relaxed mb-3">
+        <p className="text-xs text-sib-muted dark:text-[#aeb8b4] leading-relaxed mb-3">
           Can't find what you're looking for? Our support team is ready to help.
         </p>
         <Link

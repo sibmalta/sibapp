@@ -75,7 +75,7 @@ export default function OrderDetailPage() {
 
   if (!order) {
     return (
-      <div className="text-center py-20 text-sib-muted">
+      <div className="text-center py-20 text-sib-muted dark:text-[#aeb8b4]">
         {id ? `We couldn't find an order for reference ${id}.` : 'Order not found.'}
       </div>
     )
@@ -142,11 +142,11 @@ export default function OrderDetailPage() {
 
       <div className="px-4 py-5 space-y-5">
         {/* Item summary */}
-        <div className="flex items-center gap-3 p-4 rounded-2xl bg-sib-sand">
+        <div className="flex items-center gap-3 p-4 rounded-2xl bg-sib-sand dark:bg-[#26322f] transition-colors">
           <img src={listing?.images?.[0]} alt={listing?.title} className="w-16 h-16 rounded-xl object-cover flex-shrink-0 bg-sib-stone" />
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-sib-text line-clamp-2">{listing?.title}</p>
-            <p className="text-xs text-sib-muted mt-0.5">{order.orderRef ? `Order #${order.orderRef}` : `Order #${order.id?.slice(-8)}`}</p>
+            <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7] line-clamp-2">{listing?.title}</p>
+            <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mt-0.5">{order.orderRef ? `Order #${order.orderRef}` : `Order #${order.id?.slice(-8)}`}</p>
             <p className="text-base font-bold text-sib-primary mt-1">€{order.totalPrice?.toFixed(2)}</p>
           </div>
         </div>
@@ -166,15 +166,15 @@ export default function OrderDetailPage() {
               </div>
             </div>
             <div className="grid grid-cols-3 gap-2 mt-3">
-              <div className="rounded-xl bg-white/70 border border-green-100 px-2 py-2">
+              <div className="rounded-xl bg-white/70 dark:bg-[#26322f]/80 border border-green-100 dark:border-green-500/20 px-2 py-2 transition-colors">
                 <CheckCircle size={13} className="text-green-600 mb-1" />
                 <p className="text-[11px] font-semibold text-green-800 leading-tight">Payment received</p>
               </div>
-              <div className="rounded-xl bg-white/70 border border-green-100 px-2 py-2">
+              <div className="rounded-xl bg-white/70 dark:bg-[#26322f]/80 border border-green-100 dark:border-green-500/20 px-2 py-2 transition-colors">
                 <Package size={13} className="text-green-600 mb-1" />
                 <p className="text-[11px] font-semibold text-green-800 leading-tight">Seller preparing</p>
               </div>
-              <div className="rounded-xl bg-white/70 border border-green-100 px-2 py-2">
+              <div className="rounded-xl bg-white/70 dark:bg-[#26322f]/80 border border-green-100 dark:border-green-500/20 px-2 py-2 transition-colors">
                 <Truck size={13} className="text-green-600 mb-1" />
                 <p className="text-[11px] font-semibold text-green-800 leading-tight">Updates next</p>
               </div>
@@ -188,9 +188,9 @@ export default function OrderDetailPage() {
             <div className="p-4">
               <div className="flex items-center gap-2 mb-2">
                 <ShieldCheck size={18} className="text-sib-primary" />
-                <h2 className="text-sm font-bold text-sib-text">Confirm your order</h2>
+              <h2 className="text-sm font-bold text-sib-text dark:text-[#f4efe7]">Confirm your order</h2>
               </div>
-              <p className="text-xs text-sib-muted leading-relaxed mb-3">
+              <p className="text-xs text-sib-muted dark:text-[#aeb8b4] leading-relaxed mb-3">
                 Your item has been delivered. Please check everything is as described before confirming.
               </p>
 
@@ -232,7 +232,7 @@ export default function OrderDetailPage() {
               </button>
 
               {/* Helper text */}
-              <p className="text-[11px] text-sib-muted text-center mt-3 leading-snug">
+              <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] text-center mt-3 leading-snug">
                 Confirm early to release payment instantly, or report an issue within 48 hours.
               </p>
             </div>
@@ -256,7 +256,7 @@ export default function OrderDetailPage() {
                   className={`w-full text-left p-3 rounded-xl border text-sm transition-colors ${
                     disputeType === key
                       ? 'border-red-400 bg-red-100 text-red-800 font-semibold'
-                      : 'border-red-200 bg-white text-sib-text hover:border-red-300'
+                      : 'border-red-200 dark:border-red-500/20 bg-white dark:bg-[#26322f] text-sib-text dark:text-[#f4efe7] hover:border-red-300 dark:hover:border-red-500/40'
                   }`}
                 >
                   {DISPUTE_REASONS?.[key] || key}
@@ -269,12 +269,12 @@ export default function OrderDetailPage() {
               onChange={e => setDisputeReason(e.target.value)}
               placeholder="Additional details (optional)..."
               rows={2}
-              className="w-full p-3 rounded-xl border border-red-200 text-sm text-sib-text placeholder:text-sib-muted/50 focus:outline-none focus:border-red-400 resize-none mb-3"
+              className="w-full p-3 rounded-xl border border-red-200 dark:border-red-500/20 bg-white dark:bg-[#26322f] text-sm text-sib-text dark:text-[#f4efe7] placeholder:text-sib-muted/50 dark:placeholder:text-[#aeb8b4] focus:outline-none focus:border-red-400 resize-none mb-3"
             />
             <div className="flex gap-2">
               <button
                 onClick={() => { setDisputeOpen(false); setDisputeReason(''); setDisputeType('') }}
-                className="flex-1 py-2.5 rounded-xl border border-sib-stone text-sib-text text-sm font-semibold"
+                className="flex-1 py-2.5 rounded-xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] text-sib-text dark:text-[#f4efe7] text-sm font-semibold"
               >
                 Cancel
               </button>
@@ -356,7 +356,7 @@ export default function OrderDetailPage() {
               <p className="text-xs text-blue-700 leading-relaxed mb-3">
                 Prepare this order for MaltaPost fulfilment. Enter a tracking number once it is available.
               </p>
-              <div className="flex items-start gap-2 p-2.5 rounded-xl bg-white/70 border border-blue-100 mb-3">
+              <div className="flex items-start gap-2 p-2.5 rounded-xl bg-white/70 dark:bg-[#26322f]/80 border border-blue-100 dark:border-blue-500/20 mb-3 transition-colors">
                 <ShieldCheck size={14} className="text-blue-600 flex-shrink-0 mt-0.5" />
                 <p className="text-[11px] text-blue-700 leading-relaxed">
                   Fulfilment method: {fulfilmentShortLabel}. MaltaPost API integration will be added later.
@@ -381,12 +381,12 @@ export default function OrderDetailPage() {
                     value={trackingInput}
                     onChange={e => setTrackingInput(e.target.value)}
                     placeholder="e.g. RR123456789MT"
-                    className="w-full p-3 rounded-xl border border-blue-200 text-sm text-sib-text placeholder:text-sib-muted/50 focus:outline-none focus:border-blue-400 font-mono"
+                    className="w-full p-3 rounded-xl border border-blue-200 dark:border-blue-500/20 bg-white dark:bg-[#26322f] text-sm text-sib-text dark:text-[#f4efe7] placeholder:text-sib-muted/50 dark:placeholder:text-[#aeb8b4] focus:outline-none focus:border-blue-400 font-mono"
                   />
                   <div className="flex gap-2">
                     <button
                       onClick={() => { setShowShipForm(false); setTrackingInput('') }}
-                      className="flex-1 py-2.5 rounded-xl border border-sib-stone text-sib-text text-sm font-semibold"
+                      className="flex-1 py-2.5 rounded-xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] text-sib-text dark:text-[#f4efe7] text-sm font-semibold"
                     >
                       Cancel
                     </button>
@@ -407,20 +407,20 @@ export default function OrderDetailPage() {
         {/* ── Shipment Tracker ── */}
         {shipment && (
           <div>
-            <p className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-4">MaltaPost fulfilment</p>
+            <p className="text-xs font-semibold text-sib-text dark:text-[#f4efe7] uppercase tracking-wide mb-4">MaltaPost fulfilment</p>
             <ShipmentTracker shipment={shipment} />
             {trackingUrl && (
               <a
                 href={trackingUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-3 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-sib-stone text-sib-primary text-sm font-semibold"
+                className="mt-3 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] text-sib-primary text-sm font-semibold"
               >
                 <ExternalLink size={14} /> Track on MaltaPost
               </a>
             )}
             {estDelivery && shipment.status !== 'delivered' && shipment.status !== 'failed_delivery' && shipment.status !== 'returned' && (
-              <p className="text-xs text-sib-muted mt-2 text-center">
+              <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mt-2 text-center">
                 Estimated MaltaPost delivery: {estDelivery.toLocaleDateString('en-MT', { weekday: 'short', day: 'numeric', month: 'short' })}
               </p>
             )}
@@ -429,44 +429,44 @@ export default function OrderDetailPage() {
 
         {/* Details */}
         <div className="space-y-3">
-          <div className="flex items-center gap-3 p-3 rounded-2xl bg-sib-sand cursor-pointer" onClick={() => navigate(`/profile/${other?.username}`)}>
+          <div className="flex items-center gap-3 p-3 rounded-2xl bg-sib-sand dark:bg-[#26322f] cursor-pointer transition-colors" onClick={() => navigate(`/profile/${other?.username}`)}>
             <UserAvatar user={other} size="sm" />
             <div>
-              <p className="text-xs text-sib-muted">{isBuyer ? 'Seller' : 'Buyer'}</p>
-              <p className="text-sm font-semibold text-sib-text">@{other?.username}</p>
+              <p className="text-xs text-sib-muted dark:text-[#aeb8b4]">{isBuyer ? 'Seller' : 'Buyer'}</p>
+              <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7]">@{other?.username}</p>
             </div>
           </div>
 
-          <div className="flex items-start gap-3 p-3 rounded-2xl bg-sib-sand">
-            <div className="w-8 h-8 rounded-full bg-sib-stone flex items-center justify-center flex-shrink-0">
-              <Truck size={14} className="text-sib-muted" />
+          <div className="flex items-start gap-3 p-3 rounded-2xl bg-sib-sand dark:bg-[#26322f] transition-colors">
+            <div className="w-8 h-8 rounded-full bg-sib-stone dark:bg-[#30403c] flex items-center justify-center flex-shrink-0">
+              <Truck size={14} className="text-sib-muted dark:text-[#aeb8b4]" />
             </div>
             <div className="space-y-1">
               <div>
-                <p className="text-xs text-sib-muted">Fulfilment provider</p>
-                <p className="text-sm font-medium text-sib-text">
+                <p className="text-xs text-sib-muted dark:text-[#aeb8b4]">Fulfilment provider</p>
+                <p className="text-sm font-medium text-sib-text dark:text-[#f4efe7]">
                   {order.fulfilmentProvider || shipment?.fulfilmentProvider || FULFILMENT_PROVIDER}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-sib-muted">Fulfilment method</p>
-                <p className="text-sm font-medium text-sib-text">
+                <p className="text-xs text-sib-muted dark:text-[#aeb8b4]">Fulfilment method</p>
+                <p className="text-sm font-medium text-sib-text dark:text-[#f4efe7]">
                   {fulfilmentMethodLabel}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-sib-muted">Fulfilment price</p>
-                <p className="text-sm font-medium text-sib-text">
+                <p className="text-xs text-sib-muted dark:text-[#aeb8b4]">Fulfilment price</p>
+                <p className="text-sm font-medium text-sib-text dark:text-[#f4efe7]">
                   €{fulfilmentPrice.toFixed(2)}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-sib-muted">Current fulfilment status</p>
-                <p className="text-sm font-medium text-sib-text capitalize">
+                <p className="text-xs text-sib-muted dark:text-[#aeb8b4]">Current fulfilment status</p>
+                <p className="text-sm font-medium text-sib-text dark:text-[#f4efe7] capitalize">
                   {fulfilmentStatusLabel}
                 </p>
               </div>
-              <p className="text-xs text-sib-muted leading-relaxed">
+              <p className="text-xs text-sib-muted dark:text-[#aeb8b4] leading-relaxed">
                 Seller next step: Prepare this order for MaltaPost fulfilment. MaltaPost API integration will be added later.
               </p>
             </div>
@@ -474,19 +474,19 @@ export default function OrderDetailPage() {
         </div>
 
         {/* Cost breakdown */}
-        <div className="p-4 rounded-2xl bg-sib-warm">
-          <p className="text-sm font-bold text-sib-text mb-3">Payment</p>
+        <div className="p-4 rounded-2xl bg-sib-warm dark:bg-[#26322f] border border-transparent dark:border-[rgba(242,238,231,0.10)] transition-colors">
+          <p className="text-sm font-bold text-sib-text dark:text-[#f4efe7] mb-3">Payment</p>
           <div className="space-y-2 text-sm">
-            <div className="flex justify-between text-sib-muted">
+            <div className="flex justify-between text-sib-muted dark:text-[#aeb8b4]">
               <span>Item</span><span>€{order.itemPrice?.toFixed(2)}</span>
             </div>
             <FeeBreakdown
               buyerProtectionFee={(order.bundledFee ?? (order.platformFee + fulfilmentPrice)) - fulfilmentPrice}
             />
-            <div className="flex justify-between text-sib-muted">
+            <div className="flex justify-between text-sib-muted dark:text-[#aeb8b4]">
               <span>MaltaPost fulfilment</span><span>€{fulfilmentPrice.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between font-bold text-sib-text pt-2 border-t border-sib-stone">
+            <div className="flex justify-between font-bold text-sib-text dark:text-[#f4efe7] pt-2 border-t border-sib-stone dark:border-[rgba(242,238,231,0.10)]">
               <span>Total paid</span><span className="text-sib-primary">€{order.totalPrice?.toFixed(2)}</span>
             </div>
           </div>
@@ -497,14 +497,14 @@ export default function OrderDetailPage() {
           {isBuyer && other && (
             <button
               onClick={() => navigate(`/messages`)}
-              className="w-full border border-sib-stone text-sib-text font-semibold py-3 rounded-2xl text-sm flex items-center justify-center gap-2"
+              className="w-full border border-sib-stone dark:border-[rgba(242,238,231,0.10)] text-sib-text dark:text-[#f4efe7] font-semibold py-3 rounded-2xl text-sm flex items-center justify-center gap-2"
             >
               <MessageCircle size={15} /> Message seller
             </button>
           )}
           <button
             onClick={() => navigate(`/listing/${listing?.id}`)}
-            className="w-full border border-sib-stone text-sib-text font-semibold py-3 rounded-2xl text-sm"
+            className="w-full border border-sib-stone dark:border-[rgba(242,238,231,0.10)] text-sib-text dark:text-[#f4efe7] font-semibold py-3 rounded-2xl text-sm"
           >
             View Listing
           </button>

@@ -28,7 +28,7 @@ export default function SettingsPage() {
       <h1 className="text-xl font-bold text-sib-text dark:text-[#f4efe7] mb-6">Settings</h1>
 
       <div className="mb-6">
-        <p className="text-[11px] font-semibold text-sib-muted uppercase tracking-wide mb-2">Appearance</p>
+        <p className="text-[11px] font-semibold text-sib-muted dark:text-[#aeb8b4] uppercase tracking-wide mb-2">Appearance</p>
         <div className="rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] overflow-hidden bg-white dark:bg-[#202b28] transition-colors">
           <div className="px-4 py-3.5 flex items-center justify-between gap-4">
             <div className="min-w-0">
@@ -41,7 +41,7 @@ export default function SettingsPage() {
                 onClick={() => setTheme('light')}
                 className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
                   theme === 'light'
-                    ? 'bg-[#f8f7f3] text-sib-text shadow-sm'
+                    ? 'bg-[#f8f7f3] dark:bg-[#30403c] text-sib-text dark:text-[#f4efe7] shadow-sm'
                     : 'text-sib-muted dark:text-[#aeb8b4] hover:text-sib-text dark:hover:text-[#f4efe7]'
                 }`}
               >
@@ -67,21 +67,21 @@ export default function SettingsPage() {
 
       {/* Account */}
       <div className="mb-6">
-        <p className="text-[11px] font-semibold text-sib-muted uppercase tracking-wide mb-2">Account</p>
+        <p className="text-[11px] font-semibold text-sib-muted dark:text-[#aeb8b4] uppercase tracking-wide mb-2">Account</p>
         <div className="rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] overflow-hidden divide-y divide-sib-stone dark:divide-[rgba(242,238,231,0.10)] bg-white dark:bg-[#202b28] transition-colors">
           <Link
             to="/profile/edit"
             className="flex items-center gap-3 px-4 py-3.5 active:bg-sib-sand dark:active:bg-[#26322f] transition-colors"
           >
-            <User size={16} className="text-sib-muted flex-shrink-0" />
+            <User size={16} className="text-sib-muted dark:text-[#aeb8b4] flex-shrink-0" />
             <span className="text-sm text-sib-text dark:text-[#f4efe7] flex-1">Edit Profile</span>
             <ChevronRight size={14} className="text-sib-stone" />
           </Link>
           <Link
             to="/settings/delivery"
-            className="flex items-center gap-3 px-4 py-3.5 active:bg-sib-sand transition-colors"
+            className="flex items-center gap-3 px-4 py-3.5 active:bg-sib-sand dark:active:bg-[#26322f] transition-colors"
           >
-            <MapPin size={16} className="text-sib-muted flex-shrink-0" />
+            <MapPin size={16} className="text-sib-muted dark:text-[#aeb8b4] flex-shrink-0" />
             <span className="text-sm text-sib-text dark:text-[#f4efe7] flex-1">Delivery Address</span>
             <ChevronRight size={14} className="text-sib-stone" />
           </Link>
@@ -91,8 +91,8 @@ export default function SettingsPage() {
       {/* Admin */}
       {currentUser?.isAdmin && (
         <div className="mb-6">
-          <p className="text-[11px] font-semibold text-sib-muted uppercase tracking-wide mb-2">Admin</p>
-          <div className="rounded-2xl border border-sib-primary/30 overflow-hidden bg-sib-primary/5">
+        <p className="text-[11px] font-semibold text-sib-muted dark:text-[#aeb8b4] uppercase tracking-wide mb-2">Admin</p>
+          <div className="rounded-2xl border border-sib-primary/30 overflow-hidden bg-sib-primary/5 dark:bg-[#26322f] transition-colors">
             <Link
               to="/admin"
               className="flex items-center gap-3 px-4 py-3.5 active:bg-sib-primary/10 transition-colors"
@@ -107,7 +107,7 @@ export default function SettingsPage() {
 
       {/* Legal & Policies */}
       <div className="mb-6">
-        <p className="text-[11px] font-semibold text-sib-muted uppercase tracking-wide mb-2">Legal & Policies</p>
+        <p className="text-[11px] font-semibold text-sib-muted dark:text-[#aeb8b4] uppercase tracking-wide mb-2">Legal & Policies</p>
         <div className="rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] overflow-hidden divide-y divide-sib-stone dark:divide-[rgba(242,238,231,0.10)] bg-white dark:bg-[#202b28] transition-colors">
           {[
             { to: '/terms', icon: FileText, label: 'Terms & Conditions' },
@@ -125,7 +125,7 @@ export default function SettingsPage() {
               to={item.to}
               className="flex items-center gap-3 px-4 py-3.5 active:bg-sib-sand dark:active:bg-[#26322f] transition-colors"
             >
-              <item.icon size={16} className="text-sib-muted flex-shrink-0" />
+              <item.icon size={16} className="text-sib-muted dark:text-[#aeb8b4] flex-shrink-0" />
               <span className="text-sm text-sib-text dark:text-[#f4efe7] flex-1">{item.label}</span>
               <ChevronRight size={14} className="text-sib-stone" />
             </Link>
@@ -135,7 +135,7 @@ export default function SettingsPage() {
 
       {/* Help & Support */}
       <div className="mb-6">
-        <p className="text-[11px] font-semibold text-sib-muted uppercase tracking-wide mb-2">Help & Support</p>
+        <p className="text-[11px] font-semibold text-sib-muted dark:text-[#aeb8b4] uppercase tracking-wide mb-2">Help & Support</p>
         <div className="rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] overflow-hidden divide-y divide-sib-stone dark:divide-[rgba(242,238,231,0.10)] bg-white dark:bg-[#202b28] transition-colors">
           {[
             { to: '/faq', icon: HelpCircle, label: 'FAQ' },
@@ -146,7 +146,7 @@ export default function SettingsPage() {
               to={item.to}
               className="flex items-center gap-3 px-4 py-3.5 active:bg-sib-sand dark:active:bg-[#26322f] transition-colors"
             >
-              <item.icon size={16} className="text-sib-muted flex-shrink-0" />
+              <item.icon size={16} className="text-sib-muted dark:text-[#aeb8b4] flex-shrink-0" />
               <span className="text-sm text-sib-text dark:text-[#f4efe7] flex-1">{item.label}</span>
               <ChevronRight size={14} className="text-sib-stone" />
             </Link>

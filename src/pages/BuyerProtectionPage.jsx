@@ -14,46 +14,46 @@ export default function BuyerProtectionPage() {
       {/* How payment is protected */}
       <PolicySection title="How your payment is protected">
         <div className="space-y-4">
-          <div className="flex gap-3 items-start p-4 rounded-2xl bg-green-50">
+          <div className="flex gap-3 items-start p-4 rounded-2xl bg-green-50 dark:bg-[#20322b] border border-transparent dark:border-green-500/20 transition-colors">
             <div className="w-7 h-7 rounded-full bg-green-600 text-white flex items-center justify-center flex-shrink-0 text-xs font-bold">1</div>
             <div>
-              <p className="text-sm font-semibold text-sib-text">Payment is held securely</p>
-              <p className="text-xs text-sib-muted mt-0.5">When you buy an item, your payment is held by Sib — it is not sent to the seller immediately.</p>
+              <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7]">Payment is held securely</p>
+              <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mt-0.5">When you buy an item, your payment is held by Sib — it is not sent to the seller immediately.</p>
             </div>
           </div>
 
-          <div className="flex gap-3 items-start p-4 rounded-2xl bg-green-50">
+          <div className="flex gap-3 items-start p-4 rounded-2xl bg-green-50 dark:bg-[#20322b] border border-transparent dark:border-green-500/20 transition-colors">
             <div className="w-7 h-7 rounded-full bg-green-600 text-white flex items-center justify-center flex-shrink-0 text-xs font-bold">2</div>
             <div>
-              <p className="text-sm font-semibold text-sib-text">Item is collected and delivered</p>
-              <p className="text-xs text-sib-muted mt-0.5">Sib collects the item from the seller and delivers it to you through our managed logistics.</p>
+              <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7]">Item is collected and delivered</p>
+              <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mt-0.5">Sib collects the item from the seller and delivers it to you through our managed logistics.</p>
             </div>
           </div>
 
-          <div className="flex gap-3 items-start p-4 rounded-2xl bg-green-50">
+          <div className="flex gap-3 items-start p-4 rounded-2xl bg-green-50 dark:bg-[#20322b] border border-transparent dark:border-green-500/20 transition-colors">
             <div className="w-7 h-7 rounded-full bg-green-600 text-white flex items-center justify-center flex-shrink-0 text-xs font-bold">3</div>
             <div>
-              <p className="text-sm font-semibold text-sib-text">48-hour inspection window</p>
-              <p className="text-xs text-sib-muted mt-0.5">After delivery, you have 48 hours to inspect the item and report any issues.</p>
+              <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7]">48-hour inspection window</p>
+              <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mt-0.5">After delivery, you have 48 hours to inspect the item and report any issues.</p>
             </div>
           </div>
 
-          <div className="flex gap-3 items-start p-4 rounded-2xl bg-green-50">
+          <div className="flex gap-3 items-start p-4 rounded-2xl bg-green-50 dark:bg-[#20322b] border border-transparent dark:border-green-500/20 transition-colors">
             <div className="w-7 h-7 rounded-full bg-green-600 text-white flex items-center justify-center flex-shrink-0 text-xs font-bold">4</div>
             <div>
-              <p className="text-sm font-semibold text-sib-text">Seller gets paid</p>
-              <p className="text-xs text-sib-muted mt-0.5">Only after the protection window expires without an issue does the seller receive their payout.</p>
+              <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7]">Seller gets paid</p>
+              <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mt-0.5">Only after the protection window expires without an issue does the seller receive their payout.</p>
             </div>
           </div>
         </div>
       </PolicySection>
 
       {/* 48-hour window */}
-      <div className="flex items-center gap-3 p-4 rounded-2xl bg-sib-warm border border-sib-stone">
+      <div className="flex items-center gap-3 p-4 rounded-2xl bg-sib-warm dark:bg-[#26322f] border border-sib-stone dark:border-[rgba(242,238,231,0.10)] transition-colors">
         <Clock size={20} className="text-sib-primary flex-shrink-0" />
         <div>
-          <p className="text-sm font-bold text-sib-text">48-hour window</p>
-          <p className="text-xs text-sib-muted mt-0.5">
+          <p className="text-sm font-bold text-sib-text dark:text-[#f4efe7]">48-hour window</p>
+          <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mt-0.5">
             After delivery, you have 48 hours to inspect the item and report any issues.
             If you do not raise a dispute within this time, the transaction is finalised
             and the seller receives their payout.
@@ -63,11 +63,11 @@ export default function BuyerProtectionPage() {
 
       {/* Buyer Protection Fee */}
       <PolicySection title="Buyer Protection Fee">
-        <div className="flex items-start gap-3 p-4 rounded-2xl bg-sib-warm border border-sib-stone">
+        <div className="flex items-start gap-3 p-4 rounded-2xl bg-sib-warm dark:bg-[#26322f] border border-sib-stone dark:border-[rgba(242,238,231,0.10)] transition-colors">
           <CreditCard size={18} className="text-sib-primary flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-semibold text-sib-text">A small fee for your peace of mind</p>
-            <p className="text-xs text-sib-muted mt-0.5 leading-relaxed">
+            <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7]">A small fee for your peace of mind</p>
+            <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mt-0.5 leading-relaxed">
               A Buyer Protection Fee is applied to each transaction and is shown clearly at checkout.
               This fee covers the cost of secure payment holding, dispute processing, and transaction protection.
               It is non-refundable unless the dispute is resolved in your favour under specific circumstances.

@@ -151,7 +151,7 @@ export default function NotificationsPage() {
   return (
     <div className="px-4 py-5 pb-24">
       <div className="flex items-center justify-between mb-5">
-        <h2 className="text-xl font-bold text-sib-text">Notifications</h2>
+        <h2 className="text-xl font-bold text-sib-text dark:text-[#f4efe7]">Notifications</h2>
         {unreadCount > 0 && (
           <button
             onClick={handleMarkAllRead}
@@ -164,11 +164,11 @@ export default function NotificationsPage() {
 
       {notifications.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="w-16 h-16 rounded-full bg-sib-sand flex items-center justify-center mb-4">
-            <Bell size={28} className="text-sib-muted" />
+          <div className="w-16 h-16 rounded-full bg-sib-sand dark:bg-[#26322f] flex items-center justify-center mb-4 transition-colors">
+            <Bell size={28} className="text-sib-muted dark:text-[#aeb8b4]" />
           </div>
-          <p className="text-sm font-semibold text-sib-text mb-1">No notifications yet</p>
-          <p className="text-xs text-sib-muted max-w-[240px]">
+          <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7] mb-1">No notifications yet</p>
+          <p className="text-xs text-sib-muted dark:text-[#aeb8b4] max-w-[240px]">
             When someone makes an offer or your order updates, you'll see it here.
           </p>
         </div>
@@ -182,7 +182,9 @@ export default function NotificationsPage() {
                 key={notif.id}
                 onClick={() => handleTap(notif)}
                 className={`w-full flex items-start gap-3 p-3.5 rounded-2xl text-left transition-colors ${
-                  notif.read ? 'bg-white' : 'bg-sib-primary/5 border border-sib-primary/10'
+                  notif.read
+                    ? 'bg-white dark:bg-[#202b28] border border-transparent dark:border-[rgba(242,238,231,0.10)]'
+                    : 'bg-sib-primary/5 dark:bg-[#26322f] border border-sib-primary/10 dark:border-sib-primary/30'
                 }`}
               >
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${cfg.color}`}>
@@ -190,17 +192,17 @@ export default function NotificationsPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <p className={`text-sm font-semibold truncate ${notif.read ? 'text-sib-text' : 'text-sib-text'}`}>
+                    <p className="text-sm font-semibold truncate text-sib-text dark:text-[#f4efe7]">
                       {notif.title}
                     </p>
                     {!notif.read && (
                       <span className="w-2 h-2 rounded-full bg-sib-primary flex-shrink-0" />
                     )}
                   </div>
-                  <p className="text-xs text-sib-muted leading-relaxed line-clamp-2">{notif.message}</p>
-                  <p className="text-[10px] text-sib-muted/60 mt-1">{timeAgo(notif.createdAt)}</p>
+                  <p className="text-xs text-sib-muted dark:text-[#aeb8b4] leading-relaxed line-clamp-2">{notif.message}</p>
+                  <p className="text-[10px] text-sib-muted/60 dark:text-[#aeb8b4]/70 mt-1">{timeAgo(notif.createdAt)}</p>
                 </div>
-                <ChevronRight size={16} className="text-sib-muted/40 flex-shrink-0 mt-2.5" />
+                <ChevronRight size={16} className="text-sib-muted/40 dark:text-[#aeb8b4]/60 flex-shrink-0 mt-2.5" />
               </button>
             )
           })}
