@@ -104,6 +104,10 @@ export function sendDisputeMessageEmail(userEmail, userName, orderRef, messagePr
   return sendEmail('dispute_message', userEmail, { userName, orderRef, messagePreview }, meta)
 }
 
+export function sendMessageReceivedEmail(userEmail, userName, senderName, messagePreview, itemTitle = '', meta = {}) {
+  return sendEmail('message_received', userEmail, { userName, senderName, messagePreview, itemTitle }, meta)
+}
+
 export function sendBundleOfferReceivedEmail(sellerEmail, itemCount, offerPrice, originalTotal, buyerName, meta = {}) {
   return sendEmail('bundle_offer_received', sellerEmail, { itemCount, offerPrice, originalTotal, buyerName }, meta)
 }

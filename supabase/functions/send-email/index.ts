@@ -29,6 +29,7 @@ type EmailType =
   | 'order_cancelled_seller'
   | 'dispute_resolved'
   | 'dispute_message'
+  | 'message_received'
   | 'bundle_offer_received'
   | 'bundle_offer_accepted'
   | 'bundle_offer_declined'
@@ -209,6 +210,7 @@ function buildEmail(payload: EmailPayload): { subject: string; html: string; pre
   const orderUrl = (id?: string | null) => id ? buildAppUrl(`/orders/${id}`) : buildAppUrl('/orders')
   const messageUrl = (conversationId?: string | null) =>
     conversationId ? buildAppUrl(`/messages/${conversationId}`) : buildAppUrl('/messages')
+  const conversationUrl = () => messageUrl(payload.meta?.conversationId || payload.meta?.conversation_id || payload.related_entity_id)
   const offerThreadUrl = () => {
     const conversationId = payload.meta?.conversationId || payload.meta?.conversation_id
     const params = {
@@ -783,6 +785,30 @@ case 'item_sold': {
             View the full message and respond in the app.
           </p>
           ${btn('View Dispute', orderUrl(payload.meta?.orderId))}
+        `),
+      }
+    }
+
+    case 'message_received': {
+      const { userName, senderName, messagePreview, itemTitle } = data
+      const ph = `@${senderName || 'Someone'} sent you a message on Sib.`
+      const url = conversationUrl()
+      console.log(`[send-email] message_received CTA URL: ${url}`)
+      return {
+        subject: `New message from @${senderName || 'someone'}`,
+        preheader: ph,
+        html: wrap(ph, `
+          <h2 style="font-size:18px;color:#1F2937;text-align:center;margin:14px 0 8px;">New Message</h2>
+          <p style="font-size:14px;color:#4B5563;text-align:center;margin:0 0 14px;">
+            Hi ${userName || 'there'}, @${senderName || 'someone'} sent you a message${itemTitle ? ` about "${itemTitle}"` : ''}.
+          </p>
+          ${infoBox('#F0F9FF', `
+            <p style="font-size:13px;color:#4B5563;margin:0;font-style:italic;">"${String(messagePreview || '').slice(0, 180)}${String(messagePreview || '').length > 180 ? '...' : ''}"</p>
+          `)}
+          <p style="font-size:13px;color:#6B7280;text-align:center;">
+            Reply in Sib Messages to keep your conversation and Buyer Protection in one place.
+          </p>
+          ${btn('View Message', url)}
         `),
       }
     }

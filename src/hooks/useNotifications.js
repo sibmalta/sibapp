@@ -58,6 +58,30 @@ export function useNotifications(currentUser) {
     }
   }, [currentUser?.id, isAuthenticated, refreshNotifications])
 
+  useEffect(() => {
+    if (!currentUser?.id || !isAuthenticated) return undefined
+
+    const channel = supabase
+      .channel(`notifications:${currentUser.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${currentUser.id}`,
+        },
+        () => {
+          refreshNotifications()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [currentUser?.id, isAuthenticated, refreshNotifications, supabase])
+
   const addNotification = useCallback(async (notif) => {
     if (!notif?.userId || !isAuthenticated) return null
 

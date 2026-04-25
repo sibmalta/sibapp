@@ -4,6 +4,7 @@ import { useListings as useListingsHook } from '../hooks/useListings'
 import { useProfiles as useProfilesHook } from '../hooks/useProfiles'
 import { useOrders as useOrdersHook } from '../hooks/useOrders'
 import { useNotifications as useNotificationsHook } from '../hooks/useNotifications'
+import { useConversations as useConversationsHook } from '../hooks/useConversations'
 import { SEED_USERS, SEED_MESSAGES, SEED_REVIEWS } from '../data/seedData'
 import {
   sendOfferReceivedEmail, sendOfferAcceptedEmail, sendOfferDeclinedEmail, sendOfferCounteredEmail,
@@ -12,6 +13,7 @@ import {
   sendRefundConfirmedEmail, sendDisputeOpenedEmail, sendDisputeResolvedEmail, sendDisputeMessageEmail,
   sendItemSoldEmail, sendShippingReminderEmail, sendPayoutReleasedEmail,
   sendSuspiciousActivityEmail,
+  sendMessageReceivedEmail,
   sendBundleOfferReceivedEmail, sendBundleOfferAcceptedEmail, sendBundleOfferDeclinedEmail, sendBundleOfferCounteredEmail,
 } from '../lib/email'
 import { createTransfer, createRefund } from '../lib/stripe'
@@ -164,6 +166,16 @@ export function AppProvider({ children }) {
     return profileUser ? { ...authAppUser, ...profileUser } : authAppUser
   }, [authAppUser, users])
 
+  const {
+    conversations,
+    setConversations,
+    refreshConversations,
+    createConversation,
+    createConversationForUsers,
+    addMessage: dbAddMessage,
+    markConversationRead: dbMarkConversationRead,
+  } = useConversationsHook(currentUser, SEED_MESSAGES)
+
   // ── Supabase-backed listings hook ──────────────────────────
   const {
     listings,
@@ -211,7 +223,6 @@ export function AppProvider({ children }) {
     refreshShipments,
   } = useOrdersHook()
 
-  const [conversations, setConversations] = useState(() => loadFromStorage('sib_conversations', SEED_MESSAGES))
   const [reviews, setReviews] = useState(() => loadFromStorage('sib_reviews', SEED_REVIEWS))
   const [payoutProfiles, setPayoutProfiles] = useState(() => loadFromStorage('sib_payoutProfiles', {}))
   const [offers, setOffers] = useState(() => loadFromStorage('sib_offers', []))
@@ -272,7 +283,6 @@ export function AppProvider({ children }) {
   useEffect(() => { if (!profilesDbAvailable) saveToStorage('sib_users', users) }, [users, profilesDbAvailable])
   // Listings are never cached to localStorage; Supabase is the only production listing source.
   // Orders no longer saved to localStorage — DB is sole source of truth
-  useEffect(() => { saveToStorage('sib_conversations', conversations) }, [conversations])
   useEffect(() => { saveToStorage('sib_reviews', reviews) }, [reviews])
   // Disputes no longer saved to localStorage — DB is sole source of truth
   useEffect(() => { if (!listingsDbAvailable) saveToStorage('sib_likes', likedListings) }, [likedListings, listingsDbAvailable])
@@ -505,38 +515,12 @@ export function AppProvider({ children }) {
   }, [currentUser, listings, users, orders, addNotification, dbCreateOrder, dbCreateShipment, showToast])
 
   const getOrCreateConversation = useCallback((otherUserId, listingId) => {
-    const existing = conversations.find(c =>
-      c.participants.includes(currentUser.id) &&
-      c.participants.includes(otherUserId) &&
-      c.listingId === listingId
-    )
-    if (existing) return existing
-    const newConv = {
-      id: `c${Date.now()}`,
-      participants: [currentUser.id, otherUserId],
-      listingId,
-      messages: [],
-    }
-    setConversations(prev => [...prev, newConv])
-    return newConv
-  }, [currentUser, conversations])
+    return createConversation(otherUserId, listingId)
+  }, [createConversation])
 
   const getOrCreateConversationForUsers = useCallback((userAId, userBId, listingId) => {
-    const existing = conversations.find(c =>
-      c.participants.includes(userAId) &&
-      c.participants.includes(userBId) &&
-      c.listingId === listingId
-    )
-    if (existing) return existing
-    const newConv = {
-      id: `c${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-      participants: [userAId, userBId],
-      listingId,
-      messages: [],
-    }
-    setConversations(prev => [...prev, newConv])
-    return newConv
-  }, [conversations])
+    return createConversationForUsers(userAId, userBId, listingId)
+  }, [createConversationForUsers])
 
   const addConversationEvent = useCallback((conversationId, event) => {
     if (!conversationId) return null
@@ -559,7 +543,7 @@ export function AppProvider({ children }) {
   }, [])
 
   // sendMessage(convId, senderId, text, flagged?)
-  const sendMessage = useCallback((conversationId, senderIdOrText, textArg, flagged = false) => {
+  const sendMessage = useCallback(async (conversationId, senderIdOrText, textArg, flagged = false) => {
     const text = textArg !== undefined ? textArg : senderIdOrText
     const analysis = analyseMessage(text)
     if (analysis.flagged) {
@@ -575,37 +559,66 @@ export function AppProvider({ children }) {
       err.analysis = analysis
       throw err
     }
+    const conversation = conversations.find(c => c.id === conversationId)
+    const recipientId = conversation?.participants?.find(id => id !== currentUser.id)
+    const recipient = users.find(u => u.id === recipientId)
+    const listing = conversation?.listingId ? listings.find(l => l.id === conversation.listingId) : null
     const newMsg = {
       id: `m${Date.now()}`,
       senderId: currentUser.id,
+      recipientId,
       text,
       timestamp: new Date().toISOString(),
       flagged: !!flagged,
     }
-    setConversations(prev => prev.map(c => {
-      if (c.id !== conversationId) return c
-      return { ...c, messages: [...c.messages, newMsg] }
-    }))
+    await dbAddMessage(conversationId, newMsg)
+
+    if (recipientId && recipientId !== currentUser.id && !flagged) {
+      addNotification({
+        userId: recipientId,
+        type: 'message_received',
+        title: `New message from @${currentUser.username || currentUser.name || 'someone'}`,
+        message: text.length > 120 ? `${text.slice(0, 117)}...` : text,
+        listingId: conversation?.listingId || null,
+        conversationId,
+        actionTarget: `/messages/${conversationId}`,
+        metadata: {
+          senderId: currentUser.id,
+          senderName: currentUser.username || currentUser.name || '',
+        },
+      })
+
+      if (recipient?.email) {
+        sendMessageReceivedEmail(
+          recipient.email,
+          recipient.name || recipient.username || 'there',
+          currentUser.username || currentUser.name || 'someone',
+          text,
+          listing?.title || '',
+          {
+            conversationId,
+            listingId: conversation?.listingId || null,
+            senderId: currentUser.id,
+            recipientId,
+            related_entity_type: 'conversation',
+            related_entity_id: conversationId,
+          },
+        )
+      }
+    }
+
     // Email: suspicious activity alert if message flagged
     if (flagged && currentUser?.email) {
       sendSuspiciousActivityEmail(currentUser.email, currentUser.name, 'Your message was flagged for containing contact information. Please use Sib messaging to stay protected.')
     }
     return newMsg
-  }, [currentUser])
+  }, [addNotification, conversations, currentUser, dbAddMessage, listings, users])
 
   // Mark all messages from other participants as read in a conversation
   const markConversationRead = useCallback((conversationId) => {
     if (!currentUser) return
-    setConversations(prev => prev.map(c => {
-      if (c.id !== conversationId) return c
-      const updated = c.messages.map(m =>
-        m.senderId !== currentUser.id && !m.read ? { ...m, read: true } : m
-      )
-      // Only create new object if something changed
-      if (updated === c.messages || updated.every((m, i) => m === c.messages[i])) return c
-      return { ...c, messages: updated }
-    }))
-  }, [currentUser])
+    dbMarkConversationRead(conversationId)
+  }, [currentUser, dbMarkConversationRead])
 
   // Count conversations with unread messages for a given user
   const getUnreadConversationCount = useCallback((userId) => {
@@ -2096,7 +2109,7 @@ export function AppProvider({ children }) {
       getShipmentByOrderId, getSellerShipments, getBuyerShipments, markShipmentShipped, updateShipmentStatus, adminUpdateShipment,
       getUserById, getUserByUsername, getListingById, getUserListings,
       getUserOrders, getUserSales,
-      getUserConversations, getConversationById, getConversation,
+      getUserConversations, getConversationById, getConversation, refreshConversations,
       calculateFees, showToast,
     }}>
       {children}
