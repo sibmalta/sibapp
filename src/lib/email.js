@@ -8,20 +8,26 @@ async function sendEmail(type, to, payload = {}, meta = {}) {
       headers: {
         'Content-Type': 'application/json',
         apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+data: payload,
       },
       body: JSON.stringify({
         type,
         to,
-        payload,
+        data: payload, // 
         meta,
       }),
     })
 
     if (!res.ok) {
       console.error('[sendEmail] failed', await res.text())
+      return null
     }
+
+    return res
   } catch (err) {
     console.error('[sendEmail] error', err)
+    return null
   }
 }
 
