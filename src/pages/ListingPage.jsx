@@ -11,6 +11,7 @@ import ListingCard from '../components/ListingCard'
 import MakeOfferModal from '../components/MakeOfferModal'
 import SellerTrustBadges from '../components/SellerTrustBadges'
 import PageHeader from '../components/PageHeader'
+import SmartBundlePrompt from '../components/SmartBundlePrompt'
 import { trackView } from '../lib/browsingHistory'
 import { useSupabase } from '../lib/useSupabase'
 import { logActivity } from '../lib/activityTracker'
@@ -535,6 +536,8 @@ if (!listing) return (
           onClose={() => setShowOfferModal(false)}
         />
       )}
+
+      <SmartBundlePrompt listing={listing} />
 
       {/* More from seller */}
       {sellerOtherListings.length > 0 && (

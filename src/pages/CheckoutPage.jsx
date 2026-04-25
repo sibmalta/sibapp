@@ -8,6 +8,7 @@ import { getStripe, createPaymentIntent, isStripeConfigured } from '../lib/strip
 import FeeBreakdown from '../components/FeeBreakdown'
 import PageHeader from '../components/PageHeader'
 import DeliveryMethodSelector from '../components/DeliveryMethodSelector'
+import SmartBundlePrompt from '../components/SmartBundlePrompt'
 import { getLockerById } from '../data/deliveryConfig'
 import { getDefaultDeliverySize } from '../lib/deliveryPricing'
 import { getFulfilmentMethodLabel, getFulfilmentPrice, normalizeFulfilmentMethod } from '../lib/fulfilment'
@@ -515,6 +516,7 @@ export default function CheckoutPage() {
   return (
     <div>
       <PageHeader title="Checkout" />
+      <SmartBundlePrompt listing={listing} />
       <div className="px-4 py-5 pb-10 lg:max-w-5xl lg:mx-auto lg:px-8 lg:py-8">
         <div className="lg:flex lg:gap-10">
           <div className="lg:flex-1">
