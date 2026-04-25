@@ -5,16 +5,16 @@ async function sendEmail(type, to, payload = {}, meta = {}) {
   try {
     const res = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-data: payload,
+     headers: {
+  'Content-Type': 'application/json',
+  apikey: SUPABASE_ANON_KEY,
+  Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+},
       },
       body: JSON.stringify({
         type,
         to,
-        data: payload, // 
+        data: payload, 
         meta,
       }),
     })
