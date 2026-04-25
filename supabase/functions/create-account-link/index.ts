@@ -79,6 +79,67 @@ function stripeConnectErrorResponse(error: unknown) {
   )
 }
 
+function isInvalidConnectedAccountError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error)
+  const stripeError = error as { code?: string }
+  return (
+    stripeError?.code === 'account_invalid' ||
+    stripeError?.code === 'resource_missing' ||
+    /provided key does not have access to account/i.test(message) ||
+    /No such account/i.test(message) ||
+    /account_invalid/i.test(message)
+  )
+}
+
+async function clearStoredStripeAccount(supabase: ReturnType<typeof createClient>, userId: string, reason: string) {
+  console.warn('[create-account-link] Clearing stale stripe_account_id', { userId, reason })
+  await supabase
+    .from('profiles')
+    .update({
+      stripe_account_id: null,
+      details_submitted: false,
+      stripe_onboarding_complete: false,
+      charges_enabled: false,
+      payouts_enabled: false,
+      stripe_status_updated_at: new Date().toISOString(),
+    })
+    .eq('id', userId)
+}
+
+async function createConnectedAccount(
+  supabase: ReturnType<typeof createClient>,
+  stripe: Stripe,
+  userId: string,
+  userEmail: string,
+) {
+  const account = await stripe.accounts.create({
+    type: 'express',
+    country: 'MT',
+    email: userEmail,
+    capabilities: {
+      card_payments: { requested: true },
+      transfers: { requested: true },
+    },
+    metadata: {
+      user_id: userId,
+    },
+  })
+
+  await supabase
+    .from('profiles')
+    .update({
+      stripe_account_id: account.id,
+      details_submitted: false,
+      stripe_onboarding_complete: false,
+      charges_enabled: false,
+      payouts_enabled: false,
+      stripe_status_updated_at: new Date().toISOString(),
+    })
+    .eq('id', userId)
+
+  return account
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -106,8 +167,9 @@ Deno.serve(async (req) => {
     const payloadBase64 = userToken.split('.')[1]
     const payload = JSON.parse(atob(payloadBase64))
     const userId = payload.sub
+    const userEmail = payload.email
 
-    const { accountId, returnUrl, refreshUrl } = await req.json()
+    let { accountId, returnUrl, refreshUrl } = await req.json()
     const fallbackUrl = buildAppUrl(PAYOUT_SETTINGS_PATH)
     const safeReturnUrl = sanitizeUrl(returnUrl, fallbackUrl)
     const safeRefreshUrl = sanitizeUrl(refreshUrl, safeReturnUrl)
@@ -119,13 +181,24 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Before creating onboarding link, check current account status
-    const account = await stripe.accounts.retrieve(accountId)
-
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     )
+
+    // Before creating onboarding link, check current account status.
+    // Stale account IDs from an old Stripe platform cannot be accessed by the current platform key.
+    let account: Stripe.Account
+    let accountReset = false
+    try {
+      account = await stripe.accounts.retrieve(accountId)
+    } catch (error) {
+      if (!isInvalidConnectedAccountError(error)) throw error
+      await clearStoredStripeAccount(supabase, userId, error instanceof Error ? error.message : 'invalid connected account')
+      account = await createConnectedAccount(supabase, stripe, userId, userEmail)
+      accountId = account.id
+      accountReset = true
+    }
 
     // Update profile with latest Stripe account status
     await supabase
@@ -149,6 +222,8 @@ Deno.serve(async (req) => {
           detailsSubmitted: account.details_submitted,
           chargesEnabled: account.charges_enabled,
           payoutsEnabled: account.payouts_enabled,
+          accountId,
+          accountReset,
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
@@ -169,6 +244,8 @@ Deno.serve(async (req) => {
         detailsSubmitted: account.details_submitted,
         chargesEnabled: account.charges_enabled,
         payoutsEnabled: account.payouts_enabled,
+        accountId,
+        accountReset,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

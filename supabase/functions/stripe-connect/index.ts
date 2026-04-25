@@ -98,6 +98,18 @@ function stripeConnectErrorResponse(error: unknown) {
   )
 }
 
+function isInvalidConnectedAccountError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error)
+  const stripeError = error as { code?: string; type?: string }
+  return (
+    stripeError?.code === 'account_invalid' ||
+    stripeError?.code === 'resource_missing' ||
+    /provided key does not have access to account/i.test(message) ||
+    /No such account/i.test(message) ||
+    /account_invalid/i.test(message)
+  )
+}
+
 function getServiceRoleClient() {
   return createClient(
     Deno.env.get('SUPABASE_URL')!,
@@ -150,6 +162,59 @@ async function syncStripeAccountStatus(
     account,
     updates,
   }
+}
+
+async function clearStoredStripeAccount(
+  supabase: ReturnType<typeof getServiceRoleClient>,
+  userId: string,
+  reason: string,
+) {
+  console.warn('[stripe-connect] Clearing stale stripe_account_id', { userId, reason })
+  await supabase
+    .from('profiles')
+    .update({
+      stripe_account_id: null,
+      details_submitted: false,
+      stripe_onboarding_complete: false,
+      charges_enabled: false,
+      payouts_enabled: false,
+      stripe_status_updated_at: new Date().toISOString(),
+    })
+    .eq('id', userId)
+}
+
+async function createConnectedAccountForUser(
+  supabase: ReturnType<typeof getServiceRoleClient>,
+  stripe: Stripe,
+  userId: string,
+  userEmail: string,
+) {
+  const account = await stripe.accounts.create({
+    type: 'express',
+    country: 'MT',
+    email: userEmail,
+    capabilities: {
+      card_payments: { requested: true },
+      transfers: { requested: true },
+    },
+    metadata: {
+      user_id: userId,
+    },
+  })
+
+  await supabase
+    .from('profiles')
+    .update({
+      stripe_account_id: account.id,
+      details_submitted: false,
+      stripe_onboarding_complete: false,
+      charges_enabled: false,
+      payouts_enabled: false,
+      stripe_status_updated_at: new Date().toISOString(),
+    })
+    .eq('id', userId)
+
+  return account
 }
 
 Deno.serve(async (req) => {
@@ -206,34 +271,35 @@ Deno.serve(async (req) => {
     }
 
     if (!accountId) {
-      const account = await stripe.accounts.create({
-        type: 'express',
-        country: 'MT',
-        email: userEmail,
-        capabilities: {
-          card_payments: { requested: true },
-          transfers: { requested: true },
-        },
-        metadata: {
-          user_id: userId,
-        },
-      })
+      const account = await createConnectedAccountForUser(supabase, stripe, userId, userEmail)
       accountId = account.id
-
-      await supabase
-        .from('profiles')
-        .update({
-          stripe_account_id: accountId,
-          details_submitted: false,
-          stripe_onboarding_complete: false,
-          charges_enabled: false,
-          payouts_enabled: false,
-          stripe_status_updated_at: new Date().toISOString(),
-        })
-        .eq('id', userId)
     }
 
-    const { account } = await syncStripeAccountStatus(supabase, stripe, userId, accountId)
+    let account: Stripe.Account
+    let recreatedAccount = false
+    try {
+      const synced = await syncStripeAccountStatus(supabase, stripe, userId, accountId)
+      account = synced.account
+    } catch (error) {
+      if (!isInvalidConnectedAccountError(error)) throw error
+
+      await clearStoredStripeAccount(supabase, userId, error instanceof Error ? error.message : 'invalid connected account')
+
+      if (mode === 'status') {
+        return jsonResponse({
+          accountId: null,
+          detailsSubmitted: false,
+          chargesEnabled: false,
+          payoutsEnabled: false,
+          onboardingRequired: true,
+          accountReset: true,
+        })
+      }
+
+      account = await createConnectedAccountForUser(supabase, stripe, userId, userEmail)
+      accountId = account.id
+      recreatedAccount = true
+    }
 
     const detailsSubmitted = account.details_submitted || false
     const chargesEnabled = account.charges_enabled || false
@@ -247,6 +313,7 @@ Deno.serve(async (req) => {
         chargesEnabled,
         payoutsEnabled,
         onboardingRequired: !fullyOnboarded,
+        accountReset: recreatedAccount,
       })
     }
 
@@ -259,6 +326,7 @@ Deno.serve(async (req) => {
         detailsSubmitted,
         chargesEnabled,
         payoutsEnabled,
+        accountReset: recreatedAccount,
       })
     }
 
@@ -276,6 +344,7 @@ Deno.serve(async (req) => {
       detailsSubmitted,
       chargesEnabled,
       payoutsEnabled,
+      accountReset: recreatedAccount,
     })
   } catch (error) {
     console.error('stripe-connect error:', error)
