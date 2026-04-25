@@ -91,6 +91,32 @@ export function useProfiles(localUsers, currentUser) {
     }
   }, [supabase, currentUser?.id, dbAvailable])
 
+  const ensureUserById = useCallback(async (userId) => {
+    if (!userId) return null
+    const existing = users.find(u => u.id === userId)
+    if (existing?.email || existing?.username) return existing
+    if (!SUPABASE_ENABLED) return existing || null
+
+    const { data, error } = await fetchProfileById(supabase, userId)
+    if (error) {
+      console.error('[useProfiles] ensureUserById failed:', {
+        userId,
+        message: error.message,
+        code: error.code || null,
+      })
+      return existing || null
+    }
+
+    if (data) {
+      setUsers(prev => prev.some(u => u.id === data.id)
+        ? prev.map(u => u.id === data.id ? { ...u, ...data } : u)
+        : [...prev, data])
+      return data
+    }
+
+    return existing || null
+  }, [supabase, users])
+
   const prepareProfileUpdates = useCallback(async (client, updates, avatarFile = null) => {
     let finalUpdates = { ...updates }
 
@@ -267,6 +293,7 @@ export function useProfiles(localUsers, currentUser) {
     users,
     dbAvailable,
     refreshCurrentProfile,
+    ensureUserById,
     updateProfile,
     suspendUser,
     banUser,

@@ -34,7 +34,7 @@ function formatTimestamp(ts) {
 }
 
 export default function ChatListPage() {
-  const { currentUser, getUserConversations, getUserById, getListingById, getOrCreateConversation } = useApp()
+  const { currentUser, getUserConversations, getUserById, getListingById, getOrCreateConversation, ensureUserById } = useApp()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const handledNewRef = useRef(false)
@@ -65,6 +65,17 @@ export default function ChatListPage() {
   }
 
   const conversations = getUserConversations(currentUser.id)
+
+  useEffect(() => {
+    if (!currentUser || !ensureUserById) return
+    conversations.forEach(conv => {
+      const otherId = conv.participants.find(p => p !== currentUser.id)
+      const other = getUserById(otherId)
+      if (otherId && (!other?.username || !other?.email)) {
+        ensureUserById(otherId)
+      }
+    })
+  }, [conversations, currentUser, ensureUserById, getUserById])
 
   // Sort by most recent message first
   const sorted = useMemo(() => {

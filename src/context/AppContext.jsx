@@ -156,6 +156,7 @@ export function AppProvider({ children }) {
     updateSellerBadges,
     updateTrustTags,
     updateAdminRole,
+    ensureUserById,
     getUserById,
     getUserByUsername,
   } = useProfilesHook(localUsers, authAppUser)
@@ -561,7 +562,10 @@ export function AppProvider({ children }) {
     }
     const conversation = conversations.find(c => c.id === conversationId)
     const recipientId = conversation?.participants?.find(id => id !== currentUser.id)
-    const recipient = users.find(u => u.id === recipientId)
+    let recipient = users.find(u => u.id === recipientId)
+    if (recipientId && (!recipient?.email || !recipient?.username)) {
+      recipient = await ensureUserById?.(recipientId) || recipient
+    }
     const listing = conversation?.listingId ? listings.find(l => l.id === conversation.listingId) : null
     console.info('[messages] sendMessage start', {
       conversationId,
@@ -569,6 +573,7 @@ export function AppProvider({ children }) {
       recipientId: recipientId || null,
       hasConversation: !!conversation,
       hasRecipientProfile: !!recipient,
+      hasRecipientEmail: !!recipient?.email,
     })
 
     if (!conversation || !recipientId) {
@@ -620,6 +625,18 @@ export function AppProvider({ children }) {
         metadata: {
           senderId: currentUser.id,
           senderName: currentUser.username || currentUser.name || '',
+          senderUsername: currentUser.username || '',
+          senderAvatar: currentUser.avatar || '',
+          senderIsAdmin: !!currentUser.isAdmin,
+          senderVerified: !!currentUser.verified || !!currentUser.isAdmin,
+        },
+        data: {
+          senderId: currentUser.id,
+          senderName: currentUser.username || currentUser.name || '',
+          senderUsername: currentUser.username || '',
+          senderAvatar: currentUser.avatar || '',
+          senderIsAdmin: !!currentUser.isAdmin,
+          senderVerified: !!currentUser.verified || !!currentUser.isAdmin,
         },
       })
       console.info('[messages] notification result', {
@@ -664,7 +681,7 @@ export function AppProvider({ children }) {
       sendSuspiciousActivityEmail(currentUser.email, currentUser.name, 'Your message was flagged for containing contact information. Please use Sib messaging to stay protected.')
     }
     return { message: messageResult?.data || newMsg }
-  }, [addNotification, conversations, currentUser, dbAddMessage, listings, showToast, users])
+  }, [addNotification, conversations, currentUser, dbAddMessage, ensureUserById, listings, showToast, users])
 
   // Mark all messages from other participants as read in a conversation
   const markConversationRead = useCallback((conversationId) => {
@@ -2157,7 +2174,7 @@ export function AppProvider({ children }) {
       createBundleOffer, acceptBundleOffer, declineBundleOffer, counterBundleOffer, getBundleOfferById, placeBundleOfferOrder,
       suspendUser, banUser, restoreUser, updateSellerBadges, updateTrustTags, updateAdminRole, holdPayout, releasePayout, refundOrder, resolveDispute, cancelOrder, addDisputeMessage,
       savePayoutProfile, getPayoutProfile,
-      refreshCurrentProfile,
+      refreshCurrentProfile, ensureUserById,
       getShipmentByOrderId, getSellerShipments, getBuyerShipments, markShipmentShipped, updateShipmentStatus, adminUpdateShipment,
       getUserById, getUserByUsername, getListingById, getUserListings,
       getUserOrders, getUserSales,

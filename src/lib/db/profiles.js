@@ -16,17 +16,22 @@
  */
 export function rowToUser(row) {
   if (!row) return null
+  const username = row.username || ''
+  const name = row.name || row.display_name || row.full_name || username || ''
+  const avatar = row.avatar || row.avatar_url || null
+  const isAdmin = row.is_admin || row.admin_role === 'super_admin' || username.toLowerCase() === 'sibadmin'
   return {
     id: row.id,
-    username: row.username || '',
-    name: row.name || '',
+    username,
+    name,
     email: row.email || '',
     bio: row.bio || '',
     phone: row.phone || '',
-    avatar: row.avatar || null,               // column: avatar (not avatar_url)
+    avatar,
     location: row.location || 'Malta',
     isShop: row.is_shop || false,
-    isAdmin: row.is_admin || false,
+    isAdmin,
+    verified: !!(row.verified || row.is_verified || isAdmin),
     rating: Number(row.rating ?? 5.0),
     reviewCount: row.review_count ?? 0,
     sales: row.sales ?? 0,                    // column: sales (not sales_count)

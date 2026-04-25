@@ -110,7 +110,7 @@ export default function ChatPage() {
   const [searchParams] = useSearchParams()
   const {
     currentUser, getConversation, getUserById, getListingById, sendMessage, markConversationRead,
-    getOfferById, acceptOffer, declineOffer, counterOffer, recoverOfferConversationFromLink, showToast,
+    getOfferById, acceptOffer, declineOffer, counterOffer, recoverOfferConversationFromLink, ensureUserById, showToast,
   } = useApp()
   const [text, setText] = useState('')
   const [warning, setWarning] = useState(null)
@@ -151,6 +151,12 @@ export default function ChatPage() {
   const otherId = conv?.participants?.find(p => p !== currentUser?.id)
   const other = otherId ? getUserById(otherId) : null
   const listing = conv?.listingId ? getListingById(conv.listingId) : null
+
+  useEffect(() => {
+    if (otherId && (!other?.username || !other?.email)) {
+      ensureUserById?.(otherId)
+    }
+  }, [ensureUserById, other?.email, other?.username, otherId])
 
   // Refresh restriction timer
   useEffect(() => {
