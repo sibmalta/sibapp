@@ -7,7 +7,7 @@
 export const DELIVERY_METHODS = [
   {
     id: 'home_delivery',
-    name: 'Home Delivery',
+    name: 'MaltaPost Delivery',
     description: 'Delivered to your address by MaltaPost',
     price: 4.50,
     estimatedDays: '2–3 working days',
@@ -16,7 +16,7 @@ export const DELIVERY_METHODS = [
   },
   {
     id: 'locker_collection',
-    name: 'Locker Collection',
+    name: 'MaltaPost Locker',
     description: 'Collect from a MaltaPost locker near you',
     price: 3.25,
     estimatedDays: '2–4 working days',

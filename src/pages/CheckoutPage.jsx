@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ShieldCheck, Truck, Lock, AlertCircle, CreditCard, RefreshCw } from 'lucide-react'
 import { Elements, ExpressCheckoutElement, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
@@ -9,12 +9,10 @@ import FeeBreakdown from '../components/FeeBreakdown'
 import PageHeader from '../components/PageHeader'
 import DeliveryMethodSelector from '../components/DeliveryMethodSelector'
 import { getLockerById } from '../data/deliveryConfig'
-import { getDefaultDeliverySize, TIER_MAP } from '../lib/deliveryPricing'
+import { getDefaultDeliverySize } from '../lib/deliveryPricing'
+import { getFulfilmentMethodLabel, getFulfilmentPrice, normalizeFulfilmentMethod } from '../lib/fulfilment'
 import useSavedAddress from '../hooks/useSavedAddress'
 import { trackReferralConversion } from '../lib/referral'
-
-const MALTAPOST_HOME_DELIVERY_PRICE = 4.50
-const MALTAPOST_LOCKER_COLLECTION_PRICE = 3.25
 
 const TECHNICAL_PATTERNS = [
   /failed to fetch/i,
@@ -339,20 +337,9 @@ export default function CheckoutPage() {
 
   const rawDeliverySize = listing.deliverySize || getDefaultDeliverySize(listing.category, listing.subcategory)
   const deliverySize = rawDeliverySize === 'large' ? 'bulky' : rawDeliverySize
-  const isBulkyItem = deliverySize === 'bulky'
-  const isHeavyItem = deliverySize === 'heavy'
-  const isLargeItem = isBulkyItem
-  const tier = TIER_MAP[deliverySize] || TIER_MAP.medium
-
-  const deliveryFee =
-    isBulkyItem || isHeavyItem
-      ? tier.price
-      : deliveryMethodId === 'locker_collection'
-        ? MALTAPOST_LOCKER_COLLECTION_PRICE
-        : MALTAPOST_HOME_DELIVERY_PRICE
-
+  const deliveryFee = getFulfilmentPrice(normalizeFulfilmentMethod(deliveryMethodId))
   const fees = calculateFees(listing.price, deliveryFee)
-  const isLocker = !isLargeItem && deliveryMethodId === 'locker_collection'
+  const isLocker = normalizeFulfilmentMethod(deliveryMethodId) === 'locker'
   const selectedLocker = isLocker && selectedLockerId ? getLockerById(selectedLockerId) : null
 
   const clearErr = (field) => setErrors((prev) => ({ ...prev, [field]: null }))
@@ -518,19 +505,12 @@ export default function CheckoutPage() {
     },
   }
 
-  const deliveryLabel = isBulkyItem
-    ? 'Sib Driver Delivery'
-    : isLocker
-      ? `Locker: ${selectedLocker?.locationName || '—'}`
-      : 'Home Delivery'
+  const deliveryLabel = isLocker
+    ? `MaltaPost locker: ${selectedLocker?.locationName || 'Select locker'}`
+    : getFulfilmentMethodLabel(deliveryMethodId)
 
-  const estimatedDays = isBulkyItem
-    ? 'Arranged with Sib drivers'
-    : isHeavyItem
-      ? '3–5 working days'
-      : isLocker
-        ? '2–4 working days'
-        : '2–3 working days'
+  const estimatedDays = isLocker ? '2-4 working days' : '2-3 working days'
+
 
   return (
     <div>
@@ -564,11 +544,7 @@ export default function CheckoutPage() {
             <div className="flex items-center gap-2 mb-5 px-1">
               <ShieldCheck size={12} className="text-green-600 flex-shrink-0" />
               <p className="text-[11px] text-green-700 font-medium">
-                {isBulkyItem
-                  ? 'Delivered by Sib drivers. Tracked and secure.'
-                  : isHeavyItem
-                    ? 'Heavy parcel via courier. Tracked and secure.'
-                    : 'Delivered via MaltaPost. Tracked and secure.'}
+                MaltaPost fulfilment. Tracked and secure.
               </p>
             </div>
 
@@ -803,7 +779,7 @@ export default function CheckoutPage() {
                   <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-sib-sand/60 border border-sib-stone/40 mb-4">
                     <CreditCard size={18} className="text-sib-primary flex-shrink-0" />
                     <p className="text-[13px] text-sib-text leading-snug">
-                      Confirm your delivery details above, then choose how to pay — card, Apple Pay, or Google Pay.
+                      Confirm your delivery details above, then choose how to pay - card, Apple Pay, or Google Pay.
                     </p>
                   </div>
 
@@ -822,7 +798,7 @@ export default function CheckoutPage() {
                       </span>
                     ) : (
                       <>
-                        <Lock size={14} /> Continue to payment — €{fees.total.toFixed(2)}
+                        <Lock size={14} /> Continue to payment - €{fees.total.toFixed(2)}
                       </>
                     )}
                   </button>
@@ -919,3 +895,4 @@ export default function CheckoutPage() {
     </div>
   )
 }
+

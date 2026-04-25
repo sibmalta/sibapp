@@ -1,19 +1,19 @@
-import React, { useState } from 'react'
+﻿import React, { useState } from 'react'
 import { Truck, Package, AlertTriangle, ChevronDown, ChevronUp, XCircle, CheckCircle2 } from 'lucide-react'
 
 /**
- * DeliveryGuidance — collapsible panel explaining delivery tiers and limits.
+ * DeliveryGuidance - collapsible panel explaining delivery tiers and limits.
  *
  * Props
  *  - variant: 'full' (default) | 'compact'
- *      full    → always-visible card with all sections (SellPage)
- *      compact → expandable inline block (ListingPage)
+ *      full    -> always-visible card with all sections (SellPage)
+ *      compact -> expandable inline block (ListingPage)
  *  - defaultOpen: boolean (compact only, default false)
  */
 export default function DeliveryGuidance({ variant = 'full', defaultOpen = false }) {
   const [open, setOpen] = useState(variant === 'full' ? true : defaultOpen)
 
-  /* ── Compact trigger for ListingPage ── */
+  /* Compact trigger for ListingPage */
   if (variant === 'compact') {
     return (
       <div className="rounded-2xl border border-sib-stone bg-white overflow-hidden mb-3">
@@ -35,7 +35,7 @@ export default function DeliveryGuidance({ variant = 'full', defaultOpen = false
     )
   }
 
-  /* ── Full variant for SellPage ── */
+  /* Full variant for SellPage */
   return (
     <div className="rounded-2xl border border-amber-200 bg-amber-50/40 overflow-hidden mb-5">
       <div className="px-4 pt-3.5 pb-1 flex items-center gap-2">
@@ -47,7 +47,7 @@ export default function DeliveryGuidance({ variant = 'full', defaultOpen = false
   )
 }
 
-/* ── Shared inner content ── */
+/* Shared inner content */
 function GuidanceBody() {
   return (
     <div className="px-4 pb-4 pt-2 space-y-3.5">
@@ -55,10 +55,10 @@ function GuidanceBody() {
       <div className="flex gap-2.5">
         <Package size={14} className="text-sib-primary flex-shrink-0 mt-0.5" />
         <div>
-          <p className="text-xs font-bold text-sib-text mb-0.5">Standard delivery</p>
+          <p className="text-xs font-bold text-sib-text mb-0.5">MaltaPost delivery</p>
           <ul className="text-[11px] text-sib-muted leading-relaxed space-y-0.5">
-            <li>Items that fit in a car</li>
-            <li>Can be carried by one person</li>
+            <li>Delivery to buyer address: €4.50</li>
+            <li>Locker collection: €3.25</li>
           </ul>
         </div>
       </div>
@@ -67,10 +67,9 @@ function GuidanceBody() {
       <div className="flex gap-2.5">
         <Truck size={14} className="text-amber-600 flex-shrink-0 mt-0.5" />
         <div>
-          <p className="text-xs font-bold text-sib-text mb-0.5">Bulky delivery</p>
+          <p className="text-xs font-bold text-sib-text mb-0.5">MaltaPost fulfilment</p>
           <ul className="text-[11px] text-sib-muted leading-relaxed space-y-0.5">
-            <li>Furniture, appliances, treadmills</li>
-            <li>Delivered by Sib drivers (1–2 people)</li>
+            <li>MaltaPost API integration will be added later</li>
           </ul>
         </div>
       </div>
@@ -102,3 +101,4 @@ function GuidanceBody() {
     </div>
   )
 }
+

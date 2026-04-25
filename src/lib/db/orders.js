@@ -5,6 +5,8 @@
  * Returns { data, error } mirroring the Supabase client pattern.
  */
 
+import { FULFILMENT_PROVIDER, getFulfilmentPrice, normalizeFulfilmentMethod } from '../fulfilment'
+
 // Shape helpers
 
 export function rowToOrder(row) {
@@ -14,6 +16,10 @@ export function rowToOrder(row) {
     ? shippingAddress
     : {}
   const address = row.address || shippingAddressObject.raw || (typeof shippingAddress === 'string' ? shippingAddress : null)
+  const fulfilmentMethod = row.fulfilment_method || normalizeFulfilmentMethod(row.delivery_method || shippingAddressObject.fulfilmentMethod)
+  const fulfilmentPrice = row.fulfilment_price != null
+    ? Number(row.fulfilment_price)
+    : (row.delivery_fee != null ? Number(row.delivery_fee) : getFulfilmentPrice(fulfilmentMethod))
 
   return {
     id: row.id,
@@ -33,6 +39,10 @@ export function rowToOrder(row) {
     trackingStatus: row.tracking_status || 'pending',
     payoutStatus: row.payout_status || 'held',
     deliveryMethod: row.delivery_method || 'sib_delivery',
+    fulfilmentProvider: row.fulfilment_provider || FULFILMENT_PROVIDER,
+    fulfilmentMethod,
+    fulfilmentPrice,
+    fulfilmentStatus: row.fulfilment_status || row.tracking_status || 'awaiting_fulfilment',
     trackingNumber: row.tracking_number || null,
     shippingAddress,
     isBundle: row.is_bundle || false,
@@ -59,6 +69,8 @@ export function rowToOrder(row) {
     deliveryFee: row.delivery_fee != null ? Number(row.delivery_fee) : (shippingAddressObject.deliveryFee != null ? Number(shippingAddressObject.deliveryFee) : null),
     lockerLocationName: row.locker_location_name || shippingAddressObject.lockerLocationName || null,
     lockerAddress: row.locker_address || shippingAddressObject.lockerAddress || null,
+    lockerLocation: row.locker_location || shippingAddressObject.lockerLocation || null,
+    deliveryAddressSnapshot: row.delivery_address_snapshot || shippingAddressObject.deliveryAddressSnapshot || null,
     // Delivery snapshot - seller
     sellerName: row.seller_name || shippingAddressObject.sellerName || null,
     sellerPhone: row.seller_phone || shippingAddressObject.sellerPhone || null,
@@ -90,6 +102,23 @@ export function orderToRow(order) {
   if (order.trackingStatus !== undefined) row.tracking_status = order.trackingStatus
   if (order.payoutStatus !== undefined) row.payout_status = order.payoutStatus
   if (order.deliveryMethod !== undefined) row.delivery_method = order.deliveryMethod
+  if (order.deliveryFee !== undefined) row.delivery_fee = order.deliveryFee
+  if (order.buyerFullName !== undefined) row.buyer_full_name = order.buyerFullName
+  if (order.buyerPhone !== undefined) row.buyer_phone = order.buyerPhone
+  if (order.buyerCity !== undefined) row.buyer_city = order.buyerCity
+  if (order.buyerPostcode !== undefined) row.buyer_postcode = order.buyerPostcode
+  if (order.deliveryNotes !== undefined) row.delivery_notes = order.deliveryNotes
+  if (order.lockerLocationName !== undefined) row.locker_location_name = order.lockerLocationName
+  if (order.lockerAddress !== undefined) row.locker_address = order.lockerAddress
+  if (order.sellerName !== undefined) row.seller_name = order.sellerName
+  if (order.sellerPhone !== undefined) row.seller_phone = order.sellerPhone
+  if (order.sellerAddress !== undefined) row.seller_address = order.sellerAddress
+  if (order.fulfilmentProvider !== undefined) row.fulfilment_provider = order.fulfilmentProvider
+  if (order.fulfilmentMethod !== undefined) row.fulfilment_method = normalizeFulfilmentMethod(order.fulfilmentMethod)
+  if (order.fulfilmentPrice !== undefined) row.fulfilment_price = order.fulfilmentPrice
+  if (order.fulfilmentStatus !== undefined) row.fulfilment_status = order.fulfilmentStatus
+  if (order.lockerLocation !== undefined) row.locker_location = order.lockerLocation
+  if (order.deliveryAddressSnapshot !== undefined) row.delivery_address_snapshot = order.deliveryAddressSnapshot
   if (order.trackingNumber !== undefined) row.tracking_number = order.trackingNumber
 
   const shippingAddress = buildShippingAddressPayload(order)
@@ -132,6 +161,11 @@ function buildShippingAddressPayload(order) {
     'buyerPostcode',
     'deliveryNotes',
     'deliveryFee',
+    'fulfilmentMethod',
+    'fulfilmentPrice',
+    'fulfilmentStatus',
+    'lockerLocation',
+    'deliveryAddressSnapshot',
     'lockerLocationName',
     'lockerAddress',
     'sellerName',
@@ -150,6 +184,11 @@ function buildShippingAddressPayload(order) {
     buyerPostcode: order.buyerPostcode || null,
     deliveryNotes: order.deliveryNotes || null,
     deliveryFee: order.deliveryFee ?? null,
+    fulfilmentMethod: order.fulfilmentMethod || null,
+    fulfilmentPrice: order.fulfilmentPrice ?? null,
+    fulfilmentStatus: order.fulfilmentStatus || null,
+    lockerLocation: order.lockerLocation || null,
+    deliveryAddressSnapshot: order.deliveryAddressSnapshot || null,
     lockerLocationName: order.lockerLocationName || null,
     lockerAddress: order.lockerAddress || null,
     sellerName: order.sellerName || null,
@@ -217,7 +256,7 @@ async function assertListingCanBeOrdered(supabase, listingId) {
 }
 
 async function insertOrderRow(supabase, row) {
-  let currentRow = stripUnsupportedOrderColumns(row)
+  let currentRow = { ...row }
 
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const { data, error } = await supabase
@@ -259,7 +298,15 @@ function getMissingSchemaColumn(error) {
 }
 
 function isOptionalSchemaDriftColumn(column) {
-  return column === 'bundled_fee'
+  return [
+    'bundled_fee',
+    'fulfilment_provider',
+    'fulfilment_method',
+    'fulfilment_price',
+    'fulfilment_status',
+    'locker_location',
+    'delivery_address_snapshot',
+  ].includes(column)
 }
 
 function validateOrderRowForInsert(row) {
@@ -514,6 +561,7 @@ export async function updatePayout(supabase, payoutId, updates) {
 
 export function rowToShipment(row) {
   if (!row) return null
+  const fulfilmentMethod = row.fulfilment_method || normalizeFulfilmentMethod(row.delivery_method || row.status)
   return {
     id: row.id,
     orderId: row.order_id || '',
@@ -522,6 +570,13 @@ export function rowToShipment(row) {
     buyerId: row.buyer_id || '',
     status: row.status || 'awaiting_shipment',
     courier: row.courier || 'MaltaPost',
+    fulfilmentProvider: row.fulfilment_provider || FULFILMENT_PROVIDER,
+    fulfilmentMethod,
+    fulfilmentPrice: row.fulfilment_price != null ? Number(row.fulfilment_price) : getFulfilmentPrice(fulfilmentMethod),
+    fulfilmentStatus: row.fulfilment_status || row.status || 'awaiting_fulfilment',
+    deliveryType: fulfilmentMethod === 'locker' ? 'locker_collection' : 'home_delivery',
+    lockerLocation: row.locker_location || null,
+    deliveryAddressSnapshot: row.delivery_address_snapshot || null,
     trackingNumber: row.tracking_number || null,
     maltapostConsignmentId: row.maltapost_consignment_id || null,
     maltapostBarcode: row.maltapost_barcode || null,
@@ -559,6 +614,12 @@ export function shipmentToRow(shipment) {
   if (shipment.buyerId !== undefined) row.buyer_id = shipment.buyerId
   if (shipment.status !== undefined) row.status = shipment.status
   if (shipment.courier !== undefined) row.courier = shipment.courier
+  if (shipment.fulfilmentProvider !== undefined) row.fulfilment_provider = shipment.fulfilmentProvider
+  if (shipment.fulfilmentMethod !== undefined) row.fulfilment_method = normalizeFulfilmentMethod(shipment.fulfilmentMethod)
+  if (shipment.fulfilmentPrice !== undefined) row.fulfilment_price = shipment.fulfilmentPrice
+  if (shipment.fulfilmentStatus !== undefined) row.fulfilment_status = shipment.fulfilmentStatus
+  if (shipment.lockerLocation !== undefined) row.locker_location = shipment.lockerLocation
+  if (shipment.deliveryAddressSnapshot !== undefined) row.delivery_address_snapshot = shipment.deliveryAddressSnapshot
   if (shipment.trackingNumber !== undefined) row.tracking_number = shipment.trackingNumber
   if (shipment.maltapostConsignmentId !== undefined) row.maltapost_consignment_id = shipment.maltapostConsignmentId
   if (shipment.maltapostBarcode !== undefined) row.maltapost_barcode = shipment.maltapostBarcode

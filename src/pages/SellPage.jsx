@@ -1244,7 +1244,7 @@ useEffect(() => {
                 {/* Guidance text */}
                 <p className="text-[11px] text-sib-muted mb-2 leading-relaxed">
                   {onlyBulky
-                    ? 'This item requires 2-person delivery by Sib drivers.'
+                    ? 'This item will use MaltaPost fulfilment. Choose the closest size for handling.'
                     : 'Choose the size that best fits your item. The buyer pays delivery.'}
                 </p>
 

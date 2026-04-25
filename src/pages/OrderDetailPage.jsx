@@ -10,7 +10,7 @@ import FeeBreakdown from '../components/FeeBreakdown'
 import PageHeader from '../components/PageHeader'
 import ShipmentTracker, { ShipByDeadline } from '../components/ShipmentTracker'
 import { getTrackingUrl, estimateDeliveryDate } from '../lib/maltapost'
-import { getDeliveryMethod } from '../data/deliveryConfig'
+import { FULFILMENT_PROVIDER, getFulfilmentMethodLabel, getFulfilmentMethodShortLabel } from '../lib/fulfilment'
 
 function formatCountdown(ms) {
   if (ms <= 0) return '00:00:00'
@@ -93,12 +93,11 @@ export default function OrderDetailPage() {
   const isConfirmed = order.trackingStatus === 'confirmed' || order.trackingStatus === 'completed'
   const isDisputed = order.trackingStatus === 'disputed' || order.trackingStatus === 'under_review'
   const isAwaitingShipment = shipment?.status === 'awaiting_shipment'
-  const deliveryMethodLabel = order.deliveryMethod === 'locker_collection'
-    ? 'Locker Collection'
-    : order.deliveryMethod === 'home_delivery'
-      ? 'Home Delivery'
-      : (getDeliveryMethod(order.deliveryMethod)?.name || 'Delivery')
-  const deliveryStatusLabel = (order.trackingStatus || order.status || 'pending').replace(/_/g, ' ')
+  const fulfilmentMethod = order.fulfilmentMethod || order.deliveryMethod
+  const fulfilmentMethodLabel = getFulfilmentMethodLabel(fulfilmentMethod)
+  const fulfilmentShortLabel = getFulfilmentMethodShortLabel(fulfilmentMethod)
+  const fulfilmentStatusLabel = (order.fulfilmentStatus || shipment?.fulfilmentStatus || shipment?.status || order.trackingStatus || order.status || 'pending').replace(/_/g, ' ')
+  const fulfilmentPrice = order.fulfilmentPrice ?? shipment?.fulfilmentPrice ?? order.deliveryFee ?? 4.50
 
   const trackingUrl = shipment?.trackingNumber ? getTrackingUrl(shipment.trackingNumber) : null
   const estDelivery = shipment?.shippedAt ? estimateDeliveryDate(shipment.shippedAt) : null
@@ -355,12 +354,12 @@ export default function OrderDetailPage() {
                 <h2 className="text-sm font-bold text-blue-800">New sale: prepare for shipment</h2>
               </div>
               <p className="text-xs text-blue-700 leading-relaxed mb-3">
-                Pack the item securely, then enter the tracking number once it has been shipped or collected through Sib.
+                Prepare this order for MaltaPost fulfilment. Enter a tracking number once it is available.
               </p>
               <div className="flex items-start gap-2 p-2.5 rounded-xl bg-white/70 border border-blue-100 mb-3">
                 <ShieldCheck size={14} className="text-blue-600 flex-shrink-0 mt-0.5" />
                 <p className="text-[11px] text-blue-700 leading-relaxed">
-                  Delivery details are handled by Sib. Check this order for status updates and shipment steps.
+                  Fulfilment method: {fulfilmentShortLabel}. MaltaPost API integration will be added later.
                 </p>
               </div>
               {shipment.shipByDeadline && (
@@ -408,7 +407,7 @@ export default function OrderDetailPage() {
         {/* ── Shipment Tracker ── */}
         {shipment && (
           <div>
-            <p className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-4">Shipment Tracking</p>
+            <p className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-4">MaltaPost fulfilment</p>
             <ShipmentTracker shipment={shipment} />
             {trackingUrl && (
               <a
@@ -422,7 +421,7 @@ export default function OrderDetailPage() {
             )}
             {estDelivery && shipment.status !== 'delivered' && shipment.status !== 'failed_delivery' && shipment.status !== 'returned' && (
               <p className="text-xs text-sib-muted mt-2 text-center">
-                Estimated delivery: {estDelivery.toLocaleDateString('en-MT', { weekday: 'short', day: 'numeric', month: 'short' })}
+                Estimated MaltaPost delivery: {estDelivery.toLocaleDateString('en-MT', { weekday: 'short', day: 'numeric', month: 'short' })}
               </p>
             )}
           </div>
@@ -444,19 +443,31 @@ export default function OrderDetailPage() {
             </div>
             <div className="space-y-1">
               <div>
-                <p className="text-xs text-sib-muted">Delivery method</p>
+                <p className="text-xs text-sib-muted">Fulfilment provider</p>
                 <p className="text-sm font-medium text-sib-text">
-                  {deliveryMethodLabel}
+                  {order.fulfilmentProvider || shipment?.fulfilmentProvider || FULFILMENT_PROVIDER}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-sib-muted">Delivery status</p>
+                <p className="text-xs text-sib-muted">Fulfilment method</p>
+                <p className="text-sm font-medium text-sib-text">
+                  {fulfilmentMethodLabel}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-sib-muted">Fulfilment price</p>
+                <p className="text-sm font-medium text-sib-text">
+                  €{fulfilmentPrice.toFixed(2)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-sib-muted">Current fulfilment status</p>
                 <p className="text-sm font-medium text-sib-text capitalize">
-                  {deliveryStatusLabel}
+                  {fulfilmentStatusLabel}
                 </p>
               </div>
               <p className="text-xs text-sib-muted leading-relaxed">
-                Delivery details are handled securely by Sib. You'll receive updates when your order is shipped.
+                Seller next step: Prepare this order for MaltaPost fulfilment. MaltaPost API integration will be added later.
               </p>
             </div>
           </div>
@@ -470,10 +481,10 @@ export default function OrderDetailPage() {
               <span>Item</span><span>€{order.itemPrice?.toFixed(2)}</span>
             </div>
             <FeeBreakdown
-              buyerProtectionFee={(order.bundledFee ?? (order.platformFee + order.deliveryFee)) - (order.deliveryFee ?? 4.50)}
+              buyerProtectionFee={(order.bundledFee ?? (order.platformFee + fulfilmentPrice)) - fulfilmentPrice}
             />
             <div className="flex justify-between text-sib-muted">
-              <span>Delivery</span><span>€{(order.deliveryFee ?? 4.50).toFixed(2)}</span>
+              <span>MaltaPost fulfilment</span><span>€{fulfilmentPrice.toFixed(2)}</span>
             </div>
             <div className="flex justify-between font-bold text-sib-text pt-2 border-t border-sib-stone">
               <span>Total paid</span><span className="text-sib-primary">€{order.totalPrice?.toFixed(2)}</span>

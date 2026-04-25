@@ -2,13 +2,11 @@
  * Delivery size tiers and pricing for the Sib marketplace.
  *
  * 4 tiers:
- *   small  → €2.99  (fashion, shoes, books — under ~5 kg)
- *   medium → €4.95  (up to 20 kg, via MaltaPost)
- *   heavy  → €9.95  (20–40 kg, safely carried by 1 person)
- *   bulky  → €39.95 (requires 2-person delivery — sofas, fridges, etc.)
+ *   locker   → €3.25 via MaltaPost
+ *   delivery → €4.50 via MaltaPost
  *
  * Seller input: "Can this item be safely carried by 1 person?"
- *   No  → always bulky (€39.95)
+ *   No  → flag as bulky handling, still fulfilled via MaltaPost for now
  *   Yes → small / medium / heavy based on weight/category
  */
 
@@ -16,8 +14,8 @@ export const DELIVERY_TIERS = [
   {
     id: 'small',
     label: 'Small (Lite)',
-    price: 2.99,
-    priceLabel: '€2.99',
+    price: 4.50,
+    priceLabel: '€4.50',
     description: 'Fashion, shoes, books — under ~5 kg',
     examples: 'Fits in a padded envelope or small box',
     weight: 'Under 5 kg',
@@ -25,8 +23,8 @@ export const DELIVERY_TIERS = [
   {
     id: 'medium',
     label: 'Medium',
-    price: 4.95,
-    priceLabel: '€4.95',
+    price: 4.50,
+    priceLabel: '€4.50',
     description: 'Electronics, kitchen items — up to 20 kg',
     examples: 'Fits in a standard parcel box',
     weight: 'Up to 20 kg',
@@ -34,8 +32,8 @@ export const DELIVERY_TIERS = [
   {
     id: 'heavy',
     label: 'Heavy',
-    price: 9.95,
-    priceLabel: '€9.95',
+    price: 4.50,
+    priceLabel: '€4.50',
     description: 'Heavy items — 20 to 40 kg',
     examples: 'Can be safely carried by 1 person',
     weight: '20–40 kg',
@@ -43,9 +41,9 @@ export const DELIVERY_TIERS = [
   {
     id: 'bulky',
     label: 'Bulky',
-    price: 39.95,
-    priceLabel: '€39.95',
-    description: 'Requires 2-person delivery',
+    price: 4.50,
+    priceLabel: '€4.50',
+    description: 'Prepare securely for MaltaPost fulfilment',
     examples: 'Sofas, fridges, large appliances',
     weight: 'Any weight — too large for 1 person',
   },
@@ -76,16 +74,16 @@ export const SIZE_ACCURACY_WARNING =
  */
 export function getDeliveryFee(tierId) {
   // Support legacy 'large' id mapping to 'bulky'
-  if (tierId === 'large') return TIER_MAP['bulky']?.price ?? 39.95
-  return TIER_MAP[tierId]?.price ?? 4.95
+  if (tierId === 'large') return TIER_MAP['bulky']?.price ?? 4.50
+  return TIER_MAP[tierId]?.price ?? 4.50
 }
 
 /**
  * Format the delivery price for buyer-facing display.
  */
 export function getDeliveryPriceLabel(tierId) {
-  if (tierId === 'large') return TIER_MAP['bulky']?.priceLabel ?? '€39.95'
-  return TIER_MAP[tierId]?.priceLabel ?? '€4.95'
+  if (tierId === 'large') return TIER_MAP['bulky']?.priceLabel ?? '€4.50'
+  return TIER_MAP[tierId]?.priceLabel ?? '€4.50'
 }
 
 /* ── Categories / subcategories that FORCE bulky ──────────── */

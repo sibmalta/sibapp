@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext'
 import useAuthNav from '../hooks/useAuthNav'
 import PageHeader from '../components/PageHeader'
 import { ShipmentStatusBadge } from '../components/ShipmentTracker'
+import { getFulfilmentMethodLabel, getFulfilmentMethodShortLabel } from '../lib/fulfilment'
 
 const STATUS_STYLES = {
   paid: 'bg-yellow-50 text-yellow-700',
@@ -30,6 +31,11 @@ const STATUS_LABELS = {
   under_review: 'Under review',
   cancelled: 'Cancelled',
   refunded: 'Refunded',
+}
+
+function formatOrderDate(value) {
+  if (!value) return ''
+  return new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 export default function OrdersPage() {
@@ -129,10 +135,30 @@ export default function OrdersPage() {
                   <p className="text-xs text-sib-muted mt-0.5">
                     {tab === 'buying' ? 'From' : 'To'} @{other?.username}
                   </p>
+                  {tab === 'selling' && (
+                    <div className="mt-2 space-y-0.5">
+                      <p className="text-[11px] text-sib-muted">Buyer reference: @{other?.username || order.buyerId?.slice(0, 8)}</p>
+                      <p className="text-[11px] text-sib-muted">Order date: {formatOrderDate(order.createdAt)}</p>
+                      <p className="text-[11px] font-semibold text-sib-text">
+                        Fulfilment method: {getFulfilmentMethodShortLabel(order.fulfilmentMethod || order.deliveryMethod)}
+                      </p>
+                      <p className="text-[11px] text-sib-muted">
+                        Fulfilment price: €{(order.fulfilmentPrice ?? order.deliveryFee ?? 4.50).toFixed(2)}
+                      </p>
+                      <p className="text-[11px] text-sib-muted">
+                        Seller next step: Prepare this order for MaltaPost fulfilment
+                      </p>
+                    </div>
+                  )}
                   <div className="flex items-center gap-1.5 flex-wrap mt-2">
                     <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${STATUS_STYLES[order.trackingStatus] || 'bg-gray-50 text-gray-600'}`}>
                       {STATUS_LABELS[order.trackingStatus] || order.trackingStatus}
                     </span>
+                    {tab === 'selling' && (
+                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
+                        {getFulfilmentMethodLabel(order.fulfilmentMethod || order.deliveryMethod)}
+                      </span>
+                    )}
                     {shipment && <ShipmentStatusBadge status={shipment.status} />}
                     {shipment?.trackingNumber && (
                       <span className="text-[10px] text-sib-muted font-mono flex items-center gap-0.5">

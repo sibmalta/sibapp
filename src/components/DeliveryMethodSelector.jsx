@@ -1,16 +1,12 @@
 import React, { useState, useMemo } from 'react'
-import { Home, Box, ChevronDown, MapPin, Info, Truck, AlertTriangle } from 'lucide-react'
+import { Home, Box, ChevronDown, MapPin, Info } from 'lucide-react'
 import { getActiveLockers } from '../data/deliveryConfig'
-import { TIER_MAP, BULKY_DELIVERY_NOTES } from '../lib/deliveryPricing'
-
-const MALTAPOST_HOME_DELIVERY_PRICE = 4.50
-const MALTAPOST_LOCKER_COLLECTION_PRICE = 3.25
+import { getFulfilmentPrice } from '../lib/fulfilment'
 
 /**
- * Delivery method selector driven by the listing's delivery_size tier.
+ * MaltaPost fulfilment selector.
  *
  * Props:
- *  - deliverySize: 'small' | 'medium' | 'heavy' | 'bulky'  (from listing.deliverySize)
  *  - selected: 'home_delivery' | 'locker_collection'
  *  - onSelect: (methodId) => void
  *  - selectedLockerId: string | null
@@ -18,18 +14,12 @@ const MALTAPOST_LOCKER_COLLECTION_PRICE = 3.25
  *  - disabled: boolean
  */
 export default function DeliveryMethodSelector({
-  deliverySize = 'medium',
   selected,
   onSelect,
   selectedLockerId,
   onLockerSelect,
   disabled = false,
 }) {
-  // Legacy support: map old 'large' to 'bulky'
-  const normalizedSize = deliverySize === 'large' ? 'bulky' : deliverySize
-  const tier = TIER_MAP[normalizedSize] || TIER_MAP['medium']
-  const isBulky = normalizedSize === 'bulky'
-  const isHeavy = normalizedSize === 'heavy'
   const lockers = getActiveLockers()
   const [lockerSearch, setLockerSearch] = useState('')
   const [lockerDropdownOpen, setLockerDropdownOpen] = useState(false)
@@ -49,67 +39,29 @@ export default function DeliveryMethodSelector({
     return lockers.find(l => l.id === selectedLockerId) || null
   }, [lockers, selectedLockerId])
 
-  /* ── Bulky items: single fixed delivery, no options ───────── */
-  if (isBulky) {
-    return (
-      <div className="mb-5">
-        <p className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-2">Delivery</p>
-        <div className="p-4 rounded-2xl border-2 border-sib-primary bg-sib-primary/5">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-sib-primary/10 flex items-center justify-center flex-shrink-0">
-              <Truck size={18} className="text-sib-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-sib-text">Sib Driver Delivery</p>
-              <p className="text-xs text-sib-muted mt-0.5">Bulky item — 2-person delivery by Sib drivers</p>
-            </div>
-            <span className="text-sm font-bold text-sib-primary flex-shrink-0">{tier.priceLabel}</span>
-          </div>
-          <div className="mt-3 pt-3 border-t border-sib-stone/50">
-            <div className="flex items-start gap-1.5 mb-1.5">
-              <AlertTriangle size={12} className="text-amber-600 flex-shrink-0 mt-0.5" />
-              <p className="text-xs font-semibold text-amber-800">Important notes</p>
-            </div>
-            <ul className="space-y-0.5 ml-[18px]">
-              {BULKY_DELIVERY_NOTES.map((note, i) => (
-                <li key={i} className="text-[11px] text-amber-700 flex items-start gap-1.5">
-                  <span className="mt-0.5">•</span><span>{note}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  /* ── Small / Medium / Heavy items: home delivery + optional locker ── */
-  // Heavy items can only use home delivery (too large for lockers)
-  const lockerAvailable = !isHeavy
-
   const methods = [
     {
       id: 'home_delivery',
-      name: 'Home Delivery',
-      description: isHeavy ? 'Heavy parcel delivered to your address via MaltaPost' : 'Delivered to your address via MaltaPost',
-      price: isHeavy ? tier.price : MALTAPOST_HOME_DELIVERY_PRICE,
-      estimatedDays: isHeavy ? '3–5 working days' : '2–3 working days',
+      name: 'MaltaPost Delivery',
+      description: 'Delivered to your address via MaltaPost',
+      price: getFulfilmentPrice('delivery'),
+      estimatedDays: '2-3 working days',
       icon: Home,
     },
-    ...(lockerAvailable ? [{
+    {
       id: 'locker_collection',
-      name: 'Locker Collection',
+      name: 'MaltaPost Locker',
       description: 'Collect from a MaltaPost locker near you',
-      price: MALTAPOST_LOCKER_COLLECTION_PRICE,
-      estimatedDays: '2–4 working days',
+      price: getFulfilmentPrice('locker'),
+      estimatedDays: '2-4 working days',
       icon: Box,
       helpText: 'Once your parcel arrives, MaltaPost will notify you with a collection code.',
-    }] : []),
+    },
   ]
 
   return (
     <div className="mb-5">
-      <p className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-2">Delivery method</p>
+      <p className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-2">Fulfilment method</p>
       <div className="space-y-2">
         {methods.map(method => {
           const isSelected = selected === method.id
@@ -141,7 +93,6 @@ export default function DeliveryMethodSelector({
                 </span>
               </button>
 
-              {/* Locker picker — appears when locker_collection selected */}
               {method.id === 'locker_collection' && isSelected && (
                 <div className="mt-2 ml-8">
                   <p className="text-xs text-sib-muted mb-1.5">Choose a MaltaPost locker location</p>

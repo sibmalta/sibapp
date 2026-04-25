@@ -16,6 +16,7 @@ import {
 } from '../lib/email'
 import { createTransfer, createRefund } from '../lib/stripe'
 import { analyseMessage } from '../utils/circumventionDetector'
+import { FULFILMENT_PROVIDER, getFulfilmentMethodLabel, getFulfilmentPrice, normalizeFulfilmentMethod } from '../lib/fulfilment'
 
 const AppContext = createContext(null)
 
@@ -46,6 +47,12 @@ function createShipmentRecord(order) {
     buyerId: order.buyerId,
     status: 'awaiting_shipment',
     courier: 'MaltaPost',
+    fulfilmentProvider: order.fulfilmentProvider || FULFILMENT_PROVIDER,
+    fulfilmentMethod: order.fulfilmentMethod || normalizeFulfilmentMethod(order.deliveryMethod),
+    fulfilmentPrice: order.fulfilmentPrice ?? order.deliveryFee ?? getFulfilmentPrice(order.deliveryMethod),
+    fulfilmentStatus: order.fulfilmentStatus || 'awaiting_fulfilment',
+    lockerLocation: order.lockerLocation || null,
+    deliveryAddressSnapshot: order.deliveryAddressSnapshot || null,
     trackingNumber: null,
     maltapostConsignmentId: null,
     maltapostBarcode: null,
@@ -374,15 +381,28 @@ export function AppProvider({ children }) {
       return null
     }
     const itemPrice = overridePrice != null ? overridePrice : listing.price
-    const dFee = deliveryInfo?.fee ?? 4.50
+    const deliveryType = deliveryInfo?.type || 'home_delivery'
+    const fulfilmentMethod = normalizeFulfilmentMethod(deliveryType)
+    const dFee = getFulfilmentPrice(fulfilmentMethod)
     const buyerProtectionFee = parseFloat((0.75 + itemPrice * 0.05).toFixed(2))
     const bundledFee = parseFloat((buyerProtectionFee + dFee).toFixed(2))
     const totalPrice = parseFloat((itemPrice + bundledFee).toFixed(2))
     const orderRef = `SIB-${Date.now().toString(36).toUpperCase()}`
     const now = new Date().toISOString()
-    const deliveryType = deliveryInfo?.type || 'home_delivery'
-    const deliveryLabel = deliveryType === 'locker_collection' ? 'Locker Collection' : 'Home Delivery'
+    const deliveryLabel = getFulfilmentMethodLabel(fulfilmentMethod)
     const seller = users.find(u => u.id === listing.sellerId)
+    const lockerLocation = fulfilmentMethod === 'locker' ? {
+      name: deliveryInfo?.lockerName || null,
+      address: deliveryInfo?.lockerAddress || address || null,
+    } : null
+    const deliveryAddressSnapshot = fulfilmentMethod === 'delivery' ? {
+      raw: address || null,
+      buyerFullName: deliverySnapshot?.buyerFullName || currentUser?.name || null,
+      buyerPhone: deliverySnapshot?.buyerPhone || null,
+      buyerCity: deliverySnapshot?.buyerCity || null,
+      buyerPostcode: deliverySnapshot?.buyerPostcode || null,
+      deliveryNotes: deliverySnapshot?.deliveryNotes || null,
+    } : null
     const shippingAddress = {
       raw: address || null,
       bundledFee,
@@ -394,6 +414,12 @@ export function AppProvider({ children }) {
       deliveryFee: dFee,
       lockerLocationName: deliveryInfo?.lockerName || null,
       lockerAddress: deliveryInfo?.lockerAddress || null,
+      fulfilmentProvider: FULFILMENT_PROVIDER,
+      fulfilmentMethod,
+      fulfilmentPrice: dFee,
+      fulfilmentStatus: 'awaiting_fulfilment',
+      lockerLocation,
+      deliveryAddressSnapshot,
       sellerName: deliverySnapshot?.sellerName || seller?.name || seller?.username || null,
       sellerPhone: deliverySnapshot?.sellerPhone || seller?.phone || null,
       sellerAddress: deliverySnapshot?.sellerAddress || seller?.location || null,
@@ -414,6 +440,12 @@ export function AppProvider({ children }) {
       stripePaymentIntentId,
       deliveryMethod: deliveryType,
       deliveryFee: dFee,
+      fulfilmentProvider: FULFILMENT_PROVIDER,
+      fulfilmentMethod,
+      fulfilmentPrice: dFee,
+      fulfilmentStatus: 'awaiting_fulfilment',
+      lockerLocation,
+      deliveryAddressSnapshot,
       trackingStatus: 'paid',
       payoutStatus: 'held',
       paidAt: now,
@@ -553,7 +585,7 @@ export function AppProvider({ children }) {
   const updateOrderStatus = useCallback(async (orderId, status) => {
     const now = new Date().toISOString()
     const order = orders.find(o => o.id === orderId)
-    const updates = { trackingStatus: status }
+    const updates = { trackingStatus: status, fulfilmentStatus: status }
     if (status === 'shipped') updates.shippedAt = now
     if (status === 'delivered') updates.deliveredAt = now
 
@@ -839,7 +871,12 @@ export function AppProvider({ children }) {
     // Email: notify seller about new offer
     const seller = users.find(u => u.id === listing.sellerId)
     if (seller?.email) {
-      sendOfferReceivedEmail(seller.email, listing.title, price, currentUser.username)
+      sendOfferReceivedEmail(seller.email, listing.title, price, currentUser.username, {
+        offerId: newOffer.id,
+        listingId,
+        related_entity_type: 'offer',
+        related_entity_id: newOffer.id,
+      })
     }
 
     return { offer: newOffer }
@@ -869,7 +906,12 @@ export function AppProvider({ children }) {
       const buyer = users.find(u => u.id === offer.buyerId)
       const sellerUser = users.find(u => u.id === offer.sellerId)
       if (buyer?.email) {
-        sendOfferAcceptedEmail(buyer.email, listing?.title || 'item', acceptedPrice, sellerUser?.username || 'seller')
+        sendOfferAcceptedEmail(buyer.email, listing?.title || 'item', acceptedPrice, sellerUser?.username || 'seller', {
+          offerId: offer.id,
+          listingId: offer.listingId,
+          related_entity_type: 'offer',
+          related_entity_id: offer.id,
+        })
       }
     }
   }, [offers, listings, users, addNotification])
@@ -896,7 +938,12 @@ export function AppProvider({ children }) {
       const recipientId = notifyUserId
       const recipient = users.find(u => u.id === recipientId)
       if (recipient?.email) {
-        sendOfferDeclinedEmail(recipient.email, listing?.title || 'item', offer.counterPrice || offer.price, decliner?.username || 'user')
+        sendOfferDeclinedEmail(recipient.email, listing?.title || 'item', offer.counterPrice || offer.price, decliner?.username || 'user', {
+          offerId: offer.id,
+          listingId: offer.listingId,
+          related_entity_type: 'offer',
+          related_entity_id: offer.id,
+        })
       }
     }
   }, [offers, listings, users, addNotification])
@@ -927,7 +974,12 @@ export function AppProvider({ children }) {
       // Email: notify buyer about counter offer
       const buyer = users.find(u => u.id === offer.buyerId)
       if (buyer?.email) {
-        sendOfferCounteredEmail(buyer.email, listing?.title || 'item', offer.price, counterPrice, seller?.username || 'seller')
+        sendOfferCounteredEmail(buyer.email, listing?.title || 'item', offer.price, counterPrice, seller?.username || 'seller', {
+          offerId: offer.id,
+          listingId: offer.listingId,
+          related_entity_type: 'offer',
+          related_entity_id: offer.id,
+        })
       }
     }
   }, [offers, listings, users, addNotification])
@@ -1008,13 +1060,26 @@ export function AppProvider({ children }) {
     }
 
     const subtotal = overrideSubtotal != null ? overrideSubtotal : items.reduce((sum, l) => sum + l.price, 0)
-    const dFee = deliveryInfo?.fee ?? 4.50
-    const fees = calculateBundleFees(subtotal, dFee)
     const deliveryType = deliveryInfo?.type || 'home_delivery'
-    const deliveryLabel = deliveryType === 'locker_collection' ? 'Locker Collection' : 'Home Delivery'
+    const fulfilmentMethod = normalizeFulfilmentMethod(deliveryType)
+    const dFee = getFulfilmentPrice(fulfilmentMethod)
+    const fees = calculateBundleFees(subtotal, dFee)
+    const deliveryLabel = getFulfilmentMethodLabel(fulfilmentMethod)
     const orderRef = `SIB-B${Date.now().toString(36).toUpperCase()}`
     const now = new Date().toISOString()
     const seller = users.find(u => u.id === bundle.sellerId)
+    const lockerLocation = fulfilmentMethod === 'locker' ? {
+      name: deliveryInfo?.lockerName || null,
+      address: deliveryInfo?.lockerAddress || address || null,
+    } : null
+    const deliveryAddressSnapshot = fulfilmentMethod === 'delivery' ? {
+      raw: address || null,
+      buyerFullName: deliverySnapshot?.buyerFullName || currentUser?.name || null,
+      buyerPhone: deliverySnapshot?.buyerPhone || null,
+      buyerCity: deliverySnapshot?.buyerCity || null,
+      buyerPostcode: deliverySnapshot?.buyerPostcode || null,
+      deliveryNotes: deliverySnapshot?.deliveryNotes || null,
+    } : null
     const shippingAddress = {
       raw: address || null,
       bundledFee: fees.bundledFee,
@@ -1026,6 +1091,12 @@ export function AppProvider({ children }) {
       deliveryFee: dFee,
       lockerLocationName: deliveryInfo?.lockerName || null,
       lockerAddress: deliveryInfo?.lockerAddress || null,
+      fulfilmentProvider: FULFILMENT_PROVIDER,
+      fulfilmentMethod,
+      fulfilmentPrice: dFee,
+      fulfilmentStatus: 'awaiting_fulfilment',
+      lockerLocation,
+      deliveryAddressSnapshot,
       sellerName: deliverySnapshot?.sellerName || seller?.name || seller?.username || null,
       sellerPhone: deliverySnapshot?.sellerPhone || seller?.phone || null,
       sellerAddress: deliverySnapshot?.sellerAddress || seller?.location || null,
@@ -1047,6 +1118,12 @@ export function AppProvider({ children }) {
       status: 'paid',
       deliveryMethod: deliveryType,
       deliveryFee: dFee,
+      fulfilmentProvider: FULFILMENT_PROVIDER,
+      fulfilmentMethod,
+      fulfilmentPrice: dFee,
+      fulfilmentStatus: 'awaiting_fulfilment',
+      lockerLocation,
+      deliveryAddressSnapshot,
       trackingStatus: 'paid',
       payoutStatus: 'held',
       paidAt: now,
@@ -1180,7 +1257,11 @@ export function AppProvider({ children }) {
 
     // Email: notify seller about new bundle offer
     if (seller?.email) {
-      sendBundleOfferReceivedEmail(seller.email, items.length, price, subtotal.toFixed(2), currentUser.username)
+      sendBundleOfferReceivedEmail(seller.email, items.length, price, subtotal.toFixed(2), currentUser.username, {
+        offerId: newOffer.id,
+        related_entity_type: 'bundle_offer',
+        related_entity_id: newOffer.id,
+      })
     }
 
     return { offer: newOffer }
@@ -1210,7 +1291,11 @@ export function AppProvider({ children }) {
     })
 
     const notifyUser = users.find(u => u.id === notifyUserId)
-    if (notifyUser?.email) sendBundleOfferAcceptedEmail(notifyUser.email, offer.itemCount, acceptedPrice.toFixed(2), acceptor?.username || 'user')
+    if (notifyUser?.email) sendBundleOfferAcceptedEmail(notifyUser.email, offer.itemCount, acceptedPrice.toFixed(2), acceptor?.username || 'user', {
+      offerId: offer.id,
+      related_entity_type: 'bundle_offer',
+      related_entity_id: offer.id,
+    })
   }, [bundleOffers, users, addNotification])
 
   const declineBundleOffer = useCallback((offerId) => {
@@ -1235,7 +1320,11 @@ export function AppProvider({ children }) {
     })
 
     const notifyUser = users.find(u => u.id === notifyUserId)
-    if (notifyUser?.email) sendBundleOfferDeclinedEmail(notifyUser.email, offer.itemCount, offer.price.toFixed(2), decliner?.username || 'user')
+    if (notifyUser?.email) sendBundleOfferDeclinedEmail(notifyUser.email, offer.itemCount, offer.price.toFixed(2), decliner?.username || 'user', {
+      offerId: offer.id,
+      related_entity_type: 'bundle_offer',
+      related_entity_id: offer.id,
+    })
   }, [bundleOffers, users, addNotification])
 
   const counterBundleOffer = useCallback((offerId, counterPrice) => {
@@ -1264,7 +1353,11 @@ export function AppProvider({ children }) {
     })
 
     const buyer = users.find(u => u.id === offer.buyerId)
-    if (buyer?.email) sendBundleOfferCounteredEmail(buyer.email, offer.itemCount, offer.price.toFixed(2), counterPrice.toFixed(2), seller?.username || 'seller')
+    if (buyer?.email) sendBundleOfferCounteredEmail(buyer.email, offer.itemCount, offer.price.toFixed(2), counterPrice.toFixed(2), seller?.username || 'seller', {
+      offerId: offer.id,
+      related_entity_type: 'bundle_offer',
+      related_entity_id: offer.id,
+    })
   }, [bundleOffers, users, addNotification])
 
   const getBundleOfferById = useCallback((id) => bundleOffers.find(o => o.id === id), [bundleOffers])
@@ -1280,13 +1373,26 @@ export function AppProvider({ children }) {
       return null
     }
 
-    const dFee = deliveryInfo?.fee ?? 4.50
-    const fees = calculateBundleFees(acceptedPrice, dFee)
     const deliveryType = deliveryInfo?.type || 'home_delivery'
-    const deliveryLabel = deliveryType === 'locker_collection' ? 'Locker Collection' : 'Home Delivery'
+    const fulfilmentMethod = normalizeFulfilmentMethod(deliveryType)
+    const dFee = getFulfilmentPrice(fulfilmentMethod)
+    const fees = calculateBundleFees(acceptedPrice, dFee)
+    const deliveryLabel = getFulfilmentMethodLabel(fulfilmentMethod)
     const orderRef = `SIB-B${Date.now().toString(36).toUpperCase()}`
     const now = new Date().toISOString()
     const sellerUser = users.find(u => u.id === offer.sellerId)
+    const lockerLocation = fulfilmentMethod === 'locker' ? {
+      name: deliveryInfo?.lockerName || null,
+      address: deliveryInfo?.lockerAddress || address || null,
+    } : null
+    const deliveryAddressSnapshot = fulfilmentMethod === 'delivery' ? {
+      raw: address || null,
+      buyerFullName: deliverySnapshot?.buyerFullName || null,
+      buyerPhone: deliverySnapshot?.buyerPhone || null,
+      buyerCity: deliverySnapshot?.buyerCity || null,
+      buyerPostcode: deliverySnapshot?.buyerPostcode || null,
+      deliveryNotes: deliverySnapshot?.deliveryNotes || null,
+    } : null
     const shippingAddress = {
       raw: address || null,
       bundledFee: fees.bundledFee,
@@ -1298,6 +1404,12 @@ export function AppProvider({ children }) {
       deliveryFee: dFee,
       lockerLocationName: deliveryInfo?.lockerName || null,
       lockerAddress: deliveryInfo?.lockerAddress || null,
+      fulfilmentProvider: FULFILMENT_PROVIDER,
+      fulfilmentMethod,
+      fulfilmentPrice: dFee,
+      fulfilmentStatus: 'awaiting_fulfilment',
+      lockerLocation,
+      deliveryAddressSnapshot,
       sellerName: deliverySnapshot?.sellerName || sellerUser?.name || sellerUser?.username || null,
       sellerPhone: deliverySnapshot?.sellerPhone || sellerUser?.phone || null,
       sellerAddress: deliverySnapshot?.sellerAddress || sellerUser?.location || null,
@@ -1319,6 +1431,12 @@ export function AppProvider({ children }) {
       status: 'paid',
       deliveryMethod: deliveryType,
       deliveryFee: dFee,
+      fulfilmentProvider: FULFILMENT_PROVIDER,
+      fulfilmentMethod,
+      fulfilmentPrice: dFee,
+      fulfilmentStatus: 'awaiting_fulfilment',
+      lockerLocation,
+      deliveryAddressSnapshot,
       trackingStatus: 'paid',
       payoutStatus: 'held',
       paidAt: now,
@@ -1625,6 +1743,7 @@ export function AppProvider({ children }) {
     const now = new Date().toISOString()
     const shipmentUpdates = {
       status: 'shipped',
+      fulfilmentStatus: 'shipped',
       trackingNumber: trackingNumber || null,
       maltapostConsignmentId: opts.consignmentId || null,
       maltapostBarcode: opts.barcode || null,
@@ -1649,7 +1768,7 @@ export function AppProvider({ children }) {
   const updateShipmentStatus = useCallback(async (orderId, status, extraData = {}) => {
     const now = new Date().toISOString()
     const shipment = shipments.find(s => s.orderId === orderId)
-    const updates = { status, updatedAt: now, ...extraData }
+    const updates = { status, fulfilmentStatus: status, updatedAt: now, ...extraData }
     if (status === 'in_transit' && (!shipment || !shipment.inTransitAt)) updates.inTransitAt = now
     if (status === 'delivered' && (!shipment || !shipment.deliveredAt)) {
       updates.deliveredAt = now

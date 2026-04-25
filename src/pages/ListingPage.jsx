@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react'
+﻿import React, { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { Heart, MessageCircle, Share2, ShieldCheck, Trash2, ChevronLeft, ChevronRight, Truck, Tag, PackagePlus, PackageCheck, Sparkles, ExternalLink } from 'lucide-react'
 import DeliveryGuidance from '../components/DeliveryGuidance'
 import { useApp } from '../context/AppContext'
 import { getDetailSubtitle, getDetailTags } from '../lib/listingMeta'
 import { resolveCategory, isDeliveryEligible } from '../data/categories'
-import { getDeliveryPriceLabel, getDefaultDeliverySize, BULKY_DELIVERY_NOTES } from '../lib/deliveryPricing'
+import { FULFILMENT_PRICES } from '../lib/fulfilment'
 import UserAvatar from '../components/UserAvatar'
 import ListingCard from '../components/ListingCard'
 import MakeOfferModal from '../components/MakeOfferModal'
@@ -23,7 +23,7 @@ export default function ListingPage() {
   const wasJustPublished = searchParams.get('published') === '1'
   const wasJustUpdated = searchParams.get('updated') === '1'
 
-  // Referral tracking — ?ref=username
+  // Referral tracking - ?ref=username
   const refParam = searchParams.get('ref')
 
   // Scroll to top when viewing a listing detail
@@ -50,7 +50,7 @@ export default function ListingPage() {
     if (listing && listing.title) {
       document.title = listing.title + ' | Sib'
     } else {
-      document.title = 'Sib — Malta’s Second-Hand Marketplace'
+      document.title = 'Sib - Malta’s Second-Hand Marketplace'
     }
   }, [listing])
 
@@ -91,7 +91,7 @@ const sellerOrders = useMemo(() => {
   return getUserSales(listing.sellerId)
 }, [listing?.sellerId, getUserSales])
 
-// ── Similar Items — strict relevance only ──
+// Similar Items - strict relevance only
 const similarItems = useMemo(() => {
   if (!listing) return []
 
@@ -182,9 +182,9 @@ if (!listing) return (
   }
 
   const handleShare = async () => {
-    // Build shareable link — includes ?ref=username when user is logged in
+    // Build shareable link - includes ?ref=username when user is logged in
     const listingUrl = buildShareableLink(listing.id, currentUser?.username || null)
-    const shareData = { title: listing.title, text: `${listing.title} — €${listing.price} on Sib`, url: listingUrl }
+    const shareData = { title: listing.title, text: `${listing.title} - €${listing.price} on Sib`, url: listingUrl }
 
     if (navigator.share) {
       try {
@@ -199,7 +199,7 @@ if (!listing) return (
     }
   }
 
-  // Active referral context — either from URL param or session
+  // Active referral context - either from URL param or session
   const activeRef = refParam || getActiveReferral()?.referrerUsername
   const referrerUser = activeRef ? getUserByUsername(activeRef) : null
   const referrerDisplayName = referrerUser?.username || activeRef
@@ -276,7 +276,7 @@ if (!listing) return (
 
         {/* Details column */}
         <div className="px-4 pt-4 pb-6 lg:flex-1 lg:px-0 lg:pt-0">
-          {/* Referral badge — shown when arrived via shared link */}
+          {/* Referral badge shown when arrived via shared link */}
           {activeRef && activeRef !== seller?.username && (
             <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-sib-primary/5 border border-sib-primary/15 mb-3">
               <ExternalLink size={13} className="text-sib-primary flex-shrink-0" />
@@ -332,7 +332,7 @@ if (!listing) return (
             return sub ? <p className="text-sm text-sib-muted mb-3">{sub}</p> : null
           })()}
 
-          {/* Detail tags — driven by category */}
+          {/* Detail tags driven by category */}
           {(() => {
             const tags = getDetailTags(listing)
             if (!tags.length) return null
@@ -358,42 +358,23 @@ if (!listing) return (
             <p className="text-sm text-sib-text leading-relaxed">{listing.description}</p>
           </div>
 
-          {/* Delivery & Protection — category-aware, with actual fee */}
+          {/* Delivery & Protection - category-aware, with actual fee */}
           {isDeliveryEligible(resolveCategory(listing.category)) ? (
             <>
               {(() => {
-                const rawSize = listing.deliverySize || getDefaultDeliverySize(listing.category, listing.subcategory)
-                const deliverySize = rawSize === 'large' ? 'bulky' : rawSize
-                const deliveryLabel = getDeliveryPriceLabel(deliverySize)
-                const isBulky = deliverySize === 'bulky'
-                const isHeavy = deliverySize === 'heavy'
-                const deliveryNote = isBulky
-                  ? 'Delivered by Sib drivers (2-person delivery)'
-                  : isHeavy
-                    ? 'Estimated 3–5 working days'
-                    : 'Estimated 2–3 working days via MaltaPost'
+                const deliveryLabel = `locker €${FULFILMENT_PRICES.locker.toFixed(2)} / delivery €${FULFILMENT_PRICES.delivery.toFixed(2)}`
+                const deliveryNote = 'MaltaPost fulfilment. API integration will be added later.'
                 return (
                   <>
                     <div className="flex items-center gap-3 p-3.5 rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-sib-warm dark:bg-[#202b28] mb-3 transition-colors">
                       <Truck size={16} className="text-sib-primary flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-sib-text">
-                          Sib Tracked Delivery — <span className="text-sib-primary">{deliveryLabel}</span>
+                          MaltaPost fulfilment - <span className="text-sib-primary">{deliveryLabel}</span>
                         </p>
                         <p className="text-xs text-sib-muted mt-0.5">{deliveryNote}</p>
                       </div>
                     </div>
-                    {isBulky && (
-                      <div className="-mt-1.5 mb-3 px-1">
-                        <ul className="space-y-0.5">
-                          {BULKY_DELIVERY_NOTES.map((note, i) => (
-                            <li key={i} className="text-[11px] text-amber-700 flex items-start gap-1.5">
-                              <span className="mt-0.5">•</span><span>{note}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
                   </>
                 )
               })()}
@@ -505,7 +486,7 @@ if (!listing) return (
                   onClick={handleBuy}
                   className="flex-1 bg-sib-secondary text-white font-bold py-3.5 rounded-2xl text-sm hover:bg-sib-secondary/90 transition-colors"
                 >
-                  Buy — €{listing.price}
+                  Buy - €{listing.price}
                 </button>
               </div>
               {!activeOffer && (
@@ -521,7 +502,7 @@ if (!listing) return (
                   onClick={() => navigate('/bundle')}
                   className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-purple-50 border border-purple-200 text-purple-700 font-semibold text-sm"
                 >
-                  <PackageCheck size={15} /> In your bundle — view
+                  <PackageCheck size={15} /> In your bundle - view
                 </button>
               ) : (
                 <button
@@ -579,3 +560,4 @@ if (!listing) return (
     </div>
   )
 }
+

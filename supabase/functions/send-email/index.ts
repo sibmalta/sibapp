@@ -45,6 +45,50 @@ interface EmailPayload {
 
 type EmailLogStatus = 'success' | 'failed'
 
+const PRODUCTION_APP_URL = 'https://sibmalta.com'
+const LOGO_URL = 'https://sibmalta.com/assets/sib-3.png'
+
+function getAppOrigin() {
+  const configuredUrl = Deno.env.get('APP_URL')?.trim()
+  if (!configuredUrl) return PRODUCTION_APP_URL
+
+  try {
+    const parsed = new URL(configuredUrl)
+    const hostname = parsed.hostname.toLowerCase()
+    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1'
+    const isNativeScheme = parsed.protocol === 'sib:' || parsed.protocol === 'app:'
+    const isSibDomain = hostname === 'sibmalta.com' || hostname === 'www.sibmalta.com'
+
+    if (parsed.protocol !== 'https:' || isLocalhost || isNativeScheme || !isSibDomain) {
+      console.warn('[send-email] Ignoring unsafe APP_URL for email links:', configuredUrl)
+      return PRODUCTION_APP_URL
+    }
+
+    return PRODUCTION_APP_URL
+  } catch {
+    console.warn('[send-email] Ignoring malformed APP_URL for email links:', configuredUrl)
+    return PRODUCTION_APP_URL
+  }
+}
+
+// All transactional email CTAs must be absolute browser-safe HTTPS URLs.
+// Never pass raw relative paths, native app schemes, or localhost URLs to email clients.
+function buildAppUrl(path = '/') {
+  const origin = getAppOrigin()
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  return new URL(normalizedPath, origin).toString()
+}
+
+function withQuery(path: string, params: Record<string, any>) {
+  const url = new URL(buildAppUrl(path))
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      url.searchParams.set(key, String(value))
+    }
+  })
+  return url.toString()
+}
+
 function getServiceRoleClient() {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const serviceRoleKey = Deno.env.get('SERVICE_ROLE_KEY')
@@ -160,8 +204,12 @@ function buildEmail(payload: EmailPayload): { subject: string; html: string; pre
   const { type } = payload
   const data = payload.data || {}
 
-  const appUrl = Deno.env.get('APP_URL') || 'https://sibmalta.com'
-  const logoUrl = 'https://sibmalta.com/assets/sib-3.png'
+  const appUrl = buildAppUrl('/')
+  const logoUrl = LOGO_URL
+  const orderUrl = (id?: string | null) => id ? buildAppUrl(`/orders/${id}`) : buildAppUrl('/orders')
+  const offersUrl = (id?: string | null) => id ? withQuery('/offers', { offerId: id }) : buildAppUrl('/offers')
+  const checkoutUrl = (listingId?: string | null, offerId?: string | null) =>
+    listingId ? withQuery(`/checkout/${listingId}`, { offer: offerId }) : buildAppUrl('/offers')
 
   const header = `
     <div style="text-align:center;padding:24px 0 16px;">
@@ -208,10 +256,20 @@ function buildEmail(payload: EmailPayload): { subject: string; html: string; pre
 </body>
 </html>`
 
-  const btn = (text: string, url: string) =>
+  const btn = (text: string, url: string) => {
+    let safeUrl = buildAppUrl('/')
+    try {
+      const parsed = new URL(url, buildAppUrl('/'))
+      safeUrl = parsed.origin === getAppOrigin() ? parsed.toString() : buildAppUrl('/')
+    } catch {
+      safeUrl = buildAppUrl(url)
+    }
+    return (
     `<div style="text-align:center;margin:20px 0;">
-      <a href="${url}" style="display:inline-block;padding:12px 28px;background:#C75B2A;color:#FFFFFF;font-weight:600;font-size:14px;text-decoration:none;border-radius:8px;">${text}</a>
+      <a href="${safeUrl}" style="display:inline-block;padding:12px 28px;background:#C75B2A;color:#FFFFFF;font-weight:600;font-size:14px;text-decoration:none;border-radius:8px;">${text}</a>
     </div>`
+    )
+  }
 
   const infoBox = (bgColor: string, content: string) =>
     `<div style="background:${bgColor};border-radius:8px;padding:14px;margin:14px 0;">${content}</div>`
@@ -244,7 +302,7 @@ function buildEmail(payload: EmailPayload): { subject: string; html: string; pre
           <p style="font-size:13px;color:#6B7280;text-align:center;">
             Your payment is held safely by Sib until you confirm delivery.
           </p>
-          ${btn('View Order', `${appUrl}/orders`)}
+          ${btn('View Order', orderUrl(payload.meta?.orderId))}
         `),
       }
     }
@@ -268,7 +326,7 @@ function buildEmail(payload: EmailPayload): { subject: string; html: string; pre
           <p style="font-size:13px;color:#6B7280;text-align:center;">
             Your funds are protected by Sib until you confirm delivery.
           </p>
-          ${btn('View Order', `${appUrl}/orders`)}
+          ${btn('View Order', orderUrl(payload.meta?.orderId))}
         `),
       }
     }
@@ -291,7 +349,7 @@ function buildEmail(payload: EmailPayload): { subject: string; html: string; pre
           <p style="font-size:13px;color:#6B7280;text-align:center;">
             You will have 48 hours after delivery to confirm everything is OK.
           </p>
-          ${btn('Track Order', `${appUrl}/orders`)}
+          ${btn('Track Order', orderUrl(payload.meta?.orderId))}
         `),
       }
     }
@@ -314,7 +372,7 @@ function buildEmail(payload: EmailPayload): { subject: string; html: string; pre
           <p style="font-size:13px;color:#6B7280;text-align:center;">
             If something is wrong, you have 48 hours to report an issue.
           </p>
-          ${btn('Confirm Delivery', `${appUrl}/orders`)}
+          ${btn('Confirm Delivery', orderUrl(payload.meta?.orderId))}
         `),
       }
     }
@@ -364,7 +422,7 @@ function buildEmail(payload: EmailPayload): { subject: string; html: string; pre
           <p style="font-size:13px;color:#6B7280;text-align:center;">
             ${isSellerNotice ? 'Our team will review and contact both parties as soon as possible.' : 'Our team will review and respond as soon as possible.'}
           </p>
-          ${btn('View Order', `${appUrl}/orders`)}
+          ${btn('View Order', orderUrl(payload.meta?.orderId))}
         `),
       }
     }
@@ -379,8 +437,8 @@ case 'item_sold': {
     payload.meta?.related_entity_id
 
   const saleUrl = orderId
-    ? `${appUrl}/orders/${orderId}`
-    : `${appUrl}/orders`
+    ? orderUrl(orderId)
+    : orderUrl()
 
   const ph = `Your item "${itemTitle}" has sold on Sib.`
 
@@ -433,7 +491,7 @@ case 'item_sold': {
               It has been ${daysSinceOrder || 'a few'} day(s) since the order was placed.
             </p>
           `)}
-          ${btn('Mark as Shipped', `${appUrl}/seller`)}
+          ${btn('Mark as Shipped', buildAppUrl('/seller'))}
         `),
       }
     }
@@ -457,7 +515,7 @@ case 'item_sold': {
           <p style="font-size:13px;color:#6B7280;text-align:center;">
             The payout will arrive via your configured payout method on the next payout day.
           </p>
-          ${btn('View Payout', `${appUrl}/seller`)}
+          ${btn('View Payout', buildAppUrl('/seller'))}
         `),
       }
     }
@@ -531,7 +589,7 @@ case 'item_sold': {
             ${priceTag(offerPrice, '#C75B2A')}
           `)}
           <p style="font-size:13px;color:#6B7280;text-align:center;">You can accept, decline, or counter this offer.</p>
-          ${btn('View Offer', `${appUrl}/offers`)}
+          ${btn('View Offer', offersUrl(payload.meta?.offerId || payload.related_entity_id))}
         `),
       }
     }
@@ -550,7 +608,7 @@ case 'item_sold': {
             ${priceTag(acceptedPrice, '#059669')}
           `)}
           <p style="font-size:13px;color:#6B7280;text-align:center;">Complete your purchase now before the offer expires.</p>
-          ${btn('Go to Checkout', `${appUrl}/checkout`)}
+          ${btn('Go to Checkout', checkoutUrl(payload.meta?.listingId, payload.meta?.offerId || payload.related_entity_id))}
         `),
       }
     }
@@ -572,7 +630,7 @@ case 'item_sold': {
           <p style="font-size:13px;color:#6B7280;text-align:center;">
             You can browse similar items or make a new offer at a different price.
           </p>
-          ${btn('Browse Items', `${appUrl}/browse`)}
+          ${btn('Browse Items', buildAppUrl('/browse'))}
         `),
       }
     }
@@ -594,7 +652,7 @@ case 'item_sold': {
           <p style="font-size:13px;color:#6B7280;text-align:center;">
             You can accept, decline, or let it expire. Valid for 24 hours.
           </p>
-          ${btn('View Offer', `${appUrl}/offers`)}
+          ${btn('View Offer', offersUrl(payload.meta?.offerId || payload.related_entity_id))}
         `),
       }
     }
@@ -619,7 +677,7 @@ case 'item_sold': {
           <p style="font-size:13px;color:#6B7280;text-align:center;">
             If a refund was issued, it will appear in your payment method within 5-10 business days.
           </p>
-          ${btn('Browse Items', `${appUrl}/browse`)}
+          ${btn('Browse Items', buildAppUrl('/browse'))}
         `),
       }
     }
@@ -643,7 +701,7 @@ case 'item_sold': {
           <p style="font-size:13px;color:#6B7280;text-align:center;">
             The buyer has been refunded. No further action is required from you.
           </p>
-          ${btn('View Sale', saleUrl)}
+          ${btn('View Sale', orderUrl(payload.meta?.orderId || payload.related_entity_id))}
         `),
       }
     }
@@ -674,7 +732,7 @@ case 'item_sold': {
           <p style="font-size:13px;color:#6B7280;text-align:center;">
             Questions? Contact info@sibmalta.com.
           </p>
-          ${btn('View Order', `${appUrl}/orders`)}
+          ${btn('View Order', orderUrl(payload.meta?.orderId))}
         `),
       }
     }
@@ -696,7 +754,7 @@ case 'item_sold': {
           <p style="font-size:13px;color:#6B7280;text-align:center;">
             View the full message and respond in the app.
           </p>
-          ${btn('View Dispute', `${appUrl}/orders`)}
+          ${btn('View Dispute', orderUrl(payload.meta?.orderId))}
         `),
       }
     }
@@ -717,7 +775,7 @@ case 'item_sold': {
             ${priceTag(offerPrice, '#C75B2A')}
           `)}
           <p style="font-size:13px;color:#6B7280;text-align:center;">You can accept, decline, or counter this bundle offer.</p>
-          ${btn('View Offer', `${appUrl}/offers`)}
+          ${btn('View Offer', offersUrl(payload.meta?.offerId || payload.related_entity_id))}
         `),
       }
     }
@@ -736,7 +794,7 @@ case 'item_sold': {
             ${priceTag(acceptedPrice, '#059669')}
           `)}
           <p style="font-size:13px;color:#6B7280;text-align:center;">Complete your purchase now before the offer expires.</p>
-          ${btn('Go to Checkout', `${appUrl}/checkout`)}
+          ${btn('Go to Checkout', withQuery('/bundle/checkout', { offer: payload.meta?.offerId || payload.related_entity_id }))}
         `),
       }
     }
@@ -757,7 +815,7 @@ case 'item_sold': {
           <p style="font-size:13px;color:#6B7280;text-align:center;">
             You can try a different price or browse other items.
           </p>
-          ${btn('Browse Items', `${appUrl}/browse`)}
+          ${btn('Browse Items', buildAppUrl('/browse'))}
         `),
       }
     }
@@ -779,7 +837,7 @@ case 'item_sold': {
           <p style="font-size:13px;color:#6B7280;text-align:center;">
             Accept, decline, or let it expire. Valid for 24 hours.
           </p>
-          ${btn('View Offer', `${appUrl}/offers`)}
+          ${btn('View Offer', offersUrl(payload.meta?.offerId || payload.related_entity_id))}
         `),
       }
     }
@@ -905,4 +963,3 @@ Deno.serve(async (req) => {
     )
   }
 })
-

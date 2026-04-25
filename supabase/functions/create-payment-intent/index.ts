@@ -32,14 +32,6 @@ class CheckoutError extends Error {
   }
 }
 
-const DELIVERY_TIERS: Record<string, number> = {
-  small: 2.99,
-  medium: 4.95,
-  heavy: 9.95,
-  bulky: 39.95,
-  large: 39.95,
-}
-
 const BUNDLE_DELIVERY_FEES: Record<string, number> = {
   home_delivery: 4.50,
   locker_collection: 3.25,
@@ -111,13 +103,6 @@ function getDefaultDeliverySize(category: string | null) {
 }
 
 function getSingleListingDeliveryFee(listing: ListingRow, deliveryMethod: string) {
-  const deliverySize = getDefaultDeliverySize(listing.category)
-  const tierPrice = DELIVERY_TIERS[deliverySize] ?? DELIVERY_TIERS.medium
-
-  if (deliverySize === 'bulky' || deliverySize === 'heavy') {
-    return tierPrice
-  }
-
   return BUNDLE_DELIVERY_FEES[deliveryMethod] ?? BUNDLE_DELIVERY_FEES.home_delivery
 }
 

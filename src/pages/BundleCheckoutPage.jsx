@@ -7,7 +7,8 @@ import { useAuth } from '../lib/auth-context'
 import { getStripe, createPaymentIntent, isStripeConfigured } from '../lib/stripe'
 import PageHeader from '../components/PageHeader'
 import DeliveryMethodSelector from '../components/DeliveryMethodSelector'
-import { getDeliveryMethod, getLockerById } from '../data/deliveryConfig'
+import { getLockerById } from '../data/deliveryConfig'
+import { getFulfilmentPrice, normalizeFulfilmentMethod } from '../lib/fulfilment'
 import useSavedAddress from '../hooks/useSavedAddress'
 import { useSupabase } from '../lib/useSupabase'
 import { trackReferralConversion, getActiveReferral } from '../lib/referral'
@@ -295,8 +296,7 @@ export default function BundleCheckoutPage() {
   const seller = getUserById(bundle.sellerId)
   const items = bundle.items.map(id => getListingById(id)).filter(Boolean)
   const subtotal = items.reduce((sum, l) => sum + l.price, 0)
-  const deliveryMethod = getDeliveryMethod(deliveryMethodId)
-  const deliveryFee = deliveryMethod?.price ?? 4.50
+  const deliveryFee = getFulfilmentPrice(normalizeFulfilmentMethod(deliveryMethodId))
   const fees = calculateBundleFees(subtotal, deliveryFee)
   const amountCents = Math.round(fees.total * 100)
   const isLocker = deliveryMethodId === 'locker_collection'
