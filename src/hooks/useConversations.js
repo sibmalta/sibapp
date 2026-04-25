@@ -189,6 +189,18 @@ export function useConversations(currentUser, seedConversations = []) {
 
     if (!isAuthenticated) return { data: optimisticMessage, error: null }
 
+    const { error: conversationError } = await upsertConversation(supabase, conversation)
+    if (conversationError) {
+      console.error('[useConversations] upsert before insertMessage failed:', {
+        conversationId,
+        senderId: message.senderId,
+        recipientId,
+        message: conversationError.message,
+        code: conversationError.code || null,
+      })
+      return { data: optimisticMessage, error: conversationError }
+    }
+
     const { data, error } = await insertMessage(supabase, {
       conversationId,
       senderId: message.senderId,
@@ -201,9 +213,22 @@ export function useConversations(currentUser, seedConversations = []) {
     })
 
     if (error) {
-      console.error('[useConversations] insertMessage failed:', error.message)
+      console.error('[useConversations] insertMessage failed:', {
+        conversationId,
+        senderId: message.senderId,
+        recipientId,
+        message: error.message,
+        code: error.code || null,
+      })
       return { data: optimisticMessage, error }
     }
+
+    console.info('[useConversations] message persisted', {
+      conversationId,
+      messageId: data.id,
+      senderId: data.senderId,
+      recipientId: data.recipientId,
+    })
 
     setConversations(prev => sortConversations(prev.map(c => {
       if (c.id !== conversationId) return c

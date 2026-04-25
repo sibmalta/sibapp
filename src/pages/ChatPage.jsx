@@ -185,7 +185,7 @@ export default function ChatPage() {
   const analysis = text.trim() ? analyseMessage(text) : null
   const isRestricted = !!restriction
 
-  const attemptSend = useCallback(() => {
+  const attemptSend = useCallback(async () => {
     const msg = text.trim()
     if (!msg || isRestricted || !conv?.id || !currentUser?.id) return
     // Check for contact-sharing circumvention
@@ -203,7 +203,14 @@ export default function ChatPage() {
       return
     }
     try {
-      sendMessage(conv.id, currentUser.id, msg, false)
+      const result = await sendMessage(conv.id, currentUser.id, msg, false)
+      if (result?.error) {
+        setWarning({
+          flagged: true,
+          reasons: [result.error.message || 'Message could not be sent. Please try again.'],
+        })
+        return
+      }
     } catch (err) {
       setWarning(err.analysis || {
         flagged: true,

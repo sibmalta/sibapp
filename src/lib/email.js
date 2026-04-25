@@ -3,6 +3,12 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 async function sendEmail(type, to, payload = {}, meta = {}) {
   try {
+    console.info('[sendEmail] sending', {
+      type,
+      to,
+      conversationId: meta?.conversationId || meta?.conversation_id || null,
+      relatedEntityId: meta?.related_entity_id || meta?.relatedEntityId || null,
+    })
     const res = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
       method: 'POST',
       headers: {
@@ -23,7 +29,20 @@ async function sendEmail(type, to, payload = {}, meta = {}) {
       return null
     }
 
-    return res
+    let data = null
+    try {
+      data = await res.json()
+    } catch {
+      data = { ok: true }
+    }
+
+    console.info('[sendEmail] sent', {
+      type,
+      to,
+      id: data?.id || null,
+      subject: data?.subject || null,
+    })
+    return data || res
   } catch (err) {
     console.error('[sendEmail] error', err)
     return null

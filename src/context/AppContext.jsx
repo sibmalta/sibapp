@@ -563,6 +563,24 @@ export function AppProvider({ children }) {
     const recipientId = conversation?.participants?.find(id => id !== currentUser.id)
     const recipient = users.find(u => u.id === recipientId)
     const listing = conversation?.listingId ? listings.find(l => l.id === conversation.listingId) : null
+    console.info('[messages] sendMessage start', {
+      conversationId,
+      senderId: currentUser.id,
+      recipientId: recipientId || null,
+      hasConversation: !!conversation,
+      hasRecipientProfile: !!recipient,
+    })
+
+    if (!conversation || !recipientId) {
+      const error = new Error('Conversation or recipient missing.')
+      console.error('[messages] sendMessage blocked before persistence:', {
+        conversationId,
+        hasConversation: !!conversation,
+        recipientId: recipientId || null,
+      })
+      return { error }
+    }
+
     const newMsg = {
       id: `m${Date.now()}`,
       senderId: currentUser.id,
@@ -571,10 +589,27 @@ export function AppProvider({ children }) {
       timestamp: new Date().toISOString(),
       flagged: !!flagged,
     }
-    await dbAddMessage(conversationId, newMsg)
+    const messageResult = await dbAddMessage(conversationId, newMsg)
+    if (messageResult?.error) {
+      console.error('[messages] message persistence failed; notification/email skipped:', {
+        conversationId,
+        senderId: currentUser.id,
+        recipientId,
+        message: messageResult.error.message,
+        code: messageResult.error.code || null,
+      })
+      showToast?.('Message could not be sent. Please try again.', 'error')
+      return { error: messageResult.error }
+    }
+
+    console.info('[messages] message persistence ok', {
+      conversationId,
+      messageId: messageResult?.data?.id || newMsg.id,
+      recipientId,
+    })
 
     if (recipientId && recipientId !== currentUser.id && !flagged) {
-      addNotification({
+      const notificationResult = await addNotification({
         userId: recipientId,
         type: 'message_received',
         title: `New message from @${currentUser.username || currentUser.name || 'someone'}`,
@@ -587,9 +622,15 @@ export function AppProvider({ children }) {
           senderName: currentUser.username || currentUser.name || '',
         },
       })
+      console.info('[messages] notification result', {
+        conversationId,
+        recipientId,
+        notificationId: notificationResult?.id || null,
+        ok: !!notificationResult,
+      })
 
       if (recipient?.email) {
-        sendMessageReceivedEmail(
+        const emailResult = await sendMessageReceivedEmail(
           recipient.email,
           recipient.name || recipient.username || 'there',
           currentUser.username || currentUser.name || 'someone',
@@ -604,6 +645,17 @@ export function AppProvider({ children }) {
             related_entity_id: conversationId,
           },
         )
+        console.info('[messages] message email result', {
+          conversationId,
+          recipientId,
+          recipientEmail: recipient.email,
+          ok: !!emailResult,
+        })
+      } else {
+        console.warn('[messages] recipient has no email; message email skipped', {
+          conversationId,
+          recipientId,
+        })
       }
     }
 
@@ -611,8 +663,8 @@ export function AppProvider({ children }) {
     if (flagged && currentUser?.email) {
       sendSuspiciousActivityEmail(currentUser.email, currentUser.name, 'Your message was flagged for containing contact information. Please use Sib messaging to stay protected.')
     }
-    return newMsg
-  }, [addNotification, conversations, currentUser, dbAddMessage, listings, users])
+    return { message: messageResult?.data || newMsg }
+  }, [addNotification, conversations, currentUser, dbAddMessage, listings, showToast, users])
 
   // Mark all messages from other participants as read in a conversation
   const markConversationRead = useCallback((conversationId) => {
