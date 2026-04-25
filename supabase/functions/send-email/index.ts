@@ -209,7 +209,33 @@ function buildEmail(payload: EmailPayload): { subject: string; html: string; pre
   const orderUrl = (id?: string | null) => id ? buildAppUrl(`/orders/${id}`) : buildAppUrl('/orders')
   const messageUrl = (conversationId?: string | null) =>
     conversationId ? buildAppUrl(`/messages/${conversationId}`) : buildAppUrl('/messages')
-  const offerThreadUrl = () => messageUrl(payload.meta?.conversationId || payload.meta?.conversation_id)
+  const offerThreadUrl = () => {
+    const conversationId = payload.meta?.conversationId || payload.meta?.conversation_id
+    const params = {
+      offer: payload.meta?.offerId || payload.meta?.offer_id || payload.related_entity_id,
+      listing: payload.meta?.listingId || payload.meta?.listing_id,
+      buyer: payload.meta?.buyerId || payload.meta?.buyer_id,
+      seller: payload.meta?.sellerId || payload.meta?.seller_id,
+      price: data.offerPrice || data.counterPrice || data.acceptedPrice,
+      buyerName: data.buyerName,
+      itemTitle: data.itemTitle,
+    }
+
+    if (!conversationId) {
+      console.error('[send-email] Offer email missing conversationId; falling back to Messages list with offer metadata', {
+        type,
+        offerId: params.offer || null,
+        listingId: params.listing || null,
+      })
+      const fallbackUrl = withQuery('/messages', params)
+      console.log(`[send-email] ${type} CTA View Offer URL: ${fallbackUrl}`)
+      return fallbackUrl
+    }
+
+    const url = withQuery(`/messages/${conversationId}`, params)
+    console.log(`[send-email] ${type} CTA View Offer URL: ${url}`)
+    return url
+  }
   const checkoutUrl = (listingId?: string | null, offerId?: string | null) =>
     listingId ? withQuery(`/checkout/${listingId}`, { offer: offerId }) : buildAppUrl('/messages')
 

@@ -22,12 +22,24 @@ export default function AuthPage() {
   const [resendCooldown, setResendCooldown] = useState(false)
   const [checkingVerification, setCheckingVerification] = useState(false)
 
+  const sanitizeRedirectPath = (value) => {
+    if (!value || value === '/auth') return null
+    try {
+      const decoded = decodeURIComponent(value)
+      if (!decoded.startsWith('/') || decoded.startsWith('//')) return null
+      if (decoded.startsWith('/auth')) return null
+      return decoded
+    } catch {
+      return null
+    }
+  }
+
   // Determine where to redirect after login
   const getRedirectPath = () => {
-    const redirectParam = searchParams.get('redirect')
-    if (redirectParam && redirectParam !== '/auth') return redirectParam
-    const stateFrom = location.state?.from
-    if (stateFrom && stateFrom !== '/auth') return stateFrom
+    const redirectParam = sanitizeRedirectPath(searchParams.get('redirect'))
+    if (redirectParam) return redirectParam
+    const stateFrom = sanitizeRedirectPath(location.state?.from)
+    if (stateFrom) return stateFrom
     return '/browse'
   }
 

@@ -148,12 +148,9 @@ export default function ChatPage() {
     })
   }, [currentUser, conv, id, searchParams, recoverOfferConversationFromLink])
 
-  if (!currentUser) return null
-  if (!conv) return <div className="text-center py-20 text-sib-muted dark:text-[#aeb8b4]">Conversation not found.</div>
-
-  const otherId = conv.participants.find(p => p !== currentUser.id)
-  const other = getUserById(otherId)
-  const listing = getListingById(conv.listingId)
+  const otherId = conv?.participants?.find(p => p !== currentUser?.id)
+  const other = otherId ? getUserById(otherId) : null
+  const listing = conv?.listingId ? getListingById(conv.listingId) : null
 
   // Refresh restriction timer
   useEffect(() => {
@@ -190,7 +187,7 @@ export default function ChatPage() {
 
   const attemptSend = useCallback(() => {
     const msg = text.trim()
-    if (!msg || isRestricted) return
+    if (!msg || isRestricted || !conv?.id || !currentUser?.id) return
     // Check for contact-sharing circumvention
     const result = analyseMessage(msg)
     if (result.flagged) {
@@ -356,6 +353,9 @@ export default function ChatPage() {
       </div>
     </div>
   )
+
+  if (!currentUser) return null
+  if (!conv) return <div className="text-center py-20 text-sib-muted dark:text-[#aeb8b4]">Conversation not found.</div>
 
   return (
     <>

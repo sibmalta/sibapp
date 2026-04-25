@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Bell, Tag, Package, CheckCircle, XCircle, ArrowRightLeft, ShieldCheck, AlertTriangle, ChevronRight, PackagePlus, Truck, MessageSquare } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 
@@ -124,17 +124,22 @@ function timeAgo(dateStr) {
 export default function NotificationsPage() {
   const { currentUser, getUserNotifications, markNotificationRead, markAllNotificationsRead, refreshNotifications } = useApp()
   const navigate = useNavigate()
+  const location = useLocation()
 
   const notifications = currentUser ? getUserNotifications(currentUser.id) : []
   const unreadCount = notifications.filter(n => !n.read).length
 
   useEffect(() => {
     if (!currentUser) {
-      navigate('/auth')
+      const redirect = `${location.pathname}${location.search}`
+      navigate(`/auth?redirect=${encodeURIComponent(redirect)}`, {
+        replace: true,
+        state: { from: redirect },
+      })
       return
     }
     refreshNotifications()
-  }, [currentUser, navigate, refreshNotifications])
+  }, [currentUser, location.pathname, location.search, navigate, refreshNotifications])
 
   if (!currentUser) return null
 
