@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { Home, Search, Plus, MessageCircle, User, LogIn, Package } from 'lucide-react'
+import { Home, Search, Plus, MessageCircle, User, LogIn } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 
 const authLeft = [
@@ -8,7 +8,6 @@ const authLeft = [
   { path: '/browse', icon: Search, label: 'Browse' },
 ]
 const authRight = [
-  { path: '/orders', icon: Package, label: 'Orders' },
   { path: '/messages', icon: MessageCircle, label: 'Messages' },
   { path: '/profile', icon: User, label: 'Profile' },
 ]

@@ -285,6 +285,44 @@ const activeListings = userListings.filter(l => l.status === 'active')
               <p className="text-sm text-sib-muted dark:text-[#aeb8b4] mt-3 leading-relaxed line-clamp-2">{profileUser.bio}</p>
             )}
 
+            {isOwnProfile && (
+              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                <button
+                  type="button"
+                  onClick={() => navigate('/orders')}
+                  className="flex items-center gap-3 rounded-2xl border border-sib-stone/60 dark:border-[rgba(242,238,231,0.10)] bg-sib-sand/50 dark:bg-[#26322f] px-3 py-3 text-left hover:bg-sib-sand dark:hover:bg-[#30403c] transition-colors"
+                >
+                  <Package size={17} className="text-sib-primary flex-shrink-0" />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-bold text-sib-text dark:text-[#f4efe7]">Orders</span>
+                    <span className="block text-[11px] text-sib-muted dark:text-[#aeb8b4]">Purchases and sales</span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/seller')}
+                  className="flex items-center gap-3 rounded-2xl border border-sib-stone/60 dark:border-[rgba(242,238,231,0.10)] bg-sib-sand/50 dark:bg-[#26322f] px-3 py-3 text-left hover:bg-sib-sand dark:hover:bg-[#30403c] transition-colors"
+                >
+                  <Wallet size={17} className="text-sib-primary flex-shrink-0" />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-bold text-sib-text dark:text-[#f4efe7]">Seller dashboard</span>
+                    <span className="block text-[11px] text-sib-muted dark:text-[#aeb8b4]">Payouts and selling</span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/settings')}
+                  className="flex items-center gap-3 rounded-2xl border border-sib-stone/60 dark:border-[rgba(242,238,231,0.10)] bg-sib-sand/50 dark:bg-[#26322f] px-3 py-3 text-left hover:bg-sib-sand dark:hover:bg-[#30403c] transition-colors"
+                >
+                  <Settings size={17} className="text-sib-primary flex-shrink-0" />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-bold text-sib-text dark:text-[#f4efe7]">Settings</span>
+                    <span className="block text-[11px] text-sib-muted dark:text-[#aeb8b4]">Account preferences</span>
+                  </span>
+                </button>
+              </div>
+            )}
+
             {/* Seller activity indicators */}
             <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3 pt-3 border-t border-sib-stone/40">
               <span className="inline-flex items-center gap-1.5 text-[11px] text-sib-muted dark:text-[#aeb8b4]">

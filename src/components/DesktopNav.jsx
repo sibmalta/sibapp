@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { Search, Home, ShoppingBag, PlusSquare, MessageCircle, User, Bell, X, Package } from 'lucide-react'
+import { Search, Home, ShoppingBag, PlusSquare, MessageCircle, User, Bell, X } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import SearchAutocomplete from './SearchAutocomplete'
 
@@ -139,14 +139,6 @@ export default function DesktopNav() {
 
             {currentUser && (
               <>
-                <button
-                  onClick={() => navigate('/orders')}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-sib-muted hover:text-sib-text hover:bg-sib-sand dark:text-[#aeb8b4] dark:hover:text-[#f4efe7] dark:hover:bg-[#26322f] transition-colors"
-                >
-                  <Package size={18} />
-                  <span className="hidden xl:inline">Orders</span>
-                </button>
-
                 <button
                   onClick={() => navigate('/messages')}
                   className="relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-sib-muted hover:text-sib-text hover:bg-sib-sand dark:text-[#aeb8b4] dark:hover:text-[#f4efe7] dark:hover:bg-[#26322f] transition-colors"
