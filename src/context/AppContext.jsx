@@ -1813,8 +1813,16 @@ export function AppProvider({ children }) {
   // ──────────────────────────────────────────────────────────────────
   // getUserById, getUserByUsername, getListingById, getUserListings come from hooks above
 
-  const getUserOrders = useCallback((userId) => orders.filter(o => o.buyerId === userId), [orders])
-  const getUserSales = useCallback((userId) => orders.filter(o => o.sellerId === userId), [orders])
+  const getUserOrders = useCallback((userId) => (
+    orders
+      .filter(o => o.buyerId === userId)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  ), [orders])
+  const getUserSales = useCallback((userId) => (
+    orders
+      .filter(o => o.sellerId === userId)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  ), [orders])
   const getUserConversations = useCallback((userId) => conversations.filter(c => c.participants.includes(userId)), [conversations])
   const getConversationById = useCallback((id) => conversations.find(c => c.id === id), [conversations])
   const getConversation = getConversationById
