@@ -183,7 +183,7 @@ function BundleStripeForm({ fees, onSuccess, onError }) {
             buttonType: { applePay: 'buy', googlePay: 'pay' },
             layout: { overflow: 'auto' },
             paymentMethodOrder: ['apple_pay', 'google_pay'],
-            paymentMethods: { applePay: 'always', googlePay: 'always' },
+            paymentMethods: { applePay: 'auto', googlePay: 'auto' },
           }}
           onClick={(event) => {
             // Apple Pay requires this domain to be registered in Stripe before it can render in production.
@@ -191,14 +191,14 @@ function BundleStripeForm({ fees, onSuccess, onError }) {
           }}
           onReady={(event) => {
             const available = event.availablePaymentMethods
-            console.log('[BundleCheckoutPage] ExpressCheckoutElement availablePaymentMethods', available)
+            console.log('[BundleCheckoutPage] ExpressCheckoutElement ready', { availablePaymentMethods: available })
             const nextWalletsAvailable = Boolean(available?.applePay || available?.googlePay)
             console.log('[BundleCheckoutPage] walletsAvailable ->', nextWalletsAvailable)
             setWalletsAvailable(nextWalletsAvailable)
           }}
           onConfirm={handleExpressConfirm}
           onLoadError={(event) => {
-            console.error('[BundleCheckoutPage] ExpressCheckoutElement load error:', event)
+            console.error('Bundle ExpressCheckoutElement load error:', event)
             setWalletsAvailable(false)
           }}
         />
