@@ -1,3 +1,30 @@
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+async function sendEmail(type, to, payload = {}, meta = {}) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({
+        type,
+        to,
+        payload,
+        meta,
+      }),
+    })
+
+    if (!res.ok) {
+      console.error('[sendEmail] failed', await res.text())
+    }
+  } catch (err) {
+    console.error('[sendEmail] error', err)
+  }
+}
+
 export function sendOrderConfirmedEmail(buyerEmail, buyerName, orderRef, itemTitle, totalPrice, deliveryMethod, meta = {}) {
   return sendEmail('order_confirmed', buyerEmail, { buyerName, orderRef, itemTitle, totalPrice, deliveryMethod }, meta)
 }
