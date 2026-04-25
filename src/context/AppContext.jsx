@@ -366,7 +366,7 @@ export function AppProvider({ children }) {
   const adminUpdateListingMeta = dbAdminUpdateListingMeta
 
   // ── Notification helpers (must be before placeOrder which depends on it) ──
-  const placeOrder = useCallback(async (listingId, deliveryMethod, address, overridePrice, deliveryInfo, deliverySnapshot) => {
+  const placeOrder = useCallback(async (listingId, deliveryMethod, address, overridePrice, deliveryInfo, deliverySnapshot, stripePaymentIntentId = null) => {
     const listing = listings.find(l => l.id === listingId)
     if (!listing) return null
     if (listing.status !== 'active' || hasBlockingOrderForListings(orders, [listingId])) {
@@ -410,6 +410,8 @@ export function AppProvider({ children }) {
       platformFee: bundledFee,
       paymentFlowType: 'separate_charge',
       status: 'paid',
+      paymentStatus: 'paid',
+      stripePaymentIntentId,
       deliveryMethod: deliveryType,
       deliveryFee: dFee,
       trackingStatus: 'paid',

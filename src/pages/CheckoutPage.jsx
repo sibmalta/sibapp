@@ -475,7 +475,8 @@ export default function CheckoutPage() {
       getFullAddress(),
       undefined,
       deliveryInfo,
-      deliverySnapshot
+      deliverySnapshot,
+      stripePaymentIntentId
     )
 
     if (!order) {
@@ -486,36 +487,6 @@ export default function CheckoutPage() {
     }
 
     if (order) {
-      let paymentReferenceSaved = true
-      try {
-        const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
-        const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/orders?id=eq.${order.id}`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            apikey: SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${session?.access_token}`,
-            Prefer: 'return=minimal',
-          },
-          body: JSON.stringify({
-            stripe_payment_intent_id: stripePaymentIntentId,
-            payment_status: 'paid',
-          }),
-        })
-        if (!response.ok) {
-          paymentReferenceSaved = false
-          const body = await response.text().catch(() => '')
-          console.error('[CheckoutPage] Failed to save payment intent ID to order:', response.status, body)
-          showToast('Order placed, but the payment reference could not be saved. Please contact support if you need help.', 'error')
-        }
-      } catch (err) {
-        paymentReferenceSaved = false
-        console.error('Failed to save payment intent ID to order:', err)
-        showToast('Order placed, but the payment reference could not be saved. Please contact support if you need help.', 'error')
-      }
-
       try {
         const SUPABASE_URL2 = import.meta.env.VITE_SUPABASE_URL
         const SUPABASE_ANON_KEY2 = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -528,9 +499,7 @@ export default function CheckoutPage() {
         // silent
       }
 
-      if (paymentReferenceSaved) {
-        showToast('Payment successful! Your order has been placed.')
-      }
+      showToast('Payment successful! Your order has been placed.')
       navigate(`/orders/${order.id}`)
     }
   }
