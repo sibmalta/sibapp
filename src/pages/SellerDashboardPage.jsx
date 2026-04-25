@@ -9,10 +9,10 @@ import { useApp } from '../context/AppContext'
 import { ShipmentStatusBadge } from '../components/ShipmentTracker'
 
 const PAYOUT_STATUS_MAP = {
-  held: { label: 'Pending', desc: 'Held until buyer confirms (48h window)', color: 'bg-amber-50 text-amber-700', dot: 'bg-amber-400', icon: Clock },
-  available: { label: 'Available', desc: 'Ready for next payout', color: 'bg-emerald-50 text-emerald-700', dot: 'bg-emerald-400', icon: CheckCircle },
-  released: { label: 'Paid out', desc: 'Sent to your bank', color: 'bg-sky-50 text-sky-700', dot: 'bg-sky-400', icon: Banknote },
-  refunded: { label: 'Refunded', desc: 'Returned to buyer', color: 'bg-red-50 text-red-500', dot: 'bg-red-400', icon: AlertCircle },
+  held: { label: 'Pending', desc: 'Held until buyer confirms (48h window)', color: 'bg-amber-50 text-amber-700 dark:bg-[#332d20] dark:text-amber-300', dot: 'bg-amber-400', icon: Clock },
+  available: { label: 'Available', desc: 'Ready for next payout', color: 'bg-emerald-50 text-emerald-700 dark:bg-[#20322b] dark:text-emerald-300', dot: 'bg-emerald-400', icon: CheckCircle },
+  released: { label: 'Paid out', desc: 'Sent to your bank', color: 'bg-sky-50 text-sky-700 dark:bg-[#21303a] dark:text-sky-300', dot: 'bg-sky-400', icon: Banknote },
+  refunded: { label: 'Refunded', desc: 'Returned to buyer', color: 'bg-red-50 text-red-500 dark:bg-[#362322] dark:text-red-300', dot: 'bg-red-400', icon: AlertCircle },
 }
 
 // Payout days: Tuesday (2) and Friday (5)
@@ -88,19 +88,19 @@ export default function SellerDashboardPage() {
   ]
 
   return (
-    <div className="pb-10 bg-white min-h-screen">
+    <div className="pb-10 bg-white dark:bg-[#18211f] min-h-screen transition-colors">
       {/* Header — clean, minimal */}
       <div className="px-4 pt-5 pb-1">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-sib-text tracking-tight">Seller Dashboard</h1>
-            <p className="text-xs text-sib-muted mt-0.5">Earnings &amp; payouts</p>
+            <h1 className="text-xl font-bold text-sib-text dark:text-[#f4efe7] tracking-tight">Seller Dashboard</h1>
+            <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mt-0.5">Earnings &amp; payouts</p>
           </div>
           <button
             onClick={() => navigate('/seller/payout-settings')}
             className={`text-xs px-3.5 py-1.5 rounded-full font-semibold transition-all ${
               hasStripeAccount
-                ? 'text-sib-muted bg-sib-sand border border-sib-stone hover:border-sib-muted'
+                ? 'text-sib-muted dark:text-[#aeb8b4] bg-sib-sand dark:bg-[#26322f] border border-sib-stone dark:border-[rgba(242,238,231,0.10)] hover:border-sib-muted dark:hover:border-[rgba(242,238,231,0.18)]'
                 : 'text-white bg-sib-secondary shadow-sm hover:opacity-90'
             }`}
           >
@@ -111,11 +111,11 @@ export default function SellerDashboardPage() {
 
       {/* Primary: Balance overview — compact stat card */}
       <div className="px-4 mt-3">
-        <div className="bg-sib-sand rounded-2xl p-4 border border-sib-stone/60">
+        <div className="bg-sib-sand dark:bg-[#202b28] rounded-2xl p-4 border border-sib-stone/60 dark:border-[rgba(242,238,231,0.10)] transition-colors">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <p className="text-[11px] uppercase tracking-wider text-sib-muted font-semibold">Total Earnings</p>
-              <p className="text-3xl font-bold text-sib-text mt-0.5 tracking-tight">€{totalEarnings.toFixed(2)}</p>
+              <p className="text-[11px] uppercase tracking-wider text-sib-muted dark:text-[#aeb8b4] font-semibold">Total Earnings</p>
+              <p className="text-3xl font-bold text-sib-text dark:text-[#f4efe7] mt-0.5 tracking-tight">€{totalEarnings.toFixed(2)}</p>
             </div>
             <div className="w-10 h-10 rounded-xl bg-sib-primary/10 flex items-center justify-center">
               <TrendingUp size={18} className="text-sib-primary" />
@@ -123,13 +123,13 @@ export default function SellerDashboardPage() {
           </div>
 
           {/* Breakdown row */}
-          <div className="grid grid-cols-3 gap-2 pt-3 border-t border-sib-stone/60">
+          <div className="grid grid-cols-3 gap-2 pt-3 border-t border-sib-stone/60 dark:border-[rgba(242,238,231,0.10)]">
             <div>
               <div className="flex items-center gap-1.5 mb-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                <p className="text-[10px] text-sib-muted font-medium uppercase tracking-wide">Available</p>
+                <p className="text-[10px] text-sib-muted dark:text-[#aeb8b4] font-medium uppercase tracking-wide">Available</p>
               </div>
-              <p className="text-base font-bold text-sib-text">€{availableAmount.toFixed(2)}</p>
+              <p className="text-base font-bold text-sib-text dark:text-[#f4efe7]">€{availableAmount.toFixed(2)}</p>
               {availableAmount > 0 && (
                 <p className="text-[10px] text-emerald-600 font-medium mt-0.5">
                   {nextPayout.isToday ? 'Payout today' : `Next ${nextPayout.dayName}`}
@@ -139,19 +139,19 @@ export default function SellerDashboardPage() {
             <div>
               <div className="flex items-center gap-1.5 mb-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                <p className="text-[10px] text-sib-muted font-medium uppercase tracking-wide">Pending</p>
+                <p className="text-[10px] text-sib-muted dark:text-[#aeb8b4] font-medium uppercase tracking-wide">Pending</p>
               </div>
-              <p className="text-base font-bold text-sib-text">€{heldAmount.toFixed(2)}</p>
+              <p className="text-base font-bold text-sib-text dark:text-[#f4efe7]">€{heldAmount.toFixed(2)}</p>
               {heldAmount > 0 && (
-                <p className="text-[10px] text-sib-muted mt-0.5">In escrow</p>
+                <p className="text-[10px] text-sib-muted dark:text-[#aeb8b4] mt-0.5">In escrow</p>
               )}
             </div>
             <div>
               <div className="flex items-center gap-1.5 mb-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
-                <p className="text-[10px] text-sib-muted font-medium uppercase tracking-wide">Paid out</p>
+                <p className="text-[10px] text-sib-muted dark:text-[#aeb8b4] font-medium uppercase tracking-wide">Paid out</p>
               </div>
-              <p className="text-base font-bold text-sib-text">€{releasedAmount.toFixed(2)}</p>
+              <p className="text-base font-bold text-sib-text dark:text-[#f4efe7]">€{releasedAmount.toFixed(2)}</p>
             </div>
           </div>
         </div>
@@ -162,30 +162,30 @@ export default function SellerDashboardPage() {
         <div className="px-4 mt-3">
           <button
             onClick={() => navigate('/seller/payout-settings')}
-            className="w-full flex items-center gap-3 p-3.5 rounded-2xl border border-sib-stone bg-white hover:bg-sib-sand transition-colors group"
+            className="w-full flex items-center gap-3 p-3.5 rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-white dark:bg-[#202b28] hover:bg-sib-sand dark:hover:bg-[#26322f] transition-colors group"
           >
             <div className="w-9 h-9 rounded-xl bg-sib-secondary/10 flex items-center justify-center flex-shrink-0">
               <Banknote size={16} className="text-sib-secondary" />
             </div>
             <div className="flex-1 text-left">
-              <p className="text-sm font-semibold text-sib-text">
+              <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7]">
                 {needsStripeVerification ? 'Continue Stripe verification' : 'Set up payouts'}
               </p>
-              <p className="text-[11px] text-sib-muted mt-0.5">
+              <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] mt-0.5">
                 {needsStripeVerification ? 'Finish onboarding to unlock payouts' : 'Connect your bank to receive earnings'}
               </p>
             </div>
-            <ArrowUpRight size={16} className="text-sib-muted group-hover:text-sib-secondary transition-colors flex-shrink-0" />
+            <ArrowUpRight size={16} className="text-sib-muted dark:text-[#aeb8b4] group-hover:text-sib-secondary transition-colors flex-shrink-0" />
           </button>
         </div>
       )}
 
       {/* Payout schedule — subtle inline note */}
       <div className="px-4 mt-3">
-        <div className="flex items-center gap-2.5 py-2.5 px-3.5 rounded-xl bg-sib-sand/80 border border-sib-stone/40">
+        <div className="flex items-center gap-2.5 py-2.5 px-3.5 rounded-xl bg-sib-sand/80 dark:bg-[#26322f] border border-sib-stone/40 dark:border-[rgba(242,238,231,0.10)] transition-colors">
           <Calendar size={13} className="text-sib-primary flex-shrink-0" />
-          <p className="text-[11px] text-sib-muted leading-relaxed">
-            Payouts sent every <span className="font-semibold text-sib-text">Tuesday</span> &amp; <span className="font-semibold text-sib-text">Friday</span>
+          <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] leading-relaxed">
+            Payouts sent every <span className="font-semibold text-sib-text dark:text-[#f4efe7]">Tuesday</span> &amp; <span className="font-semibold text-sib-text dark:text-[#f4efe7]">Friday</span>
             {availableAmount > 0 && (
               <span className="text-sib-primary font-semibold"> · Next: {nextPayout.isToday ? 'Today' : nextPayout.dayName}</span>
             )}
@@ -197,19 +197,19 @@ export default function SellerDashboardPage() {
       <div className="px-4 mt-2.5">
         <button
           onClick={() => setEscrowOpen(!escrowOpen)}
-          className="w-full flex items-center justify-between py-2.5 px-3.5 rounded-xl border border-sib-stone/40 bg-white hover:bg-sib-sand/50 transition-colors"
+          className="w-full flex items-center justify-between py-2.5 px-3.5 rounded-xl border border-sib-stone/40 dark:border-[rgba(242,238,231,0.10)] bg-white dark:bg-[#202b28] hover:bg-sib-sand/50 dark:hover:bg-[#26322f] transition-colors"
         >
           <div className="flex items-center gap-2">
             <ShieldCheck size={13} className="text-sib-primary" />
-            <span className="text-[11px] font-semibold text-sib-muted">How Sib Escrow works</span>
+            <span className="text-[11px] font-semibold text-sib-muted dark:text-[#aeb8b4]">How Sib Escrow works</span>
           </div>
           {escrowOpen
-            ? <ChevronUp size={14} className="text-sib-muted" />
-            : <ChevronDown size={14} className="text-sib-muted" />
+            ? <ChevronUp size={14} className="text-sib-muted dark:text-[#aeb8b4]" />
+            : <ChevronDown size={14} className="text-sib-muted dark:text-[#aeb8b4]" />
           }
         </button>
         {escrowOpen && (
-          <div className="px-3.5 pb-3 pt-2.5 rounded-b-xl border border-t-0 border-sib-stone/40 bg-sib-sand/30 -mt-px">
+          <div className="px-3.5 pb-3 pt-2.5 rounded-b-xl border border-t-0 border-sib-stone/40 dark:border-[rgba(242,238,231,0.10)] bg-sib-sand/30 dark:bg-[#202b28] -mt-px transition-colors">
             <div className="space-y-2">
               {[
                 { text: 'Buyer pays — money held securely', tag: 'Pending', tagColor: 'bg-amber-100 text-amber-700' },
@@ -219,7 +219,7 @@ export default function SellerDashboardPage() {
               ].map((step, i) => (
                 <div key={i} className="flex items-center gap-2.5">
                   <span className="text-[10px] font-bold text-sib-primary/70 w-4 text-center flex-shrink-0">{i + 1}</span>
-                  <p className="text-[11px] text-sib-muted leading-snug flex-1">{step.text}</p>
+                  <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] leading-snug flex-1">{step.text}</p>
                   {step.tag && (
                     <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${step.tagColor}`}>{step.tag}</span>
                   )}
@@ -231,7 +231,7 @@ export default function SellerDashboardPage() {
       </div>
 
       {/* Divider */}
-      <div className="h-px bg-sib-stone/50 mx-4 mt-4 mb-3" />
+      <div className="h-px bg-sib-stone/50 dark:bg-[rgba(242,238,231,0.10)] mx-4 mt-4 mb-3" />
 
       {/* Filter tabs */}
       <div className="flex gap-1.5 px-4 mb-3 overflow-x-auto">
@@ -241,8 +241,8 @@ export default function SellerDashboardPage() {
             onClick={() => setFilter(f.id)}
             className={`px-3 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap transition-all ${
               filter === f.id
-                ? 'bg-sib-text text-white'
-                : 'bg-transparent text-sib-muted hover:bg-sib-sand'
+                ? 'bg-sib-text dark:bg-sib-primary text-white'
+                : 'bg-transparent text-sib-muted dark:text-[#aeb8b4] hover:bg-sib-sand dark:hover:bg-[#26322f]'
             }`}
           >
             {f.label}
@@ -257,14 +257,14 @@ export default function SellerDashboardPage() {
 
       {/* Sales list */}
       <div className="px-4 space-y-1.5">
-        <p className="text-[10px] text-sib-muted font-medium uppercase tracking-wider mb-1">
+        <p className="text-[10px] text-sib-muted dark:text-[#aeb8b4] font-medium uppercase tracking-wider mb-1">
           {filteredSales.length} sale{filteredSales.length !== 1 ? 's' : ''}
         </p>
 
         {filteredSales.length === 0 && (
           <div className="text-center py-14">
-            <Package size={28} className="mx-auto text-sib-stone mb-2" />
-            <p className="text-sm text-sib-muted">
+            <Package size={28} className="mx-auto text-sib-stone dark:text-[#aeb8b4] mb-2" />
+            <p className="text-sm text-sib-muted dark:text-[#aeb8b4]">
               {filter === 'all' ? 'No sales yet. List something to get started.' : 'No orders with this status.'}
             </p>
             {filter === 'all' && (
@@ -287,18 +287,20 @@ export default function SellerDashboardPage() {
           return (
             <div
               key={order.id}
-              className={`p-3 rounded-xl border transition-colors cursor-pointer active:bg-sib-sand/80 ${
-                needsShipping ? 'border-blue-200 bg-blue-50/20' : 'border-sib-stone/50 bg-white'
+              className={`p-3 rounded-xl border transition-colors cursor-pointer active:bg-sib-sand/80 dark:active:bg-[#30403c] ${
+                needsShipping
+                  ? 'border-blue-200 dark:border-blue-500/20 bg-blue-50/20 dark:bg-[#21303a]'
+                  : 'border-sib-stone/50 dark:border-[rgba(242,238,231,0.10)] bg-white dark:bg-[#202b28]'
               }`}
             >
               <div className="flex items-center gap-3" onClick={() => navigate(`/orders/${order.id}`)}>
                 <img
                   src={listing?.images?.[0] || ''}
                   alt={listing?.title}
-                  className="w-12 h-12 rounded-lg object-cover flex-shrink-0 bg-sib-sand"
+                  className="w-12 h-12 rounded-lg object-cover flex-shrink-0 bg-sib-sand dark:bg-[#26322f]"
                 />
                 <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold text-sib-text line-clamp-1">{listing?.title || 'Item'}</p>
+                  <p className="text-[13px] font-semibold text-sib-text dark:text-[#f4efe7] line-clamp-1">{listing?.title || 'Item'}</p>
                   <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                     <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5 ${ps.color}`}>
                       <StatusIcon size={9} />
@@ -314,15 +316,15 @@ export default function SellerDashboardPage() {
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0 pl-2">
-                  <p className="text-sm font-bold text-sib-text">€{(order.sellerPayout || order.itemPrice || 0).toFixed(2)}</p>
-                  <p className="text-[9px] text-sib-muted mt-0.5">
+                  <p className="text-sm font-bold text-sib-text dark:text-[#f4efe7]">€{(order.sellerPayout || order.itemPrice || 0).toFixed(2)}</p>
+                  <p className="text-[9px] text-sib-muted dark:text-[#aeb8b4] mt-0.5">
                     {new Date(order.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                   </p>
                 </div>
               </div>
               {needsShipping && (
                 <div className="mt-2">
-                  <p className="text-[11px] text-blue-700 mb-1.5">
+                  <p className="text-[11px] text-blue-700 dark:text-blue-300 mb-1.5">
                     New sale. Prepare the item and open the order for shipment steps.
                   </p>
                   <button

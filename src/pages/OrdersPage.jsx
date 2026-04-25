@@ -16,16 +16,16 @@ const SELLER_FILTERS = [
 ]
 
 const BUYER_STATUS_STYLES = {
-  paid: 'bg-yellow-50 text-yellow-700',
-  pending: 'bg-yellow-50 text-yellow-700',
-  shipped: 'bg-blue-50 text-blue-700',
-  delivered: 'bg-amber-50 text-amber-700',
-  confirmed: 'bg-green-50 text-green-700',
-  completed: 'bg-green-50 text-green-700',
-  disputed: 'bg-red-50 text-red-600',
-  under_review: 'bg-purple-50 text-purple-700',
-  cancelled: 'bg-red-50 text-red-500',
-  refunded: 'bg-red-50 text-red-500',
+  paid: 'bg-yellow-50 text-yellow-700 dark:bg-[#332d20] dark:text-amber-300',
+  pending: 'bg-yellow-50 text-yellow-700 dark:bg-[#332d20] dark:text-amber-300',
+  shipped: 'bg-blue-50 text-blue-700 dark:bg-[#21303a] dark:text-blue-300',
+  delivered: 'bg-amber-50 text-amber-700 dark:bg-[#332d20] dark:text-amber-300',
+  confirmed: 'bg-green-50 text-green-700 dark:bg-[#20322b] dark:text-green-300',
+  completed: 'bg-green-50 text-green-700 dark:bg-[#20322b] dark:text-green-300',
+  disputed: 'bg-red-50 text-red-600 dark:bg-[#362322] dark:text-red-300',
+  under_review: 'bg-purple-50 text-purple-700 dark:bg-[#2d2638] dark:text-purple-300',
+  cancelled: 'bg-red-50 text-red-500 dark:bg-[#362322] dark:text-red-300',
+  refunded: 'bg-red-50 text-red-500 dark:bg-[#362322] dark:text-red-300',
 }
 
 const BUYER_STATUS_LABELS = {
@@ -64,7 +64,7 @@ function getSellerOrderState(order, shipment) {
     return {
       filter: 'cancelled',
       label: orderStatus === 'refunded' ? 'Refunded' : 'Cancelled',
-      style: 'bg-red-50 text-red-600',
+      style: 'bg-red-50 text-red-600 dark:bg-[#362322] dark:text-red-300',
       nextStep: 'This order was cancelled.',
     }
   }
@@ -73,7 +73,7 @@ function getSellerOrderState(order, shipment) {
     return {
       filter: 'completed',
       label: 'Completed',
-      style: 'bg-green-50 text-green-700',
+      style: 'bg-green-50 text-green-700 dark:bg-[#20322b] dark:text-green-300',
       nextStep: 'Order completed. Payout can be processed.',
     }
   }
@@ -82,7 +82,7 @@ function getSellerOrderState(order, shipment) {
     return {
       filter: 'awaiting_confirmation',
       label: 'Awaiting buyer confirmation',
-      style: 'bg-amber-50 text-amber-700',
+      style: 'bg-amber-50 text-amber-700 dark:bg-[#332d20] dark:text-amber-300',
       nextStep: 'Delivered. Waiting for buyer confirmation.',
     }
   }
@@ -91,7 +91,7 @@ function getSellerOrderState(order, shipment) {
     return {
       filter: 'active',
       label: 'In transit',
-      style: 'bg-blue-50 text-blue-700',
+      style: 'bg-blue-50 text-blue-700 dark:bg-[#21303a] dark:text-blue-300',
       nextStep: 'Order is on the way to the buyer.',
     }
   }
@@ -100,7 +100,7 @@ function getSellerOrderState(order, shipment) {
     return {
       filter: 'active',
       label: 'Awaiting collection',
-      style: 'bg-blue-50 text-blue-700',
+      style: 'bg-blue-50 text-blue-700 dark:bg-[#21303a] dark:text-blue-300',
       nextStep: 'Waiting for MaltaPost collection/drop-off processing.',
     }
   }
@@ -109,7 +109,7 @@ function getSellerOrderState(order, shipment) {
     return {
       filter: 'active',
       label: 'New order',
-      style: 'bg-yellow-50 text-yellow-700',
+      style: 'bg-yellow-50 text-yellow-700 dark:bg-[#332d20] dark:text-amber-300',
       nextStep: 'Prepare this item for MaltaPost fulfilment.',
     }
   }
@@ -117,7 +117,7 @@ function getSellerOrderState(order, shipment) {
   return {
     filter: 'active',
     label: 'Preparing for MaltaPost',
-    style: 'bg-yellow-50 text-yellow-700',
+    style: 'bg-yellow-50 text-yellow-700 dark:bg-[#332d20] dark:text-amber-300',
     nextStep: 'Prepare this item for MaltaPost fulfilment.',
   }
 }
@@ -312,7 +312,7 @@ export default function OrdersPage() {
                     <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
                       tab === 'selling'
                         ? sellerState.style
-                        : (BUYER_STATUS_STYLES[order.trackingStatus] || 'bg-gray-50 text-gray-600')
+                        : (BUYER_STATUS_STYLES[order.trackingStatus] || 'bg-gray-50 dark:bg-[#26322f] text-gray-600 dark:text-[#aeb8b4]')
                     }`}>
                       {tab === 'selling'
                         ? sellerState.label

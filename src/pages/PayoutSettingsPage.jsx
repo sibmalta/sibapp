@@ -10,6 +10,9 @@ function friendlyPayoutError(raw) {
   if (/not configured/i.test(raw) || /add it in/i.test(raw) || /STRIPE_SECRET_KEY/i.test(raw)) {
     return '__CONFIG_MISSING__'
   }
+  if (/Stripe Connect is not enabled/i.test(raw) || /Only Stripe Connect platforms/i.test(raw)) {
+    return '__CONFIG_MISSING__'
+  }
   if (/failed to fetch/i.test(raw) || /network/i.test(raw) || /timeout/i.test(raw) || /500|502|503|504/.test(raw) || /edge function/i.test(raw)) {
     return "We couldn't connect to our payment provider right now. Please try again in a moment."
   }

@@ -24,14 +24,14 @@ const TERMINAL_STATES = {
 }
 
 export const SHIPMENT_STATUS_CONFIG = {
-  awaiting_shipment: { label: 'Awaiting collection', color: 'bg-yellow-50 text-yellow-700', dotColor: 'bg-yellow-500' },
-  shipped: { label: 'Collected', color: 'bg-blue-50 text-blue-700', dotColor: 'bg-blue-500' },
-  in_transit: { label: 'In transit', color: 'bg-indigo-50 text-indigo-700', dotColor: 'bg-indigo-500' },
-  delivered: { label: 'Delivered', color: 'bg-green-50 text-green-700', dotColor: 'bg-green-500' },
-  ready_for_collection: { label: 'Ready for collection', color: 'bg-teal-50 text-teal-700', dotColor: 'bg-teal-500' },
-  collected: { label: 'Collected', color: 'bg-green-50 text-green-700', dotColor: 'bg-green-500' },
-  failed_delivery: { label: 'Failed delivery', color: 'bg-red-50 text-red-600', dotColor: 'bg-red-500' },
-  returned: { label: 'Returned', color: 'bg-orange-50 text-orange-700', dotColor: 'bg-orange-500' },
+  awaiting_shipment: { label: 'Awaiting collection', color: 'bg-yellow-50 text-yellow-700 dark:bg-[#332d20] dark:text-amber-300', dotColor: 'bg-yellow-500' },
+  shipped: { label: 'Collected', color: 'bg-blue-50 text-blue-700 dark:bg-[#21303a] dark:text-blue-300', dotColor: 'bg-blue-500' },
+  in_transit: { label: 'In transit', color: 'bg-indigo-50 text-indigo-700 dark:bg-[#252b3f] dark:text-indigo-300', dotColor: 'bg-indigo-500' },
+  delivered: { label: 'Delivered', color: 'bg-green-50 text-green-700 dark:bg-[#20322b] dark:text-green-300', dotColor: 'bg-green-500' },
+  ready_for_collection: { label: 'Ready for collection', color: 'bg-teal-50 text-teal-700 dark:bg-[#203632] dark:text-teal-300', dotColor: 'bg-teal-500' },
+  collected: { label: 'Collected', color: 'bg-green-50 text-green-700 dark:bg-[#20322b] dark:text-green-300', dotColor: 'bg-green-500' },
+  failed_delivery: { label: 'Failed delivery', color: 'bg-red-50 text-red-600 dark:bg-[#362322] dark:text-red-300', dotColor: 'bg-red-500' },
+  returned: { label: 'Returned', color: 'bg-orange-50 text-orange-700 dark:bg-[#352a21] dark:text-orange-300', dotColor: 'bg-orange-500' },
 }
 
 function getStepsForShipment(shipment) {
@@ -51,7 +51,7 @@ export default function ShipmentTracker({ shipment }) {
       {/* Status badge */}
       <div className="flex items-center gap-2">
         <div className={`w-2 h-2 rounded-full ${SHIPMENT_STATUS_CONFIG[shipment.status]?.dotColor || 'bg-gray-400'}`} />
-        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${SHIPMENT_STATUS_CONFIG[shipment.status]?.color || 'bg-gray-100 text-gray-600'}`}>
+        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${SHIPMENT_STATUS_CONFIG[shipment.status]?.color || 'bg-gray-100 dark:bg-[#26322f] text-gray-600 dark:text-[#aeb8b4]'}`}>
           {SHIPMENT_STATUS_CONFIG[shipment.status]?.label || shipment.status}
         </span>
       </div>
@@ -88,17 +88,17 @@ export default function ShipmentTracker({ shipment }) {
       {/* Terminal state display */}
       {isTerminal && (
         <div className={`flex items-center gap-3 p-3 rounded-2xl ${
-          shipment.status === 'failed_delivery' ? 'bg-red-50 border border-red-200' : 'bg-orange-50 border border-orange-200'
+          shipment.status === 'failed_delivery' ? 'bg-red-50 dark:bg-[#362322] border border-red-200 dark:border-red-500/20' : 'bg-orange-50 dark:bg-[#352a21] border border-orange-200 dark:border-orange-500/20'
         }`}>
           {shipment.status === 'failed_delivery'
             ? <XCircle size={20} className="text-red-500 flex-shrink-0" />
             : <RotateCcw size={20} className="text-orange-500 flex-shrink-0" />
           }
           <div>
-            <p className={`text-sm font-bold ${shipment.status === 'failed_delivery' ? 'text-red-800' : 'text-orange-800'}`}>
+            <p className={`text-sm font-bold ${shipment.status === 'failed_delivery' ? 'text-red-800 dark:text-red-300' : 'text-orange-800 dark:text-orange-300'}`}>
               {TERMINAL_STATES[shipment.status].label}
             </p>
-            <p className={`text-xs mt-0.5 ${shipment.status === 'failed_delivery' ? 'text-red-600' : 'text-orange-600'}`}>
+            <p className={`text-xs mt-0.5 ${shipment.status === 'failed_delivery' ? 'text-red-600 dark:text-red-300' : 'text-orange-600 dark:text-orange-300'}`}>
               {shipment.status === 'failed_delivery'
                 ? 'Delivery attempt was unsuccessful. The courier will retry or return the item.'
                 : 'The item has been returned to the sender.'
@@ -124,8 +124,8 @@ export default function ShipmentTracker({ shipment }) {
         )}
 
         {!shipment.trackingNumber && shipment.status === 'awaiting_shipment' && (
-          <div className="p-3 rounded-xl bg-yellow-50 border border-yellow-100">
-            <p className="text-xs text-yellow-700">
+          <div className="p-3 rounded-xl bg-yellow-50 dark:bg-[#332d20] border border-yellow-100 dark:border-amber-500/20 transition-colors">
+            <p className="text-xs text-yellow-700 dark:text-amber-300">
               Tracking number will appear once the seller ships the item via MaltaPost.
             </p>
           </div>
@@ -158,24 +158,24 @@ export default function ShipmentTracker({ shipment }) {
             </div>
           )}
           {shipment.failedAt && (
-            <div className="p-2.5 rounded-xl bg-red-50">
+            <div className="p-2.5 rounded-xl bg-red-50 dark:bg-[#362322] transition-colors">
               <p className="text-[10px] text-red-400">Failed</p>
-              <p className="text-xs font-medium text-red-700">{new Date(shipment.failedAt).toLocaleDateString('en-MT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+              <p className="text-xs font-medium text-red-700 dark:text-red-300">{new Date(shipment.failedAt).toLocaleDateString('en-MT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
             </div>
           )}
           {shipment.returnedAt && (
-            <div className="p-2.5 rounded-xl bg-orange-50">
+            <div className="p-2.5 rounded-xl bg-orange-50 dark:bg-[#352a21] transition-colors">
               <p className="text-[10px] text-orange-400">Returned</p>
-              <p className="text-xs font-medium text-orange-700">{new Date(shipment.returnedAt).toLocaleDateString('en-MT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+              <p className="text-xs font-medium text-orange-700 dark:text-orange-300">{new Date(shipment.returnedAt).toLocaleDateString('en-MT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
             </div>
           )}
         </div>
 
         {/* Delivery proof */}
         {shipment.deliveryProof && (
-          <div className="p-3 rounded-xl bg-green-50 border border-green-100">
-            <p className="text-[11px] text-green-600 font-semibold mb-1">Delivery proof</p>
-            <p className="text-xs text-green-700">{shipment.deliveryProof}</p>
+          <div className="p-3 rounded-xl bg-green-50 dark:bg-[#20322b] border border-green-100 dark:border-green-500/20 transition-colors">
+            <p className="text-[11px] text-green-600 dark:text-green-300 font-semibold mb-1">Delivery proof</p>
+            <p className="text-xs text-green-700 dark:text-green-300">{shipment.deliveryProof}</p>
           </div>
         )}
 
@@ -199,15 +199,15 @@ export function ShipByDeadline({ deadline }) {
 
   return (
     <div className={`p-3 rounded-xl border ${
-      isOverdue ? 'bg-red-50 border-red-200' :
-      isUrgent ? 'bg-amber-50 border-amber-200' :
-      'bg-blue-50 border-blue-100'
+      isOverdue ? 'bg-red-50 dark:bg-[#362322] border-red-200 dark:border-red-500/20' :
+      isUrgent ? 'bg-amber-50 dark:bg-[#332d20] border-amber-200 dark:border-amber-500/20' :
+      'bg-blue-50 dark:bg-[#21303a] border-blue-100 dark:border-blue-500/20'
     }`}>
       <div className="flex items-center gap-2">
         <Clock size={14} className={isOverdue ? 'text-red-500' : isUrgent ? 'text-amber-500' : 'text-blue-500'} />
         <div>
           <p className={`text-xs font-semibold ${
-            isOverdue ? 'text-red-700' : isUrgent ? 'text-amber-700' : 'text-blue-700'
+            isOverdue ? 'text-red-700 dark:text-red-300' : isUrgent ? 'text-amber-700 dark:text-amber-300' : 'text-blue-700 dark:text-blue-300'
           }`}>
             {isOverdue
               ? 'Collection deadline passed'
@@ -215,7 +215,7 @@ export function ShipByDeadline({ deadline }) {
             }
           </p>
           <p className={`text-[11px] mt-0.5 ${
-            isOverdue ? 'text-red-600' : isUrgent ? 'text-amber-600' : 'text-blue-600'
+            isOverdue ? 'text-red-600 dark:text-red-300' : isUrgent ? 'text-amber-600 dark:text-amber-300' : 'text-blue-600 dark:text-blue-300'
           }`}>
             {isOverdue
               ? 'This order is overdue. Ship now to avoid cancellation.'

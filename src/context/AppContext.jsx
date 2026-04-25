@@ -965,6 +965,8 @@ export function AppProvider({ children }) {
         offerId: newOffer.id,
         listingId,
         conversationId: conversation.id,
+        buyerId: currentUser.id,
+        sellerId: listing.sellerId,
         related_entity_type: 'offer',
         related_entity_id: newOffer.id,
       })
@@ -1020,6 +1022,8 @@ export function AppProvider({ children }) {
           offerId: offer.id,
           listingId: offer.listingId,
           conversationId: conversation.id,
+          buyerId: offer.buyerId,
+          sellerId: offer.sellerId,
           related_entity_type: 'offer',
           related_entity_id: offer.id,
         })
@@ -1072,6 +1076,8 @@ export function AppProvider({ children }) {
           offerId: offer.id,
           listingId: offer.listingId,
           conversationId: conversation.id,
+          buyerId: offer.buyerId,
+          sellerId: offer.sellerId,
           related_entity_type: 'offer',
           related_entity_id: offer.id,
         })
@@ -1128,12 +1134,98 @@ export function AppProvider({ children }) {
           offerId: offer.id,
           listingId: offer.listingId,
           conversationId: conversation.id,
+          buyerId: offer.buyerId,
+          sellerId: offer.sellerId,
           related_entity_type: 'offer',
           related_entity_id: offer.id,
         })
       }
     }
   }, [offers, listings, users, addNotification, getOrCreateConversationForUsers, addConversationEvent])
+
+  const recoverOfferConversationFromLink = useCallback((params = {}) => {
+    const {
+      conversationId,
+      offerId,
+      listingId,
+      buyerId,
+      sellerId,
+      price,
+      buyerName,
+      itemTitle,
+    } = params
+
+    if (!currentUser || !conversationId || !offerId || !listingId || !buyerId || !sellerId) {
+      return null
+    }
+
+    if (![buyerId, sellerId].includes(currentUser.id)) {
+      return null
+    }
+
+    const listing = listings.find(l => l.id === listingId)
+    const offerPrice = Number(price || 0)
+    const now = new Date().toISOString()
+    const existingOffer = offers.find(o => o.id === offerId)
+
+    if (!existingOffer && offerPrice > 0) {
+      const recoveredOffer = {
+        id: offerId,
+        listingId,
+        buyerId,
+        sellerId,
+        price: offerPrice,
+        status: 'pending',
+        counterPrice: null,
+        acceptedPrice: null,
+        createdAt: now,
+        updatedAt: now,
+        expiresAt: new Date(Date.now() + OFFER_EXPIRY_MS).toISOString(),
+      }
+      setOffers(prev => prev.some(o => o.id === offerId) ? prev : [recoveredOffer, ...prev])
+    }
+
+    const offerMessage = {
+      id: `ev_${offerId}`,
+      senderId: buyerId,
+      text: `@${buyerName || 'buyer'} offered €${offerPrice.toFixed(2)} on "${itemTitle || listing?.title || 'item'}"`,
+      timestamp: now,
+      type: 'offer',
+      eventType: 'offer_received',
+      read: false,
+      offerId,
+      listingId,
+      title: 'Offer received',
+      offerPrice,
+      originalPrice: listing?.price,
+      itemTitle: itemTitle || listing?.title || 'Item',
+      itemImage: listing?.images?.[0] || null,
+      status: existingOffer?.status || 'pending',
+    }
+
+    const recoveredConversation = {
+      id: conversationId,
+      participants: [buyerId, sellerId],
+      listingId,
+      messages: [offerMessage],
+    }
+
+    setConversations(prev => {
+      const existing = prev.find(c => c.id === conversationId)
+      if (!existing) return [...prev, recoveredConversation]
+
+      const hasOfferMessage = existing.messages?.some(m => m.offerId === offerId)
+      if (hasOfferMessage) return prev
+
+      return prev.map(c => (
+        c.id === conversationId
+          ? { ...c, messages: [...(c.messages || []), offerMessage] }
+          : c
+      ))
+    })
+
+    return recoveredConversation
+  }, [currentUser, listings, offers, OFFER_EXPIRY_MS])
 
   const getOfferById = useCallback((id) => offers.find(o => o.id === id), [offers])
 
@@ -1995,7 +2087,7 @@ export function AppProvider({ children }) {
       placeOrder, getOrCreateConversation, sendMessage, markConversationRead, getUnreadConversationCount, updateOrderStatus,
       confirmDelivery, openDispute, adminOpenDispute, flagOrderOverdue, DISPUTE_REASONS,
       addNotification, markNotificationRead, markAllNotificationsRead, getUserNotifications, refreshNotifications,
-      createOffer, acceptOffer, declineOffer, counterOffer, getOfferById, getListingOffers, getUserActiveOfferOnListing,
+      createOffer, acceptOffer, declineOffer, counterOffer, recoverOfferConversationFromLink, getOfferById, getListingOffers, getUserActiveOfferOnListing,
       addToBundle, removeFromBundle, clearBundle, isInBundle, calculateBundleFees, placeBundleOrder,
       createBundleOffer, acceptBundleOffer, declineBundleOffer, counterBundleOffer, getBundleOfferById, placeBundleOfferOrder,
       suspendUser, banUser, restoreUser, updateSellerBadges, updateTrustTags, updateAdminRole, holdPayout, releasePayout, refundOrder, resolveDispute, cancelOrder, addDisputeMessage,

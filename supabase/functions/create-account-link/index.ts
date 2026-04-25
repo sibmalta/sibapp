@@ -6,6 +6,79 @@ const corsHeaders = {
 import Stripe from 'npm:stripe@14.14.0'
 import { createClient } from 'npm:@supabase/supabase-js@2.45.0'
 
+const PRODUCTION_APP_URL = 'https://sibmalta.com'
+const PAYOUT_SETTINGS_PATH = '/seller/payout-settings'
+
+function getAppUrl() {
+  const configuredUrl = Deno.env.get('APP_URL')?.trim()
+  if (!configuredUrl) return PRODUCTION_APP_URL
+
+  try {
+    const parsed = new URL(configuredUrl)
+    const hostname = parsed.hostname.toLowerCase()
+    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1'
+    const isSibDomain = hostname === 'sibmalta.com' || hostname.endsWith('.sibmalta.com')
+
+    if (parsed.protocol === 'https:' && isSibDomain && !isLocalhost) {
+      return parsed.origin
+    }
+  } catch {
+    // Ignore malformed values and use the production web app URL below.
+  }
+
+  console.warn('[create-account-link] Ignoring unsafe APP_URL for onboarding redirect:', configuredUrl)
+  return PRODUCTION_APP_URL
+}
+
+function buildAppUrl(path = PAYOUT_SETTINGS_PATH) {
+  return new URL(path, getAppUrl()).toString()
+}
+
+function sanitizeUrl(input: string | undefined, fallback: string) {
+  if (!input) return fallback
+  try {
+    const parsed = new URL(input)
+    const hostname = parsed.hostname.toLowerCase()
+    const isSibDomain = hostname === 'sibmalta.com' || hostname.endsWith('.sibmalta.com')
+    if (parsed.protocol === 'https:' && isSibDomain) {
+      return parsed.toString()
+    }
+  } catch {
+    // Ignore invalid URLs and fall back below.
+  }
+  return fallback
+}
+
+function stripeConnectErrorResponse(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error)
+  const stripeError = error as { code?: string; type?: string; requestId?: string }
+  const details = {
+    code: stripeError?.code || null,
+    type: stripeError?.type || null,
+    requestId: stripeError?.requestId || null,
+  }
+
+  if (/Only Stripe Connect platforms can work with other accounts/i.test(message)) {
+    return new Response(
+      JSON.stringify({
+        error: 'Stripe Connect is not enabled for the configured Stripe account. Use the platform STRIPE_SECRET_KEY for a Stripe Connect platform, then try verification again.',
+        code: 'stripe_connect_platform_required',
+        details,
+      }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+  }
+
+  return new Response(
+    JSON.stringify({
+      error: message || 'Failed to create account link',
+      code: stripeError?.code || 'stripe_connect_failed',
+      details,
+    }),
+    { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  )
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -35,6 +108,9 @@ Deno.serve(async (req) => {
     const userId = payload.sub
 
     const { accountId, returnUrl, refreshUrl } = await req.json()
+    const fallbackUrl = buildAppUrl(PAYOUT_SETTINGS_PATH)
+    const safeReturnUrl = sanitizeUrl(returnUrl, fallbackUrl)
+    const safeRefreshUrl = sanitizeUrl(refreshUrl, safeReturnUrl)
 
     if (!accountId) {
       return new Response(
@@ -81,8 +157,8 @@ Deno.serve(async (req) => {
     // Create onboarding link
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
-      refresh_url: refreshUrl || returnUrl || 'https://sib.mt/seller/payout-settings',
-      return_url: returnUrl || 'https://sib.mt/seller/payout-settings',
+      refresh_url: safeRefreshUrl,
+      return_url: safeReturnUrl,
       type: 'account_onboarding',
     })
 
@@ -98,9 +174,6 @@ Deno.serve(async (req) => {
     )
   } catch (error) {
     console.error('create-account-link error:', error)
-    return new Response(
-      JSON.stringify({ error: error.message || 'Failed to create account link' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    return stripeConnectErrorResponse(error)
   }
 })

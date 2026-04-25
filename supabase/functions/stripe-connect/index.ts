@@ -14,6 +14,9 @@ type StripeConnectBody = {
   refreshUrl?: string
 }
 
+const PRODUCTION_APP_URL = 'https://sibmalta.com'
+const PAYOUT_SETTINGS_PATH = '/seller/payout-settings'
+
 function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -21,21 +24,78 @@ function jsonResponse(body: Record<string, unknown>, status = 200) {
   })
 }
 
+function getAppUrl() {
+  const configuredUrl = Deno.env.get('APP_URL')?.trim()
+  if (!configuredUrl) return PRODUCTION_APP_URL
+
+  try {
+    const parsed = new URL(configuredUrl)
+    const hostname = parsed.hostname.toLowerCase()
+    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1'
+    const isSibDomain = hostname === 'sibmalta.com' || hostname.endsWith('.sibmalta.com')
+
+    if (parsed.protocol === 'https:' && isSibDomain && !isLocalhost) {
+      return parsed.origin
+    }
+  } catch {
+    // Ignore malformed values and use the production web app URL below.
+  }
+
+  console.warn('[stripe-connect] Ignoring unsafe APP_URL for onboarding redirect:', configuredUrl)
+  return PRODUCTION_APP_URL
+}
+
+function buildAppUrl(path = PAYOUT_SETTINGS_PATH) {
+  return new URL(path, getAppUrl()).toString()
+}
+
 function getFallbackPayoutUrl() {
-  return `${Deno.env.get('APP_URL') || 'https://sib.mt'}/seller/payout-settings`
+  return buildAppUrl(PAYOUT_SETTINGS_PATH)
 }
 
 function sanitizeUrl(input: string | undefined, fallback: string) {
   if (!input) return fallback
   try {
     const parsed = new URL(input)
-    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+    const hostname = parsed.hostname.toLowerCase()
+    const isSibDomain = hostname === 'sibmalta.com' || hostname.endsWith('.sibmalta.com')
+    if (parsed.protocol === 'https:' && isSibDomain) {
       return parsed.toString()
     }
   } catch {
     // Ignore invalid URLs and fall back below.
   }
   return fallback
+}
+
+function stripeConnectErrorResponse(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error)
+  const stripeError = error as { code?: string; type?: string; requestId?: string }
+  const details = {
+    code: stripeError?.code || null,
+    type: stripeError?.type || null,
+    requestId: stripeError?.requestId || null,
+  }
+
+  if (/Only Stripe Connect platforms can work with other accounts/i.test(message)) {
+    return jsonResponse(
+      {
+        error: 'Stripe Connect is not enabled for the configured Stripe account. Use the platform STRIPE_SECRET_KEY for a Stripe Connect platform, then try verification again.',
+        code: 'stripe_connect_platform_required',
+        details,
+      },
+      500,
+    )
+  }
+
+  return jsonResponse(
+    {
+      error: message || 'Failed to set up Stripe Connect',
+      code: stripeError?.code || 'stripe_connect_failed',
+      details,
+    },
+    500,
+  )
 }
 
 function getServiceRoleClient() {
@@ -219,9 +279,6 @@ Deno.serve(async (req) => {
     })
   } catch (error) {
     console.error('stripe-connect error:', error)
-    return jsonResponse(
-      { error: error.message || 'Failed to set up Stripe Connect' },
-      500,
-    )
+    return stripeConnectErrorResponse(error)
   }
 })

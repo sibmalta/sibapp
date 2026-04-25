@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { Send, ShieldCheck, AlertTriangle, Lock, Ban, Tag, Check, X, ArrowLeftRight, ShoppingBag } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import UserAvatar from '../components/UserAvatar'
@@ -106,9 +106,11 @@ function RestrictionBanner({ restriction }) {
 export default function ChatPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
+  const [searchParams] = useSearchParams()
   const {
     currentUser, getConversation, getUserById, getListingById, sendMessage, markConversationRead,
-    getOfferById, acceptOffer, declineOffer, counterOffer, showToast,
+    getOfferById, acceptOffer, declineOffer, counterOffer, recoverOfferConversationFromLink, showToast,
   } = useApp()
   const [text, setText] = useState('')
   const [warning, setWarning] = useState(null)
@@ -119,9 +121,34 @@ export default function ChatPage() {
   const inputRef = useRef(null)
   const restrictionTimerRef = useRef(null)
 
-  if (!currentUser) { navigate('/auth'); return null }
+  const conv = currentUser ? getConversation(id) : null
 
-  const conv = getConversation(id)
+  useEffect(() => {
+    if (!currentUser) {
+      const redirect = `${location.pathname}${location.search}`
+      navigate(`/auth?redirect=${encodeURIComponent(redirect)}`, {
+        replace: true,
+        state: { from: redirect },
+      })
+    }
+  }, [currentUser, location.pathname, location.search, navigate])
+
+  useEffect(() => {
+    if (!currentUser || conv || !id) return
+
+    recoverOfferConversationFromLink?.({
+      conversationId: id,
+      offerId: searchParams.get('offer') || searchParams.get('offerId'),
+      listingId: searchParams.get('listing') || searchParams.get('listingId'),
+      buyerId: searchParams.get('buyer') || searchParams.get('buyerId'),
+      sellerId: searchParams.get('seller') || searchParams.get('sellerId'),
+      price: searchParams.get('price'),
+      buyerName: searchParams.get('buyerName'),
+      itemTitle: searchParams.get('itemTitle'),
+    })
+  }, [currentUser, conv, id, searchParams, recoverOfferConversationFromLink])
+
+  if (!currentUser) return null
   if (!conv) return <div className="text-center py-20 text-sib-muted dark:text-[#aeb8b4]">Conversation not found.</div>
 
   const otherId = conv.participants.find(p => p !== currentUser.id)
