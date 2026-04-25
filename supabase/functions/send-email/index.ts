@@ -369,34 +369,51 @@ function buildEmail(payload: EmailPayload): { subject: string; html: string; pre
       }
     }
 
-    // SELLER EMAILS
-    case 'item_sold': {
+   // SELLER EMAILS
+case 'item_sold': {
   const { sellerName, itemTitle, orderRef, salePrice, buyerName } = data
-  const orderId = payload.meta?.orderId || payload.related_entity_id || payload.meta?.related_entity_id
-  const saleUrl = orderId ? `${appUrl}/orders/${orderId}` : `${appUrl}/orders`
-const orderId = payload.meta?.orderId || payload.related_entity_id || payload.meta?.related_entity_id
-const saleUrl = orderId ? `${appUrl}/orders/${orderId}` : `${appUrl}/orders`
-      const ph = `Your item "${itemTitle}" has sold on Sib.`
-      return {
-        subject: `Item sold - "${itemTitle}"`,
-        preheader: ph,
-        html: wrap(ph, `
-          <h2 style="font-size:18px;color:#1F2937;text-align:center;margin:14px 0 8px;">Your item has sold</h2>
-          <p style="font-size:14px;color:#4B5563;text-align:center;margin:0 0 14px;">
-            Hi ${sellerName || 'there'}, ${buyerName ? `@${buyerName} purchased your item.` : 'your item has been purchased.'}
-          </p>
-          ${infoBox('#ECFDF5', `
-            <p style="font-size:14px;color:#4B5563;margin:0 0 4px;"><strong>Item:</strong> ${itemTitle}</p>
-            <p style="font-size:14px;color:#4B5563;margin:0 0 4px;"><strong>Order:</strong> ${orderRef}</p>
-            ${priceTag(salePrice, '#059669')}
-          `)}
-          <p style="font-size:13px;color:#6B7280;text-align:center;">
-            Please prepare it for shipment and check Sib for delivery instructions. Buyer contact details are kept private.
-          </p>
-          ${btn('View Sale', saleUrl)}
-        `),
+
+  const orderId =
+    payload.meta?.orderId ||
+    payload.related_entity_id ||
+    payload.meta?.related_entity_id
+
+  const saleUrl = orderId
+    ? `${appUrl}/orders/${orderId}`
+    : `${appUrl}/orders`
+
+  const ph = `Your item "${itemTitle}" has sold on Sib.`
+
+  return {
+    subject: `Item sold - "${itemTitle}"`,
+    preheader: ph,
+    html: wrap(
+      ph,
+      `
+      <h2 style="font-size:18px;color:#1F2937;text-align:center;margin:14px 0 8px;">Your item has sold</h2>
+      <p style="font-size:14px;color:#4B5563;text-align:center;margin:0 0 14px;">
+        Hi ${sellerName || 'there'}, ${
+        buyerName
+          ? `@${buyerName} purchased your item.`
+          : 'your item has been purchased.'
       }
-    }
+      </p>
+      ${infoBox(
+        '#ECFDF5',
+        `
+        <p style="font-size:14px;color:#4B5563;margin:0 0 4px;"><strong>Item:</strong> ${itemTitle}</p>
+        <p style="font-size:14px;color:#4B5563;margin:0 0 4px;"><strong>Order:</strong> ${orderRef}</p>
+        ${priceTag(salePrice, '#059669')}
+      `
+      )}
+      <p style="font-size:13px;color:#6B7280;text-align:center;">
+        Please prepare it for shipment and check Sib for delivery instructions. Buyer contact details are kept private.
+      </p>
+      ${btn('View Sale', saleUrl)}
+    `
+    ),
+  }
+}
 
     case 'shipping_reminder': {
       const { sellerName, itemTitle, orderRef, daysSinceOrder } = data
