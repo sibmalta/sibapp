@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Send, ShieldCheck, AlertTriangle, Lock, Ban } from 'lucide-react'
+import { Send, ShieldCheck, AlertTriangle, Lock, Ban, Tag, Check, X, ArrowLeftRight, ShoppingBag } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import UserAvatar from '../components/UserAvatar'
 import OfficialBadge from '../components/OfficialBadge'
+import CounterOfferModal from '../components/CounterOfferModal'
 import { analyseMessage, recordViolation, getRestriction, getViolationCount } from '../utils/circumventionDetector'
 import { moderateContent } from '../lib/moderation'
 
@@ -105,9 +106,13 @@ function RestrictionBanner({ restriction }) {
 export default function ChatPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { currentUser, getConversation, getUserById, getListingById, sendMessage, markConversationRead } = useApp()
+  const {
+    currentUser, getConversation, getUserById, getListingById, sendMessage, markConversationRead,
+    getOfferById, acceptOffer, declineOffer, counterOffer, showToast,
+  } = useApp()
   const [text, setText] = useState('')
   const [warning, setWarning] = useState(null)
+  const [counterModal, setCounterModal] = useState(null)
   const [restriction, setRestriction] = useState(getRestriction())
   const bottomRef = useRef(null)
   const messagesContainerRef = useRef(null)
@@ -200,6 +205,131 @@ export default function ChatPage() {
     }
   }
 
+  const handleAcceptOffer = (offer) => {
+    acceptOffer(offer.id)
+    showToast('Offer accepted.')
+    if (offer.buyerId === currentUser.id) {
+      navigate(`/checkout/${offer.listingId}?offer=${offer.id}`)
+    }
+  }
+
+  const handleDeclineOffer = (offerId) => {
+    declineOffer(offerId)
+    showToast('Offer declined.')
+  }
+
+  const handleCounterOffer = (offerId, counterPrice) => {
+    counterOffer(offerId, counterPrice)
+    setCounterModal(null)
+    showToast('Counter offer sent.')
+  }
+
+  const renderOfferMessage = (msg) => {
+    const offer = getOfferById?.(msg.offerId)
+    const offerListing = getListingById(msg.listingId || offer?.listingId)
+    const status = offer?.status || msg.status || 'pending'
+    const displayPrice = offer?.counterPrice || offer?.acceptedPrice || msg.offerPrice || offer?.price
+    const originalPrice = msg.originalPrice || offerListing?.price
+    const isSeller = offer?.sellerId === currentUser.id
+    const isBuyer = offer?.buyerId === currentUser.id
+    const canSellerRespond = isSeller && status === 'pending'
+    const canBuyerRespond = isBuyer && status === 'countered'
+    const canCheckout = isBuyer && status === 'accepted'
+
+    const statusStyles = {
+      pending: 'bg-amber-50 text-amber-700 dark:bg-[#332d20] dark:text-amber-300',
+      accepted: 'bg-green-50 text-green-700 dark:bg-[#20322b] dark:text-green-300',
+      declined: 'bg-red-50 text-red-600 dark:bg-[#362322] dark:text-red-300',
+      countered: 'bg-blue-50 text-blue-700 dark:bg-[#26322f] dark:text-blue-300',
+      expired: 'bg-gray-100 text-gray-500 dark:bg-[#26322f] dark:text-[#aeb8b4]',
+    }
+
+    return (
+      <div key={msg.id} className="flex justify-center">
+        <div className="w-full max-w-[340px] rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-white dark:bg-[#202b28] p-3 shadow-sm transition-colors">
+          <div className="flex items-start gap-3">
+            {msg.itemImage || offerListing?.images?.[0] ? (
+              <img src={msg.itemImage || offerListing.images[0]} alt="" className="w-14 h-14 rounded-xl object-cover bg-sib-sand dark:bg-[#26322f]" />
+            ) : (
+              <div className="w-14 h-14 rounded-xl bg-sib-sand dark:bg-[#26322f] flex items-center justify-center">
+                <Tag size={18} className="text-sib-muted dark:text-[#aeb8b4]" />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-bold text-sib-primary uppercase tracking-wide">Offer</p>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full capitalize ${statusStyles[status] || statusStyles.pending}`}>
+                  {status}
+                </span>
+              </div>
+              <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7] line-clamp-1 mt-1">
+                {msg.itemTitle || offerListing?.title || 'Item'}
+              </p>
+              <div className="mt-1 flex items-baseline gap-2">
+                <span className="text-lg font-extrabold text-sib-text dark:text-[#f4efe7]">€{Number(displayPrice || 0).toFixed(2)}</span>
+                {originalPrice && (
+                  <span className="text-xs text-sib-muted dark:text-[#aeb8b4]">listed €{Number(originalPrice).toFixed(2)}</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mt-2 leading-relaxed">
+            {msg.text}
+          </p>
+
+          {(canSellerRespond || canBuyerRespond || canCheckout) && (
+            <div className="mt-3 flex gap-2">
+              {(canSellerRespond || canBuyerRespond) && (
+                <button
+                  onClick={() => handleAcceptOffer(offer)}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-green-600 px-3 py-2 text-xs font-bold text-white"
+                >
+                  <Check size={13} /> Accept
+                </button>
+              )}
+              {canSellerRespond && (
+                <button
+                  onClick={() => setCounterModal(offer)}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-sib-primary/10 px-3 py-2 text-xs font-bold text-sib-primary"
+                >
+                  <ArrowLeftRight size={13} /> Counter
+                </button>
+              )}
+              {(canSellerRespond || canBuyerRespond) && (
+                <button
+                  onClick={() => handleDeclineOffer(offer.id)}
+                  className="inline-flex items-center justify-center rounded-xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] px-3 py-2 text-xs font-bold text-sib-muted dark:text-[#aeb8b4]"
+                >
+                  <X size={13} />
+                </button>
+              )}
+              {canCheckout && (
+                <button
+                  onClick={() => navigate(`/checkout/${offer.listingId}?offer=${offer.id}`)}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-sib-secondary px-3 py-2 text-xs font-bold text-white"
+                >
+                  <ShoppingBag size={13} /> Checkout
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  const renderSystemEvent = (msg) => (
+    <div key={msg.id} className="flex justify-center">
+      <div className="max-w-[85%] rounded-2xl bg-sib-sand dark:bg-[#26322f] px-3 py-2 text-center transition-colors">
+        <p className="text-xs font-semibold text-sib-text dark:text-[#f4efe7]">{msg.title || msg.text}</p>
+        {msg.text && msg.title && (
+          <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] mt-0.5">{msg.text}</p>
+        )}
+      </div>
+    </div>
+  )
+
   return (
     <>
       {warning && !isRestricted && (
@@ -250,6 +380,8 @@ export default function ChatPage() {
           )}
           {conv.messages.map(msg => {
             const isMe = msg.senderId === currentUser.id
+            if (msg.type === 'offer') return renderOfferMessage(msg)
+            if (msg.type === 'system_event' || msg.type === 'order_event') return renderSystemEvent(msg)
             if (msg.flagged) {
               return <BlockedMessage key={msg.id} msg={msg} isMe={isMe} other={other} />
             }
@@ -313,6 +445,14 @@ export default function ChatPage() {
           </button>
         </div>
       </div>
+      {counterModal && (
+        <CounterOfferModal
+          offer={counterModal}
+          listing={getListingById(counterModal.listingId)}
+          onSubmit={(counterPrice) => handleCounterOffer(counterModal.id, counterPrice)}
+          onClose={() => setCounterModal(null)}
+        />
+      )}
     </>
   )
 }

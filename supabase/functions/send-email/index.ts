@@ -207,9 +207,11 @@ function buildEmail(payload: EmailPayload): { subject: string; html: string; pre
   const appUrl = buildAppUrl('/')
   const logoUrl = LOGO_URL
   const orderUrl = (id?: string | null) => id ? buildAppUrl(`/orders/${id}`) : buildAppUrl('/orders')
-  const offersUrl = (id?: string | null) => id ? withQuery('/offers', { offerId: id }) : buildAppUrl('/offers')
+  const messageUrl = (conversationId?: string | null) =>
+    conversationId ? buildAppUrl(`/messages/${conversationId}`) : buildAppUrl('/messages')
+  const offerThreadUrl = () => messageUrl(payload.meta?.conversationId || payload.meta?.conversation_id)
   const checkoutUrl = (listingId?: string | null, offerId?: string | null) =>
-    listingId ? withQuery(`/checkout/${listingId}`, { offer: offerId }) : buildAppUrl('/offers')
+    listingId ? withQuery(`/checkout/${listingId}`, { offer: offerId }) : buildAppUrl('/messages')
 
   const header = `
     <div style="text-align:center;padding:24px 0 16px;">
@@ -589,7 +591,7 @@ case 'item_sold': {
             ${priceTag(offerPrice, '#C75B2A')}
           `)}
           <p style="font-size:13px;color:#6B7280;text-align:center;">You can accept, decline, or counter this offer.</p>
-          ${btn('View Offer', offersUrl(payload.meta?.offerId || payload.related_entity_id))}
+          ${btn('View Offer', offerThreadUrl())}
         `),
       }
     }
@@ -652,7 +654,7 @@ case 'item_sold': {
           <p style="font-size:13px;color:#6B7280;text-align:center;">
             You can accept, decline, or let it expire. Valid for 24 hours.
           </p>
-          ${btn('View Offer', offersUrl(payload.meta?.offerId || payload.related_entity_id))}
+          ${btn('View Offer', offerThreadUrl())}
         `),
       }
     }
@@ -775,7 +777,7 @@ case 'item_sold': {
             ${priceTag(offerPrice, '#C75B2A')}
           `)}
           <p style="font-size:13px;color:#6B7280;text-align:center;">You can accept, decline, or counter this bundle offer.</p>
-          ${btn('View Offer', offersUrl(payload.meta?.offerId || payload.related_entity_id))}
+          ${btn('View Offer', offerThreadUrl())}
         `),
       }
     }
@@ -837,7 +839,7 @@ case 'item_sold': {
           <p style="font-size:13px;color:#6B7280;text-align:center;">
             Accept, decline, or let it expire. Valid for 24 hours.
           </p>
-          ${btn('View Offer', offersUrl(payload.meta?.offerId || payload.related_entity_id))}
+          ${btn('View Offer', offerThreadUrl())}
         `),
       }
     }

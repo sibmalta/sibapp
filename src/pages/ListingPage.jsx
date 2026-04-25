@@ -142,6 +142,12 @@ if (!listing) return (
     navigate(`/messages/${conv.id}`)
   }
 
+  const handleViewOfferThread = () => {
+    if (!currentUser) { navigate('/auth'); return }
+    const conv = getOrCreateConversation(listing.sellerId, listing.id)
+    navigate(`/messages/${conv.id}`)
+  }
+
   const handleBuy = () => {
     if (!currentUser) { navigate('/auth'); return }
     navigate(`/checkout/${listing.id}`)
@@ -439,14 +445,14 @@ if (!listing) return (
             <div className="flex items-center gap-2 px-3.5 py-3 rounded-2xl bg-amber-50 border border-amber-200 mb-3">
               <Tag size={14} className="text-amber-600 flex-shrink-0" />
               <p className="text-sm text-amber-800 font-medium flex-1">Your offer of <span className="font-bold">€{activeOffer.price}</span> is pending</p>
-              <button onClick={() => navigate('/offers')} className="text-xs font-semibold text-amber-700 underline">View</button>
+              <button onClick={handleViewOfferThread} className="text-xs font-semibold text-amber-700 underline">View</button>
             </div>
           )}
           {activeOffer && activeOffer.status === 'countered' && (
             <div className="flex items-center gap-2 px-3.5 py-3 rounded-2xl bg-blue-50 border border-blue-200 mb-3">
               <Tag size={14} className="text-blue-600 flex-shrink-0" />
               <p className="text-sm text-blue-800 font-medium flex-1">Counter offer: <span className="font-bold">€{activeOffer.counterPrice}</span></p>
-              <button onClick={() => navigate('/offers')} className="text-xs font-semibold text-blue-700 underline">Respond</button>
+              <button onClick={handleViewOfferThread} className="text-xs font-semibold text-blue-700 underline">Respond</button>
             </div>
           )}
           {activeOffer && activeOffer.status === 'accepted' && (

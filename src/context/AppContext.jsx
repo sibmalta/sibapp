@@ -521,6 +521,43 @@ export function AppProvider({ children }) {
     return newConv
   }, [currentUser, conversations])
 
+  const getOrCreateConversationForUsers = useCallback((userAId, userBId, listingId) => {
+    const existing = conversations.find(c =>
+      c.participants.includes(userAId) &&
+      c.participants.includes(userBId) &&
+      c.listingId === listingId
+    )
+    if (existing) return existing
+    const newConv = {
+      id: `c${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      participants: [userAId, userBId],
+      listingId,
+      messages: [],
+    }
+    setConversations(prev => [...prev, newConv])
+    return newConv
+  }, [conversations])
+
+  const addConversationEvent = useCallback((conversationId, event) => {
+    if (!conversationId) return null
+    const newMsg = {
+      id: `ev${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      senderId: event.senderId || 'system',
+      text: event.text || event.title || '',
+      timestamp: event.timestamp || new Date().toISOString(),
+      type: event.type || 'system_event',
+      eventType: event.eventType || event.type || 'system_event',
+      read: false,
+      ...event,
+    }
+    setConversations(prev => prev.map(c => (
+      c.id === conversationId
+        ? { ...c, messages: [...c.messages, newMsg] }
+        : c
+    )))
+    return newMsg
+  }, [])
+
   // sendMessage(convId, senderId, text, flagged?)
   const sendMessage = useCallback((conversationId, senderIdOrText, textArg, flagged = false) => {
     const text = textArg !== undefined ? textArg : senderIdOrText
@@ -600,6 +637,16 @@ export function AppProvider({ children }) {
       const buyer = users.find(u => u.id === order.buyerId)
       const sellerUser = users.find(u => u.id === order.sellerId)
       const listing = listings.find(l => l.id === order.listingId)
+      const conversation = getOrCreateConversationForUsers(order.buyerId, order.sellerId, order.listingId)
+      addConversationEvent(conversation.id, {
+        type: 'order_event',
+        eventType: 'in_transit',
+        senderId: order.sellerId,
+        orderId: order.id,
+        listingId: order.listingId,
+        title: 'In transit',
+        text: `${listing?.title || 'Your item'} is on the way to the buyer.`,
+      })
       if (buyer?.email) {
         sendItemShippedEmail(buyer.email, buyer.name, listing?.title || 'item', order.orderRef || order.id, sellerUser?.username || 'seller', {
           related_entity_type: 'order',
@@ -613,6 +660,17 @@ export function AppProvider({ children }) {
     }
 
     if (status === 'delivered' && order) {
+      const listing = listings.find(l => l.id === order.listingId)
+      const conversation = getOrCreateConversationForUsers(order.buyerId, order.sellerId, order.listingId)
+      addConversationEvent(conversation.id, {
+        type: 'order_event',
+        eventType: 'awaiting_buyer_confirmation',
+        senderId: 'system',
+        orderId: order.id,
+        listingId: order.listingId,
+        title: 'Awaiting buyer confirmation',
+        text: 'Delivered. The buyer has 48 hours to confirm everything is okay.',
+      })
       addNotification({
         userId: order.buyerId,
         orderId: order.id,
@@ -628,7 +686,6 @@ export function AppProvider({ children }) {
         message: 'Waiting for buyer confirmation (48h). Payment will be released after confirmation.',
       })
       const buyer = users.find(u => u.id === order.buyerId)
-      const listing = listings.find(l => l.id === order.listingId)
       if (buyer?.email) {
         sendItemDeliveredEmail(buyer.email, buyer.name, listing?.title || 'item', order.orderRef || order.id, {
           related_entity_type: 'order',
@@ -640,7 +697,7 @@ export function AppProvider({ children }) {
         })
       }
     }
-  }, [addNotification, orders, users, listings, dbPatchOrder, showToast])
+  }, [addNotification, orders, users, listings, dbPatchOrder, showToast, getOrCreateConversationForUsers, addConversationEvent])
 
   // ── Buyer confirms delivery → release payout ──────────────────────
   const confirmDelivery = useCallback(async (orderId) => {
@@ -658,6 +715,19 @@ export function AppProvider({ children }) {
       return
     }
     if (order) {
+      const listing = listings.find(l => l.id === order.listingId)
+      const seller = users.find(u => u.id === order.sellerId)
+      const conversation = getOrCreateConversationForUsers(order.buyerId, order.sellerId, order.listingId)
+      addConversationEvent(conversation.id, {
+        type: 'order_event',
+        eventType: 'completed',
+        senderId: order.buyerId,
+        orderId,
+        listingId: order.listingId,
+        title: 'Completed',
+        text: 'Order completed. Feedback requested.',
+        feedbackUrl: seller?.username ? `/reviews/${seller.username}` : null,
+      })
       addNotification({
         userId: order.sellerId,
         orderId,
@@ -673,7 +743,7 @@ export function AppProvider({ children }) {
         message: 'Thank you for confirming. The seller will receive their payment.',
       })
     }
-  }, [orders, users, listings, addNotification, dbPatchOrder, showToast])
+  }, [orders, users, listings, addNotification, dbPatchOrder, showToast, getOrCreateConversationForUsers, addConversationEvent])
 
   // ── Dispute reason types ──────────────────────────────────────────
   const DISPUTE_REASONS = {
@@ -861,11 +931,31 @@ export function AppProvider({ children }) {
     }
     setOffers(prev => [newOffer, ...prev])
 
+    const conversation = getOrCreateConversationForUsers(currentUser.id, listing.sellerId, listingId)
+    addConversationEvent(conversation.id, {
+      type: 'offer',
+      eventType: 'offer_received',
+      senderId: currentUser.id,
+      offerId: newOffer.id,
+      listingId,
+      title: 'Offer received',
+      text: `@${currentUser.username} offered €${price} on "${listing.title}"`,
+      offerPrice: price,
+      originalPrice: listing.price,
+      itemTitle: listing.title,
+      itemImage: listing.images?.[0] || null,
+      status: 'pending',
+    })
+
     addNotification({
       userId: listing.sellerId,
       type: 'offer_received',
       title: 'New offer received',
       message: `@${currentUser.username} offered €${price} on "${listing.title}"`,
+      offerId: newOffer.id,
+      listingId,
+      conversationId: conversation.id,
+      actionTarget: `/messages/${conversation.id}`,
     })
 
     // Email: notify seller about new offer
@@ -874,13 +964,14 @@ export function AppProvider({ children }) {
       sendOfferReceivedEmail(seller.email, listing.title, price, currentUser.username, {
         offerId: newOffer.id,
         listingId,
+        conversationId: conversation.id,
         related_entity_type: 'offer',
         related_entity_id: newOffer.id,
       })
     }
 
     return { offer: newOffer }
-  }, [currentUser, listings, offers, users, addNotification])
+  }, [currentUser, listings, offers, users, addNotification, getOrCreateConversationForUsers, addConversationEvent])
 
   const acceptOffer = useCallback((offerId) => {
     const now = new Date()
@@ -895,11 +986,30 @@ export function AppProvider({ children }) {
       const acceptedPrice = offer.counterPrice || offer.price
       const notifyUserId = offer.status === 'countered' ? offer.sellerId : offer.buyerId
       const acceptor = users.find(u => u.id === (offer.status === 'countered' ? offer.buyerId : offer.sellerId))
+      const conversation = getOrCreateConversationForUsers(offer.buyerId, offer.sellerId, offer.listingId)
+      addConversationEvent(conversation.id, {
+        type: 'offer',
+        eventType: 'offer_accepted',
+        senderId: acceptor?.id || currentUser?.id || 'system',
+        offerId: offer.id,
+        listingId: offer.listingId,
+        title: 'Offer accepted',
+        text: `@${acceptor?.username || 'user'} accepted €${acceptedPrice} on "${listing?.title || 'item'}"`,
+        offerPrice: acceptedPrice,
+        originalPrice: listing?.price,
+        itemTitle: listing?.title || 'item',
+        itemImage: listing?.images?.[0] || null,
+        status: 'accepted',
+      })
       addNotification({
         userId: notifyUserId,
         type: 'offer_accepted',
         title: 'Offer accepted',
         message: `@${acceptor?.username || 'user'} accepted €${acceptedPrice} on "${listing?.title || 'item'}"`,
+        offerId: offer.id,
+        listingId: offer.listingId,
+        conversationId: conversation.id,
+        actionTarget: `/messages/${conversation.id}`,
       })
 
       // Email: notify buyer that offer was accepted
@@ -909,12 +1019,13 @@ export function AppProvider({ children }) {
         sendOfferAcceptedEmail(buyer.email, listing?.title || 'item', acceptedPrice, sellerUser?.username || 'seller', {
           offerId: offer.id,
           listingId: offer.listingId,
+          conversationId: conversation.id,
           related_entity_type: 'offer',
           related_entity_id: offer.id,
         })
       }
     }
-  }, [offers, listings, users, addNotification])
+  }, [offers, listings, users, addNotification, currentUser, getOrCreateConversationForUsers, addConversationEvent])
 
   const declineOffer = useCallback((offerId) => {
     const now = new Date()
@@ -927,11 +1038,30 @@ export function AppProvider({ children }) {
       const listing = listings.find(l => l.id === offer.listingId)
       const notifyUserId = offer.status === 'countered' ? offer.sellerId : offer.buyerId
       const decliner = users.find(u => u.id === (offer.status === 'countered' ? offer.buyerId : offer.sellerId))
+      const conversation = getOrCreateConversationForUsers(offer.buyerId, offer.sellerId, offer.listingId)
+      addConversationEvent(conversation.id, {
+        type: 'offer',
+        eventType: 'offer_declined',
+        senderId: decliner?.id || currentUser?.id || 'system',
+        offerId: offer.id,
+        listingId: offer.listingId,
+        title: 'Offer declined',
+        text: `@${decliner?.username || 'user'} declined ${offer.status === 'countered' ? 'the counter offer' : 'the offer'} on "${listing?.title || 'item'}"`,
+        offerPrice: offer.counterPrice || offer.price,
+        originalPrice: listing?.price,
+        itemTitle: listing?.title || 'item',
+        itemImage: listing?.images?.[0] || null,
+        status: 'declined',
+      })
       addNotification({
         userId: notifyUserId,
         type: 'offer_declined',
         title: 'Offer declined',
         message: `@${decliner?.username || 'user'} declined your ${offer.status === 'countered' ? 'counter' : 'offer'} on "${listing?.title || 'item'}"`,
+        offerId: offer.id,
+        listingId: offer.listingId,
+        conversationId: conversation.id,
+        actionTarget: `/messages/${conversation.id}`,
       })
 
       // Email: notify the other party that offer was declined
@@ -941,12 +1071,13 @@ export function AppProvider({ children }) {
         sendOfferDeclinedEmail(recipient.email, listing?.title || 'item', offer.counterPrice || offer.price, decliner?.username || 'user', {
           offerId: offer.id,
           listingId: offer.listingId,
+          conversationId: conversation.id,
           related_entity_type: 'offer',
           related_entity_id: offer.id,
         })
       }
     }
-  }, [offers, listings, users, addNotification])
+  }, [offers, listings, users, addNotification, currentUser, getOrCreateConversationForUsers, addConversationEvent])
 
   const counterOffer = useCallback((offerId, counterPrice) => {
     const now = new Date()
@@ -964,11 +1095,30 @@ export function AppProvider({ children }) {
     if (offer) {
       const listing = listings.find(l => l.id === offer.listingId)
       const seller = users.find(u => u.id === offer.sellerId)
+      const conversation = getOrCreateConversationForUsers(offer.buyerId, offer.sellerId, offer.listingId)
+      addConversationEvent(conversation.id, {
+        type: 'offer',
+        eventType: 'offer_countered',
+        senderId: offer.sellerId,
+        offerId: offer.id,
+        listingId: offer.listingId,
+        title: 'Counter offer received',
+        text: `@${seller?.username || 'seller'} countered with €${counterPrice} on "${listing?.title || 'item'}"`,
+        offerPrice: counterPrice,
+        originalPrice: offer.price,
+        itemTitle: listing?.title || 'item',
+        itemImage: listing?.images?.[0] || null,
+        status: 'countered',
+      })
       addNotification({
         userId: offer.buyerId,
         type: 'offer_countered',
         title: 'Counter offer received',
         message: `@${seller?.username || 'seller'} countered with €${counterPrice} on "${listing?.title || 'item'}"`,
+        offerId: offer.id,
+        listingId: offer.listingId,
+        conversationId: conversation.id,
+        actionTarget: `/messages/${conversation.id}`,
       })
 
       // Email: notify buyer about counter offer
@@ -977,12 +1127,13 @@ export function AppProvider({ children }) {
         sendOfferCounteredEmail(buyer.email, listing?.title || 'item', offer.price, counterPrice, seller?.username || 'seller', {
           offerId: offer.id,
           listingId: offer.listingId,
+          conversationId: conversation.id,
           related_entity_type: 'offer',
           related_entity_id: offer.id,
         })
       }
     }
-  }, [offers, listings, users, addNotification])
+  }, [offers, listings, users, addNotification, getOrCreateConversationForUsers, addConversationEvent])
 
   const getOfferById = useCallback((id) => offers.find(o => o.id === id), [offers])
 
