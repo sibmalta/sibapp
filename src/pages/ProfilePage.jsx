@@ -139,16 +139,26 @@ export default function ProfilePage() {
   }
 
   const userListings = getUserListings(profileUser.id)
-  const activeListings = userListings.filter(l => l.status === 'active')
-  const soldListings = userListings.filter(l => l.status === 'sold')
-  const sellerSales = getUserSales(profileUser.id).filter((order) => SOLD_ORDER_STATUSES.has(order.trackingStatus || order.status))
-  const soldEntries = []
-  const seenSoldListingIds = new Set()
+const activeListings = userListings.filter(l => l.status === 'active')
+const soldListings = []
 
-  soldListings.forEach((listing) => {
-    seenSoldListingIds.add(listing.id)
-    soldEntries.push({ type: 'listing', id: listing.id, listing: { ...listing, status: 'sold' } })
-  })
+const sellerSales = getUserSales(profileUser.id)
+
+const soldEntries = sellerSales.map((order) => {
+  const listing =
+    order.listing ||
+    getListingById?.(order.listingId) ||
+    getListingById?.(order.listing_id) ||
+    null
+
+  return {
+    type: 'order',
+    id: order.id,
+    order,
+    listing,
+    status: 'sold',
+  }
+})
 
   sellerSales.forEach((order) => {
     const orderListingIds = Array.isArray(order.bundleListingIds) && order.bundleListingIds.length
