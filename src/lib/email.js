@@ -3,7 +3,11 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 async function sendEmail(type, to, payload = {}, meta = {}) {
   try {
-    if (!to) {
+    const canResolveRecipient =
+      !!meta?.sellerId &&
+      ['item_sold', 'offer_received', 'bundle_offer_received'].includes(type)
+
+    if (!to && !canResolveRecipient) {
       console.error('[sendEmail] missing recipient; email not sent', {
         type,
         payload,
@@ -14,7 +18,8 @@ async function sendEmail(type, to, payload = {}, meta = {}) {
 
     console.info('[sendEmail] sending', {
       type,
-      to,
+      to: to || null,
+      sellerId: meta?.sellerId || null,
       conversationId: meta?.conversationId || meta?.conversation_id || null,
       relatedEntityId: meta?.related_entity_id || meta?.relatedEntityId || null,
     })

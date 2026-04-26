@@ -57,7 +57,18 @@ export async function insertOffer(supabase, offer) {
       .select('*')
       .single()
 
-    if (error) return { data: null, error }
+    if (error) {
+      if (error.code === '23505') {
+        return {
+          data: null,
+          error: {
+            ...error,
+            message: 'You already have an active offer on this item.',
+          },
+        }
+      }
+      return { data: null, error }
+    }
     return { data: rowToOffer(data), error: null }
   } catch (e) {
     return { data: null, error: { message: e.message } }

@@ -107,7 +107,8 @@ async function resolveRecipientIfNeeded(payload: EmailPayload) {
   if (payload.to) return payload.to
 
   const sellerId = payload.meta?.sellerId
-  if (payload.type === 'item_sold' && sellerId) {
+  const sellerRecipientTypes = new Set(['item_sold', 'offer_received', 'bundle_offer_received'])
+  if (sellerRecipientTypes.has(payload.type) && sellerId) {
     const supabase = getServiceRoleClient()
     if (!supabase) {
       console.error('[send-email] Cannot resolve seller recipient: service role client unavailable')
@@ -121,17 +122,17 @@ async function resolveRecipientIfNeeded(payload: EmailPayload) {
       .single()
 
     if (error) {
-      console.error('[send-email] Failed to resolve seller email for item_sold:', error.message)
+      console.error(`[send-email] Failed to resolve seller email for ${payload.type}:`, error.message)
       return null
     }
 
     const resolvedEmail = data?.email?.trim()
     if (!resolvedEmail) {
-      console.error('[send-email] Seller email missing on profile for item_sold', { sellerId })
+      console.error(`[send-email] Seller email missing on profile for ${payload.type}`, { sellerId })
       return null
     }
 
-    console.log('[send-email] Resolved seller recipient for item_sold', { sellerId, emailFound: true })
+    console.log(`[send-email] Resolved seller recipient for ${payload.type}`, { sellerId, emailFound: true })
     payload.to = resolvedEmail
     return resolvedEmail
   }

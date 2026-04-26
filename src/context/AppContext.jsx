@@ -8,7 +8,7 @@ import { useConversations as useConversationsHook } from '../hooks/useConversati
 import { useOffers as useOffersHook } from '../hooks/useOffers'
 import { SEED_USERS, SEED_MESSAGES, SEED_REVIEWS } from '../data/seedData'
 import {
-  sendOfferReceivedEmail, sendOfferAcceptedEmail, sendCounterOfferAcceptedEmail, sendOfferDeclinedEmail, sendOfferCounteredEmail,
+  sendOfferAcceptedEmail, sendCounterOfferAcceptedEmail, sendOfferDeclinedEmail, sendOfferCounteredEmail,
   sendOrderConfirmedEmail, sendOrderCancelledEmail, sendOrderCancelledSellerEmail,
   sendItemShippedEmail, sendItemDeliveredEmail,
   sendRefundConfirmedEmail, sendDisputeOpenedEmail, sendDisputeResolvedEmail, sendDisputeMessageEmail,
@@ -20,6 +20,7 @@ import {
 import { createTransfer, createRefund } from '../lib/stripe'
 import { analyseMessage } from '../utils/circumventionDetector'
 import { FULFILMENT_PROVIDER, getFulfilmentMethodLabel, getFulfilmentPrice, normalizeFulfilmentMethod } from '../lib/fulfilment'
+import { sendNewOfferSellerEmail } from '../lib/offerEmail'
 
 const AppContext = createContext(null)
 
@@ -28,6 +29,14 @@ const SHIPPING_DEADLINE_MS = 3 * 24 * 60 * 60 * 1000 // 3 business days
 const SHIPPING_REMINDER_MS = 2 * 24 * 60 * 60 * 1000 // Remind after 2 days
 const COUNTER_OFFER_DEDUPE_MS = 30 * 1000
 const SOLD_ORDER_STATUSES = new Set(['paid', 'shipped', 'delivered', 'confirmed', 'completed'])
+const ACTIVE_OFFER_STATUSES = new Set(['pending', 'countered'])
+
+function isActiveOffer(offer, nowMs = Date.now()) {
+  if (!offer || !ACTIVE_OFFER_STATUSES.has(offer.status)) return false
+  if (!offer.expiresAt) return true
+  const expiresAt = new Date(offer.expiresAt).getTime()
+  return Number.isNaN(expiresAt) || expiresAt > nowMs
+}
 
 function hasBlockingOrderForListings(orders, listingIds) {
   const ids = new Set(listingIds.filter(Boolean))
@@ -1027,15 +1036,18 @@ export function AppProvider({ children }) {
     if (!listing) return { error: 'Listing not found.' }
     if (listing.sellerId === currentUser.id) return { error: 'Cannot offer on your own listing.' }
     if (listing.status !== 'active') return { error: 'This item is no longer available.' }
+    const latestOffers = await refreshOffers()
+    const offerSource = latestOffers?.length ? latestOffers : offers
+    const nowMs = Date.now()
 
     // Anti-spam: active offer limit
-    const activeOffers = offers.filter(o => o.buyerId === currentUser.id && (o.status === 'pending' || o.status === 'countered'))
+    const activeOffers = offerSource.filter(o => o.buyerId === currentUser.id && isActiveOffer(o, nowMs))
     if (activeOffers.length >= MAX_ACTIVE_OFFERS_PER_USER) {
       return { error: `You can only have ${MAX_ACTIVE_OFFERS_PER_USER} active offers at a time.` }
     }
 
-    // Prevent duplicate pending offer on same item
-    const existingOnItem = offers.find(o => o.buyerId === currentUser.id && o.listingId === listingId && (o.status === 'pending' || o.status === 'countered'))
+    // Prevent duplicate active offer on same item.
+    const existingOnItem = offerSource.find(o => o.buyerId === currentUser.id && o.listingId === listingId && isActiveOffer(o, nowMs))
     if (existingOnItem) return { error: 'You already have an active offer on this item.' }
 
     const now = new Date()
@@ -1135,33 +1147,20 @@ export function AppProvider({ children }) {
       ok: !!notificationResult,
     })
 
-    // Email: notify seller about new offer
-    const seller = users.find(u => u.id === listing.sellerId)
-    if (seller?.email) {
-      const emailResult = await sendOfferReceivedEmail(seller.email, listing.title, price, currentUser.username, {
-        offerId: savedOffer.id,
-        listingId,
-        conversationId: conversation.id,
-        buyerId: currentUser.id,
-        sellerId: listing.sellerId,
-        related_entity_type: 'offer',
-        related_entity_id: savedOffer.id,
-      })
-      console.info('[offers] offer email result', {
-        offerId: savedOffer.id,
-        conversationId: conversation.id,
-        sellerEmail: seller.email,
-        ok: !!emailResult,
-      })
-    } else {
-      console.warn('[offers] seller has no email; offer email skipped', {
-        offerId: savedOffer.id,
-        sellerId: listing.sellerId,
-      })
-    }
+    // Email: notify seller about new offer. Keep offer creation successful if email fails,
+    // but log a visible result so production failures are traceable.
+    const ensuredSeller = await ensureUserById?.(listing.sellerId)
+    const seller = ensuredSeller || users.find(u => u.id === listing.sellerId)
+    await sendNewOfferSellerEmail({
+      seller,
+      listing,
+      offer: savedOffer,
+      buyer: currentUser,
+      conversationId: conversation.id,
+    })
 
     return { offer: savedOffer, conversationId: conversation.id }
-  }, [currentUser, listings, offers, users, addNotification, getOrCreateConversationForUsers, addConversationEvent, dbCreateOffer])
+  }, [currentUser, listings, offers, users, addNotification, getOrCreateConversationForUsers, addConversationEvent, dbCreateOffer, refreshOffers, ensureUserById])
 
   const acceptOffer = useCallback(async (offerId) => {
     const now = new Date()
@@ -1619,7 +1618,7 @@ export function AppProvider({ children }) {
   }, [offers])
 
   const getUserActiveOfferOnListing = useCallback((userId, listingId) => {
-    return offers.find(o => o.buyerId === userId && o.listingId === listingId && (o.status === 'pending' || o.status === 'countered' || o.status === 'accepted'))
+    return offers.find(o => o.buyerId === userId && o.listingId === listingId && isActiveOffer(o))
   }, [offers])
 
   // ── Bundle system ──────────────────────────────────────────────────
