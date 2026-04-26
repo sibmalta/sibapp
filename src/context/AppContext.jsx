@@ -26,6 +26,7 @@ const AppContext = createContext(null)
 const PROTECTION_WINDOW_MS = 48 * 60 * 60 * 1000 // 48 hours
 const SHIPPING_DEADLINE_MS = 3 * 24 * 60 * 60 * 1000 // 3 business days
 const SHIPPING_REMINDER_MS = 2 * 24 * 60 * 60 * 1000 // Remind after 2 days
+const COUNTER_OFFER_DEDUPE_MS = 30 * 1000
 const SOLD_ORDER_STATUSES = new Set(['paid', 'shipped', 'delivered', 'confirmed', 'completed'])
 
 function hasBlockingOrderForListings(orders, listingIds) {
@@ -232,6 +233,7 @@ export function AppProvider({ children }) {
   const [bundle, setBundle] = useState(() => loadFromStorage('sib_bundle', null))
   const [bundleOffers, setBundleOffers] = useState(() => loadFromStorage('sib_bundleOffers', []))
   const [toast, setToast] = useState(null)
+  const counterOfferRequestsRef = useRef(new Map())
 
   // ── Notification helpers (must be before effects that depend on it) ──
   const {
@@ -1340,12 +1342,17 @@ export function AppProvider({ children }) {
     await dbReleaseReservation(listingId)
   }, [dbReleaseReservation])
 
-  const counterOffer = useCallback(async (offerId, counterPrice) => {
+  const counterOffer = useCallback(async (offerId, counterPrice, opts = {}) => {
     const now = new Date()
     const offer = offers.find(o => o.id === offerId)
+    const normalizedCounterPrice = Number(counterPrice).toFixed(2)
+    const idempotencyKey = opts?.idempotencyKey || `${currentUser?.id || 'user'}:${offerId}:${normalizedCounterPrice}`
+    const dedupeKey = `${currentUser?.id || 'user'}:${offerId}:${normalizedCounterPrice}`
+    const requestKey = `${idempotencyKey}:${dedupeKey}`
     console.info('[offers] counterOffer start', {
       offerId,
       counterPrice,
+      idempotencyKey,
       sellerId: offer?.sellerId || null,
       buyerId: offer?.buyerId || null,
       listingId: offer?.listingId || null,
@@ -1354,18 +1361,40 @@ export function AppProvider({ children }) {
     if (!offer) return { error: 'Offer not found. Please refresh the conversation and try again.' }
     if (offer.status !== 'pending') return { error: 'Only pending offers can be countered.' }
     if (currentUser?.id !== offer.sellerId) return { error: 'Only the seller can counter this offer.' }
+    const existingRequest = counterOfferRequestsRef.current.get(requestKey) || counterOfferRequestsRef.current.get(dedupeKey)
+    if (existingRequest && Date.now() - existingRequest.ts < COUNTER_OFFER_DEDUPE_MS) {
+      console.warn('[offers] duplicate counterOffer suppressed', {
+        offerId,
+        counterPrice,
+        idempotencyKey,
+        dedupeKey,
+        hasOriginalResult: !!existingRequest.result,
+      })
+      return existingRequest.result || { ok: true, duplicate: true, emailSent: existingRequest.emailSent ?? null }
+    }
+    counterOfferRequestsRef.current.set(requestKey, { ts: Date.now(), result: null, emailSent: null })
+    counterOfferRequestsRef.current.set(dedupeKey, { ts: Date.now(), result: null, emailSent: null })
     const { error } = await dbPatchOffer(offerId, {
       status: 'countered',
       counterPrice,
       updatedAt: now.toISOString(),
       expiresAt: new Date(now.getTime() + OFFER_EXPIRY_MS).toISOString(),
-    })
+      metadata: {
+        ...(offer.metadata || {}),
+        counterIdempotencyKey: idempotencyKey,
+      },
+    }, { expectedStatus: 'pending' })
     if (error) {
       console.error('[offers] counterOffer status update failed', {
         offerId,
         message: error.message,
         code: error.code || null,
       })
+      counterOfferRequestsRef.current.delete(requestKey)
+      counterOfferRequestsRef.current.delete(dedupeKey)
+      if (error.code === 'PGRST116') {
+        return { error: 'This offer has already been updated. Please refresh the conversation.' }
+      }
       return { error: 'Failed to counter offer: ' + error.message }
     }
     console.info('[offers] counterOffer status updated', {
@@ -1386,7 +1415,11 @@ export function AppProvider({ children }) {
     const listing = listings.find(l => l.id === offer.listingId)
     const seller = users.find(u => u.id === offer.sellerId)
     const conversation = getOrCreateConversationForUsers(offer.buyerId, offer.sellerId, offer.listingId)
-    if (!conversation?.id) return { error: 'Could not find the message thread for this offer.' }
+    if (!conversation?.id) {
+      counterOfferRequestsRef.current.delete(requestKey)
+      counterOfferRequestsRef.current.delete(dedupeKey)
+      return { error: 'Could not find the message thread for this offer.' }
+    }
     const eventResult = await addConversationEvent(conversation.id, {
         type: 'offer',
         eventType: 'offer_countered',
@@ -1398,6 +1431,7 @@ export function AppProvider({ children }) {
         sellerId: offer.sellerId,
         title: 'Counter offer received',
         text: `@${seller?.username || 'seller'} countered with €${counterPrice} on "${listing?.title || 'item'}"`,
+        idempotencyKey,
         offerPrice: counterPrice,
         originalPrice: offer.price,
         itemTitle: listing?.title || 'item',
@@ -1416,6 +1450,7 @@ export function AppProvider({ children }) {
         listingId: offer.listingId,
         conversationId: conversation.id,
         actionTarget: `/messages/${conversation.id}`,
+        metadata: { idempotencyKey },
       })
     console.info('[offers] counterOffer notification created', {
       offerId: offer.id,
@@ -1438,6 +1473,7 @@ export function AppProvider({ children }) {
       recipientEmail: buyer?.email || null,
       emailType: 'offer_countered',
     })
+    let emailResult = null
     if (buyer?.email) {
       console.info('[offers] counterOffer email send triggered', {
         offerId: offer.id,
@@ -1445,7 +1481,7 @@ export function AppProvider({ children }) {
         emailType: 'offer_countered',
         conversationId: conversation.id,
       })
-      const emailResult = await sendOfferCounteredEmail(buyer.email, listing?.title || 'item', offer.price, counterPrice, seller?.username || 'seller', {
+      emailResult = await sendOfferCounteredEmail(buyer.email, listing?.title || 'item', offer.price, counterPrice, seller?.username || 'seller', {
           offerId: offer.id,
           listingId: offer.listingId,
           conversationId: conversation.id,
@@ -1479,7 +1515,14 @@ export function AppProvider({ children }) {
         emailType: 'offer_countered',
       })
     }
-    return { ok: true }
+    const result = { ok: true, duplicate: false, emailSent: !!emailResult?.emailSent }
+    counterOfferRequestsRef.current.set(requestKey, { ts: Date.now(), result, emailSent: result.emailSent })
+    counterOfferRequestsRef.current.set(dedupeKey, { ts: Date.now(), result, emailSent: result.emailSent })
+    setTimeout(() => {
+      counterOfferRequestsRef.current.delete(requestKey)
+      counterOfferRequestsRef.current.delete(dedupeKey)
+    }, COUNTER_OFFER_DEDUPE_MS)
+    return result
   }, [offers, listings, users, addNotification, currentUser, ensureUserById, getOrCreateConversationForUsers, addConversationEvent, dbPatchOffer, showToast])
 
   const recoverOfferConversationFromLink = useCallback((params = {}) => {

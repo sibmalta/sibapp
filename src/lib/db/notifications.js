@@ -87,6 +87,21 @@ export async function insertNotification(supabase, notification) {
       return { data: rowToNotification(existing), error: null }
     }
 
+    const idempotencyKey = row.metadata?.idempotencyKey
+    if (error.code === '23505' && row.type === 'offer_countered' && idempotencyKey) {
+      const { data: existing, error: existingError } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', row.user_id)
+        .eq('type', row.type)
+        .eq('metadata->>idempotencyKey', idempotencyKey)
+        .limit(1)
+        .maybeSingle()
+
+      if (existingError) return { data: null, error: existingError }
+      if (existing) return { data: rowToNotification(existing), error: null }
+    }
+
     return { data: null, error }
   } catch (e) {
     return { data: null, error: { message: e.message } }

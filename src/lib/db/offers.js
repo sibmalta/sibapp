@@ -64,12 +64,18 @@ export async function insertOffer(supabase, offer) {
   }
 }
 
-export async function updateOffer(supabase, offerId, updates) {
+export async function updateOffer(supabase, offerId, updates, options = {}) {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('offers')
       .update(offerToRow(updates))
       .eq('id', offerId)
+
+    if (options.expectedStatus) {
+      query = query.eq('status', options.expectedStatus)
+    }
+
+    const { data, error } = await query
       .select('*')
       .single()
 

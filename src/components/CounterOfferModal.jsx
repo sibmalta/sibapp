@@ -1,14 +1,18 @@
-import React, { useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { X, ArrowLeftRight, AlertCircle } from 'lucide-react'
 
 export default function CounterOfferModal({ offer, listing, onSubmit, onClose }) {
   const [price, setPrice] = useState('')
   const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const submittingRef = useRef(false)
+  const idempotencyKeyRef = useRef(null)
 
   const listingPrice = listing.price
   const offerPrice = offer.price
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (submittingRef.current) return
     const counterPrice = parseFloat(price)
     if (!price || Number.isNaN(counterPrice) || counterPrice <= 0) {
       setError('Enter a valid price.')
@@ -23,7 +27,27 @@ export default function CounterOfferModal({ offer, listing, onSubmit, onClose })
       return
     }
     setError('')
-    onSubmit(counterPrice)
+    submittingRef.current = true
+    setSubmitting(true)
+    try {
+      if (!idempotencyKeyRef.current) {
+        idempotencyKeyRef.current =
+          typeof crypto !== 'undefined' && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `counter_${offer.id}_${Date.now()}`
+      }
+      const idempotencyKey = idempotencyKeyRef.current
+      const result = await onSubmit(counterPrice, idempotencyKey)
+      if (result?.error) {
+        setError(result.error)
+        submittingRef.current = false
+        setSubmitting(false)
+      }
+    } catch (err) {
+      setError(err?.message || 'Could not send counter offer. Please try again.')
+      submittingRef.current = false
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -62,7 +86,11 @@ export default function CounterOfferModal({ offer, listing, onSubmit, onClose })
                 max={listingPrice - 1}
                 step="0.50"
                 value={price}
-                onChange={e => { setPrice(e.target.value); setError('') }}
+                onChange={e => {
+                  setPrice(e.target.value)
+                  setError('')
+                  idempotencyKeyRef.current = null
+                }}
                 placeholder={`${offerPrice + 1} - ${listingPrice - 1}`}
                 className="w-full border border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-white dark:bg-[#26322f] rounded-xl pl-14 pr-4 py-3.5 text-lg font-bold text-sib-text dark:text-[#f4efe7] outline-none focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20 transition-colors"
               />
@@ -85,9 +113,10 @@ export default function CounterOfferModal({ offer, listing, onSubmit, onClose })
 
           <button
             onClick={handleSubmit}
-            className="w-full bg-sib-primary text-white font-bold py-3.5 rounded-2xl text-sm hover:bg-sib-primaryDark transition-colors active:scale-[0.98]"
+            disabled={submitting}
+            className="w-full bg-sib-primary text-white font-bold py-3.5 rounded-2xl text-sm hover:bg-sib-primaryDark transition-colors active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            Send Counter{price && !Number.isNaN(parseFloat(price)) ? ` - EUR ${parseFloat(price).toFixed(2)}` : ''}
+            {submitting ? 'Sending...' : `Send Counter${price && !Number.isNaN(parseFloat(price)) ? ` - EUR ${parseFloat(price).toFixed(2)}` : ''}`}
           </button>
         </div>
       </div>

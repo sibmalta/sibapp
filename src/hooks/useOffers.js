@@ -89,12 +89,12 @@ export function useOffers(currentUser) {
     return { data, error: null }
   }, [isAuthenticated, withAuthRetry])
 
-  const patchOffer = useCallback(async (offerId, updates) => {
+  const patchOffer = useCallback(async (offerId, updates, options = {}) => {
     if (!isAuthenticated) {
       setOffers(prev => prev.map(o => o.id === offerId ? { ...o, ...updates } : o))
       return { data: { id: offerId, ...updates }, error: null }
     }
-    const { data, error } = await withAuthRetry((client) => updateOffer(client, offerId, updates))
+    const { data, error } = await withAuthRetry((client) => updateOffer(client, offerId, updates, options))
     if (error) {
       console.error('[useOffers] updateOffer failed:', {
         offerId,

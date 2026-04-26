@@ -287,14 +287,15 @@ export default function ChatPage() {
     showToast('Offer declined.')
   }
 
-  const handleCounterOffer = async (offerId, counterPrice) => {
-    const result = await counterOffer(offerId, counterPrice)
+  const handleCounterOffer = async (offerId, counterPrice, idempotencyKey) => {
+    const result = await counterOffer(offerId, counterPrice, { idempotencyKey })
     if (result?.error) {
       showToast(result.error, 'error')
-      return
+      return result
     }
     setCounterModal(null)
     showToast('Counter offer sent.')
+    return result
   }
 
   const getOfferAmount = (msg, offer, status) => {
@@ -592,7 +593,7 @@ export default function ChatPage() {
         <CounterOfferModal
           offer={counterModal}
           listing={getListingById(counterModal.listingId)}
-          onSubmit={(counterPrice) => handleCounterOffer(counterModal.id, counterPrice)}
+          onSubmit={(counterPrice, idempotencyKey) => handleCounterOffer(counterModal.id, counterPrice, idempotencyKey)}
           onClose={() => setCounterModal(null)}
         />
       )}

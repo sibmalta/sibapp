@@ -84,6 +84,7 @@ export async function upsertConversation(supabase, conversation) {
 
 export async function insertMessage(supabase, message) {
   try {
+    const metadata = message.metadata || {}
     const { data, error } = await supabase
       .from('messages')
       .insert({
@@ -94,12 +95,27 @@ export async function insertMessage(supabase, message) {
         type: message.type || 'message',
         event_type: message.eventType || null,
         flagged: !!message.flagged,
-        metadata: message.metadata || {},
+        metadata,
       })
       .select('*')
       .single()
 
-    if (error) return { data: null, error }
+    if (error) {
+      if (error.code === '23505' && message.eventType === 'offer_countered' && metadata.idempotencyKey) {
+        const { data: existing, error: existingError } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('conversation_id', message.conversationId)
+          .eq('event_type', message.eventType)
+          .eq('metadata->>idempotencyKey', metadata.idempotencyKey)
+          .limit(1)
+          .maybeSingle()
+
+        if (existingError) return { data: null, error: existingError }
+        if (existing) return { data: rowToMessage(existing, message.senderId), error: null }
+      }
+      return { data: null, error }
+    }
     return { data: rowToMessage(data, message.senderId), error: null }
   } catch (e) {
     return { data: null, error: { message: e.message } }
