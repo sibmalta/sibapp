@@ -3,6 +3,15 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 async function sendEmail(type, to, payload = {}, meta = {}) {
   try {
+    if (!to) {
+      console.error('[sendEmail] missing recipient; email not sent', {
+        type,
+        payload,
+        meta,
+      })
+      return { success: false, emailSent: false, error: 'missing_recipient' }
+    }
+
     console.info('[sendEmail] sending', {
       type,
       to,
@@ -24,16 +33,28 @@ async function sendEmail(type, to, payload = {}, meta = {}) {
       }),
     })
 
-    if (!res.ok) {
-      console.error('[sendEmail] failed', await res.text())
-      return null
+    let data = null
+    const responseText = await res.text()
+    try {
+      data = responseText ? JSON.parse(responseText) : null
+    } catch {
+      data = { raw: responseText }
     }
 
-    let data = null
-    try {
-      data = await res.json()
-    } catch {
-      data = { ok: true }
+    if (!res.ok) {
+      console.error('[sendEmail] failed', {
+        type,
+        to,
+        status: res.status,
+        response: data,
+      })
+      return {
+        success: false,
+        emailSent: false,
+        status: res.status,
+        error: data?.error || 'send_email_failed',
+        details: data?.details || data,
+      }
     }
 
     console.info('[sendEmail] sent', {
@@ -41,11 +62,14 @@ async function sendEmail(type, to, payload = {}, meta = {}) {
       to,
       id: data?.id || null,
       subject: data?.subject || null,
+      success: data?.success,
+      emailSent: data?.emailSent,
+      response: data,
     })
-    return data || res
+    return data || { success: true, emailSent: true }
   } catch (err) {
     console.error('[sendEmail] error', err)
-    return null
+    return { success: false, emailSent: false, error: err?.message || 'network_error' }
   }
 }
 

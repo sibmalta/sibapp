@@ -94,7 +94,7 @@ export function useProfiles(localUsers, currentUser) {
   const ensureUserById = useCallback(async (userId) => {
     if (!userId) return null
     const existing = users.find(u => u.id === userId)
-    if (existing?.email || existing?.username) return existing
+    if (existing?.email) return existing
     if (!SUPABASE_ENABLED) return existing || null
 
     const { data, error } = await fetchProfileById(supabase, userId)

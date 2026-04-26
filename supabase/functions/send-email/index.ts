@@ -939,7 +939,14 @@ Deno.serve(async (req) => {
 
   try {
     payload = await req.json()
-    console.log(`[send-email] type=${payload?.type}, to=${payload?.to}`)
+    console.log('[send-email] incoming payload', {
+      type: payload?.type || null,
+      to: payload?.to || null,
+      meta: payload?.meta || {},
+      related_entity_type: payload?.related_entity_type || payload?.meta?.related_entity_type || null,
+      related_entity_id: payload?.related_entity_id || payload?.meta?.related_entity_id || null,
+      dataKeys: payload?.data ? Object.keys(payload.data) : [],
+    })
 
     const resendKey = Deno.env.get('RESEND_API_KEY')
     if (!resendKey) {
@@ -948,7 +955,11 @@ Deno.serve(async (req) => {
         await logEmail(payload, `(${payload.type})`, 'failed', undefined, 'RESEND_API_KEY not configured')
       }
       return new Response(
-        JSON.stringify({ error: 'RESEND_API_KEY not configured. Add it in Environment Variables.' }),
+        JSON.stringify({
+          success: false,
+          emailSent: false,
+          error: 'RESEND_API_KEY not configured. Add it in Environment Variables.',
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -970,7 +981,13 @@ Deno.serve(async (req) => {
         }, '(invalid payload)', 'failed', undefined, 'Missing required fields: to, type')
       }
       return new Response(
-        JSON.stringify({ error: 'Missing required fields: to, type' }),
+        JSON.stringify({
+          success: false,
+          emailSent: false,
+          error: 'Missing required fields: to, type',
+          type: payload?.type || null,
+          to: payload?.to || resolvedRecipient || null,
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -999,7 +1016,13 @@ Deno.serve(async (req) => {
       ],
     })
 
-    console.log(`[send-email] Sending via Resend — to=${payload.to}, subject="${subject}"`)
+    console.log('[send-email] sending via Resend', {
+      type: payload.type,
+      to: payload.to,
+      subject,
+      related_entity_type: payload.related_entity_type || payload.meta?.related_entity_type || null,
+      related_entity_id: payload.related_entity_id || payload.meta?.related_entity_id || null,
+    })
 
     const resendResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -1010,22 +1033,57 @@ Deno.serve(async (req) => {
       body: resendBody,
     })
 
-    const resendData = await resendResponse.json()
+    let resendData: Record<string, any> = {}
+    try {
+      resendData = await resendResponse.json()
+    } catch (parseError) {
+      const parseMessage = parseError instanceof Error ? parseError.message : String(parseError)
+      console.error('[send-email] Failed to parse Resend response JSON', {
+        status: resendResponse.status,
+        error: parseMessage,
+      })
+      resendData = { parseError: parseMessage || 'Failed to parse Resend response' }
+    }
 
     if (!resendResponse.ok) {
-      console.error(`[send-email] RESEND ERROR (${resendResponse.status}):`, JSON.stringify(resendData))
+      console.error('[send-email] Resend send failed', {
+        type: payload.type,
+        to: payload.to,
+        status: resendResponse.status,
+        response: resendData,
+      })
       await logEmail(payload, subject, 'failed', undefined, JSON.stringify(resendData))
       return new Response(
-        JSON.stringify({ error: 'Email send failed', details: resendData }),
+        JSON.stringify({
+          success: false,
+          emailSent: false,
+          error: 'Email send failed',
+          details: resendData,
+          type: payload.type,
+          to: payload.to,
+        }),
         { status: resendResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    console.log(`[send-email] OK — ${payload.type} to ${payload.to} — ID: ${resendData.id}`)
+    console.log('[send-email] Resend send succeeded', {
+      type: payload.type,
+      to: payload.to,
+      resendId: resendData.id || null,
+      subject,
+      response: resendData,
+    })
     await logEmail(payload, subject, 'success', resendData.id)
 
     return new Response(
-      JSON.stringify({ success: true, id: resendData.id, subject }),
+      JSON.stringify({
+        success: true,
+        emailSent: true,
+        id: resendData.id,
+        subject,
+        type: payload.type,
+        to: payload.to,
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
@@ -1034,7 +1092,13 @@ Deno.serve(async (req) => {
       await logEmail(payload, subject || `(${payload.type})`, 'failed', undefined, error.message || 'Unknown error')
     }
     return new Response(
-      JSON.stringify({ error: error.message || 'Unknown error' }),
+      JSON.stringify({
+        success: false,
+        emailSent: false,
+        error: error.message || 'Unknown error',
+        type: payload?.type || null,
+        to: payload?.to || null,
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }

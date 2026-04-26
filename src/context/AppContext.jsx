@@ -1343,6 +1343,14 @@ export function AppProvider({ children }) {
   const counterOffer = useCallback(async (offerId, counterPrice) => {
     const now = new Date()
     const offer = offers.find(o => o.id === offerId)
+    console.info('[offers] counterOffer start', {
+      offerId,
+      counterPrice,
+      sellerId: offer?.sellerId || null,
+      buyerId: offer?.buyerId || null,
+      listingId: offer?.listingId || null,
+      currentUserId: currentUser?.id || null,
+    })
     if (!offer) return { error: 'Offer not found. Please refresh the conversation and try again.' }
     if (offer.status !== 'pending') return { error: 'Only pending offers can be countered.' }
     if (currentUser?.id !== offer.sellerId) return { error: 'Only the seller can counter this offer.' }
@@ -1353,8 +1361,18 @@ export function AppProvider({ children }) {
       expiresAt: new Date(now.getTime() + OFFER_EXPIRY_MS).toISOString(),
     })
     if (error) {
+      console.error('[offers] counterOffer status update failed', {
+        offerId,
+        message: error.message,
+        code: error.code || null,
+      })
       return { error: 'Failed to counter offer: ' + error.message }
     }
+    console.info('[offers] counterOffer status updated', {
+      offerId,
+      status: 'countered',
+      counterPrice,
+    })
     setOffers(prev => prev.map(o => {
       if (o.id !== offerId) return o
       return {
@@ -1399,11 +1417,35 @@ export function AppProvider({ children }) {
         conversationId: conversation.id,
         actionTarget: `/messages/${conversation.id}`,
       })
+    console.info('[offers] counterOffer notification created', {
+      offerId: offer.id,
+      recipientId: offer.buyerId,
+      conversationId: conversation.id,
+    })
 
-      // Email: notify buyer about counter offer
-    const buyer = users.find(u => u.id === offer.buyerId)
+    // Email: notify buyer about counter offer
+    console.info('[offers] counterOffer email profile lookup start', {
+      offerId: offer.id,
+      recipientId: offer.buyerId,
+      emailType: 'offer_countered',
+    })
+    const ensuredBuyer = await ensureUserById?.(offer.buyerId)
+    const buyer = ensuredBuyer || users.find(u => u.id === offer.buyerId)
+    console.info('[offers] counterOffer email recipient resolved', {
+      offerId: offer.id,
+      recipientId: offer.buyerId,
+      hasProfile: !!buyer,
+      recipientEmail: buyer?.email || null,
+      emailType: 'offer_countered',
+    })
     if (buyer?.email) {
-      await sendOfferCounteredEmail(buyer.email, listing?.title || 'item', offer.price, counterPrice, seller?.username || 'seller', {
+      console.info('[offers] counterOffer email send triggered', {
+        offerId: offer.id,
+        recipientEmail: buyer.email,
+        emailType: 'offer_countered',
+        conversationId: conversation.id,
+      })
+      const emailResult = await sendOfferCounteredEmail(buyer.email, listing?.title || 'item', offer.price, counterPrice, seller?.username || 'seller', {
           offerId: offer.id,
           listingId: offer.listingId,
           conversationId: conversation.id,
@@ -1412,9 +1454,33 @@ export function AppProvider({ children }) {
           related_entity_type: 'offer',
           related_entity_id: offer.id,
         })
+      console.info('[offers] counterOffer email result', {
+        offerId: offer.id,
+        recipientEmail: buyer.email,
+        emailType: 'offer_countered',
+        response: emailResult,
+        emailSent: !!emailResult?.emailSent,
+        success: !!emailResult?.success,
+      })
+      if (!emailResult?.success || !emailResult?.emailSent) {
+        console.warn('[offers] counterOffer email failed or not sent', {
+          offerId: offer.id,
+          recipientId: offer.buyerId,
+          recipientEmail: buyer.email,
+          emailType: 'offer_countered',
+          response: emailResult,
+        })
+      }
+    } else {
+      console.error('[offers] counterOffer email skipped: buyer email missing', {
+        offerId: offer.id,
+        recipientId: offer.buyerId,
+        hasProfile: !!buyer,
+        emailType: 'offer_countered',
+      })
     }
     return { ok: true }
-  }, [offers, listings, users, addNotification, currentUser, getOrCreateConversationForUsers, addConversationEvent, dbPatchOffer, showToast])
+  }, [offers, listings, users, addNotification, currentUser, ensureUserById, getOrCreateConversationForUsers, addConversationEvent, dbPatchOffer, showToast])
 
   const recoverOfferConversationFromLink = useCallback((params = {}) => {
     const {

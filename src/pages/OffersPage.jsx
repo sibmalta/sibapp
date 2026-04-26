@@ -32,32 +32,52 @@ export default function OffersPage() {
   const activeReceived = received.filter(o => o.status === 'pending')
   const activeSent = sent.filter(o => o.status === 'countered')
 
-  const handleAccept = (offer) => {
-    acceptOffer(offer.id)
+  const handleAccept = async (offer) => {
+    const result = await acceptOffer(offer.id)
+    if (result?.error) {
+      showToast(result.error, 'error')
+      return
+    }
     showToast('Offer accepted!')
     // Redirect buyer to checkout at accepted price
     navigate(`/checkout/${offer.listingId}?offer=${offer.id}`)
   }
 
-  const handleDecline = (offerId) => {
-    declineOffer(offerId)
+  const handleDecline = async (offerId) => {
+    const result = await declineOffer(offerId)
+    if (result?.error) {
+      showToast(result.error, 'error')
+      return
+    }
     showToast('Offer declined.')
   }
 
-  const handleCounter = (offerId, counterPrice) => {
-    counterOffer(offerId, counterPrice)
+  const handleCounter = async (offerId, counterPrice) => {
+    const result = await counterOffer(offerId, counterPrice)
+    if (result?.error) {
+      showToast(result.error, 'error')
+      return
+    }
     setCounterModal(null)
     showToast('Counter offer sent!')
   }
 
-  const handleAcceptCounter = (offer) => {
-    acceptOffer(offer.id)
+  const handleAcceptCounter = async (offer) => {
+    const result = await acceptOffer(offer.id)
+    if (result?.error) {
+      showToast(result.error, 'error')
+      return
+    }
     showToast('Counter accepted!')
     navigate(`/checkout/${offer.listingId}?offer=${offer.id}`)
   }
 
-  const handleDeclineCounter = (offerId) => {
-    declineOffer(offerId)
+  const handleDeclineCounter = async (offerId) => {
+    const result = await declineOffer(offerId)
+    if (result?.error) {
+      showToast(result.error, 'error')
+      return
+    }
     showToast('Counter declined.')
   }
 
