@@ -111,7 +111,7 @@ export default function EditProfilePage() {
 
   return (
     <div className="px-4 py-5 pb-10">
-      <h2 className="text-xl font-bold text-sib-text mb-5">Edit Profile</h2>
+      <h2 className="text-xl font-bold text-sib-text dark:text-[#f4efe7] mb-5">Edit Profile</h2>
 
       <div className="space-y-5">
         {/* Profile picture */}
@@ -121,7 +121,7 @@ export default function EditProfilePage() {
               <img
                 src={displayAvatar}
                 alt={currentUser.name}
-                className="w-24 h-24 rounded-full object-cover border-2 border-sib-stone"
+                className="w-24 h-24 rounded-full object-cover border-2 border-sib-stone dark:border-[rgba(242,238,231,0.10)]"
               />
             ) : (
               <UserAvatar user={currentUser} size="xl" />
@@ -129,7 +129,7 @@ export default function EditProfilePage() {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-sib-primary text-white flex items-center justify-center shadow-md border-2 border-white"
+              className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-sib-primary text-white flex items-center justify-center shadow-md border-2 border-white dark:border-[#202b28]"
             >
               <Camera size={14} />
             </button>
@@ -150,36 +150,36 @@ export default function EditProfilePage() {
               <X size={12} /> Remove new photo
             </button>
           )}
-          <p className="text-[11px] text-sib-muted">Tap the camera icon to change your photo</p>
+          <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4]">Tap the camera icon to change your photo</p>
         </div>
 
         {/* Full Name */}
         <div>
-          <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">
+          <label className="text-xs font-semibold text-sib-text dark:text-[#f4efe7] uppercase tracking-wide mb-1.5 block">
             Full Name <span className="text-red-400">*</span>
           </label>
           <input
             value={form.name}
             onChange={e => set('name', e.target.value)}
-            className="w-full border border-sib-stone rounded-xl px-4 py-3 text-sm outline-none text-sib-text focus:border-sib-primary"
+            className="w-full border border-sib-stone dark:border-[rgba(242,238,231,0.10)] rounded-xl px-4 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] bg-white dark:bg-[#26322f] focus:border-sib-primary transition-colors"
           />
         </div>
 
         {/* Bio */}
         <div>
-          <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">Bio</label>
+          <label className="text-xs font-semibold text-sib-text dark:text-[#f4efe7] uppercase tracking-wide mb-1.5 block">Bio</label>
           <textarea
             value={form.bio}
             onChange={e => set('bio', e.target.value)}
             rows={3}
             placeholder="Tell buyers about your style..."
-            className="w-full border border-sib-stone rounded-xl px-4 py-3 text-sm outline-none text-sib-text placeholder-sib-muted resize-none focus:border-sib-primary"
+            className="w-full border border-sib-stone dark:border-[rgba(242,238,231,0.10)] rounded-xl px-4 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-white dark:bg-[#26322f] resize-none focus:border-sib-primary transition-colors"
           />
         </div>
 
         {/* Email */}
         <div>
-          <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">
+          <label className="text-xs font-semibold text-sib-text dark:text-[#f4efe7] uppercase tracking-wide mb-1.5 block">
             Email Address
           </label>
           <input
@@ -187,13 +187,13 @@ export default function EditProfilePage() {
             value={form.email}
             onChange={e => set('email', e.target.value)}
             placeholder="your@email.com"
-            className="w-full border border-sib-stone rounded-xl px-4 py-3 text-sm outline-none text-sib-text placeholder-sib-muted focus:border-sib-primary"
+            className="w-full border border-sib-stone dark:border-[rgba(242,238,231,0.10)] rounded-xl px-4 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-white dark:bg-[#26322f] focus:border-sib-primary transition-colors"
           />
         </div>
 
         {/* Phone with calling code */}
         <div>
-          <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">
+          <label className="text-xs font-semibold text-sib-text dark:text-[#f4efe7] uppercase tracking-wide mb-1.5 block">
             Telephone Number
           </label>
           <div className="flex gap-2">
@@ -201,16 +201,16 @@ export default function EditProfilePage() {
               <button
                 type="button"
                 onClick={() => setShowCodes(!showCodes)}
-                className="flex items-center gap-1.5 border border-sib-stone rounded-xl px-3 py-3 text-sm text-sib-text bg-white min-w-[100px] focus:border-sib-primary"
+                className="flex items-center gap-1.5 border border-sib-stone dark:border-[rgba(242,238,231,0.10)] rounded-xl px-3 py-3 text-sm text-sib-text dark:text-[#f4efe7] bg-white dark:bg-[#26322f] min-w-[100px] focus:border-sib-primary transition-colors"
               >
                 <span className="font-medium">{selectedCode.country}</span>
-                <span className="text-sib-muted">{selectedCode.code}</span>
-                <ChevronDown size={13} className="text-sib-muted ml-auto" />
+                <span className="text-sib-muted dark:text-[#aeb8b4]">{selectedCode.code}</span>
+                <ChevronDown size={13} className="text-sib-muted dark:text-[#aeb8b4] ml-auto" />
               </button>
               {showCodes && (
                 <>
                   <div className="fixed inset-0 z-20" onClick={() => setShowCodes(false)} />
-                  <div className="absolute z-30 left-0 top-full mt-1 bg-white border border-sib-stone rounded-xl shadow-lg overflow-hidden max-h-56 overflow-y-auto w-52">
+                  <div className="absolute z-30 left-0 top-full mt-1 bg-white dark:bg-[#202b28] border border-sib-stone dark:border-[rgba(242,238,231,0.10)] rounded-xl shadow-lg overflow-hidden max-h-56 overflow-y-auto w-52 transition-colors">
                     {CALLING_CODES.map(c => (
                       <button
                         key={c.code}
@@ -219,12 +219,12 @@ export default function EditProfilePage() {
                         className={`w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 transition-colors ${
                           c.code === form.callingCode
                             ? 'bg-sib-primary/10 text-sib-primary font-semibold'
-                            : 'text-sib-text active:bg-sib-sand'
+                            : 'text-sib-text dark:text-[#f4efe7] active:bg-sib-sand dark:active:bg-[#26322f]'
                         }`}
                       >
                         <span className="font-medium w-7">{c.country}</span>
-                        <span className="text-sib-muted">{c.code}</span>
-                        <span className="text-xs text-sib-muted ml-auto">{c.label}</span>
+                        <span className="text-sib-muted dark:text-[#aeb8b4]">{c.code}</span>
+                        <span className="text-xs text-sib-muted dark:text-[#aeb8b4] ml-auto">{c.label}</span>
                       </button>
                     ))}
                   </div>
@@ -237,17 +237,17 @@ export default function EditProfilePage() {
               onChange={e => set('phoneNumber', e.target.value.replace(/[^\d\s]/g, ''))}
               placeholder="9999 1234"
               inputMode="tel"
-              className="flex-1 border border-sib-stone rounded-xl px-4 py-3 text-sm outline-none text-sib-text placeholder-sib-muted focus:border-sib-primary"
+              className="flex-1 border border-sib-stone dark:border-[rgba(242,238,231,0.10)] rounded-xl px-4 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-white dark:bg-[#26322f] focus:border-sib-primary transition-colors"
             />
           </div>
-          <p className="text-[11px] text-sib-muted mt-1">Your phone number and email are only visible to Sib admins for verification purposes. They are never shared with buyers or sellers.</p>
+          <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] mt-1">Your phone number and email are only visible to Sib admins for verification purposes. They are never shared with buyers or sellers.</p>
         </div>
       </div>
 
       <div className="flex gap-3 mt-6">
         <button
           onClick={() => navigate('/profile')}
-          className="flex-shrink-0 px-5 py-3.5 rounded-2xl border border-sib-stone text-sm font-medium text-sib-text"
+          className="flex-shrink-0 px-5 py-3.5 rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] text-sm font-medium text-sib-text dark:text-[#f4efe7] hover:bg-sib-sand dark:hover:bg-[#26322f] transition-colors"
         >
           Cancel
         </button>

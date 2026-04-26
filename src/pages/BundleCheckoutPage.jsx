@@ -206,9 +206,9 @@ function BundleStripeForm({ fees, onSuccess, onError }) {
       </div>
       {walletsAvailable && (
         <div className="flex items-center gap-3 mb-4">
-          <div className="h-px bg-sib-stone flex-1" />
-          <span className="text-[11px] font-semibold text-sib-muted uppercase tracking-wide">Or pay by card</span>
-          <div className="h-px bg-sib-stone flex-1" />
+          <div className="h-px bg-sib-stone dark:bg-[rgba(242,238,231,0.10)] flex-1" />
+          <span className="text-[11px] font-semibold text-sib-muted dark:text-[#aeb8b4] uppercase tracking-wide">Or pay by card</span>
+          <div className="h-px bg-sib-stone dark:bg-[rgba(242,238,231,0.10)] flex-1" />
         </div>
       )}
       <div className={`mb-4 ${!elementReady ? 'h-0 overflow-hidden' : ''}`}>
@@ -227,9 +227,9 @@ function BundleStripeForm({ fees, onSuccess, onError }) {
         />
       </div>
       {errorMsg && (
-        <div className="flex items-start gap-2 p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/40 mb-4">
+        <div className="flex items-start gap-2 p-3 rounded-xl bg-red-50 dark:bg-[#362322] border border-red-200 dark:border-red-500/20 mb-4 transition-colors">
           <AlertCircle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-red-700">{errorMsg}</p>
+          <p className="text-sm text-red-700 dark:text-red-300">{errorMsg}</p>
         </div>
       )}
       <button type="submit" disabled={!stripe || !elementReady || loading}
@@ -244,8 +244,8 @@ function BundleStripeForm({ fees, onSuccess, onError }) {
         )}
       </button>
       <div className="flex items-center justify-center gap-1.5 mt-3.5">
-        <Lock size={11} className="text-sib-muted" />
-        <p className="text-[11px] text-sib-muted">Secure payments powered by Stripe</p>
+        <Lock size={11} className="text-sib-muted dark:text-[#aeb8b4]" />
+        <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4]">Secure payments powered by Stripe</p>
       </div>
     </form>
   )
@@ -450,18 +450,18 @@ export default function BundleCheckoutPage() {
         <div className="lg:flex lg:gap-10">
           <div className="lg:flex-1">
             {/* Items */}
-            <div className="p-3 rounded-2xl bg-sib-sand mb-4">
+            <div className="p-3 rounded-2xl sib-elevated border mb-4">
               <div className="flex items-center gap-2 mb-2">
                 <Package size={16} className="text-sib-primary" />
-                <p className="text-sm font-semibold text-sib-text">{items.length}-item bundle from @{seller?.username}</p>
+                <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7]">{items.length}-item bundle from @{seller?.username}</p>
               </div>
               <div className="space-y-2">
                 {items.map(listing => (
                   <div key={listing.id} className="flex items-center gap-3">
                     <img src={listing.images[0]} alt={listing.title} className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-sib-text truncate">{listing.title}</p>
-                      <p className="text-xs text-sib-muted">{listing.brand} · Size {listing.size}</p>
+                      <p className="text-sm font-medium text-sib-text dark:text-[#f4efe7] truncate">{listing.title}</p>
+                      <p className="text-xs text-sib-muted dark:text-[#aeb8b4]">{listing.brand} · Size {listing.size}</p>
                     </div>
                     <span className="text-sm font-bold text-sib-primary flex-shrink-0">€{listing.price}</span>
                   </div>
@@ -469,11 +469,11 @@ export default function BundleCheckoutPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 p-3 rounded-2xl bg-green-50 border border-green-100 mb-4">
+            <div className="flex items-center gap-3 p-3 rounded-2xl bg-green-50 dark:bg-[#26322f] border border-green-100 dark:border-[rgba(242,238,231,0.10)] mb-4 transition-colors">
               <Truck size={16} className="text-green-600 flex-shrink-0" />
               <div>
-                <p className="text-sm font-semibold text-green-800">1 delivery fee for {items.length} items</p>
-                <p className="text-xs text-green-700">Save by bundling from the same seller</p>
+                <p className="text-sm font-semibold text-green-800 dark:text-green-300">1 delivery fee for {items.length} items</p>
+                <p className="text-xs text-green-700 dark:text-[#aeb8b4]">Save by bundling from the same seller</p>
               </div>
             </div>
 
@@ -490,7 +490,7 @@ export default function BundleCheckoutPage() {
             {/* Address — only for home delivery */}
             {!isLocker && (
               <div className="mb-5 space-y-3">
-                <p className="text-xs font-semibold text-sib-text uppercase tracking-wide">Delivery Address</p>
+                <p className="text-xs font-semibold text-sib-text dark:text-[#f4efe7] uppercase tracking-wide">Delivery Address</p>
                 <div className="flex gap-3">
                   <div className="flex-1">
                     <input value={fullName} onChange={e => { setFullName(e.target.value); setAddressConfirmed(false); setClientSecret(null) }} placeholder="Full name" disabled={addressConfirmed}
@@ -529,12 +529,12 @@ export default function BundleCheckoutPage() {
                       onChange={e => setSaveAddressChecked(e.target.checked)}
                       className="sr-only peer"
                     />
-                    <span className="w-5 h-5 rounded-md border-2 border-sib-stone flex items-center justify-center transition-colors peer-checked:bg-sib-primary peer-checked:border-sib-primary group-hover:border-sib-primary/60">
+                    <span className="w-5 h-5 rounded-md border-2 border-sib-stone dark:border-[rgba(242,238,231,0.18)] flex items-center justify-center transition-colors peer-checked:bg-sib-primary peer-checked:border-sib-primary group-hover:border-sib-primary/60">
                       {saveAddressChecked && (
                         <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6L5 8.5L9.5 3.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                       )}
                     </span>
-                    <span className="text-[13px] text-sib-text">Save this address for next time</span>
+                    <span className="text-[13px] text-sib-text dark:text-[#f4efe7]">Save this address for next time</span>
                   </label>
                 )}
               </div>
@@ -545,28 +545,28 @@ export default function BundleCheckoutPage() {
             )}
 
             {/* Mobile summary */}
-            <div className="p-4 rounded-2xl bg-sib-warm mb-5 lg:hidden">
-              <p className="text-sm font-bold text-sib-text mb-3">Order Summary</p>
+            <div className="p-4 rounded-2xl sib-elevated border mb-5 lg:hidden">
+              <p className="text-sm font-bold text-sib-text dark:text-[#f4efe7] mb-3">Order Summary</p>
               <div className="space-y-2 text-sm">
-                <div className="flex justify-between text-sib-muted"><span>{items.length} items</span><span>€{subtotal.toFixed(2)}</span></div>
-                <div className="flex justify-between text-sib-muted"><span className="flex items-center gap-1.5"><Truck size={11} className="text-sib-muted/50" /> Delivery (1x)</span><span>€{fees.deliveryFee.toFixed(2)}</span></div>
-                <div className="flex justify-between text-sib-muted"><span className="flex items-center gap-1.5"><ShieldCheck size={11} className="text-green-600" /> Buyer protection</span><span>€{fees.buyerProtectionFee.toFixed(2)}</span></div>
-                <div className="flex justify-between font-bold text-sib-text pt-2 border-t border-sib-stone"><span>Total</span><span className="text-sib-primary text-lg">€{fees.total.toFixed(2)}</span></div>
+                <div className="flex justify-between text-sib-muted dark:text-[#aeb8b4]"><span>{items.length} items</span><span>€{subtotal.toFixed(2)}</span></div>
+                <div className="flex justify-between text-sib-muted dark:text-[#aeb8b4]"><span className="flex items-center gap-1.5"><Truck size={11} className="text-sib-muted/50 dark:text-[#aeb8b4]/70" /> Delivery (1x)</span><span>€{fees.deliveryFee.toFixed(2)}</span></div>
+                <div className="flex justify-between text-sib-muted dark:text-[#aeb8b4]"><span className="flex items-center gap-1.5"><ShieldCheck size={11} className="text-green-600 dark:text-green-300" /> Buyer protection</span><span>€{fees.buyerProtectionFee.toFixed(2)}</span></div>
+                <div className="flex justify-between font-bold text-sib-text dark:text-[#f4efe7] pt-2 border-t border-sib-stone dark:border-[rgba(242,238,231,0.10)]"><span>Total</span><span className="text-sib-primary text-lg">€{fees.total.toFixed(2)}</span></div>
               </div>
             </div>
 
             {/* Payment */}
             <div className="mb-5">
-              <p className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-3">Payment</p>
+              <p className="text-xs font-semibold text-sib-text dark:text-[#f4efe7] uppercase tracking-wide mb-3">Payment</p>
 
               {/* State D — Stripe keys not configured (app-owner setup issue) */}
               {!isStripeConfigured() && !intentError && (
-                <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 mb-4">
+                <div className="p-4 rounded-2xl bg-amber-50 dark:bg-[#26322f] border border-amber-200 dark:border-[rgba(242,238,231,0.10)] mb-4 transition-colors">
                   <div className="flex items-start gap-2.5">
                     <CreditCard size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
-                      <p className="text-sm font-semibold text-amber-900">Payment setup in progress</p>
-                      <p className="text-[13px] text-amber-800 mt-0.5 leading-snug">
+                      <p className="text-sm font-semibold text-amber-900 dark:text-amber-300">Payment setup in progress</p>
+                      <p className="text-[13px] text-amber-800 dark:text-[#aeb8b4] mt-0.5 leading-snug">
                         Online payments are being set up for this marketplace. Please check back shortly, or contact the seller to arrange payment directly.
                       </p>
                     </div>
@@ -576,12 +576,12 @@ export default function BundleCheckoutPage() {
 
               {/* State C-config — backend Stripe key not configured */}
               {intentError === '__CONFIG_MISSING__' && (
-                <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 mb-4">
+                <div className="p-4 rounded-2xl bg-amber-50 dark:bg-[#26322f] border border-amber-200 dark:border-[rgba(242,238,231,0.10)] mb-4 transition-colors">
                   <div className="flex items-start gap-2.5">
                     <CreditCard size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
-                      <p className="text-sm font-semibold text-amber-900">Payment setup in progress</p>
-                      <p className="text-[13px] text-amber-800 mt-0.5 leading-snug">
+                      <p className="text-sm font-semibold text-amber-900 dark:text-amber-300">Payment setup in progress</p>
+                      <p className="text-[13px] text-amber-800 dark:text-[#aeb8b4] mt-0.5 leading-snug">
                         Online payments are being set up for this marketplace. Please check back shortly, or contact the seller to arrange payment directly.
                       </p>
                     </div>
@@ -589,7 +589,7 @@ export default function BundleCheckoutPage() {
                   <button
                     onClick={() => { setIntentError(''); handleConfirmAddress() }}
                     disabled={creatingIntent}
-                    className="mt-3 w-full flex items-center justify-center gap-2 text-sm font-semibold text-amber-700 bg-amber-100 hover:bg-amber-200 rounded-xl py-2.5 transition-colors disabled:opacity-60"
+                    className="mt-3 w-full flex items-center justify-center gap-2 text-sm font-semibold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-500/15 hover:bg-amber-200 dark:hover:bg-amber-500/20 rounded-xl py-2.5 transition-colors disabled:opacity-60"
                   >
                     <RefreshCw size={14} className={creatingIntent ? 'animate-spin' : ''} />
                     {creatingIntent ? 'Checking...' : 'Check again'}
@@ -599,18 +599,18 @@ export default function BundleCheckoutPage() {
 
               {/* State C-error — genuine backend / network failure with retry */}
               {intentError && intentError !== '__CONFIG_MISSING__' && (
-                <div className="p-4 rounded-2xl bg-red-50 border border-red-100 mb-4">
+                <div className="p-4 rounded-2xl bg-red-50 dark:bg-[#26322f] border border-red-100 dark:border-[rgba(242,238,231,0.10)] mb-4 transition-colors">
                   <div className="flex items-start gap-2.5">
                     <AlertCircle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
-                      <p className="text-sm font-semibold text-red-800">Payment unavailable</p>
-                      <p className="text-[13px] text-red-700 mt-0.5 leading-snug">{intentError}</p>
+                      <p className="text-sm font-semibold text-red-800 dark:text-red-300">Payment unavailable</p>
+                      <p className="text-[13px] text-red-700 dark:text-[#aeb8b4] mt-0.5 leading-snug">{intentError}</p>
                     </div>
                   </div>
                   <button
                     onClick={() => { setIntentError(''); handleConfirmAddress() }}
                     disabled={creatingIntent}
-                    className="mt-3 w-full flex items-center justify-center gap-2 text-sm font-semibold text-red-700 bg-red-100 hover:bg-red-200 rounded-xl py-2.5 transition-colors disabled:opacity-60"
+                    className="mt-3 w-full flex items-center justify-center gap-2 text-sm font-semibold text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-500/15 hover:bg-red-200 dark:hover:bg-red-500/20 rounded-xl py-2.5 transition-colors disabled:opacity-60"
                   >
                     <RefreshCw size={14} className={creatingIntent ? 'animate-spin' : ''} />
                     {creatingIntent ? 'Retrying...' : 'Try again'}
@@ -621,9 +621,9 @@ export default function BundleCheckoutPage() {
               {/* State A — delivery not yet confirmed, Stripe configured */}
               {isStripeConfigured() && !addressConfirmed && !clientSecret && !intentError && (
                 <div>
-                  <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-sib-sand/60 border border-sib-stone/40 mb-4">
+                  <div className="flex items-center gap-3 p-3.5 rounded-2xl sib-elevated border mb-4">
                     <CreditCard size={18} className="text-sib-primary flex-shrink-0" />
-                    <p className="text-[13px] text-sib-text leading-snug">
+                    <p className="text-[13px] text-sib-text dark:text-[#f4efe7] leading-snug">
                       Confirm your delivery details above, then choose how to pay — card, Apple Pay, or Google Pay.
                     </p>
                   </div>
@@ -650,12 +650,12 @@ export default function BundleCheckoutPage() {
               )}
             </div>
 
-            <div className="flex items-center gap-3 p-3 rounded-2xl bg-green-50 mb-3">
+            <div className="flex items-center gap-3 p-3 rounded-2xl bg-green-50 dark:bg-[#26322f] dark:border dark:border-[rgba(242,238,231,0.10)] mb-3 transition-colors">
               <ShieldCheck size={18} className="text-green-600 flex-shrink-0" />
-              <p className="text-xs text-green-800 font-semibold">You are fully protected when paying through Sib</p>
+              <p className="text-xs text-green-800 dark:text-green-300 font-semibold">You are fully protected when paying through Sib</p>
             </div>
 
-            <p className="text-[11px] text-sib-muted text-center mb-5 leading-relaxed">
+            <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] text-center mb-5 leading-relaxed">
               By continuing, you agree to Sib's{' '}
               <Link to="/terms" className="text-sib-primary font-semibold underline underline-offset-2">Terms & Conditions</Link>,{' '}
               <Link to="/buyer-protection" className="text-sib-primary font-semibold underline underline-offset-2">Buyer Protection Policy</Link>,{' '}
@@ -668,27 +668,27 @@ export default function BundleCheckoutPage() {
           {/* Desktop sidebar */}
           <aside className="hidden lg:block lg:w-80 lg:flex-shrink-0">
             <div className="sticky top-24">
-              <div className="p-5 rounded-2xl bg-sib-warm border border-sib-stone">
-                <p className="text-sm font-bold text-sib-text mb-4">Bundle Summary</p>
+              <div className="p-5 rounded-2xl sib-elevated border">
+                <p className="text-sm font-bold text-sib-text dark:text-[#f4efe7] mb-4">Bundle Summary</p>
                 <div className="space-y-2 mb-4">
                   {items.map(listing => (
                     <div key={listing.id} className="flex items-center gap-2">
                       <img src={listing.images[0]} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
-                      <div className="flex-1 min-w-0"><p className="text-xs font-medium text-sib-text truncate">{listing.title}</p></div>
+                      <div className="flex-1 min-w-0"><p className="text-xs font-medium text-sib-text dark:text-[#f4efe7] truncate">{listing.title}</p></div>
                       <span className="text-xs font-bold text-sib-primary">€{listing.price}</span>
                     </div>
                   ))}
                 </div>
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between text-sib-muted"><span>{items.length} items</span><span>€{subtotal.toFixed(2)}</span></div>
-                  <div className="flex justify-between text-sib-muted"><span>Delivery (1x)</span><span>€{fees.deliveryFee.toFixed(2)}</span></div>
-                  <div className="flex justify-between text-sib-muted"><span>Buyer protection</span><span>€{fees.buyerProtectionFee.toFixed(2)}</span></div>
-                  <div className="flex justify-between font-bold text-sib-text pt-3 border-t border-sib-stone mt-2"><span>Total</span><span className="text-sib-primary text-xl">€{fees.total.toFixed(2)}</span></div>
+                  <div className="flex justify-between text-sib-muted dark:text-[#aeb8b4]"><span>{items.length} items</span><span>€{subtotal.toFixed(2)}</span></div>
+                  <div className="flex justify-between text-sib-muted dark:text-[#aeb8b4]"><span>Delivery (1x)</span><span>€{fees.deliveryFee.toFixed(2)}</span></div>
+                  <div className="flex justify-between text-sib-muted dark:text-[#aeb8b4]"><span>Buyer protection</span><span>€{fees.buyerProtectionFee.toFixed(2)}</span></div>
+                  <div className="flex justify-between font-bold text-sib-text dark:text-[#f4efe7] pt-3 border-t border-sib-stone dark:border-[rgba(242,238,231,0.10)] mt-2"><span>Total</span><span className="text-sib-primary text-xl">€{fees.total.toFixed(2)}</span></div>
                 </div>
               </div>
-              <div className="flex items-center gap-3 p-3 rounded-2xl bg-green-50 mt-3">
+              <div className="flex items-center gap-3 p-3 rounded-2xl bg-green-50 dark:bg-[#26322f] dark:border dark:border-[rgba(242,238,231,0.10)] mt-3 transition-colors">
                 <ShieldCheck size={16} className="text-green-600 flex-shrink-0" />
-                <p className="text-xs text-green-800 font-semibold">Buyer protection included</p>
+                <p className="text-xs text-green-800 dark:text-green-300 font-semibold">Buyer protection included</p>
               </div>
             </div>
           </aside>

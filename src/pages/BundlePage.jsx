@@ -20,11 +20,11 @@ export default function BundlePage() {
       <div>
         <PageHeader title="Bundle" />
         <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
-          <div className="w-16 h-16 rounded-full bg-sib-sand flex items-center justify-center mb-4">
-            <Package size={28} className="text-sib-muted" />
+          <div className="w-16 h-16 rounded-full bg-sib-sand dark:bg-[#26322f] flex items-center justify-center mb-4">
+            <Package size={28} className="text-sib-muted dark:text-[#aeb8b4]" />
           </div>
-          <p className="text-sm font-semibold text-sib-text mb-1">Your bundle is empty</p>
-          <p className="text-xs text-sib-muted max-w-[260px] mb-5">
+          <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7] mb-1">Your bundle is empty</p>
+          <p className="text-xs text-sib-muted dark:text-[#aeb8b4] max-w-[260px] mb-5">
             Add items from the same seller to create a bundle and save on delivery.
           </p>
           <button
@@ -95,14 +95,14 @@ export default function BundlePage() {
         {/* Seller info */}
         <div
           onClick={() => navigate(`/profile/${seller?.username}`)}
-          className="flex items-center gap-3 p-3 rounded-2xl bg-sib-sand mb-4 cursor-pointer hover:bg-sib-stone/40 transition-colors"
+          className="flex items-center gap-3 p-3 rounded-2xl sib-elevated border mb-4 cursor-pointer hover:bg-sib-stone/40 dark:hover:bg-[#30403c] transition-colors"
         >
           <div className="w-10 h-10 rounded-full bg-sib-primary/10 flex items-center justify-center flex-shrink-0">
             <Package size={18} className="text-sib-primary" />
           </div>
           <div className="flex-1">
-            <p className="text-sm font-semibold text-sib-text">Bundle from @{seller?.username}</p>
-            <p className="text-xs text-sib-muted">{items.length} item{items.length !== 1 ? 's' : ''}</p>
+            <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7]">Bundle from @{seller?.username}</p>
+            <p className="text-xs text-sib-muted dark:text-[#aeb8b4]">{items.length} item{items.length !== 1 ? 's' : ''}</p>
           </div>
           <button
             onClick={(e) => { e.stopPropagation(); handleClear() }}
@@ -113,11 +113,11 @@ export default function BundlePage() {
         </div>
 
         {/* Delivery savings banner */}
-        <div className="flex items-center gap-3 p-3 rounded-2xl bg-green-50 border border-green-100 mb-4">
+        <div className="flex items-center gap-3 p-3 rounded-2xl bg-green-50 dark:bg-[#26322f] border border-green-100 dark:border-[rgba(242,238,231,0.10)] mb-4 transition-colors">
           <Truck size={16} className="text-green-600 flex-shrink-0" />
           <div>
-            <p className="text-sm font-semibold text-green-800">Save on delivery by bundling</p>
-            <p className="text-xs text-green-700">1 delivery fee for {items.length} items</p>
+            <p className="text-sm font-semibold text-green-800 dark:text-green-300">Save on delivery by bundling</p>
+            <p className="text-xs text-green-700 dark:text-[#aeb8b4]">1 delivery fee for {items.length} items</p>
           </div>
         </div>
 
@@ -132,16 +132,16 @@ export default function BundlePage() {
                 onClick={() => navigate(`/listing/${listing.id}`)}
               />
               <div className="flex-1 min-w-0 cursor-pointer" onClick={() => navigate(`/listing/${listing.id}`)}>
-                <p className="text-sm font-semibold text-sib-text line-clamp-1">{listing.title}</p>
-                <p className="text-xs text-sib-muted mt-0.5">{listing.brand} · Size {listing.size}</p>
+                <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7] line-clamp-1">{listing.title}</p>
+                <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mt-0.5">{listing.brand} · Size {listing.size}</p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <span className="text-base font-bold text-sib-primary">€{listing.price}</span>
                 <button
                   onClick={() => handleRemove(listing.id)}
-                  className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-50 transition-colors"
+                  className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-50 dark:hover:bg-[#362322] transition-colors"
                 >
-                  <Trash2 size={14} className="text-sib-muted hover:text-red-500" />
+                  <Trash2 size={14} className="text-sib-muted dark:text-[#aeb8b4] hover:text-red-500" />
                 </button>
               </div>
             </div>
@@ -149,28 +149,28 @@ export default function BundlePage() {
         </div>
 
         {/* Order summary */}
-        <div className="p-4 rounded-2xl bg-sib-warm border border-sib-stone/40 mb-5">
-          <p className="text-sm font-bold text-sib-text mb-3">Bundle Summary</p>
+        <div className="p-4 rounded-2xl sib-elevated border mb-5">
+          <p className="text-sm font-bold text-sib-text dark:text-[#f4efe7] mb-3">Bundle Summary</p>
           <div className="space-y-2 text-sm">
-            <div className="flex justify-between text-sib-muted">
+            <div className="flex justify-between text-sib-muted dark:text-[#aeb8b4]">
               <span>{items.length} item{items.length !== 1 ? 's' : ''}</span>
               <span>€{subtotal.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-sib-muted">
+            <div className="flex justify-between text-sib-muted dark:text-[#aeb8b4]">
               <span className="flex items-center gap-1.5">
-                <Truck size={12} className="text-sib-muted/60" />
+                <Truck size={12} className="text-sib-muted/60 dark:text-[#aeb8b4]/70" />
                 Tracked delivery (1x)
               </span>
               <span>€{fees.deliveryFee.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-sib-muted">
+            <div className="flex justify-between text-sib-muted dark:text-[#aeb8b4]">
               <span className="flex items-center gap-1.5">
-                <ShieldCheck size={12} className="text-green-600" />
+                <ShieldCheck size={12} className="text-green-600 dark:text-green-300" />
                 Buyer protection
               </span>
               <span>€{fees.buyerProtectionFee.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between font-bold text-sib-text pt-2 border-t border-sib-stone">
+            <div className="flex justify-between font-bold text-sib-text dark:text-[#f4efe7] pt-2 border-t border-sib-stone dark:border-[rgba(242,238,231,0.10)]">
               <span>Total</span>
               <span className="text-sib-primary text-lg">€{fees.total.toFixed(2)}</span>
             </div>
@@ -210,24 +210,24 @@ export default function BundlePage() {
             <div className="flex items-center justify-between px-5 pt-5 pb-3">
               <div className="flex items-center gap-2">
                 <Tag size={18} className="text-sib-primary" />
-                <h2 className="text-lg font-bold text-sib-text">Bundle Offer</h2>
+                <h2 className="text-lg font-bold text-sib-text dark:text-[#f4efe7]">Bundle Offer</h2>
               </div>
               <button onClick={() => setShowOfferModal(false)} className="w-8 h-8 rounded-full bg-sib-sand dark:bg-[#26322f] flex items-center justify-center hover:bg-sib-stone dark:hover:bg-[#30403c] transition-colors">
-                <X size={16} className="text-sib-muted" />
+                <X size={16} className="text-sib-muted dark:text-[#aeb8b4]" />
               </button>
             </div>
 
-            <div className="mx-5 p-3 rounded-xl bg-sib-sand">
+            <div className="mx-5 p-3 rounded-xl bg-sib-sand dark:bg-[#26322f] transition-colors">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-sib-muted">{items.length} items from @{seller?.username}</span>
-                <span className="font-bold text-sib-text">€{subtotal.toFixed(2)}</span>
+                <span className="text-sib-muted dark:text-[#aeb8b4]">{items.length} items from @{seller?.username}</span>
+                <span className="font-bold text-sib-text dark:text-[#f4efe7]">€{subtotal.toFixed(2)}</span>
               </div>
               <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
                 {items.slice(0, 4).map(l => (
                   <img key={l.id} src={l.images[0]} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
                 ))}
                 {items.length > 4 && (
-                  <div className="w-10 h-10 rounded-lg bg-sib-stone flex items-center justify-center flex-shrink-0 text-xs font-bold text-sib-muted">
+                  <div className="w-10 h-10 rounded-lg bg-sib-stone dark:bg-[#30403c] flex items-center justify-center flex-shrink-0 text-xs font-bold text-sib-muted dark:text-[#aeb8b4]">
                     +{items.length - 4}
                   </div>
                 )}
@@ -236,9 +236,9 @@ export default function BundlePage() {
 
             <div className="px-5 pt-4 pb-6 space-y-4">
               <div>
-                <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">Your bundle offer</label>
+                <label className="text-xs font-semibold text-sib-text dark:text-[#f4efe7] uppercase tracking-wide mb-1.5 block">Your bundle offer</label>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sib-muted font-semibold text-lg">€</span>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sib-muted dark:text-[#aeb8b4] font-semibold text-lg">€</span>
                   <input
                     type="number"
                     step="0.50"
@@ -248,23 +248,23 @@ export default function BundlePage() {
                     className="w-full border border-sib-stone dark:border-[rgba(242,238,231,0.10)] rounded-xl pl-9 pr-4 py-3.5 text-lg font-bold text-sib-text dark:text-[#f4efe7] bg-white dark:bg-[#26322f] outline-none focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20"
                   />
                   {offerPrice && !isNaN(parseFloat(offerPrice)) && parseFloat(offerPrice) < subtotal && discount > 0 && (
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 px-2 py-0.5 rounded-full bg-green-50 text-green-700 text-xs font-bold">
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 px-2 py-0.5 rounded-full bg-green-50 dark:bg-[#26322f] text-green-700 dark:text-green-300 text-xs font-bold">
                       -{discount}%
                     </span>
                   )}
                 </div>
-                <p className="text-[11px] text-sib-muted mt-1.5">
+                <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] mt-1.5">
                   Original total: €{subtotal.toFixed(2)} for {items.length} items
                 </p>
               </div>
 
               {offerError && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-red-50 text-red-600 text-sm">
+                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-red-50 dark:bg-[#362322] text-red-600 dark:text-red-300 text-sm transition-colors">
                   <span>{offerError}</span>
                 </div>
               )}
 
-              <div className="px-3 py-2.5 rounded-xl bg-sib-warm text-xs text-sib-muted leading-relaxed">
+              <div className="px-3 py-2.5 rounded-xl bg-sib-warm dark:bg-[#26322f] text-xs text-sib-muted dark:text-[#aeb8b4] leading-relaxed transition-colors">
                 The seller will receive one notification for the entire bundle. They can accept, counter, or decline. Expires in 24 hours.
               </div>
 

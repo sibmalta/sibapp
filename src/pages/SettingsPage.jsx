@@ -29,7 +29,7 @@ export default function SettingsPage() {
 
       <div className="mb-6">
         <p className="text-[11px] font-semibold text-sib-muted dark:text-[#aeb8b4] uppercase tracking-wide mb-2">Appearance</p>
-        <div className="rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] overflow-hidden bg-white dark:bg-[#202b28] transition-colors">
+        <div className="rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] overflow-hidden sib-panel">
           <div className="px-4 py-3.5 flex items-center justify-between gap-4">
             <div className="min-w-0">
               <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7]">Theme</p>
@@ -68,7 +68,7 @@ export default function SettingsPage() {
       {/* Account */}
       <div className="mb-6">
         <p className="text-[11px] font-semibold text-sib-muted dark:text-[#aeb8b4] uppercase tracking-wide mb-2">Account</p>
-        <div className="rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] overflow-hidden divide-y divide-sib-stone dark:divide-[rgba(242,238,231,0.10)] bg-white dark:bg-[#202b28] transition-colors">
+        <div className="rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] overflow-hidden divide-y divide-sib-stone dark:divide-[rgba(242,238,231,0.10)] sib-panel">
           <Link
             to="/profile/edit"
             className="flex items-center gap-3 px-4 py-3.5 active:bg-sib-sand dark:active:bg-[#26322f] transition-colors"
@@ -108,7 +108,7 @@ export default function SettingsPage() {
       {/* Legal & Policies */}
       <div className="mb-6">
         <p className="text-[11px] font-semibold text-sib-muted dark:text-[#aeb8b4] uppercase tracking-wide mb-2">Legal & Policies</p>
-        <div className="rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] overflow-hidden divide-y divide-sib-stone dark:divide-[rgba(242,238,231,0.10)] bg-white dark:bg-[#202b28] transition-colors">
+        <div className="rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] overflow-hidden divide-y divide-sib-stone dark:divide-[rgba(242,238,231,0.10)] sib-panel">
           {[
             { to: '/terms', icon: FileText, label: 'Terms & Conditions' },
             { to: '/privacy', icon: Lock, label: 'Privacy Policy' },
@@ -136,7 +136,7 @@ export default function SettingsPage() {
       {/* Help & Support */}
       <div className="mb-6">
         <p className="text-[11px] font-semibold text-sib-muted dark:text-[#aeb8b4] uppercase tracking-wide mb-2">Help & Support</p>
-        <div className="rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] overflow-hidden divide-y divide-sib-stone dark:divide-[rgba(242,238,231,0.10)] bg-white dark:bg-[#202b28] transition-colors">
+        <div className="rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] overflow-hidden divide-y divide-sib-stone dark:divide-[rgba(242,238,231,0.10)] sib-panel">
           {[
             { to: '/faq', icon: HelpCircle, label: 'FAQ' },
             { to: '/contact', icon: Mail, label: 'Contact Support' },
@@ -157,10 +157,10 @@ export default function SettingsPage() {
       {/* Log out */}
       <button
         onClick={handleLogout}
-        className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border border-red-200 bg-red-50 active:bg-red-100 transition-colors"
+        className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border border-red-200 dark:border-red-500/20 bg-red-50 dark:bg-[#362322] active:bg-red-100 dark:active:bg-[#42302e] transition-colors"
       >
         <LogOut size={16} className="text-red-500 flex-shrink-0" />
-        <span className="text-sm font-semibold text-red-600">Log Out</span>
+        <span className="text-sm font-semibold text-red-600 dark:text-red-300">Log Out</span>
       </button>
     </div>
   )

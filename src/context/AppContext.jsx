@@ -1153,30 +1153,34 @@ export function AppProvider({ children }) {
   const acceptOffer = useCallback(async (offerId) => {
     const now = new Date()
     const offer = offers.find(o => o.id === offerId)
+    if (!offer) return { error: 'Offer not found. Please refresh the conversation and try again.' }
+    if (offer.status !== 'pending' && offer.status !== 'countered') return { error: 'This offer is no longer pending.' }
+    if (offer.status === 'pending' && currentUser?.id !== offer.sellerId) return { error: 'Only the seller can accept this offer.' }
+    if (offer.status === 'countered' && currentUser?.id !== offer.buyerId) return { error: 'Only the buyer can accept this counter offer.' }
     const acceptedPrice = offer?.counterPrice || offer?.price
-    if (offer) {
-      const { error } = await dbPatchOffer(offerId, { status: 'accepted', acceptedPrice, updatedAt: now.toISOString() })
-      if (error) {
-        showToast('Failed to accept offer: ' + error.message, 'error')
-        return
-      }
+    const { error } = await dbPatchOffer(offerId, { status: 'accepted', acceptedPrice, updatedAt: now.toISOString() })
+    if (error) {
+      return { error: 'Failed to accept offer: ' + error.message }
     }
     setOffers(prev => prev.map(o => {
       if (o.id !== offerId) return o
       const acceptedPrice = o.counterPrice || o.price
       return { ...o, status: 'accepted', acceptedPrice, updatedAt: now.toISOString() }
     }))
-    if (offer) {
-      const listing = listings.find(l => l.id === offer.listingId)
-      const notifyUserId = offer.status === 'countered' ? offer.sellerId : offer.buyerId
-      const acceptor = users.find(u => u.id === (offer.status === 'countered' ? offer.buyerId : offer.sellerId))
-      const conversation = getOrCreateConversationForUsers(offer.buyerId, offer.sellerId, offer.listingId)
-      addConversationEvent(conversation.id, {
+    const listing = listings.find(l => l.id === offer.listingId)
+    const notifyUserId = offer.status === 'countered' ? offer.sellerId : offer.buyerId
+    const acceptor = users.find(u => u.id === (offer.status === 'countered' ? offer.buyerId : offer.sellerId))
+    const conversation = getOrCreateConversationForUsers(offer.buyerId, offer.sellerId, offer.listingId)
+    if (!conversation?.id) return { error: 'Could not find the message thread for this offer.' }
+    const eventResult = await addConversationEvent(conversation.id, {
         type: 'offer',
         eventType: 'offer_accepted',
         senderId: acceptor?.id || currentUser?.id || 'system',
+        recipientId: notifyUserId,
         offerId: offer.id,
         listingId: offer.listingId,
+        buyerId: offer.buyerId,
+        sellerId: offer.sellerId,
         title: 'Offer accepted',
         text: `@${acceptor?.username || 'user'} accepted €${acceptedPrice} on "${listing?.title || 'item'}"`,
         offerPrice: acceptedPrice,
@@ -1185,7 +1189,10 @@ export function AppProvider({ children }) {
         itemImage: listing?.images?.[0] || null,
         status: 'accepted',
       })
-      addNotification({
+    if (eventResult?.error) {
+      console.error('[offers] accept event failed:', eventResult.error)
+    }
+    await addNotification({
         userId: notifyUserId,
         type: 'offer_accepted',
         title: 'Offer accepted',
@@ -1197,10 +1204,10 @@ export function AppProvider({ children }) {
       })
 
       // Email: notify buyer that offer was accepted
-      const buyer = users.find(u => u.id === offer.buyerId)
-      const sellerUser = users.find(u => u.id === offer.sellerId)
-      if (buyer?.email) {
-        sendOfferAcceptedEmail(buyer.email, listing?.title || 'item', acceptedPrice, sellerUser?.username || 'seller', {
+    const buyer = users.find(u => u.id === offer.buyerId)
+    const sellerUser = users.find(u => u.id === offer.sellerId)
+    if (buyer?.email) {
+      await sendOfferAcceptedEmail(buyer.email, listing?.title || 'item', acceptedPrice, sellerUser?.username || 'seller', {
           offerId: offer.id,
           listingId: offer.listingId,
           conversationId: conversation.id,
@@ -1209,35 +1216,39 @@ export function AppProvider({ children }) {
           related_entity_type: 'offer',
           related_entity_id: offer.id,
         })
-      }
     }
+    return { ok: true }
   }, [offers, listings, users, addNotification, currentUser, getOrCreateConversationForUsers, addConversationEvent, dbPatchOffer, showToast])
 
   const declineOffer = useCallback(async (offerId) => {
     const now = new Date()
     const offer = offers.find(o => o.id === offerId)
-    if (offer) {
-      const { error } = await dbPatchOffer(offerId, { status: 'declined', updatedAt: now.toISOString() })
-      if (error) {
-        showToast('Failed to decline offer: ' + error.message, 'error')
-        return
-      }
+    if (!offer) return { error: 'Offer not found. Please refresh the conversation and try again.' }
+    if (offer.status !== 'pending' && offer.status !== 'countered') return { error: 'This offer is no longer pending.' }
+    if (offer.status === 'pending' && currentUser?.id !== offer.sellerId) return { error: 'Only the seller can decline this offer.' }
+    if (offer.status === 'countered' && currentUser?.id !== offer.buyerId) return { error: 'Only the buyer can decline this counter offer.' }
+    const { error } = await dbPatchOffer(offerId, { status: 'declined', updatedAt: now.toISOString() })
+    if (error) {
+      return { error: 'Failed to decline offer: ' + error.message }
     }
     setOffers(prev => prev.map(o => {
       if (o.id !== offerId) return o
       return { ...o, status: 'declined', updatedAt: now.toISOString() }
     }))
-    if (offer) {
-      const listing = listings.find(l => l.id === offer.listingId)
-      const notifyUserId = offer.status === 'countered' ? offer.sellerId : offer.buyerId
-      const decliner = users.find(u => u.id === (offer.status === 'countered' ? offer.buyerId : offer.sellerId))
-      const conversation = getOrCreateConversationForUsers(offer.buyerId, offer.sellerId, offer.listingId)
-      addConversationEvent(conversation.id, {
+    const listing = listings.find(l => l.id === offer.listingId)
+    const notifyUserId = offer.status === 'countered' ? offer.sellerId : offer.buyerId
+    const decliner = users.find(u => u.id === (offer.status === 'countered' ? offer.buyerId : offer.sellerId))
+    const conversation = getOrCreateConversationForUsers(offer.buyerId, offer.sellerId, offer.listingId)
+    if (!conversation?.id) return { error: 'Could not find the message thread for this offer.' }
+    const eventResult = await addConversationEvent(conversation.id, {
         type: 'offer',
         eventType: 'offer_declined',
         senderId: decliner?.id || currentUser?.id || 'system',
+        recipientId: notifyUserId,
         offerId: offer.id,
         listingId: offer.listingId,
+        buyerId: offer.buyerId,
+        sellerId: offer.sellerId,
         title: 'Offer declined',
         text: `@${decliner?.username || 'user'} declined ${offer.status === 'countered' ? 'the counter offer' : 'the offer'} on "${listing?.title || 'item'}"`,
         offerPrice: offer.counterPrice || offer.price,
@@ -1246,7 +1257,10 @@ export function AppProvider({ children }) {
         itemImage: listing?.images?.[0] || null,
         status: 'declined',
       })
-      addNotification({
+    if (eventResult?.error) {
+      console.error('[offers] decline event failed:', eventResult.error)
+    }
+    await addNotification({
         userId: notifyUserId,
         type: 'offer_declined',
         title: 'Offer declined',
@@ -1258,10 +1272,9 @@ export function AppProvider({ children }) {
       })
 
       // Email: notify the other party that offer was declined
-      const recipientId = notifyUserId
-      const recipient = users.find(u => u.id === recipientId)
-      if (recipient?.email) {
-        sendOfferDeclinedEmail(recipient.email, listing?.title || 'item', offer.counterPrice || offer.price, decliner?.username || 'user', {
+    const recipient = users.find(u => u.id === notifyUserId)
+    if (recipient?.email) {
+      await sendOfferDeclinedEmail(recipient.email, listing?.title || 'item', offer.counterPrice || offer.price, decliner?.username || 'user', {
           offerId: offer.id,
           listingId: offer.listingId,
           conversationId: conversation.id,
@@ -1270,24 +1283,24 @@ export function AppProvider({ children }) {
           related_entity_type: 'offer',
           related_entity_id: offer.id,
         })
-      }
     }
+    return { ok: true }
   }, [offers, listings, users, addNotification, currentUser, getOrCreateConversationForUsers, addConversationEvent, dbPatchOffer, showToast])
 
   const counterOffer = useCallback(async (offerId, counterPrice) => {
     const now = new Date()
     const offer = offers.find(o => o.id === offerId)
-    if (offer) {
-      const { error } = await dbPatchOffer(offerId, {
-        status: 'countered',
-        counterPrice,
-        updatedAt: now.toISOString(),
-        expiresAt: new Date(now.getTime() + OFFER_EXPIRY_MS).toISOString(),
-      })
-      if (error) {
-        showToast('Failed to counter offer: ' + error.message, 'error')
-        return
-      }
+    if (!offer) return { error: 'Offer not found. Please refresh the conversation and try again.' }
+    if (offer.status !== 'pending') return { error: 'Only pending offers can be countered.' }
+    if (currentUser?.id !== offer.sellerId) return { error: 'Only the seller can counter this offer.' }
+    const { error } = await dbPatchOffer(offerId, {
+      status: 'countered',
+      counterPrice,
+      updatedAt: now.toISOString(),
+      expiresAt: new Date(now.getTime() + OFFER_EXPIRY_MS).toISOString(),
+    })
+    if (error) {
+      return { error: 'Failed to counter offer: ' + error.message }
     }
     setOffers(prev => prev.map(o => {
       if (o.id !== offerId) return o
@@ -1299,16 +1312,19 @@ export function AppProvider({ children }) {
         expiresAt: new Date(now.getTime() + OFFER_EXPIRY_MS).toISOString(),
       }
     }))
-    if (offer) {
-      const listing = listings.find(l => l.id === offer.listingId)
-      const seller = users.find(u => u.id === offer.sellerId)
-      const conversation = getOrCreateConversationForUsers(offer.buyerId, offer.sellerId, offer.listingId)
-      addConversationEvent(conversation.id, {
+    const listing = listings.find(l => l.id === offer.listingId)
+    const seller = users.find(u => u.id === offer.sellerId)
+    const conversation = getOrCreateConversationForUsers(offer.buyerId, offer.sellerId, offer.listingId)
+    if (!conversation?.id) return { error: 'Could not find the message thread for this offer.' }
+    const eventResult = await addConversationEvent(conversation.id, {
         type: 'offer',
         eventType: 'offer_countered',
         senderId: offer.sellerId,
+        recipientId: offer.buyerId,
         offerId: offer.id,
         listingId: offer.listingId,
+        buyerId: offer.buyerId,
+        sellerId: offer.sellerId,
         title: 'Counter offer received',
         text: `@${seller?.username || 'seller'} countered with €${counterPrice} on "${listing?.title || 'item'}"`,
         offerPrice: counterPrice,
@@ -1317,7 +1333,10 @@ export function AppProvider({ children }) {
         itemImage: listing?.images?.[0] || null,
         status: 'countered',
       })
-      addNotification({
+    if (eventResult?.error) {
+      console.error('[offers] counter event failed:', eventResult.error)
+    }
+    await addNotification({
         userId: offer.buyerId,
         type: 'offer_countered',
         title: 'Counter offer received',
@@ -1329,9 +1348,9 @@ export function AppProvider({ children }) {
       })
 
       // Email: notify buyer about counter offer
-      const buyer = users.find(u => u.id === offer.buyerId)
-      if (buyer?.email) {
-        sendOfferCounteredEmail(buyer.email, listing?.title || 'item', offer.price, counterPrice, seller?.username || 'seller', {
+    const buyer = users.find(u => u.id === offer.buyerId)
+    if (buyer?.email) {
+      await sendOfferCounteredEmail(buyer.email, listing?.title || 'item', offer.price, counterPrice, seller?.username || 'seller', {
           offerId: offer.id,
           listingId: offer.listingId,
           conversationId: conversation.id,
@@ -1340,9 +1359,9 @@ export function AppProvider({ children }) {
           related_entity_type: 'offer',
           related_entity_id: offer.id,
         })
-      }
     }
-  }, [offers, listings, users, addNotification, getOrCreateConversationForUsers, addConversationEvent, dbPatchOffer, showToast])
+    return { ok: true }
+  }, [offers, listings, users, addNotification, currentUser, getOrCreateConversationForUsers, addConversationEvent, dbPatchOffer, showToast])
 
   const recoverOfferConversationFromLink = useCallback((params = {}) => {
     const {
@@ -1375,6 +1394,7 @@ export function AppProvider({ children }) {
         listingId,
         buyerId,
         sellerId,
+        conversationId,
         price: offerPrice,
         status: 'pending',
         counterPrice: null,
@@ -1396,6 +1416,8 @@ export function AppProvider({ children }) {
       read: false,
       offerId,
       listingId,
+      buyerId,
+      sellerId,
       title: 'Offer received',
       offerPrice,
       originalPrice: listing?.price,

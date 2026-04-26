@@ -161,8 +161,8 @@ const activeListings = userListings.filter(l => l.status === 'active')
     })
   }
   // Auto-computed badges
-  if (profileUser.verified) trustBadges.push({ label: 'Verified Seller', icon: ShieldCheck, color: 'text-blue-600 bg-blue-50 border-blue-100' })
-  if (reviewCount >= 3 && rating >= 4) trustBadges.push({ label: 'Buyer Trusted', icon: Heart, color: 'text-rose-600 bg-rose-50 border-rose-100' })
+  if (profileUser.verified) trustBadges.push({ label: 'Verified Seller', icon: ShieldCheck, color: 'text-blue-600 dark:text-[#e8751a] bg-blue-50 dark:bg-[#26322f] border-blue-100 dark:border-[rgba(242,238,231,0.10)]' })
+  if (reviewCount >= 3 && rating >= 4) trustBadges.push({ label: 'Buyer Trusted', icon: Heart, color: 'text-rose-600 dark:text-[#e8751a] bg-rose-50 dark:bg-[#26322f] border-rose-100 dark:border-[rgba(242,238,231,0.10)]' })
 
   return (
     <div className="lg:max-w-5xl lg:mx-auto lg:px-8">
@@ -226,8 +226,8 @@ const activeListings = userListings.filter(l => l.status === 'active')
                   <h1 className="text-xl font-bold text-sib-text dark:text-[#f4efe7] truncate">@{profileUser.username}</h1>
                   {profileUser.verified && (
                     <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-[#26322f] border border-blue-100 dark:border-[rgba(242,238,231,0.10)]">
-                      <ShieldCheck size={12} className="text-blue-600" />
-                      <span className="text-[10px] font-semibold text-blue-600">Verified</span>
+                      <ShieldCheck size={12} className="text-blue-600 dark:text-[#e8751a]" />
+                      <span className="text-[10px] font-semibold text-blue-600 dark:text-[#e8751a]">Verified</span>
                     </span>
                   )}
                 </div>
@@ -263,17 +263,17 @@ const activeListings = userListings.filter(l => l.status === 'active')
             )}
 
             {/* Stats row */}
-            <div className="flex gap-0 mt-4 border border-sib-stone/60 rounded-xl overflow-hidden">
+            <div className="flex gap-0 mt-4 border border-sib-stone/60 dark:border-[rgba(242,238,231,0.10)] rounded-xl overflow-hidden">
               <div className="flex-1 text-center py-3 bg-sib-sand/50 dark:bg-[#26322f] transition-colors">
                 <p className="text-lg font-extrabold text-sib-text dark:text-[#f4efe7] leading-none">{activeListings.length}</p>
                 <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] mt-1 font-medium">Listings</p>
               </div>
-              <div className="w-px bg-sib-stone/60" />
+              <div className="w-px bg-sib-stone/60 dark:bg-[rgba(242,238,231,0.10)]" />
               <div className="flex-1 text-center py-3 bg-sib-sand/50 dark:bg-[#26322f] transition-colors">
                 <p className="text-lg font-extrabold text-sib-text dark:text-[#f4efe7] leading-none">{reviewCount}</p>
                 <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] mt-1 font-medium">Reviews</p>
               </div>
-              <div className="w-px bg-sib-stone/60" />
+              <div className="w-px bg-sib-stone/60 dark:bg-[rgba(242,238,231,0.10)]" />
               <div className="flex-1 text-center py-3 bg-sib-sand/50 dark:bg-[#26322f] transition-colors">
                 <p className="text-lg font-extrabold text-sib-text dark:text-[#f4efe7] leading-none">{daysSinceJoin < 365 ? `${Math.ceil(daysSinceJoin / 30)}mo` : `${Math.floor(daysSinceJoin / 365)}y`}</p>
                 <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] mt-1 font-medium">Member</p>
@@ -324,7 +324,7 @@ const activeListings = userListings.filter(l => l.status === 'active')
             )}
 
             {/* Seller activity indicators */}
-            <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3 pt-3 border-t border-sib-stone/40">
+            <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3 pt-3 border-t border-sib-stone/40 dark:border-[rgba(242,238,231,0.10)]">
               <span className="inline-flex items-center gap-1.5 text-[11px] text-sib-muted dark:text-[#aeb8b4]">
                 <Clock size={11} className="text-emerald-500" />
                 <span>Active today</span>
@@ -334,7 +334,7 @@ const activeListings = userListings.filter(l => l.status === 'active')
                 <span>Collected within 1–2 days</span>
               </span>
               <span className="inline-flex items-center gap-1.5 text-[11px] text-sib-muted dark:text-[#aeb8b4]">
-                <MessageCircle size={11} className="text-blue-500" />
+                <MessageCircle size={11} className="text-sib-primary" />
                 <span>Replies within hours</span>
               </span>
             </div>

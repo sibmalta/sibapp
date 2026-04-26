@@ -15,16 +15,16 @@ function BlockedMessage({ msg, isMe, other }) {
       {!isMe && <UserAvatar user={other} size="xs" className="flex-shrink-0 self-end" />}
       <div className="max-w-[80%] flex flex-col gap-1">
         <div className={`px-4 py-3 rounded-2xl text-sm ${
-          isMe ? 'bg-red-100 rounded-br-sm' : 'bg-red-50 rounded-bl-sm'
+          isMe ? 'bg-red-100 dark:bg-[#362322] rounded-br-sm' : 'bg-red-50 dark:bg-[#362322] rounded-bl-sm'
         }`}>
           <div className="flex items-center gap-2 mb-1">
             <Ban size={13} className="text-red-500 flex-shrink-0" />
-            <span className="text-xs font-bold text-red-700">Message blocked</span>
+            <span className="text-xs font-bold text-red-700 dark:text-red-300">Message blocked</span>
           </div>
-          <p className="text-xs text-red-600 leading-snug">
+          <p className="text-xs text-red-600 dark:text-red-300 leading-snug">
             Addresses, contact details, and off-platform deals are not allowed on Sib
           </p>
-          <p className={`text-[10px] mt-2 text-red-400`}>
+          <p className={`text-[10px] mt-2 text-red-400 dark:text-red-300/70`}>
             {new Date(msg.timestamp).toLocaleTimeString('en-MT', { hour: '2-digit', minute: '2-digit' })}
           </p>
         </div>
@@ -39,14 +39,14 @@ function SendBlockedModal({ reasons, violationCount, onDismiss }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 px-4 pb-6">
       <div className="bg-white dark:bg-[#202b28] rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-slide-up border border-transparent dark:border-[rgba(242,238,231,0.10)] transition-colors">
-        <div className="px-5 pt-5 pb-4 bg-red-50">
+        <div className="px-5 pt-5 pb-4 bg-red-50 dark:bg-[#362322] transition-colors">
           <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-red-100">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-red-100 dark:bg-red-500/15">
               <Ban size={18} className="text-red-600" />
             </div>
             <div>
-              <p className="text-sm font-bold text-red-800">Message not sent</p>
-              <p className="text-xs mt-0.5 leading-snug text-red-700">
+              <p className="text-sm font-bold text-red-800 dark:text-red-200">Message not sent</p>
+              <p className="text-xs mt-0.5 leading-snug text-red-700 dark:text-red-300">
                 For your safety and to keep Buyer Protection active, sharing addresses, contact details, or arranging off-platform deals isn't allowed in chat.
               </p>
             </div>
@@ -64,14 +64,14 @@ function SendBlockedModal({ reasons, violationCount, onDismiss }) {
           </ul>
         </div>
         {isRepeatOffender && (
-          <div className="px-5 py-3 flex items-center gap-2 bg-red-50 border-b border-red-100">
+          <div className="px-5 py-3 flex items-center gap-2 bg-red-50 dark:bg-[#362322] border-b border-red-100 dark:border-[rgba(242,238,231,0.10)] transition-colors">
             <Ban size={13} className="text-red-500 flex-shrink-0" />
-            <p className="text-xs text-red-700 font-medium">Repeated attempts will lead to a temporary messaging restriction</p>
+            <p className="text-xs text-red-700 dark:text-red-300 font-medium">Repeated attempts will lead to a temporary messaging restriction</p>
           </div>
         )}
-        <div className="px-5 py-3 flex items-center gap-2 bg-green-50">
+        <div className="px-5 py-3 flex items-center gap-2 bg-green-50 dark:bg-[#26322f] transition-colors">
           <Lock size={13} className="text-green-600 flex-shrink-0" />
-          <p className="text-xs text-green-800 font-medium">Keep everything on Sib — your transactions are protected</p>
+          <p className="text-xs text-green-800 dark:text-green-300 font-medium">Keep everything on Sib — your transactions are protected</p>
         </div>
         <div className="px-5 py-4">
           <button onClick={onDismiss} className="w-full py-3 rounded-2xl bg-sib-primary text-white text-sm font-bold">
@@ -87,16 +87,16 @@ function SendBlockedModal({ reasons, violationCount, onDismiss }) {
 function RestrictionBanner({ restriction }) {
   const mins = Math.ceil(restriction.remainingMs / 60000)
   return (
-    <div className="px-4 py-3 bg-red-50 border-b border-red-100 flex items-start gap-3">
-      <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+    <div className="px-4 py-3 bg-red-50 dark:bg-[#362322] border-b border-red-100 dark:border-[rgba(242,238,231,0.10)] flex items-start gap-3 transition-colors">
+      <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-500/15 flex items-center justify-center flex-shrink-0 mt-0.5">
         <Ban size={14} className="text-red-600" />
       </div>
       <div>
-        <p className="text-xs font-bold text-red-800">Messaging temporarily restricted</p>
-        <p className="text-[11px] text-red-700 mt-0.5 leading-snug">
+        <p className="text-xs font-bold text-red-800 dark:text-red-200">Messaging temporarily restricted</p>
+        <p className="text-[11px] text-red-700 dark:text-red-300 mt-0.5 leading-snug">
           Multiple policy violations detected. You can send messages again in <span className="font-bold">{mins} min</span>.
         </p>
-        <p className="text-[10px] text-red-600 mt-1">Your account has been flagged for review.</p>
+        <p className="text-[10px] text-red-600 dark:text-red-300/80 mt-1">Your account has been flagged for review.</p>
       </div>
     </div>
   )
@@ -242,42 +242,57 @@ export default function ChatPage() {
     }
   }
 
-  const handleAcceptOffer = (offer) => {
-    acceptOffer(offer.id)
+  const handleAcceptOffer = async (offer) => {
+    const result = await acceptOffer(offer.id)
+    if (result?.error) {
+      showToast(result.error, 'error')
+      return
+    }
     showToast('Offer accepted.')
     if (offer.buyerId === currentUser.id) {
       navigate(`/checkout/${offer.listingId}?offer=${offer.id}`)
     }
   }
 
-  const handleDeclineOffer = (offerId) => {
-    declineOffer(offerId)
+  const handleDeclineOffer = async (offerId) => {
+    const result = await declineOffer(offerId)
+    if (result?.error) {
+      showToast(result.error, 'error')
+      return
+    }
     showToast('Offer declined.')
   }
 
-  const handleCounterOffer = (offerId, counterPrice) => {
-    counterOffer(offerId, counterPrice)
+  const handleCounterOffer = async (offerId, counterPrice) => {
+    const result = await counterOffer(offerId, counterPrice)
+    if (result?.error) {
+      showToast(result.error, 'error')
+      return
+    }
     setCounterModal(null)
     showToast('Counter offer sent.')
   }
 
   const renderOfferMessage = (msg) => {
-    const offer = getOfferById?.(msg.offerId) || {
+    const savedOffer = getOfferById?.(msg.offerId)
+    const offerListing = getListingById(msg.listingId || savedOffer?.listingId)
+    const buyerId = savedOffer?.buyerId || msg.buyerId || msg.metadata?.buyerId || msg.senderId || conv?.participants?.find(p => p !== offerListing?.sellerId)
+    const sellerId = savedOffer?.sellerId || msg.sellerId || msg.metadata?.sellerId || offerListing?.sellerId || conv?.participants?.find(p => p !== buyerId)
+    const offer = savedOffer || {
       id: msg.offerId,
       listingId: msg.listingId,
-      buyerId: msg.buyerId,
-      sellerId: msg.sellerId,
+      buyerId,
+      sellerId,
       price: msg.offerPrice,
       counterPrice: msg.counterPrice || null,
       acceptedPrice: msg.acceptedPrice || null,
       status: msg.status || 'pending',
     }
-    const offerListing = getListingById(msg.listingId || offer?.listingId)
     const status = offer?.status || msg.status || 'pending'
     const displayPrice = offer?.counterPrice || offer?.acceptedPrice || msg.offerPrice || offer?.price
     const originalPrice = msg.originalPrice || offerListing?.price
-    const isSeller = offer?.sellerId === currentUser.id
-    const isBuyer = offer?.buyerId === currentUser.id
+    const isSeller = sellerId === currentUser.id
+    const isBuyer = buyerId === currentUser.id
     const canSellerRespond = isSeller && status === 'pending'
     const canBuyerRespond = isBuyer && status === 'countered'
     const canCheckout = isBuyer && status === 'accepted'
@@ -331,7 +346,7 @@ export default function ChatPage() {
                   onClick={() => handleAcceptOffer(offer)}
                   className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl bg-green-600 px-3 py-2 text-xs font-bold text-white"
                 >
-                  <Check size={13} /> Accept
+                  <Check size={13} /> {canSellerRespond ? 'Accept offer' : 'Accept'}
                 </button>
               )}
               {canSellerRespond && (
@@ -409,9 +424,9 @@ export default function ChatPage() {
         {isRestricted ? (
           <RestrictionBanner restriction={restriction} />
         ) : (
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border-b border-amber-100">
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 dark:bg-[#26322f] border-b border-amber-100 dark:border-[rgba(242,238,231,0.10)] transition-colors">
             <ShieldCheck size={13} className="text-amber-600 flex-shrink-0" />
-            <p className="text-[11px] text-amber-800 font-medium">Payments made outside Sib are not protected</p>
+            <p className="text-[11px] text-amber-800 dark:text-amber-300 font-medium">Payments made outside Sib are not protected</p>
           </div>
         )}
 
@@ -453,9 +468,9 @@ export default function ChatPage() {
 
         {/* Live warning strip — shows while typing flagged content */}
         {analysis?.flagged && !isRestricted && (
-          <div className="px-4 py-2 border-t flex items-start gap-2 bg-red-50 border-red-100">
+          <div className="px-4 py-2 border-t flex items-start gap-2 bg-red-50 dark:bg-[#362322] border-red-100 dark:border-[rgba(242,238,231,0.10)] transition-colors">
             <Ban size={13} className="flex-shrink-0 mt-0.5 text-red-500" />
-            <p className="text-[11px] font-medium leading-snug text-red-700">
+            <p className="text-[11px] font-medium leading-snug text-red-700 dark:text-red-300">
               For your safety and to keep Buyer Protection active, sharing addresses, contact details, or arranging off-platform deals isn't allowed in chat.
             </p>
           </div>
@@ -473,9 +488,9 @@ export default function ChatPage() {
             disabled={isRestricted}
             className={`flex-1 rounded-2xl px-4 py-2.5 text-sm text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] outline-none resize-none max-h-24 transition-colors ${
               isRestricted
-                ? 'bg-red-50 border border-red-200 opacity-60 cursor-not-allowed'
+                ? 'bg-red-50 dark:bg-[#362322] border border-red-200 dark:border-red-500/20 opacity-60 cursor-not-allowed'
                 : analysis?.flagged
-                  ? 'bg-red-50 border border-red-200'
+                  ? 'bg-red-50 dark:bg-[#362322] border border-red-200 dark:border-red-500/20'
                   : 'bg-sib-sand dark:bg-[#26322f] border border-transparent'
             }`}
           />

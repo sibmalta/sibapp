@@ -18,12 +18,12 @@ const SELLER_FILTERS = [
 const BUYER_STATUS_STYLES = {
   paid: 'bg-yellow-50 text-yellow-700 dark:bg-[#332d20] dark:text-amber-300',
   pending: 'bg-yellow-50 text-yellow-700 dark:bg-[#332d20] dark:text-amber-300',
-  shipped: 'bg-blue-50 text-blue-700 dark:bg-[#21303a] dark:text-blue-300',
+  shipped: 'bg-blue-50 text-blue-700 dark:bg-[#26322f] dark:text-blue-300',
   delivered: 'bg-amber-50 text-amber-700 dark:bg-[#332d20] dark:text-amber-300',
   confirmed: 'bg-green-50 text-green-700 dark:bg-[#20322b] dark:text-green-300',
   completed: 'bg-green-50 text-green-700 dark:bg-[#20322b] dark:text-green-300',
   disputed: 'bg-red-50 text-red-600 dark:bg-[#362322] dark:text-red-300',
-  under_review: 'bg-purple-50 text-purple-700 dark:bg-[#2d2638] dark:text-purple-300',
+  under_review: 'bg-purple-50 text-purple-700 dark:bg-[#26322f] dark:text-[#aeb8b4]',
   cancelled: 'bg-red-50 text-red-500 dark:bg-[#362322] dark:text-red-300',
   refunded: 'bg-red-50 text-red-500 dark:bg-[#362322] dark:text-red-300',
 }
@@ -91,7 +91,7 @@ function getSellerOrderState(order, shipment) {
     return {
       filter: 'active',
       label: 'In transit',
-      style: 'bg-blue-50 text-blue-700 dark:bg-[#21303a] dark:text-blue-300',
+      style: 'bg-blue-50 text-blue-700 dark:bg-[#26322f] dark:text-blue-300',
       nextStep: 'Order is on the way to the buyer.',
     }
   }
@@ -100,7 +100,7 @@ function getSellerOrderState(order, shipment) {
     return {
       filter: 'active',
       label: 'Awaiting collection',
-      style: 'bg-blue-50 text-blue-700 dark:bg-[#21303a] dark:text-blue-300',
+      style: 'bg-blue-50 text-blue-700 dark:bg-[#26322f] dark:text-blue-300',
       nextStep: 'Waiting for MaltaPost collection/drop-off processing.',
     }
   }
@@ -271,7 +271,7 @@ export default function OrdersPage() {
               <div
                 key={order.id}
                 onClick={() => navigate(`/orders/${order.id}`)}
-                className="flex gap-3 px-4 py-4 cursor-pointer bg-white dark:bg-[#202b28] active:bg-sib-warm dark:active:bg-[#30403c] transition-colors"
+                className="flex gap-3 px-4 py-4 cursor-pointer sib-card active:bg-sib-warm dark:active:bg-[#30403c] transition-colors"
               >
                 <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-sib-sand dark:bg-[#26322f]">
                   {itemImage ? (
@@ -320,7 +320,7 @@ export default function OrdersPage() {
                     </span>
 
                     {tab === 'selling' && (
-                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
+                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-[#26322f] dark:text-blue-300">
                         {titleCaseFulfilment(fulfilmentMethod)}
                       </span>
                     )}

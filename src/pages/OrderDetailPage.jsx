@@ -142,7 +142,7 @@ export default function OrderDetailPage() {
 
       <div className="px-4 py-5 space-y-5">
         {/* Item summary */}
-        <div className="flex items-center gap-3 p-4 rounded-2xl bg-sib-sand dark:bg-[#26322f] transition-colors">
+        <div className="flex items-center gap-3 p-4 rounded-2xl sib-elevated border transition-colors">
           <img src={listing?.images?.[0]} alt={listing?.title} className="w-16 h-16 rounded-xl object-cover flex-shrink-0 bg-sib-stone" />
           <div className="min-w-0">
             <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7] line-clamp-2">{listing?.title}</p>
@@ -153,14 +153,14 @@ export default function OrderDetailPage() {
 
         {/* Buyer paid state */}
         {isBuyer && isPaid && !isDelivered && !isConfirmed && !isDisputed && (
-          <div className="p-4 rounded-2xl bg-green-50 border border-green-200">
+          <div className="p-4 rounded-2xl bg-green-50 dark:bg-[#26322f] border border-green-200 dark:border-[rgba(242,238,231,0.10)] transition-colors">
             <div className="flex items-start gap-3">
               <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
                 <CheckCircle size={18} className="text-green-600" />
               </div>
               <div className="min-w-0">
-                <h2 className="text-sm font-bold text-green-800">Order confirmed</h2>
-                <p className="text-xs text-green-700 leading-relaxed mt-1">
+                <h2 className="text-sm font-bold text-green-800 dark:text-green-300">Order confirmed</h2>
+                <p className="text-xs text-green-700 dark:text-[#aeb8b4] leading-relaxed mt-1">
                   Your item is reserved and will be shipped shortly. You'll receive updates when it's on the way.
                 </p>
               </div>
@@ -168,15 +168,15 @@ export default function OrderDetailPage() {
             <div className="grid grid-cols-3 gap-2 mt-3">
               <div className="rounded-xl bg-white/70 dark:bg-[#26322f]/80 border border-green-100 dark:border-green-500/20 px-2 py-2 transition-colors">
                 <CheckCircle size={13} className="text-green-600 mb-1" />
-                <p className="text-[11px] font-semibold text-green-800 leading-tight">Payment received</p>
+                <p className="text-[11px] font-semibold text-green-800 dark:text-green-300 leading-tight">Payment received</p>
               </div>
               <div className="rounded-xl bg-white/70 dark:bg-[#26322f]/80 border border-green-100 dark:border-green-500/20 px-2 py-2 transition-colors">
                 <Package size={13} className="text-green-600 mb-1" />
-                <p className="text-[11px] font-semibold text-green-800 leading-tight">Seller preparing</p>
+                <p className="text-[11px] font-semibold text-green-800 dark:text-green-300 leading-tight">Seller preparing</p>
               </div>
               <div className="rounded-xl bg-white/70 dark:bg-[#26322f]/80 border border-green-100 dark:border-green-500/20 px-2 py-2 transition-colors">
                 <Truck size={13} className="text-green-600 mb-1" />
-                <p className="text-[11px] font-semibold text-green-800 leading-tight">Updates next</p>
+                <p className="text-[11px] font-semibold text-green-800 dark:text-green-300 leading-tight">Updates next</p>
               </div>
             </div>
           </div>
@@ -195,20 +195,20 @@ export default function OrderDetailPage() {
               </p>
 
               {/* Trust message */}
-              <div className="flex items-start gap-2 p-2.5 rounded-xl bg-green-50 border border-green-100 mb-3">
+              <div className="flex items-start gap-2 p-2.5 rounded-xl bg-green-50 dark:bg-[#26322f] border border-green-100 dark:border-[rgba(242,238,231,0.10)] mb-3">
                 <ShieldCheck size={14} className="text-green-600 flex-shrink-0 mt-0.5" />
-                <p className="text-[11px] text-green-700 leading-relaxed">
+                <p className="text-[11px] text-green-700 dark:text-[#aeb8b4] leading-relaxed">
                   Your payment is held securely. Confirming will release payment to the seller immediately.
                 </p>
               </div>
 
               {/* Countdown */}
               {countdown !== null && countdown > 0 && (
-                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-50 border border-amber-100 mb-4">
+                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-50 dark:bg-[#26322f] border border-amber-100 dark:border-[rgba(242,238,231,0.10)] mb-4">
                   <Timer size={14} className="text-amber-600 flex-shrink-0" />
                   <div>
-                    <p className="text-[11px] text-amber-700 font-medium">Protection window active</p>
-                    <p className="text-sm font-bold text-amber-800 font-mono mt-0.5">
+                    <p className="text-[11px] text-amber-700 dark:text-amber-300 font-medium">Protection window active</p>
+                    <p className="text-sm font-bold text-amber-800 dark:text-amber-200 font-mono mt-0.5">
                       Auto-confirm in {formatCountdown(countdown)}
                     </p>
                   </div>
@@ -241,7 +241,7 @@ export default function OrderDetailPage() {
 
         {/* ── Dispute form ── */}
         {disputeOpen && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
+          <div className="rounded-2xl border border-red-200 dark:border-[rgba(242,238,231,0.10)] bg-red-50 dark:bg-[#26322f] p-4 transition-colors">
             <div className="flex items-center gap-2 mb-2">
               <AlertTriangle size={16} className="text-red-600" />
               <h3 className="text-sm font-bold text-red-800">Report an issue</h3>
@@ -291,7 +291,7 @@ export default function OrderDetailPage() {
 
         {/* ── Seller waiting state ── */}
         {isSeller && isDelivered && (
-          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200">
+          <div className="p-4 rounded-2xl bg-amber-50 dark:bg-[#26322f] border border-amber-200 dark:border-[rgba(242,238,231,0.10)] transition-colors">
             <div className="flex items-center gap-2 mb-2">
               <Clock size={16} className="text-amber-600" />
               <h2 className="text-sm font-bold text-amber-800">Waiting for buyer confirmation (48h)</h2>
@@ -312,7 +312,7 @@ export default function OrderDetailPage() {
 
         {/* ── Confirmed state ── */}
         {isConfirmed && (
-          <div className="p-4 rounded-2xl bg-green-50 border border-green-200">
+          <div className="p-4 rounded-2xl bg-green-50 dark:bg-[#26322f] border border-green-200 dark:border-[rgba(242,238,231,0.10)] transition-colors">
             <div className="flex items-center gap-2 mb-1">
               <CheckCircle size={16} className="text-green-600" />
               <h2 className="text-sm font-bold text-green-800">
@@ -331,7 +331,7 @@ export default function OrderDetailPage() {
 
         {/* ── Disputed state ── */}
         {isDisputed && (
-          <div className="p-4 rounded-2xl bg-red-50 border border-red-200">
+          <div className="p-4 rounded-2xl bg-red-50 dark:bg-[#26322f] border border-red-200 dark:border-[rgba(242,238,231,0.10)] transition-colors">
             <div className="flex items-center gap-2 mb-1">
               <AlertTriangle size={16} className="text-red-600" />
               <h2 className="text-sm font-bold text-red-800">Issue reported</h2>
@@ -347,7 +347,7 @@ export default function OrderDetailPage() {
 
         {/* ── Seller ship action (awaiting shipment) ── */}
         {isSeller && isPaid && isAwaitingShipment && (
-          <div className="rounded-2xl border-2 border-blue-200 bg-blue-50 overflow-hidden">
+          <div className="rounded-2xl border-2 border-blue-200 dark:border-[rgba(242,238,231,0.10)] bg-blue-50 dark:bg-[#26322f] overflow-hidden transition-colors">
             <div className="p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Truck size={18} className="text-blue-600" />
@@ -358,7 +358,7 @@ export default function OrderDetailPage() {
               </p>
               <div className="flex items-start gap-2 p-2.5 rounded-xl bg-white/70 dark:bg-[#26322f]/80 border border-blue-100 dark:border-blue-500/20 mb-3 transition-colors">
                 <ShieldCheck size={14} className="text-blue-600 flex-shrink-0 mt-0.5" />
-                <p className="text-[11px] text-blue-700 leading-relaxed">
+                <p className="text-[11px] text-blue-700 dark:text-[#aeb8b4] leading-relaxed">
                   Fulfilment method: {fulfilmentShortLabel}. MaltaPost API integration will be added later.
                 </p>
               </div>
@@ -429,7 +429,7 @@ export default function OrderDetailPage() {
 
         {/* Details */}
         <div className="space-y-3">
-          <div className="flex items-center gap-3 p-3 rounded-2xl bg-sib-sand dark:bg-[#26322f] cursor-pointer transition-colors" onClick={() => navigate(`/profile/${other?.username}`)}>
+          <div className="flex items-center gap-3 p-3 rounded-2xl sib-elevated border cursor-pointer transition-colors" onClick={() => navigate(`/profile/${other?.username}`)}>
             <UserAvatar user={other} size="sm" />
             <div>
               <p className="text-xs text-sib-muted dark:text-[#aeb8b4]">{isBuyer ? 'Seller' : 'Buyer'}</p>
@@ -437,7 +437,7 @@ export default function OrderDetailPage() {
             </div>
           </div>
 
-          <div className="flex items-start gap-3 p-3 rounded-2xl bg-sib-sand dark:bg-[#26322f] transition-colors">
+          <div className="flex items-start gap-3 p-3 rounded-2xl sib-elevated border transition-colors">
             <div className="w-8 h-8 rounded-full bg-sib-stone dark:bg-[#30403c] flex items-center justify-center flex-shrink-0">
               <Truck size={14} className="text-sib-muted dark:text-[#aeb8b4]" />
             </div>
@@ -474,7 +474,7 @@ export default function OrderDetailPage() {
         </div>
 
         {/* Cost breakdown */}
-        <div className="p-4 rounded-2xl bg-sib-warm dark:bg-[#26322f] border border-transparent dark:border-[rgba(242,238,231,0.10)] transition-colors">
+        <div className="p-4 rounded-2xl sib-elevated border transition-colors">
           <p className="text-sm font-bold text-sib-text dark:text-[#f4efe7] mb-3">Payment</p>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between text-sib-muted dark:text-[#aeb8b4]">

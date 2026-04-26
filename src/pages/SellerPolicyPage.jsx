@@ -12,7 +12,7 @@ export default function SellerPolicyPage() {
       lastUpdated="January 2025"
     >
       <PolicySection number={1} title="Seller fees">
-        <div className="flex items-start gap-3 p-4 rounded-2xl bg-green-50 border border-green-200">
+        <div className="flex items-start gap-3 p-4 rounded-2xl bg-green-50 dark:bg-[#26322f] border border-green-200 dark:border-[rgba(242,238,231,0.10)] transition-colors">
           <CheckCircle size={18} className="text-green-600 flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-semibold text-sib-text">0% seller fees</p>

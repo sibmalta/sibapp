@@ -5,11 +5,11 @@ import { useApp } from '../context/AppContext'
 import CounterOfferModal from '../components/CounterOfferModal'
 
 const STATUS_CONFIG = {
-  pending: { label: 'Pending', color: 'bg-amber-50 text-amber-700', icon: Clock },
-  accepted: { label: 'Accepted', color: 'bg-green-50 text-green-700', icon: Check },
-  declined: { label: 'Declined', color: 'bg-red-50 text-red-600', icon: X },
-  countered: { label: 'Countered', color: 'bg-blue-50 text-blue-700', icon: ArrowLeftRight },
-  expired: { label: 'Expired', color: 'bg-gray-100 text-gray-500', icon: Clock },
+  pending: { label: 'Pending', color: 'bg-amber-50 text-amber-700 dark:bg-[#26322f] dark:text-amber-300', icon: Clock },
+  accepted: { label: 'Accepted', color: 'bg-green-50 text-green-700 dark:bg-[#26322f] dark:text-green-300', icon: Check },
+  declined: { label: 'Declined', color: 'bg-red-50 text-red-600 dark:bg-[#26322f] dark:text-red-300', icon: X },
+  countered: { label: 'Countered', color: 'bg-blue-50 text-blue-700 dark:bg-[#26322f] dark:text-[#aeb8b4]', icon: ArrowLeftRight },
+  expired: { label: 'Expired', color: 'bg-gray-100 text-gray-500 dark:bg-[#26322f] dark:text-[#aeb8b4]', icon: Clock },
 }
 
 export default function OffersPage() {
@@ -78,16 +78,16 @@ export default function OffersPage() {
     const minsLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60))
 
     return (
-      <div key={offer.id} className="bg-white rounded-2xl border border-sib-stone/50 overflow-hidden">
+      <div key={offer.id} className="sib-card rounded-2xl border overflow-hidden transition-colors">
         {/* Item row */}
         <div
-          className="flex items-center gap-3 p-3 cursor-pointer hover:bg-sib-sand/30 transition-colors"
+          className="flex items-center gap-3 p-3 cursor-pointer hover:bg-sib-sand/30 dark:hover:bg-[#30403c] transition-colors"
           onClick={() => navigate(`/listing/${listing.id}`)}
         >
           <img src={listing.images[0]} alt={listing.title} className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-sib-text truncate">{listing.title}</p>
-            <p className="text-xs text-sib-muted mt-0.5">
+            <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7] truncate">{listing.title}</p>
+            <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mt-0.5">
               {isSeller ? 'From' : 'To'} @{otherUser?.username || 'user'} · Listed at €{listing.price}
             </p>
           </div>
@@ -101,13 +101,13 @@ export default function OffersPage() {
               {isSeller ? (
                 <ArrowDownLeft size={14} className="text-sib-primary" />
               ) : (
-                <ArrowUpRight size={14} className="text-sib-muted" />
+                <ArrowUpRight size={14} className="text-sib-muted dark:text-[#aeb8b4]" />
               )}
-              <span className="text-lg font-bold text-sib-text">
+              <span className="text-lg font-bold text-sib-text dark:text-[#f4efe7]">
                 €{isCountered && offer.counterPrice ? offer.counterPrice : offer.price}
               </span>
               {isCountered && offer.counterPrice && !isSeller && (
-                <span className="text-xs text-sib-muted line-through">€{offer.price}</span>
+                <span className="text-xs text-sib-muted dark:text-[#aeb8b4] line-through">€{offer.price}</span>
               )}
             </div>
             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${config.color}`}>
@@ -118,7 +118,7 @@ export default function OffersPage() {
 
           {/* Time left for pending/countered */}
           {(isPending || isCountered) && timeLeft > 0 && (
-            <p className="text-[11px] text-sib-muted flex items-center gap-1">
+            <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] flex items-center gap-1">
               <Clock size={10} />
               Expires in {hoursLeft}h {minsLeft}m
             </p>
@@ -141,9 +141,9 @@ export default function OffersPage() {
               </button>
               <button
                 onClick={() => handleDecline(offer.id)}
-                className="w-11 h-11 flex items-center justify-center rounded-xl border border-sib-stone hover:bg-red-50 hover:border-red-200 transition-colors flex-shrink-0"
+                className="w-11 h-11 flex items-center justify-center rounded-xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] hover:bg-red-50 dark:hover:bg-[#362322] hover:border-red-200 dark:hover:border-red-500/20 transition-colors flex-shrink-0"
               >
-                <X size={16} className="text-sib-muted" />
+                <X size={16} className="text-sib-muted dark:text-[#aeb8b4]" />
               </button>
             </div>
           )}
@@ -159,7 +159,7 @@ export default function OffersPage() {
               </button>
               <button
                 onClick={() => handleDeclineCounter(offer.id)}
-                className="flex-1 border border-sib-stone text-sib-muted font-semibold py-2.5 rounded-xl text-sm hover:bg-red-50 hover:text-red-600 transition-colors"
+                className="flex-1 border border-sib-stone dark:border-[rgba(242,238,231,0.10)] text-sib-muted dark:text-[#aeb8b4] font-semibold py-2.5 rounded-xl text-sm hover:bg-red-50 dark:hover:bg-[#362322] hover:text-red-600 dark:hover:text-red-300 transition-colors"
               >
                 Decline
               </button>
@@ -183,17 +183,17 @@ export default function OffersPage() {
   return (
     <div className="px-4 py-4 pb-8 lg:max-w-2xl lg:mx-auto lg:px-8 lg:py-8">
       <div className="flex items-center gap-3 mb-4">
-        <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full bg-sib-sand flex items-center justify-center flex-shrink-0 hover:bg-sib-stone transition-colors">
-          <ArrowLeft size={18} className="text-sib-text" />
+        <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full bg-sib-sand dark:bg-[#26322f] flex items-center justify-center flex-shrink-0 hover:bg-sib-stone dark:hover:bg-[#30403c] transition-colors">
+          <ArrowLeft size={18} className="text-sib-text dark:text-[#f4efe7]" />
         </button>
-        <h1 className="text-xl font-bold text-sib-text lg:text-2xl">Offers</h1>
+        <h1 className="text-xl font-bold text-sib-text dark:text-[#f4efe7] lg:text-2xl">Offers</h1>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-0 bg-sib-sand rounded-xl p-1 mb-5">
+      <div className="flex gap-0 bg-sib-sand dark:bg-[#26322f] rounded-xl p-1 mb-5 transition-colors">
         <button
           onClick={() => setTab('received')}
-          className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === 'received' ? 'bg-white text-sib-text shadow-sm' : 'text-sib-muted'}`}
+          className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === 'received' ? 'bg-white dark:bg-[#30403c] text-sib-text dark:text-[#f4efe7] shadow-sm' : 'text-sib-muted dark:text-[#aeb8b4]'}`}
         >
           Received {activeReceived.length > 0 && (
             <span className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-sib-secondary text-white text-[10px] font-bold">{activeReceived.length}</span>
@@ -201,7 +201,7 @@ export default function OffersPage() {
         </button>
         <button
           onClick={() => setTab('sent')}
-          className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === 'sent' ? 'bg-white text-sib-text shadow-sm' : 'text-sib-muted'}`}
+          className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${tab === 'sent' ? 'bg-white dark:bg-[#30403c] text-sib-text dark:text-[#f4efe7] shadow-sm' : 'text-sib-muted dark:text-[#aeb8b4]'}`}
         >
           Sent {activeSent.length > 0 && (
             <span className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-500 text-white text-[10px] font-bold">{activeSent.length}</span>
@@ -214,18 +214,18 @@ export default function OffersPage() {
         {tab === 'received' && (
           received.length === 0 ? (
             <div className="text-center py-16">
-              <Tag size={32} className="mx-auto mb-3 text-sib-stone" />
-              <p className="text-sib-muted text-sm font-medium">No offers received yet</p>
-              <p className="text-sib-muted text-xs mt-1">Offers from buyers will appear here</p>
+              <Tag size={32} className="mx-auto mb-3 text-sib-stone dark:text-[#aeb8b4]" />
+              <p className="text-sib-muted dark:text-[#aeb8b4] text-sm font-medium">No offers received yet</p>
+              <p className="text-sib-muted dark:text-[#aeb8b4] text-xs mt-1">Offers from buyers will appear here</p>
             </div>
           ) : received.map(o => renderOffer(o, true))
         )}
         {tab === 'sent' && (
           sent.length === 0 ? (
             <div className="text-center py-16">
-              <Tag size={32} className="mx-auto mb-3 text-sib-stone" />
-              <p className="text-sib-muted text-sm font-medium">No offers sent yet</p>
-              <p className="text-sib-muted text-xs mt-1">Make an offer on any listing</p>
+              <Tag size={32} className="mx-auto mb-3 text-sib-stone dark:text-[#aeb8b4]" />
+              <p className="text-sib-muted dark:text-[#aeb8b4] text-sm font-medium">No offers sent yet</p>
+              <p className="text-sib-muted dark:text-[#aeb8b4] text-xs mt-1">Make an offer on any listing</p>
             </div>
           ) : sent.map(o => renderOffer(o, false))
         )}

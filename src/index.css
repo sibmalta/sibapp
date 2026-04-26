@@ -2,6 +2,85 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --sib-page-dark: #18211f;
+  --sib-surface-dark: #202b28;
+  --sib-elevated-dark: #26322f;
+  --sib-hover-dark: #30403c;
+  --sib-border-dark: rgba(242, 238, 231, 0.10);
+  --sib-border-strong-dark: rgba(242, 238, 231, 0.18);
+  --sib-text-dark: #f4efe7;
+  --sib-muted-dark: #aeb8b4;
+}
+
+@layer components {
+  .sib-page {
+    background-color: #fafaf6;
+    color: #1A2223;
+  }
+
+  .dark .sib-page {
+    background-color: var(--sib-page-dark);
+    color: var(--sib-text-dark);
+  }
+
+  .sib-panel {
+    background-color: #ffffff;
+    border-color: #DDDCDA;
+    color: #1A2223;
+  }
+
+  .dark .sib-panel {
+    background-color: var(--sib-surface-dark);
+    border-color: var(--sib-border-dark);
+    color: var(--sib-text-dark);
+  }
+
+  .sib-card {
+    background-color: #ffffff;
+    border-color: rgba(221, 220, 218, 0.7);
+    color: #1A2223;
+  }
+
+  .dark .sib-card {
+    background-color: var(--sib-surface-dark);
+    border-color: var(--sib-border-dark);
+    color: var(--sib-text-dark);
+  }
+
+  .sib-elevated {
+    background-color: #F5F5F4;
+    border-color: rgba(221, 220, 218, 0.7);
+    color: #1A2223;
+  }
+
+  .dark .sib-elevated {
+    background-color: var(--sib-elevated-dark);
+    border-color: var(--sib-border-dark);
+    color: var(--sib-text-dark);
+  }
+
+  .sib-muted {
+    color: #697073;
+  }
+
+  .dark .sib-muted {
+    color: var(--sib-muted-dark);
+  }
+
+  .sib-status-soft {
+    background-color: #F5F5F4;
+    border-color: rgba(221, 220, 218, 0.7);
+    color: #697073;
+  }
+
+  .dark .sib-status-soft {
+    background-color: var(--sib-elevated-dark);
+    border-color: var(--sib-border-dark);
+    color: var(--sib-muted-dark);
+  }
+}
+
 * {
   -webkit-tap-highlight-color: transparent;
 }

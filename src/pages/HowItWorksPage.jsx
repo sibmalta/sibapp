@@ -154,31 +154,31 @@ export default function HowItWorksPage() {
               icon: CreditCard,
               title: 'Secure Payments',
               desc: 'All payments go through Sib. Your card details are encrypted and never shared with sellers.',
-              color: 'bg-blue-50 text-blue-600',
+              color: 'bg-blue-50 text-blue-600 dark:bg-[#26322f] dark:text-[#e8751a]',
             },
             {
               icon: ShieldCheck,
               title: 'Buyer Protection',
               desc: 'If your item doesn\'t arrive, arrives damaged, or doesn\'t match the listing, you\'re covered. We\'ll refund you.',
-              color: 'bg-emerald-50 text-emerald-600',
+              color: 'bg-emerald-50 text-emerald-600 dark:bg-[#26322f] dark:text-[#e8751a]',
             },
             {
               icon: Truck,
               title: 'Tracked Delivery',
               desc: 'Every order ships with tracked delivery across Malta. Know exactly where your parcel is at all times.',
-              color: 'bg-amber-50 text-amber-600',
+              color: 'bg-amber-50 text-amber-600 dark:bg-[#26322f] dark:text-[#e8751a]',
             },
             {
               icon: Banknote,
               title: 'Seller Payouts',
               desc: 'Earnings are held securely in escrow until delivery is confirmed. Payouts are sent to your bank every Tuesday and Friday.',
-              color: 'bg-purple-50 text-purple-600',
+              color: 'bg-purple-50 text-purple-600 dark:bg-[#26322f] dark:text-[#e8751a]',
             },
             {
               icon: Clock,
               title: '48-Hour Window',
               desc: 'Buyers have 48 hours after delivery to confirm the item or raise a dispute. After that, funds are automatically released to the seller.',
-              color: 'bg-sky-50 text-sky-600',
+              color: 'bg-sky-50 text-sky-600 dark:bg-[#26322f] dark:text-[#e8751a]',
             },
           ].map(({ icon: Icon, title, desc, color }) => (
             <div key={title} className="p-3.5 rounded-xl border border-sib-stone/50 dark:border-[rgba(242,238,231,0.10)] bg-white dark:bg-[#202b28] flex gap-3 transition-colors">
@@ -199,7 +199,7 @@ export default function HowItWorksPage() {
       {/* ── Disputes & Refunds ──────────────────────────────── */}
       <section className="px-4 mb-8">
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-8 h-8 rounded-xl bg-red-50 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-xl bg-red-50 dark:bg-[#26322f] flex items-center justify-center">
             <AlertTriangle size={16} className="text-red-500" />
           </div>
           <h2 className="text-lg font-bold text-sib-text">Disputes & Refunds</h2>

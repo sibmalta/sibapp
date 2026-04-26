@@ -62,31 +62,31 @@ export default function AboutPage() {
               icon: ShieldCheck,
               title: 'Safe & Secure',
               desc: 'Payments are held in escrow until you confirm delivery. Your money is protected at every step.',
-              color: 'bg-emerald-50 text-emerald-600',
+              color: 'bg-emerald-50 text-emerald-600 dark:bg-[#26322f] dark:text-[#e8751a]',
             },
             {
               icon: Truck,
               title: 'Tracked Delivery',
               desc: 'Every order ships with tracked delivery across Malta. No more guessing when your parcel will arrive.',
-              color: 'bg-blue-50 text-blue-600',
+              color: 'bg-blue-50 text-blue-600 dark:bg-[#26322f] dark:text-[#e8751a]',
             },
             {
               icon: MapPin,
               title: 'Made for Malta',
               desc: 'Sib is built specifically for the Maltese market — local sellers, local delivery, and prices in Euro.',
-              color: 'bg-amber-50 text-amber-600',
+              color: 'bg-amber-50 text-amber-600 dark:bg-[#26322f] dark:text-[#e8751a]',
             },
             {
               icon: Leaf,
               title: 'Sustainable Shopping',
               desc: 'Every second-hand purchase reduces waste and extends the life of quality goods. Good for you, good for the planet.',
-              color: 'bg-green-50 text-green-600',
+              color: 'bg-green-50 text-green-600 dark:bg-[#26322f] dark:text-[#e8751a]',
             },
             {
               icon: Users,
               title: 'Community-Driven',
               desc: 'Sib is powered by its community. Sellers are rated and reviewed, building trust through every transaction.',
-              color: 'bg-violet-50 text-violet-600',
+              color: 'bg-violet-50 text-violet-600 dark:bg-[#26322f] dark:text-[#e8751a]',
             },
           ].map(({ icon: Icon, title, desc, color }) => (
             <div key={title} className="p-3.5 rounded-xl border border-sib-stone/50 dark:border-[rgba(242,238,231,0.10)] bg-white dark:bg-[#202b28] flex gap-3 transition-colors">

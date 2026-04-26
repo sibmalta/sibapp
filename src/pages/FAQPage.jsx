@@ -174,7 +174,7 @@ export default function FAQPage() {
               <section.icon size={15} className="text-sib-secondary flex-shrink-0" />
               <p className="text-[11px] font-semibold text-sib-muted dark:text-[#aeb8b4] uppercase tracking-wide">{section.title}</p>
             </div>
-            <div className="rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] overflow-hidden bg-white dark:bg-[#202b28] transition-colors">
+            <div className="rounded-2xl border sib-card overflow-hidden transition-colors">
               {section.items.map((item, iIdx) => (
                 <AccordionItem
                   key={iIdx}
@@ -190,7 +190,7 @@ export default function FAQPage() {
       </div>
 
       {/* Still need help? */}
-      <div className="mt-8 p-4 rounded-2xl bg-sib-warm dark:bg-[#26322f] border border-sib-stone dark:border-[rgba(242,238,231,0.10)] transition-colors">
+      <div className="mt-8 p-4 rounded-2xl sib-elevated border transition-colors">
         <div className="flex items-center gap-2 mb-2">
           <MessageCircle size={16} className="text-sib-primary" />
           <p className="text-sm font-bold text-sib-text dark:text-[#f4efe7]">Still have questions?</p>

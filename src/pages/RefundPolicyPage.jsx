@@ -40,15 +40,15 @@ export default function RefundPolicyPage() {
         <section>
           <h2 className="font-bold text-base mb-2">How refunds are processed</h2>
           <div className="space-y-3 mt-3">
-            <div className="flex gap-3 items-start p-3.5 rounded-xl bg-sib-warm border border-sib-stone">
+            <div className="flex gap-3 items-start p-3.5 rounded-xl sib-elevated border">
               <div className="w-6 h-6 rounded-full bg-sib-primary text-white flex items-center justify-center flex-shrink-0 text-xs font-bold">1</div>
               <p className="text-sm text-sib-text">Dispute is reviewed by the Sib team (usually within 24-48 hours).</p>
             </div>
-            <div className="flex gap-3 items-start p-3.5 rounded-xl bg-sib-warm border border-sib-stone">
+            <div className="flex gap-3 items-start p-3.5 rounded-xl sib-elevated border">
               <div className="w-6 h-6 rounded-full bg-sib-primary text-white flex items-center justify-center flex-shrink-0 text-xs font-bold">2</div>
               <p className="text-sm text-sib-text">If approved, the refund is processed back to your original payment method.</p>
             </div>
-            <div className="flex gap-3 items-start p-3.5 rounded-xl bg-sib-warm border border-sib-stone">
+            <div className="flex gap-3 items-start p-3.5 rounded-xl sib-elevated border">
               <div className="w-6 h-6 rounded-full bg-sib-primary text-white flex items-center justify-center flex-shrink-0 text-xs font-bold">3</div>
               <p className="text-sm text-sib-text">Refunds typically appear in your account within 5-10 business days, depending on your bank or payment provider.</p>
             </div>
@@ -81,7 +81,7 @@ export default function RefundPolicyPage() {
           </div>
         </section>
 
-        <div className="flex items-start gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200">
+        <div className="flex items-start gap-3 p-4 rounded-2xl bg-amber-50 dark:bg-[#26322f] border border-amber-200 dark:border-[rgba(242,238,231,0.10)] transition-colors">
           <AlertTriangle size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-semibold text-sib-text">Important</p>
@@ -102,8 +102,8 @@ export default function RefundPolicyPage() {
         </section>
       </div>
 
-      <div className="mt-8 p-4 rounded-2xl bg-sib-warm border border-sib-stone">
-        <p className="text-xs text-sib-muted leading-relaxed">
+      <div className="mt-8 p-4 rounded-2xl sib-elevated border">
+        <p className="text-xs text-sib-muted dark:text-[#aeb8b4] leading-relaxed">
           For more details, see our <Link to="/buyer-protection" className="text-sib-primary font-semibold underline underline-offset-2">Buyer Protection Policy</Link> and <Link to="/terms" className="text-sib-primary font-semibold underline underline-offset-2">Terms & Conditions</Link>.
         </p>
       </div>

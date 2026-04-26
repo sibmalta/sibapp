@@ -86,10 +86,10 @@ export default function DeliverySettingsPage() {
     return (
       <div className="px-4 py-5 pb-10 max-w-lg mx-auto">
         <div className="animate-pulse space-y-4">
-          <div className="h-6 w-32 bg-gray-200 rounded" />
-          <div className="h-12 bg-gray-200 rounded-xl" />
-          <div className="h-12 bg-gray-200 rounded-xl" />
-          <div className="h-12 bg-gray-200 rounded-xl" />
+          <div className="h-6 w-32 bg-gray-200 dark:bg-[#26322f] rounded" />
+          <div className="h-12 bg-gray-200 dark:bg-[#26322f] rounded-xl" />
+          <div className="h-12 bg-gray-200 dark:bg-[#26322f] rounded-xl" />
+          <div className="h-12 bg-gray-200 dark:bg-[#26322f] rounded-xl" />
         </div>
       </div>
     )
@@ -97,70 +97,70 @@ export default function DeliverySettingsPage() {
 
   return (
     <div className="px-4 py-5 pb-10 max-w-lg mx-auto">
-      <button onClick={() => navigate(-1)} className="inline-flex items-center gap-1.5 text-sib-muted text-sm font-medium mb-4">
+      <button onClick={() => navigate(-1)} className="inline-flex items-center gap-1.5 text-sib-muted dark:text-[#aeb8b4] text-sm font-medium mb-4">
         <ArrowLeft size={16} /> Back
       </button>
 
       <div className="flex items-center gap-2 mb-1">
         <MapPin size={20} className="text-sib-primary" />
-        <h1 className="text-xl font-bold text-sib-text">Delivery Details</h1>
+        <h1 className="text-xl font-bold text-sib-text dark:text-[#f4efe7]">Delivery Details</h1>
       </div>
-      <p className="text-xs text-sib-muted mb-6">Your saved address will be pre-filled at checkout.</p>
+      <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mb-6">Your saved address will be pre-filled at checkout.</p>
 
       <div className="space-y-4">
         {/* Full Name */}
         <div>
-          <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">Full Name</label>
+          <label className="text-xs font-semibold text-sib-text dark:text-[#f4efe7] uppercase tracking-wide mb-1.5 block">Full Name</label>
           <input
             value={form.fullName}
             onChange={e => set('fullName', e.target.value)}
             placeholder="Your full name"
-            className="w-full border border-sib-stone rounded-xl px-4 py-3 text-sm outline-none text-sib-text placeholder-sib-muted focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20"
+            className="w-full border border-sib-stone dark:border-[rgba(242,238,231,0.10)] rounded-xl px-4 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-white dark:bg-[#26322f] focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20 transition-colors"
           />
         </div>
 
         {/* Phone */}
         <div>
-          <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">Phone Number</label>
+          <label className="text-xs font-semibold text-sib-text dark:text-[#f4efe7] uppercase tracking-wide mb-1.5 block">Phone Number</label>
           <input
             type="tel"
             value={form.phone}
             onChange={e => set('phone', e.target.value)}
             placeholder="+356 9999 1234"
             inputMode="tel"
-            className="w-full border border-sib-stone rounded-xl px-4 py-3 text-sm outline-none text-sib-text placeholder-sib-muted focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20"
+            className="w-full border border-sib-stone dark:border-[rgba(242,238,231,0.10)] rounded-xl px-4 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-white dark:bg-[#26322f] focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20 transition-colors"
           />
-          <p className="text-[11px] text-sib-muted mt-1">For delivery driver contact only</p>
+          <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] mt-1">For delivery driver contact only</p>
         </div>
 
         {/* Street Address */}
         <div>
-          <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">
+          <label className="text-xs font-semibold text-sib-text dark:text-[#f4efe7] uppercase tracking-wide mb-1.5 block">
             Street Address <span className="text-red-400">*</span>
           </label>
           <input
             value={form.address}
             onChange={e => set('address', e.target.value)}
             placeholder="Street address"
-            className="w-full border border-sib-stone rounded-xl px-4 py-3 text-sm outline-none text-sib-text placeholder-sib-muted focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20"
+            className="w-full border border-sib-stone dark:border-[rgba(242,238,231,0.10)] rounded-xl px-4 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-white dark:bg-[#26322f] focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20 transition-colors"
           />
         </div>
 
         {/* City + Postcode */}
         <div className="flex gap-3">
           <div className="flex-1">
-            <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">
+            <label className="text-xs font-semibold text-sib-text dark:text-[#f4efe7] uppercase tracking-wide mb-1.5 block">
               City / Town <span className="text-red-400">*</span>
             </label>
             <input
               value={form.city}
               onChange={e => set('city', e.target.value)}
               placeholder="City / Town"
-              className="w-full border border-sib-stone rounded-xl px-4 py-3 text-sm outline-none text-sib-text placeholder-sib-muted focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20"
+              className="w-full border border-sib-stone dark:border-[rgba(242,238,231,0.10)] rounded-xl px-4 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-white dark:bg-[#26322f] focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20 transition-colors"
             />
           </div>
           <div className="w-28">
-            <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">
+            <label className="text-xs font-semibold text-sib-text dark:text-[#f4efe7] uppercase tracking-wide mb-1.5 block">
               Postcode <span className="text-red-400">*</span>
             </label>
             <input
@@ -168,26 +168,26 @@ export default function DeliverySettingsPage() {
               onChange={e => set('postcode', e.target.value.toUpperCase())}
               placeholder="Postcode"
               maxLength={8}
-              className="w-full border border-sib-stone rounded-xl px-4 py-3 text-sm outline-none text-sib-text placeholder-sib-muted focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20"
+              className="w-full border border-sib-stone dark:border-[rgba(242,238,231,0.10)] rounded-xl px-4 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-white dark:bg-[#26322f] focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20 transition-colors"
             />
           </div>
         </div>
 
         {/* Delivery Notes */}
         <div>
-          <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">Delivery Notes</label>
+          <label className="text-xs font-semibold text-sib-text dark:text-[#f4efe7] uppercase tracking-wide mb-1.5 block">Delivery Notes</label>
           <textarea
             value={form.notes}
             onChange={e => set('notes', e.target.value)}
             rows={2}
             placeholder="e.g. Ring the bell, leave at the door..."
-            className="w-full border border-sib-stone rounded-xl px-4 py-3 text-sm outline-none text-sib-text placeholder-sib-muted resize-none focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20"
+            className="w-full border border-sib-stone dark:border-[rgba(242,238,231,0.10)] rounded-xl px-4 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-white dark:bg-[#26322f] resize-none focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20 transition-colors"
           />
         </div>
 
         {/* Preferred Delivery Method */}
         <div>
-          <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-2 block">Preferred Delivery Method</label>
+          <label className="text-xs font-semibold text-sib-text dark:text-[#f4efe7] uppercase tracking-wide mb-2 block">Preferred Delivery Method</label>
           <div className="space-y-2">
             {deliveryOptions.map(method => (
               <button
@@ -196,21 +196,21 @@ export default function DeliverySettingsPage() {
                 onClick={() => set('deliveryMethod', method.id)}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
                   form.deliveryMethod === method.id
-                    ? 'border-sib-primary bg-sib-primary/5 ring-1 ring-sib-primary/20'
-                    : 'border-sib-stone bg-white'
+                    ? 'border-sib-primary bg-sib-primary/5 dark:bg-[#26322f] ring-1 ring-sib-primary/20'
+                    : 'border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-white dark:bg-[#202b28]'
                 }`}
               >
                 {method.id === 'home_delivery' ? (
-                  <Truck size={18} className={form.deliveryMethod === method.id ? 'text-sib-primary' : 'text-sib-muted'} />
+                  <Truck size={18} className={form.deliveryMethod === method.id ? 'text-sib-primary' : 'text-sib-muted dark:text-[#aeb8b4]'} />
                 ) : (
-                  <Package size={18} className={form.deliveryMethod === method.id ? 'text-sib-primary' : 'text-sib-muted'} />
+                  <Package size={18} className={form.deliveryMethod === method.id ? 'text-sib-primary' : 'text-sib-muted dark:text-[#aeb8b4]'} />
                 )}
                 <div className="flex-1">
-                  <p className={`text-sm font-semibold ${form.deliveryMethod === method.id ? 'text-sib-primary' : 'text-sib-text'}`}>
+                  <p className={`text-sm font-semibold ${form.deliveryMethod === method.id ? 'text-sib-primary' : 'text-sib-text dark:text-[#f4efe7]'}`}>
                     {method.label || method.name}
                   </p>
                   {method.estimatedDays && (
-                    <p className="text-[11px] text-sib-muted">{method.estimatedDays}</p>
+                    <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4]">{method.estimatedDays}</p>
                   )}
                 </div>
                 {form.deliveryMethod === method.id && (
@@ -227,7 +227,7 @@ export default function DeliverySettingsPage() {
         {hasSavedAddress && (
           <button
             onClick={handleClear}
-            className="flex items-center gap-1.5 px-4 py-3.5 rounded-2xl border border-red-200 text-sm font-medium text-red-600 bg-red-50 active:bg-red-100 transition-colors"
+            className="flex items-center gap-1.5 px-4 py-3.5 rounded-2xl border border-red-200 dark:border-red-500/20 text-sm font-medium text-red-600 dark:text-red-300 bg-red-50 dark:bg-[#362322] active:bg-red-100 dark:active:bg-[#42302e] transition-colors"
           >
             <Trash2 size={14} /> Clear
           </button>

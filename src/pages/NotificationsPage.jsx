@@ -68,32 +68,32 @@ function isOperationalShippingNotification(notif) {
 }
 
 const NOTIF_CONFIG = {
-  new_sale:             { icon: Truck,           color: 'bg-blue-100 text-blue-600',    linkFn: (n) => orderTarget(n, SELLER_SHIPMENT_QUEUE) },
-  offer_received:       { icon: Tag,            color: 'bg-blue-100 text-blue-600',    linkFn: messageTarget },
-  offer_accepted:       { icon: CheckCircle,    color: 'bg-green-100 text-green-600',  linkFn: messageTarget },
-  offer_declined:       { icon: XCircle,        color: 'bg-red-100 text-red-600',      linkFn: messageTarget },
-  offer_countered:      { icon: ArrowRightLeft, color: 'bg-amber-100 text-amber-600',  linkFn: messageTarget },
-  bundle_offer_received: { icon: PackagePlus,    color: 'bg-purple-100 text-purple-600', linkFn: messageTarget },
-  bundle_offer_accepted: { icon: CheckCircle,    color: 'bg-green-100 text-green-600',  linkFn: messageTarget },
-  bundle_offer_declined: { icon: XCircle,        color: 'bg-red-100 text-red-600',      linkFn: messageTarget },
-  bundle_offer_countered: { icon: ArrowRightLeft, color: 'bg-amber-100 text-amber-600', linkFn: messageTarget },
-  delivered:            { icon: Package,         color: 'bg-indigo-100 text-indigo-600', linkFn: (n) => orderTarget(n) },
-  delivered_seller:     { icon: Package,         color: 'bg-indigo-100 text-indigo-600', linkFn: (n) => orderTarget(n, '/seller') },
-  confirmed:            { icon: CheckCircle,    color: 'bg-green-100 text-green-600',  linkFn: (n) => orderTarget(n, '/seller') },
-  buyer_confirmed:      { icon: CheckCircle,    color: 'bg-green-100 text-green-600',  linkFn: (n) => orderTarget(n) },
-  auto_confirmed:       { icon: ShieldCheck,    color: 'bg-green-100 text-green-600',  linkFn: (n) => orderTarget(n) },
-  dispute_opened:       { icon: AlertTriangle,  color: 'bg-red-100 text-red-600',      linkFn: (n) => orderTarget(n) },
-  dispute_opened_buyer: { icon: AlertTriangle,  color: 'bg-orange-100 text-orange-600', linkFn: (n) => orderTarget(n) },
-  dispute_message:      { icon: MessageSquare,  color: 'bg-orange-100 text-orange-600', linkFn: (n) => orderTarget(n) },
-  shipped:              { icon: Package,         color: 'bg-blue-100 text-blue-600',    linkFn: (n) => orderTarget(n) },
-  ship_reminder:        { icon: Truck,           color: 'bg-blue-100 text-blue-600',    linkFn: (n) => orderTarget(n, SELLER_SHIPMENT_QUEUE) },
-  bundle_sold:          { icon: PackagePlus,     color: 'bg-purple-100 text-purple-600', linkFn: (n) => orderTarget(n, SELLER_SHIPMENT_QUEUE) },
-  overdue_warning:      { icon: AlertTriangle,  color: 'bg-amber-100 text-amber-600',  linkFn: (n) => orderTarget(n, SELLER_SHIPMENT_QUEUE) },
-  order_cancelled:      { icon: XCircle,        color: 'bg-red-100 text-red-600',      linkFn: (n) => orderTarget(n) },
-  bundle_received:      { icon: PackagePlus,     color: 'bg-purple-100 text-purple-600', link: '/offers' },
-  message_received:     { icon: MessageSquare,  color: 'bg-blue-100 text-blue-600',    linkFn: messageTarget },
-  payout_available:     { icon: ShieldCheck,    color: 'bg-green-100 text-green-600',  link: SELLER_DASHBOARD },
-  payout_released:      { icon: ShieldCheck,    color: 'bg-green-100 text-green-600',  link: SELLER_DASHBOARD },
+  new_sale:             { icon: Truck,           color: 'bg-orange-50 text-sib-primary dark:bg-[#26322f] dark:text-[#e8751a]', linkFn: (n) => orderTarget(n, SELLER_SHIPMENT_QUEUE) },
+  offer_received:       { icon: Tag,            color: 'bg-orange-50 text-sib-primary dark:bg-[#26322f] dark:text-[#e8751a]', linkFn: messageTarget },
+  offer_accepted:       { icon: CheckCircle,    color: 'bg-green-50 text-green-600 dark:bg-[#26322f] dark:text-green-300',  linkFn: messageTarget },
+  offer_declined:       { icon: XCircle,        color: 'bg-red-50 text-red-600 dark:bg-[#26322f] dark:text-red-300',      linkFn: messageTarget },
+  offer_countered:      { icon: ArrowRightLeft, color: 'bg-orange-50 text-sib-primary dark:bg-[#26322f] dark:text-[#e8751a]', linkFn: messageTarget },
+  bundle_offer_received: { icon: PackagePlus,    color: 'bg-orange-50 text-sib-primary dark:bg-[#26322f] dark:text-[#e8751a]', linkFn: messageTarget },
+  bundle_offer_accepted: { icon: CheckCircle,    color: 'bg-green-50 text-green-600 dark:bg-[#26322f] dark:text-green-300',  linkFn: messageTarget },
+  bundle_offer_declined: { icon: XCircle,        color: 'bg-red-50 text-red-600 dark:bg-[#26322f] dark:text-red-300',      linkFn: messageTarget },
+  bundle_offer_countered: { icon: ArrowRightLeft, color: 'bg-orange-50 text-sib-primary dark:bg-[#26322f] dark:text-[#e8751a]', linkFn: messageTarget },
+  delivered:            { icon: Package,         color: 'bg-sib-sand text-sib-muted dark:bg-[#26322f] dark:text-[#aeb8b4]', linkFn: (n) => orderTarget(n) },
+  delivered_seller:     { icon: Package,         color: 'bg-sib-sand text-sib-muted dark:bg-[#26322f] dark:text-[#aeb8b4]', linkFn: (n) => orderTarget(n, '/seller') },
+  confirmed:            { icon: CheckCircle,    color: 'bg-green-50 text-green-600 dark:bg-[#26322f] dark:text-green-300',  linkFn: (n) => orderTarget(n, '/seller') },
+  buyer_confirmed:      { icon: CheckCircle,    color: 'bg-green-50 text-green-600 dark:bg-[#26322f] dark:text-green-300',  linkFn: (n) => orderTarget(n) },
+  auto_confirmed:       { icon: ShieldCheck,    color: 'bg-green-50 text-green-600 dark:bg-[#26322f] dark:text-green-300',  linkFn: (n) => orderTarget(n) },
+  dispute_opened:       { icon: AlertTriangle,  color: 'bg-red-50 text-red-600 dark:bg-[#26322f] dark:text-red-300',      linkFn: (n) => orderTarget(n) },
+  dispute_opened_buyer: { icon: AlertTriangle,  color: 'bg-red-50 text-red-600 dark:bg-[#26322f] dark:text-red-300', linkFn: (n) => orderTarget(n) },
+  dispute_message:      { icon: MessageSquare,  color: 'bg-orange-50 text-sib-primary dark:bg-[#26322f] dark:text-[#e8751a]', linkFn: (n) => orderTarget(n) },
+  shipped:              { icon: Package,         color: 'bg-sib-sand text-sib-muted dark:bg-[#26322f] dark:text-[#aeb8b4]', linkFn: (n) => orderTarget(n) },
+  ship_reminder:        { icon: Truck,           color: 'bg-orange-50 text-sib-primary dark:bg-[#26322f] dark:text-[#e8751a]', linkFn: (n) => orderTarget(n, SELLER_SHIPMENT_QUEUE) },
+  bundle_sold:          { icon: PackagePlus,     color: 'bg-orange-50 text-sib-primary dark:bg-[#26322f] dark:text-[#e8751a]', linkFn: (n) => orderTarget(n, SELLER_SHIPMENT_QUEUE) },
+  overdue_warning:      { icon: AlertTriangle,  color: 'bg-amber-50 text-amber-600 dark:bg-[#26322f] dark:text-amber-300',  linkFn: (n) => orderTarget(n, SELLER_SHIPMENT_QUEUE) },
+  order_cancelled:      { icon: XCircle,        color: 'bg-red-50 text-red-600 dark:bg-[#26322f] dark:text-red-300',      linkFn: (n) => orderTarget(n) },
+  bundle_received:      { icon: PackagePlus,     color: 'bg-orange-50 text-sib-primary dark:bg-[#26322f] dark:text-[#e8751a]', link: '/offers' },
+  message_received:     { icon: MessageSquare,  color: 'bg-orange-50 text-sib-primary dark:bg-[#26322f] dark:text-[#e8751a]', linkFn: messageTarget },
+  payout_available:     { icon: ShieldCheck,    color: 'bg-green-50 text-green-600 dark:bg-[#26322f] dark:text-green-300',  link: SELLER_DASHBOARD },
+  payout_released:      { icon: ShieldCheck,    color: 'bg-green-50 text-green-600 dark:bg-[#26322f] dark:text-green-300',  link: SELLER_DASHBOARD },
 }
 
 const DEFAULT_CONFIG = { icon: Bell, color: 'bg-sib-sand text-sib-muted', link: '/notifications' }
@@ -188,7 +188,7 @@ export default function NotificationsPage() {
                 onClick={() => handleTap(notif)}
                 className={`w-full flex items-start gap-3 p-3.5 rounded-2xl text-left transition-colors ${
                   notif.read
-                    ? 'bg-white dark:bg-[#202b28] border border-transparent dark:border-[rgba(242,238,231,0.10)]'
+                    ? 'sib-card border'
                     : 'bg-sib-primary/5 dark:bg-[#26322f] border border-sib-primary/10 dark:border-sib-primary/30'
                 }`}
               >
