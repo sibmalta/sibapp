@@ -7,6 +7,7 @@ import UserAvatar from '../components/UserAvatar'
 import UserRating from '../components/UserRating'
 import ListingCard from '../components/ListingCard'
 import { SELLER_BADGE_DEFS, getSellerBadgeDef } from '../components/SellerTrustBadges'
+import TrustedSellerBadge from '../components/TrustedSellerBadge'
 
 function AdminProfileCard({ profileUser, isOwnProfile, navigate, currentUser }) {
   return (
@@ -230,6 +231,7 @@ const activeListings = userListings.filter(l => l.status === 'active')
                       <span className="text-[10px] font-semibold text-blue-600 dark:text-[#e8751a]">Verified</span>
                     </span>
                   )}
+                  <TrustedSellerBadge user={profileUser} />
                 </div>
 
                 {/* Rating - prominent, clickable */}

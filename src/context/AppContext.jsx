@@ -188,6 +188,8 @@ export function AppProvider({ children }) {
     updateListing: dbUpdateListing,
     deleteListing: dbDeleteListing,
     markSold: dbMarkSold,
+    markReserved: dbMarkReserved,
+    releaseReservation: dbReleaseReservation,
     toggleLike: dbToggleLike,
     boostListing: dbBoostListing,
     unboostListing: dbUnboostListing,
@@ -391,10 +393,18 @@ export function AppProvider({ children }) {
   const adminUpdateListingMeta = dbAdminUpdateListingMeta
 
   // ── Notification helpers (must be before placeOrder which depends on it) ──
-  const placeOrder = useCallback(async (listingId, deliveryMethod, address, overridePrice, deliveryInfo, deliverySnapshot, stripePaymentIntentId = null) => {
+  const placeOrder = useCallback(async (listingId, deliveryMethod, address, overridePrice, deliveryInfo, deliverySnapshot, stripePaymentIntentId = null, opts = {}) => {
     const listing = listings.find(l => l.id === listingId)
     if (!listing) return null
-    if (listing.status !== 'active' || hasBlockingOrderForListings(orders, [listingId])) {
+    const acceptedOffer = opts.offerId ? offers.find(o => o.id === opts.offerId) : null
+    const isAcceptedOfferCheckout =
+      acceptedOffer?.listingId === listingId &&
+      acceptedOffer?.buyerId === currentUser?.id &&
+      acceptedOffer?.status === 'accepted'
+    const listingCanBeOrdered =
+      listing.status === 'active' ||
+      (listing.status === 'reserved' && isAcceptedOfferCheckout)
+    if (!listingCanBeOrdered || hasBlockingOrderForListings(orders, [listingId])) {
       showToast('Item already sold', 'error')
       return null
     }
@@ -520,7 +530,7 @@ export function AppProvider({ children }) {
     })
 
     return savedOrder
-  }, [currentUser, listings, users, orders, addNotification, dbCreateOrder, dbCreateShipment, showToast])
+  }, [currentUser, listings, users, orders, offers, addNotification, dbCreateOrder, dbCreateShipment, dbMarkSold, showToast])
 
   const getOrCreateConversation = useCallback((otherUserId, listingId) => {
     return createConversation(otherUserId, listingId)
@@ -1014,6 +1024,7 @@ export function AppProvider({ children }) {
     const listing = listings.find(l => l.id === listingId)
     if (!listing) return { error: 'Listing not found.' }
     if (listing.sellerId === currentUser.id) return { error: 'Cannot offer on your own listing.' }
+    if (listing.status !== 'active') return { error: 'This item is no longer available.' }
 
     // Anti-spam: active offer limit
     const activeOffers = offers.filter(o => o.buyerId === currentUser.id && (o.status === 'pending' || o.status === 'countered'))
@@ -1157,17 +1168,19 @@ export function AppProvider({ children }) {
     if (offer.status !== 'pending' && offer.status !== 'countered') return { error: 'This offer is no longer pending.' }
     if (offer.status === 'pending' && currentUser?.id !== offer.sellerId) return { error: 'Only the seller can accept this offer.' }
     if (offer.status === 'countered' && currentUser?.id !== offer.buyerId) return { error: 'Only the buyer can accept this counter offer.' }
+    const listing = listings.find(l => l.id === offer.listingId)
+    if (!listing || !['active', 'reserved'].includes(listing.status)) return { error: 'This item is no longer available.' }
     const acceptedPrice = offer?.counterPrice || offer?.price
     const { error } = await dbPatchOffer(offerId, { status: 'accepted', acceptedPrice, updatedAt: now.toISOString() })
     if (error) {
       return { error: 'Failed to accept offer: ' + error.message }
     }
+    await dbMarkReserved(offer.listingId)
     setOffers(prev => prev.map(o => {
       if (o.id !== offerId) return o
       const acceptedPrice = o.counterPrice || o.price
       return { ...o, status: 'accepted', acceptedPrice, updatedAt: now.toISOString() }
     }))
-    const listing = listings.find(l => l.id === offer.listingId)
     const notifyUserId = offer.status === 'countered' ? offer.sellerId : offer.buyerId
     const acceptor = users.find(u => u.id === (offer.status === 'countered' ? offer.buyerId : offer.sellerId))
     const conversation = getOrCreateConversationForUsers(offer.buyerId, offer.sellerId, offer.listingId)
@@ -1253,7 +1266,7 @@ export function AppProvider({ children }) {
       })
     }
     return { ok: true }
-  }, [offers, listings, users, addNotification, currentUser, getOrCreateConversationForUsers, addConversationEvent, dbPatchOffer, showToast])
+  }, [offers, listings, users, addNotification, currentUser, getOrCreateConversationForUsers, addConversationEvent, dbPatchOffer, dbMarkReserved, showToast])
 
   const declineOffer = useCallback(async (offerId) => {
     const now = new Date()
@@ -1321,6 +1334,11 @@ export function AppProvider({ children }) {
     }
     return { ok: true }
   }, [offers, listings, users, addNotification, currentUser, getOrCreateConversationForUsers, addConversationEvent, dbPatchOffer, showToast])
+
+  const releaseListingReservation = useCallback(async (listingId) => {
+    if (!listingId) return
+    await dbReleaseReservation(listingId)
+  }, [dbReleaseReservation])
 
   const counterOffer = useCallback(async (offerId, counterPrice) => {
     const now = new Date()
@@ -2345,7 +2363,7 @@ export function AppProvider({ children }) {
       placeOrder, getOrCreateConversation, sendMessage, markConversationRead, getUnreadConversationCount, updateOrderStatus,
       confirmDelivery, openDispute, adminOpenDispute, flagOrderOverdue, DISPUTE_REASONS,
       addNotification, markNotificationRead, markAllNotificationsRead, getUserNotifications, refreshNotifications,
-      createOffer, acceptOffer, declineOffer, counterOffer, recoverOfferConversationFromLink, getOfferById, getListingOffers, getUserActiveOfferOnListing,
+      createOffer, acceptOffer, declineOffer, counterOffer, releaseListingReservation, recoverOfferConversationFromLink, getOfferById, getListingOffers, getUserActiveOfferOnListing,
       addToBundle, removeFromBundle, clearBundle, isInBundle, calculateBundleFees, placeBundleOrder,
       createBundleOffer, acceptBundleOffer, declineBundleOffer, counterBundleOffer, getBundleOfferById, placeBundleOfferOrder,
       suspendUser, banUser, restoreUser, updateSellerBadges, updateTrustTags, updateAdminRole, holdPayout, releasePayout, refundOrder, resolveDispute, cancelOrder, addDisputeMessage,

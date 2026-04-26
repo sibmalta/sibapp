@@ -49,7 +49,7 @@ export function getSellerBadgeDef(id) {
  *  - Verified Seller:  1+ completed sales
  *  - Fast Shipper:     avg ship time ≤ 48h (needs 2+ shipped orders)
  *  - Top Rated:        rating ≥ 4.5 with 3+ reviews
- *  - Trusted Seller:   10+ completed sales
+ *  - Trusted Seller:   DB-backed profile flag
  *
  * Also shows "Member since <year>"
  */
@@ -114,14 +114,14 @@ export default function SellerTrustBadges({ seller, sellerOrders = [], shipments
       }
     }
 
-    // 4. Trusted Seller (10+ sales)
-    if (completedSales >= 10) {
+    // 4. Trusted Seller (manual DB-backed profile flag)
+    if (seller.isTrustedSeller) {
       result.push({
         id: 'trusted',
         label: 'Trusted Seller',
         icon: ShieldCheck,
-        color: 'text-purple-600',
-        bg: 'bg-purple-50',
+        color: 'text-emerald-700 dark:text-[#e8751a]',
+        bg: 'bg-emerald-50 dark:bg-[#26322f]',
       })
     }
 

@@ -32,6 +32,7 @@ export function rowToUser(row) {
     isShop: row.is_shop || false,
     isAdmin,
     verified: !!(row.verified || row.is_verified || isAdmin),
+    isTrustedSeller: !!row.is_trusted_seller,
     rating: Number(row.rating ?? 5.0),
     reviewCount: row.review_count ?? 0,
     sales: row.sales ?? 0,                    // column: sales (not sales_count)
@@ -68,6 +69,7 @@ export function userToRow(user) {
   if (user.location !== undefined) row.location = user.location
   if (user.isShop !== undefined) row.is_shop = user.isShop
   if (user.isAdmin !== undefined) row.is_admin = user.isAdmin
+  if (user.isTrustedSeller !== undefined) row.is_trusted_seller = user.isTrustedSeller
   // Map suspended/banned booleans back to the single status column
   if (user.suspended === true) row.status = 'suspended'
   else if (user.banned === true) row.status = 'banned'

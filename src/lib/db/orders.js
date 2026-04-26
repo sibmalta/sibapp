@@ -240,7 +240,7 @@ async function assertListingCanBeOrdered(supabase, listingId) {
     .single()
 
   if (listingError) return { error: listingError }
-  if (!listing || listing.status !== 'active') return { error: { message: 'Item already sold' } }
+  if (!listing || !['active', 'reserved'].includes(listing.status)) return { error: { message: 'Item already sold' } }
 
   const { data: existingOrders, error: orderError } = await supabase
     .from('orders')

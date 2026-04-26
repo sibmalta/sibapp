@@ -102,11 +102,12 @@ function isValidPaymentIntentClientSecret(value) {
 export async function createPaymentIntent(opts = {}, accessToken) {
   const data = await callEdgeFunction(
     'create-payment-intent',
-    {
-      listingId: opts.listingId || '',
-      listingIds: opts.listingIds || [],
-      deliveryMethod: opts.deliveryMethod || 'home_delivery',
-    },
+      {
+        listingId: opts.listingId || '',
+        listingIds: opts.listingIds || [],
+        offerId: opts.offerId || '',
+        deliveryMethod: opts.deliveryMethod || 'home_delivery',
+      },
     accessToken
   )
 

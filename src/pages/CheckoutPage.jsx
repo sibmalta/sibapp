@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { ShieldCheck, Truck, Lock, AlertCircle, CreditCard, RefreshCw } from 'lucide-react'
 import { Elements, ExpressCheckoutElement, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { useApp } from '../context/AppContext'
@@ -293,7 +293,11 @@ function StripeCheckoutForm({ fees, onSuccess, onError }) {
 export default function CheckoutPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { getListingById, getUserById, calculateFees, placeOrder, showToast, currentUser } = useApp()
+  const [searchParams] = useSearchParams()
+  const {
+    getListingById, getUserById, calculateFees, placeOrder, showToast, currentUser,
+    getOfferById, releaseListingReservation,
+  } = useApp()
   const { session } = useAuth()
 
   const listing = getListingById(id)
@@ -335,12 +339,46 @@ export default function CheckoutPage() {
     return null
   }
 
+  const offerId = searchParams.get('offer') || ''
+  const acceptedOffer = offerId ? getOfferById?.(offerId) : null
+  const canCheckoutReservedListing =
+    listing.status === 'reserved' &&
+    acceptedOffer?.listingId === listing.id &&
+    acceptedOffer?.buyerId === currentUser.id &&
+    acceptedOffer?.status === 'accepted'
+
+  if (listing.status !== 'active' && !canCheckoutReservedListing) {
+    return (
+      <div className="dark:bg-[#18211f] dark:text-[#f4efe7] transition-colors">
+        <PageHeader title="Checkout" />
+        <div className="px-4 py-16 text-center">
+          <div className="mx-auto max-w-sm rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-white dark:bg-[#202b28] p-5 shadow-sm">
+            <AlertCircle size={24} className="mx-auto mb-3 text-sib-primary" />
+            <h1 className="text-lg font-bold text-sib-text dark:text-[#f4efe7]">This item is no longer available</h1>
+            <p className="mt-2 text-sm text-sib-muted dark:text-[#aeb8b4]">
+              It may have been reserved or sold. Browse similar items instead.
+            </p>
+            <button
+              onClick={() => navigate('/browse')}
+              className="mt-4 rounded-2xl bg-sib-secondary px-5 py-3 text-sm font-bold text-white"
+            >
+              Browse items
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const seller = getUserById(listing.sellerId)
+  const checkoutPrice = canCheckoutReservedListing
+    ? Number(acceptedOffer.acceptedPrice || acceptedOffer.counterPrice || acceptedOffer.price || listing.price)
+    : listing.price
 
   const rawDeliverySize = listing.deliverySize || getDefaultDeliverySize(listing.category, listing.subcategory)
   const deliverySize = rawDeliverySize === 'large' ? 'bulky' : rawDeliverySize
   const deliveryFee = getFulfilmentPrice(normalizeFulfilmentMethod(deliveryMethodId))
-  const fees = calculateFees(listing.price, deliveryFee)
+  const fees = calculateFees(checkoutPrice, deliveryFee)
   const isLocker = normalizeFulfilmentMethod(deliveryMethodId) === 'locker'
   const selectedLocker = isLocker && selectedLockerId ? getLockerById(selectedLockerId) : null
 
@@ -415,6 +453,7 @@ export default function CheckoutPage() {
       const result = await createPaymentIntent(
         {
           listingId: listing.id,
+          offerId: acceptedOffer?.id || undefined,
           deliveryMethod: deliveryMethodId,
         },
         session.access_token
@@ -462,10 +501,11 @@ export default function CheckoutPage() {
       id,
       deliveryMethodId,
       getFullAddress(),
-      undefined,
+      checkoutPrice,
       deliveryInfo,
       deliverySnapshot,
-      stripePaymentIntentId
+      stripePaymentIntentId,
+      { offerId: acceptedOffer?.id || null }
     )
 
     if (!order) {
@@ -489,6 +529,7 @@ export default function CheckoutPage() {
 
   const handlePaymentError = (msg) => {
     const friendly = friendlyPaymentError(msg) || 'Payment could not be completed. Please try again.'
+    if (canCheckoutReservedListing) releaseListingReservation?.(listing.id)
     showToast(friendly, 'error')
   }
 
@@ -525,7 +566,7 @@ export default function CheckoutPage() {
                 <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7] line-clamp-2">{listing.title}</p>
                 <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mt-0.5">From @{seller?.username}</p>
               </div>
-              <p className="text-base font-bold text-sib-primary flex-shrink-0">€{listing.price}</p>
+              <p className="text-base font-bold text-sib-primary flex-shrink-0">€{checkoutPrice.toFixed(2)}</p>
             </div>
 
             <DeliveryMethodSelector
@@ -687,8 +728,8 @@ export default function CheckoutPage() {
               <p className="text-sm font-bold text-sib-text dark:text-[#f4efe7] mb-3">Order Summary</p>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between text-sib-muted dark:text-[#aeb8b4]">
-                  <span>Item price</span>
-                  <span>€{listing.price.toFixed(2)}</span>
+                  <span>{canCheckoutReservedListing ? 'Accepted offer' : 'Item price'}</span>
+                  <span>€{checkoutPrice.toFixed(2)}</span>
                 </div>
                 <FeeBreakdown buyerProtectionFee={fees.buyerProtectionFee} />
                 <div className="flex justify-between text-sib-muted dark:text-[#aeb8b4] text-sm">
@@ -857,8 +898,8 @@ export default function CheckoutPage() {
 
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between text-sib-muted dark:text-[#aeb8b4]">
-                    <span>Item price</span>
-                    <span>€{listing.price.toFixed(2)}</span>
+                    <span>{canCheckoutReservedListing ? 'Accepted offer' : 'Item price'}</span>
+                    <span>€{checkoutPrice.toFixed(2)}</span>
                   </div>
                   <FeeBreakdown buyerProtectionFee={fees.buyerProtectionFee} />
                   <div className="flex justify-between text-sib-muted dark:text-[#aeb8b4] text-sm">

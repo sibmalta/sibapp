@@ -115,12 +115,13 @@ function stripNewColumns(row) {
 
 const BASE_SELECT = `*, seller:profiles!listings_seller_id_fkey(id, username, name, avatar, rating, review_count, is_shop, location)`
 
-/** Fetch all active listings (browse / homepage). */
+/** Fetch public listings. Browse/home filter this list to active items only. */
 export async function fetchActiveListings(supabase, { limit = 100, offset = 0 } = {}) {
   const { data, error } = await supabase
     .from('listings')
     .select(BASE_SELECT)
-    .eq('status', 'active')
+    .neq('status', 'deleted')
+    .neq('status', 'hidden')
     .order('boosted', { ascending: false })
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)
@@ -300,6 +301,30 @@ export async function markListingSold(supabase, id) {
     .from('listings')
     .update({ status: 'sold', updated_at: new Date().toISOString() })
     .eq('id', id)
+    .select()
+    .single()
+  return { data: rowToListing(data), error }
+}
+
+/** Mark a listing as reserved after an offer is accepted. */
+export async function markListingReserved(supabase, id) {
+  const { data, error } = await supabase
+    .from('listings')
+    .update({ status: 'reserved', updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('status', 'active')
+    .select()
+    .single()
+  return { data: rowToListing(data), error }
+}
+
+/** Release a reserved listing back to active if the sale falls through. */
+export async function releaseListingReservation(supabase, id) {
+  const { data, error } = await supabase
+    .from('listings')
+    .update({ status: 'active', updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('status', 'reserved')
     .select()
     .single()
   return { data: rowToListing(data), error }

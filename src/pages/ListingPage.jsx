@@ -10,6 +10,7 @@ import UserAvatar from '../components/UserAvatar'
 import ListingCard from '../components/ListingCard'
 import MakeOfferModal from '../components/MakeOfferModal'
 import SellerTrustBadges from '../components/SellerTrustBadges'
+import TrustedSellerBadge from '../components/TrustedSellerBadge'
 import PageHeader from '../components/PageHeader'
 import SmartBundlePrompt from '../components/SmartBundlePrompt'
 import { trackView } from '../lib/browsingHistory'
@@ -259,9 +260,11 @@ if (!listing) return (
                 </div>
               </>
             )}
-            {listing.status === 'sold' && (
+            {listing.status !== 'active' && (
               <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                <span className="text-white text-2xl font-bold tracking-widest uppercase">Sold</span>
+                <span className="text-white text-2xl font-bold tracking-widest uppercase">
+                  {listing.status === 'sold' ? 'Sold' : 'Unavailable'}
+                </span>
               </div>
             )}
           </div>
@@ -417,6 +420,7 @@ if (!listing) return (
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
                 <p className="text-sm font-semibold text-sib-text">@{seller?.username}</p>
+                <TrustedSellerBadge user={seller} />
               </div>
               {/* Rating & review count */}
               <div className="flex items-center gap-1.5 mt-0.5">
@@ -521,8 +525,8 @@ if (!listing) return (
               )}
             </div>
           ) : (
-            <div className="w-full py-3.5 rounded-2xl bg-sib-stone text-center font-bold text-sib-muted text-sm">
-              This item has been sold
+            <div className="w-full py-3.5 rounded-2xl bg-sib-stone dark:bg-[#26322f] text-center font-bold text-sib-muted dark:text-[#aeb8b4] text-sm">
+              This item is no longer available
             </div>
           )}
         </div>

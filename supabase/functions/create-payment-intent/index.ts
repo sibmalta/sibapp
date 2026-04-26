@@ -17,6 +17,17 @@ type ListingRow = {
   category: string | null
 }
 
+type OfferRow = {
+  id: string
+  listing_id: string
+  buyer_id: string
+  seller_id: string
+  status: string | null
+  price: number | string | null
+  counter_price: number | string | null
+  accepted_price: number | string | null
+}
+
 class CheckoutError extends Error {
   status: number
   code: string
@@ -230,7 +241,58 @@ async function loadListings(supabase: ReturnType<typeof createClient>, ids: stri
   return ordered as ListingRow[]
 }
 
-function validateListingsForCheckout(listings: ListingRow[], buyerId: string) {
+async function loadAcceptedOffer(
+  supabase: ReturnType<typeof createClient>,
+  offerId: string,
+  listingId: string,
+  buyerId: string,
+) {
+  if (!offerId) return null
+
+  logStep('offer_lookup', 'started', { offerId, listingId, buyerId })
+  const { data, error } = await supabase
+    .from('offers')
+    .select('id,listing_id,buyer_id,seller_id,status,price,counter_price,accepted_price')
+    .eq('id', offerId)
+    .single()
+
+  if (error) {
+    throw new CheckoutError(
+      'Failed to load accepted offer.',
+      409,
+      'offer_lookup_failed',
+      'offer_lookup',
+      { offerId, dbCode: error.code || null, dbMessage: error.message || null },
+    )
+  }
+
+  const offer = data as OfferRow
+  if (
+    !offer ||
+    offer.listing_id !== listingId ||
+    offer.buyer_id !== buyerId ||
+    offer.status !== 'accepted'
+  ) {
+    throw new CheckoutError(
+      'This offer is not available for checkout.',
+      409,
+      'accepted_offer_invalid',
+      'offer_lookup',
+      { offerId, listingId, status: offer?.status || null },
+    )
+  }
+
+  logStep('offer_lookup', 'succeeded', { offerId, acceptedPrice: offer.accepted_price })
+  return offer
+}
+
+function getAcceptedOfferPrice(offer: OfferRow | null) {
+  if (!offer) return null
+  const value = Number(offer.accepted_price ?? offer.counter_price ?? offer.price)
+  return Number.isFinite(value) && value > 0 ? value : null
+}
+
+function validateListingsForCheckout(listings: ListingRow[], buyerId: string, acceptedOffer: OfferRow | null = null) {
   logStep('listing_validation', 'started', { listingCount: listings.length, buyerId })
   if (listings.length === 0) {
     throw new CheckoutError(
@@ -273,7 +335,13 @@ function validateListingsForCheckout(listings: ListingRow[], buyerId: string) {
       )
     }
 
-    if (listing.status !== 'active') {
+    const isReservedForAcceptedOffer =
+      listing.status === 'reserved' &&
+      acceptedOffer?.listing_id === listing.id &&
+      acceptedOffer?.buyer_id === buyerId &&
+      acceptedOffer?.status === 'accepted'
+
+    if (listing.status !== 'active' && !isReservedForAcceptedOffer) {
       throw new CheckoutError(
         'Item already sold',
         409,
@@ -418,6 +486,7 @@ Deno.serve(async (req) => {
 
     const requestBody = body as Record<string, unknown>
     const listingId = typeof requestBody.listingId === 'string' ? requestBody.listingId.trim() : ''
+    const offerId = typeof requestBody.offerId === 'string' ? requestBody.offerId.trim() : ''
     const listingIds = Array.isArray(requestBody.listingIds)
       ? requestBody.listingIds.filter((id: unknown) => typeof id === 'string' && id.trim()).map((id: string) => id.trim())
       : []
@@ -440,12 +509,18 @@ Deno.serve(async (req) => {
 
     const supabase = getServiceClient()
     const listings = await loadListings(supabase, requestedListingIds)
-    const sellerId = validateListingsForCheckout(listings, user.id)
+    const acceptedOffer = requestedListingIds.length === 1
+      ? await loadAcceptedOffer(supabase, offerId, requestedListingIds[0], user.id)
+      : null
+    const sellerId = validateListingsForCheckout(listings, user.id, acceptedOffer)
     await validateNoExistingSoldOrders(supabase, requestedListingIds)
     await validateSellerProfile(supabase, sellerId)
 
     logStep('pricing', 'started', { listingCount: listings.length, deliveryMethod })
-    const subtotalEuros = Number(listings.reduce((sum, listing) => sum + Number(listing.price), 0).toFixed(2))
+    const acceptedOfferPrice = getAcceptedOfferPrice(acceptedOffer)
+    const subtotalEuros = Number((
+      acceptedOfferPrice ?? listings.reduce((sum, listing) => sum + Number(listing.price), 0)
+    ).toFixed(2))
     const deliveryFeeEuros = listings.length > 1
       ? getBundleDeliveryFee(deliveryMethod)
       : getSingleListingDeliveryFee(listings[0], deliveryMethod)
@@ -487,6 +562,7 @@ Deno.serve(async (req) => {
           seller_id: sellerId,
           listing_id: requestedListingIds.length === 1 ? requestedListingIds[0] : '',
           listing_ids: requestedListingIds.join(','),
+          offer_id: offerId,
           delivery_method: deliveryMethod,
           subtotal_cents: String(subtotalCents),
           delivery_fee_cents: String(deliveryFeeCents),

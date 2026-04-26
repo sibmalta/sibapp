@@ -22,6 +22,8 @@ import {
   toggleListingLike,
   fetchUserLikes,
   markListingSold,
+  markListingReserved,
+  releaseListingReservation,
   incrementViewCount,
   updateStyleTags as dbUpdateStyleTags,
   adminUpdateListingMeta as dbAdminUpdateListingMeta,
@@ -299,6 +301,22 @@ export function useListings(localListings, localLikes, currentUser) {
     }
   }, [supabase, dbAvailable, isAuthenticated])
 
+  const markReserved = useCallback(async (listingId) => {
+    setListings(prev => prev.map(l => l.id === listingId && l.status === 'active' ? { ...l, status: 'reserved' } : l))
+    if (dbAvailable && isAuthenticated) {
+      const { error } = await markListingReserved(supabase, listingId)
+      if (error) console.error('[useListings] markReserved DB error:', error.message)
+    }
+  }, [supabase, dbAvailable, isAuthenticated])
+
+  const releaseReservation = useCallback(async (listingId) => {
+    setListings(prev => prev.map(l => l.id === listingId && l.status === 'reserved' ? { ...l, status: 'active' } : l))
+    if (dbAvailable && isAuthenticated) {
+      const { error } = await releaseListingReservation(supabase, listingId)
+      if (error) console.error('[useListings] releaseReservation DB error:', error.message)
+    }
+  }, [supabase, dbAvailable, isAuthenticated])
+
   // ── Toggle like ────────────────────────────────────────────────────────────
   const toggleLike = useCallback(async (listingId) => {
     if (!currentUser) return
@@ -421,6 +439,8 @@ export function useListings(localListings, localLikes, currentUser) {
     updateListing,
     deleteListing,
     markSold,
+    markReserved,
+    releaseReservation,
     toggleLike,
     boostListing,
     unboostListing,

@@ -1,9 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react'
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { Send, ShieldCheck, AlertTriangle, Lock, Ban, Tag, Check, X, ArrowLeftRight, ShoppingBag } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import UserAvatar from '../components/UserAvatar'
 import OfficialBadge from '../components/OfficialBadge'
+import TrustedSellerBadge from '../components/TrustedSellerBadge'
 import CounterOfferModal from '../components/CounterOfferModal'
 import { analyseMessage, recordViolation, getRestriction, getViolationCount } from '../utils/circumventionDetector'
 import { moderateContent } from '../lib/moderation'
@@ -152,6 +153,29 @@ export default function ChatPage() {
   const other = otherId ? getUserById(otherId) : null
   const listing = conv?.listingId ? getListingById(conv.listingId) : null
 
+  const offerMessageMeta = useMemo(() => {
+    const latestByThread = new Map()
+    const messages = conv?.messages || []
+
+    messages.forEach((msg, index) => {
+      if (msg.type !== 'offer') return
+      const key = msg.offerId || `${msg.listingId || conv?.listingId || 'listing'}:${msg.buyerId || 'buyer'}:${msg.sellerId || 'seller'}`
+      const ts = new Date(msg.timestamp || msg.createdAt || 0).getTime()
+      const existing = latestByThread.get(key)
+      if (!existing || ts > existing.ts || (ts === existing.ts && index > existing.index)) {
+        latestByThread.set(key, { id: msg.id, ts, index })
+      }
+    })
+
+    const meta = new Map()
+    messages.forEach((msg) => {
+      if (msg.type !== 'offer') return
+      const key = msg.offerId || `${msg.listingId || conv?.listingId || 'listing'}:${msg.buyerId || 'buyer'}:${msg.sellerId || 'seller'}`
+      meta.set(msg.id, { isLatest: latestByThread.get(key)?.id === msg.id })
+    })
+    return meta
+  }, [conv?.listingId, conv?.messages])
+
   useEffect(() => {
     if (otherId && (!other?.username || !other?.email)) {
       ensureUserById?.(otherId)
@@ -273,6 +297,53 @@ export default function ChatPage() {
     showToast('Counter offer sent.')
   }
 
+  const getOfferAmount = (msg, offer, status) => {
+    if (msg.eventType === 'offer_received') return msg.offerPrice || offer?.price
+    if (msg.eventType === 'offer_countered') return msg.offerPrice || msg.counterPrice || offer?.counterPrice
+    if (msg.eventType === 'offer_accepted') return msg.offerPrice || msg.acceptedPrice || offer?.acceptedPrice || offer?.counterPrice || offer?.price
+    if (msg.eventType === 'offer_declined') return msg.offerPrice || msg.counterPrice || offer?.counterPrice || offer?.price
+    if (status === 'countered') return offer?.counterPrice || msg.offerPrice
+    if (status === 'accepted') return offer?.acceptedPrice || offer?.counterPrice || msg.offerPrice || offer?.price
+    return msg.offerPrice || offer?.price
+  }
+
+  const getCompactOfferText = (msg, offer, status) => {
+    const amount = Number(getOfferAmount(msg, offer, status) || 0)
+    const price = amount > 0 ? `: €${amount.toFixed(2)}` : ''
+    const buyerDeclinedCounter = msg.eventType === 'offer_declined' && offer?.status === 'declined' && offer?.counterPrice
+
+    switch (msg.eventType) {
+      case 'offer_received':
+        return msg.senderId === currentUser.id ? `Offer sent${price}` : `Offer received${price}`
+      case 'offer_countered':
+        return `Counter offer sent${price}`
+      case 'offer_accepted':
+        return offer?.counterPrice ? `Counter offer accepted${price}` : `Offer accepted${price}`
+      case 'offer_declined':
+        return buyerDeclinedCounter ? 'Counter offer declined' : 'Offer declined'
+      default:
+        if (status === 'declined') return 'Offer declined'
+        if (status === 'accepted') return `Offer accepted${price}`
+        if (status === 'countered') return `Counter offer sent${price}`
+        return `Offer update${price}`
+    }
+  }
+
+  const renderCompactOfferEvent = (msg, offer, status) => (
+    <div key={msg.id} className="flex justify-center">
+      <div className="max-w-[85%] rounded-2xl bg-sib-sand dark:bg-[#26322f] px-3 py-2 text-center transition-colors">
+        <p className="text-xs font-semibold text-sib-text dark:text-[#f4efe7]">
+          {getCompactOfferText(msg, offer, status)}
+        </p>
+        {msg.itemTitle && (
+          <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] mt-0.5 line-clamp-1">
+            {msg.itemTitle}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+
   const renderOfferMessage = (msg) => {
     const savedOffer = getOfferById?.(msg.offerId)
     const offerListing = getListingById(msg.listingId || savedOffer?.listingId)
@@ -296,6 +367,13 @@ export default function ChatPage() {
     const canSellerRespond = isSeller && status === 'pending'
     const canBuyerRespond = isBuyer && status === 'countered'
     const canCheckout = isBuyer && status === 'accepted'
+    const isLatestOfferEvent = offerMessageMeta.get(msg.id)?.isLatest
+    const shouldRenderFullCard = isLatestOfferEvent && (canSellerRespond || canBuyerRespond || canCheckout)
+
+    if (!shouldRenderFullCard) {
+      if (!isLatestOfferEvent) return null
+      return renderCompactOfferEvent(msg, offer, status)
+    }
 
     const statusStyles = {
       pending: 'bg-amber-50 text-amber-700 dark:bg-[#332d20] dark:text-amber-300',
@@ -438,6 +516,7 @@ export default function ChatPage() {
               <div className="flex items-center justify-center gap-1.5">
                 <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7]">@{other?.username}</p>
                 <OfficialBadge user={other} size="sm" />
+                <TrustedSellerBadge user={other} />
               </div>
               <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mt-1">Say hi to start the conversation!</p>
             </div>
