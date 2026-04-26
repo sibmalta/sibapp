@@ -12,7 +12,7 @@ function sortNotifications(items) {
 }
 
 export function useNotifications(currentUser) {
-  const { supabase, isAuthenticated } = useSupabase()
+  const { supabase, isAuthenticated, withAuthRetry } = useSupabase()
   const [notifications, setNotifications] = useState([])
   const [dbAvailable, setDbAvailable] = useState(null)
 
@@ -92,7 +92,7 @@ export function useNotifications(currentUser) {
       data: notif.data || {},
     }
 
-    const { data, error } = await insertNotification(supabase, payload)
+    const { data, error } = await withAuthRetry((client) => insertNotification(client, payload))
     if (error) {
       console.error('[useNotifications] insertNotification failed:', {
         userId: notif.userId,
@@ -108,25 +108,25 @@ export function useNotifications(currentUser) {
     }
 
     return data
-  }, [currentUser?.id, isAuthenticated, supabase])
+  }, [currentUser?.id, isAuthenticated, withAuthRetry])
 
   const markNotificationRead = useCallback(async (notifId) => {
     setNotifications(prev => prev.map(n => n.id === notifId ? { ...n, read: true } : n))
-    const { error } = await dbMarkNotificationRead(supabase, notifId)
+    const { error } = await withAuthRetry((client) => dbMarkNotificationRead(client, notifId))
     if (error) {
       console.error('[useNotifications] markNotificationRead failed:', error.message)
       refreshNotifications()
     }
-  }, [refreshNotifications, supabase])
+  }, [refreshNotifications, withAuthRetry])
 
   const markAllNotificationsRead = useCallback(async (userId) => {
     setNotifications(prev => prev.map(n => n.userId === userId ? { ...n, read: true } : n))
-    const { error } = await dbMarkAllNotificationsRead(supabase, userId)
+    const { error } = await withAuthRetry((client) => dbMarkAllNotificationsRead(client, userId))
     if (error) {
       console.error('[useNotifications] markAllNotificationsRead failed:', error.message)
       refreshNotifications()
     }
-  }, [refreshNotifications, supabase])
+  }, [refreshNotifications, withAuthRetry])
 
   const getUserNotifications = useCallback((userId) => {
     if (!userId || userId !== currentUser?.id) return []

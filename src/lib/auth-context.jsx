@@ -2,19 +2,12 @@
 // Source of truth for authentication. No localStorage user storage.
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { supabase, syncSupabaseAuthSession } from './supabase';
 
 const AuthContext = createContext(null);
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabaseAuthClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-    detectSessionInUrl: false,
-  },
-});
 
 // Session storage key
 const getStorageKey = () => `ew-auth-${SUPABASE_URL?.split('//')[1]?.split('.')[0] || 'default'}`;
@@ -34,6 +27,18 @@ function storeSession(session) {
       localStorage.removeItem(getStorageKey());
     }
   } catch (e) { console.error('Failed to store session:', e); }
+}
+
+function buildSession(data, fallback = {}) {
+  if (!data) return null;
+  const expiresIn = Number(data.expires_in || fallback.expires_in || 3600);
+  return {
+    access_token: data.access_token,
+    refresh_token: data.refresh_token || fallback.refresh_token,
+    expires_in: expiresIn,
+    expires_at: data.expires_at || Math.floor(Date.now() / 1000) + expiresIn,
+    user: data.user || fallback.user || null,
+  };
 }
 
 // Rate-limit cooldown tracker
@@ -106,17 +111,17 @@ export function AuthProvider({ children }) {
     refreshTimerRef.current = setTimeout(async () => {
       const result = await refreshSessionFn(refreshToken);
       if (result) {
-        const newSession = {
-          access_token: result.access_token,
-          refresh_token: result.refresh_token,
-          user: result.user,
-        };
+        const newSession = buildSession(result);
         storeSession(newSession);
         setSession(newSession);
         setUser(result.user);
+        syncSupabaseAuthSession(newSession).catch(error => {
+          console.error('Supabase session sync failed after scheduled refresh:', error?.message || error);
+        });
         scheduleRefresh(result.expires_in || 3600, result.refresh_token);
       } else {
         storeSession(null);
+        syncSupabaseAuthSession(null).catch(() => {});
         setSession(null);
         setUser(null);
       }
@@ -128,8 +133,11 @@ export function AuthProvider({ children }) {
     setSession(sessionData);
     setUser(sessionData.user || null);
     setRecoveryMode(isRecovery);
+    syncSupabaseAuthSession(sessionData).catch(error => {
+      console.error('Supabase session sync failed:', error?.message || error);
+    });
     if (sessionData.refresh_token) {
-      scheduleRefresh(3600, sessionData.refresh_token);
+      scheduleRefresh(sessionData.expires_in || 3600, sessionData.refresh_token);
     }
   }, [scheduleRefresh]);
 
@@ -149,11 +157,7 @@ export function AuthProvider({ children }) {
       throw new Error('Session refresh failed');
     }
 
-    const refreshedSession = {
-      access_token: result.access_token,
-      refresh_token: result.refresh_token,
-      user: result.user,
-    };
+    const refreshedSession = buildSession(result);
     applySession(refreshedSession, { isRecovery: false });
     return refreshedSession;
   }, [applySession, refreshSessionFn, session?.refresh_token]);
@@ -172,14 +176,10 @@ export function AuthProvider({ children }) {
         const routeLooksLikeRecovery = window.location.pathname.endsWith('/reset-password');
 
         if (code) {
-          const { data, error } = await supabaseAuthClient.auth.exchangeCodeForSession(code);
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
           if (error) throw error;
           if (data?.session && !cancelled) {
-            const sessionData = {
-              access_token: data.session.access_token,
-              refresh_token: data.session.refresh_token,
-              user: data.session.user,
-            };
+            const sessionData = buildSession(data.session);
             applySession(sessionData, { isRecovery: searchType === 'recovery' || routeLooksLikeRecovery });
             window.history.replaceState(null, '', window.location.pathname);
             setLoading(false);
@@ -189,17 +189,13 @@ export function AuthProvider({ children }) {
         }
 
         if (tokenHash && searchType === 'recovery') {
-          const { data, error } = await supabaseAuthClient.auth.verifyOtp({
+          const { data, error } = await supabase.auth.verifyOtp({
             token_hash: tokenHash,
             type: 'recovery',
           });
           if (error) throw error;
           if (data?.session && !cancelled) {
-            const sessionData = {
-              access_token: data.session.access_token,
-              refresh_token: data.session.refresh_token,
-              user: data.session.user,
-            };
+            const sessionData = buildSession(data.session);
             applySession(sessionData, { isRecovery: true });
             window.history.replaceState(null, '', window.location.pathname);
             setLoading(false);
@@ -220,6 +216,8 @@ export function AuthProvider({ children }) {
               const sessionData = {
                 access_token: accessToken,
                 refresh_token: refreshToken,
+                expires_in: Number(params.get('expires_in') || 3600),
+                expires_at: Math.floor(Date.now() / 1000) + Number(params.get('expires_in') || 3600),
                 user: userData,
               };
               applySession(sessionData, { isRecovery: type === 'recovery' || routeLooksLikeRecovery });
@@ -242,22 +240,21 @@ export function AuthProvider({ children }) {
           } else if (stored.refresh_token) {
             const result = await refreshSessionFn(stored.refresh_token);
             if (result && !cancelled) {
-              const newSession = {
-                access_token: result.access_token,
-                refresh_token: result.refresh_token,
-                user: result.user,
-              };
+              const newSession = buildSession(result);
               applySession(newSession, { isRecovery: false });
             } else {
               storeSession(null);
+              syncSupabaseAuthSession(null).catch(() => {});
             }
           } else {
             storeSession(null);
+            syncSupabaseAuthSession(null).catch(() => {});
           }
         }
       } catch (e) {
         console.error('Auth init error:', e);
         storeSession(null);
+        syncSupabaseAuthSession(null).catch(() => {});
       }
 
       if (!cancelled) setLoading(false);
@@ -291,15 +288,8 @@ export function AuthProvider({ children }) {
     }
 
     if (data.access_token) {
-      const sessionData = {
-        access_token: data.access_token,
-        refresh_token: data.refresh_token,
-        user: data.user,
-      };
-      storeSession(sessionData);
-      setSession(sessionData);
-      setUser(data.user);
-      scheduleRefresh(data.expires_in || 3600, data.refresh_token);
+      const sessionData = buildSession(data);
+      applySession(sessionData, { isRecovery: false });
     }
 
     return data;
@@ -318,15 +308,8 @@ export function AuthProvider({ children }) {
       throw new Error(data.error_description || data.msg || data.message || 'Login failed');
     }
 
-    const sessionData = {
-      access_token: data.access_token,
-      refresh_token: data.refresh_token,
-      user: data.user,
-    };
-    storeSession(sessionData);
-    setSession(sessionData);
-    setUser(data.user);
-    scheduleRefresh(data.expires_in || 3600, data.refresh_token);
+    const sessionData = buildSession(data);
+    applySession(sessionData, { isRecovery: false });
 
     return data;
   }, [scheduleRefresh]);
@@ -353,15 +336,8 @@ export function AuthProvider({ children }) {
       throw new Error(message);
     }
 
-    const sessionData = {
-      access_token: data.access_token,
-      refresh_token: data.refresh_token,
-      user: data.user,
-    };
-    storeSession(sessionData);
-    setSession(sessionData);
-    setUser(data.user);
-    scheduleRefresh(data.expires_in || 3600, data.refresh_token);
+    const sessionData = buildSession(data);
+    applySession(sessionData, { isRecovery: false });
 
     return { verified: true, user: data.user };
   }, [scheduleRefresh]);
@@ -382,6 +358,7 @@ export function AuthProvider({ children }) {
     }
     if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
     storeSession(null);
+    syncSupabaseAuthSession(null).catch(() => {});
     setSession(null);
     setUser(null);
     setRecoveryMode(false);

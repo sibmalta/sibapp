@@ -7,21 +7,103 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Base client - for public/unauthenticated queries only
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const SESSION_EXPIRED_MESSAGE = 'Your session expired. Please sign in again.';
 
-// Factory for authenticated client - used by useSupabase() hook
-export function createAuthenticatedClient(accessToken) {
-  const client = createClient(supabaseUrl, supabaseAnonKey, {
-    global: {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    },
+// Single shared Supabase client for the whole app. AuthContext syncs its session
+// into this instance so database writes do not keep stale bearer headers.
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+  },
+});
+
+export function isJwtExpiredError(error) {
+  const message = String(error?.message || error?.error_description || error || '').toLowerCase();
+  const code = String(error?.code || '').toLowerCase();
+  return (
+    message.includes('jwt expired') ||
+    message.includes('invalid jwt') ||
+    message.includes('jwt malformed') ||
+    message.includes('session expired') ||
+    message.includes('invalid session') ||
+    code === 'pgrst301' ||
+    code === '401'
+  );
+}
+
+export async function syncSupabaseAuthSession(session) {
+  if (!session?.access_token || !session?.refresh_token) {
+    await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+    supabase.realtime.setAuth(supabaseAnonKey);
+    return null;
+  }
+
+  const { data, error } = await supabase.auth.setSession({
+    access_token: session.access_token,
+    refresh_token: session.refresh_token,
   });
 
-  // Authenticate the realtime WebSocket connection for RLS to work
-  client.realtime.setAuth(accessToken);
+  if (error) {
+    console.error('[supabase] failed to sync auth session:', error.message);
+    return null;
+  }
 
-  return client;
+  supabase.realtime.setAuth(data.session?.access_token || session.access_token);
+  return data.session || session;
+}
+
+export async function ensureFreshSupabaseSession({ minTtlSeconds = 90 } = {}) {
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw error;
+
+  const session = data?.session;
+  if (!session?.access_token) throw new Error('No active Supabase session');
+
+  const expiresAtMs = session.expires_at ? session.expires_at * 1000 : 0;
+  const shouldRefresh = !expiresAtMs || expiresAtMs - Date.now() < minTtlSeconds * 1000;
+  if (!shouldRefresh) {
+    supabase.realtime.setAuth(session.access_token);
+    return session;
+  }
+
+  const refreshed = await supabase.auth.refreshSession();
+  if (refreshed.error || !refreshed.data?.session) {
+    throw refreshed.error || new Error('Session refresh failed');
+  }
+
+  supabase.realtime.setAuth(refreshed.data.session.access_token);
+  return refreshed.data.session;
+}
+
+export async function runWithFreshSession(operation, { onSessionExpired } = {}) {
+  try {
+    await ensureFreshSupabaseSession();
+    let result = await operation(supabase);
+
+    if (result?.error && isJwtExpiredError(result.error)) {
+      console.warn('[supabase] authenticated mutation hit expired JWT; refreshing and retrying once');
+      await ensureFreshSupabaseSession({ minTtlSeconds: Number.MAX_SAFE_INTEGER });
+      result = await operation(supabase);
+    }
+
+    if (result?.error && isJwtExpiredError(result.error)) {
+      throw result.error;
+    }
+
+    return result;
+  } catch (error) {
+    if (isJwtExpiredError(error) || /session refresh failed|no active supabase session/i.test(String(error?.message || error))) {
+      await onSessionExpired?.(error);
+      return { data: null, error: { message: SESSION_EXPIRED_MESSAGE, cause: error } };
+    }
+    return { data: null, error };
+  }
+}
+
+// Backward-compatible alias. It no longer creates another client.
+export function createAuthenticatedClient(accessToken) {
+  if (accessToken) supabase.realtime.setAuth(accessToken);
+  return supabase;
 }

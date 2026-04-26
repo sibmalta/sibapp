@@ -14,6 +14,7 @@ import { getDefaultDeliverySize } from '../lib/deliveryPricing'
 import { getFulfilmentMethodLabel, getFulfilmentPrice, normalizeFulfilmentMethod } from '../lib/fulfilment'
 import useSavedAddress from '../hooks/useSavedAddress'
 import { trackReferralConversion } from '../lib/referral'
+import { supabase } from '../lib/supabase'
 
 const TECHNICAL_PATTERNS = [
   /failed to fetch/i,
@@ -476,13 +477,7 @@ export default function CheckoutPage() {
 
     if (order) {
       try {
-        const SUPABASE_URL2 = import.meta.env.VITE_SUPABASE_URL
-        const SUPABASE_ANON_KEY2 = import.meta.env.VITE_SUPABASE_ANON_KEY
-        if (SUPABASE_URL2 && SUPABASE_ANON_KEY2) {
-          const { createClient } = await import('@supabase/supabase-js')
-          const sbTemp = createClient(SUPABASE_URL2, SUPABASE_ANON_KEY2)
-          trackReferralConversion(sbTemp, { orderId: order.id })
-        }
+        trackReferralConversion(supabase, { orderId: order.id })
       } catch {
         // silent
       }

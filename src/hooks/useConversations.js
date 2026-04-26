@@ -33,7 +33,7 @@ function sortConversations(items) {
 }
 
 export function useConversations(currentUser, seedConversations = []) {
-  const { supabase, isAuthenticated } = useSupabase()
+  const { supabase, isAuthenticated, withAuthRetry } = useSupabase()
   const [conversations, setConversations] = useState(() => loadFromStorage('sib_conversations', seedConversations))
   const [dbAvailable, setDbAvailable] = useState(null)
 
@@ -121,13 +121,13 @@ export function useConversations(currentUser, seedConversations = []) {
     mergeConversation(newConversation)
 
     if (isAuthenticated) {
-      upsertConversation(supabase, newConversation).then(({ error }) => {
+      withAuthRetry((client) => upsertConversation(client, newConversation)).then(({ error }) => {
         if (error) console.error('[useConversations] upsertConversation failed:', error.message)
       })
     }
 
     return newConversation
-  }, [currentUser?.id, conversations, isAuthenticated, mergeConversation, supabase])
+  }, [currentUser?.id, conversations, isAuthenticated, mergeConversation, withAuthRetry])
 
   const createConversationForUsers = useCallback((userAId, userBId, listingId = null, explicitId = null) => {
     if (!userAId || !userBId) return null
@@ -151,13 +151,13 @@ export function useConversations(currentUser, seedConversations = []) {
     mergeConversation(newConversation)
 
     if (isAuthenticated && newConversation.participants.includes(currentUser?.id)) {
-      upsertConversation(supabase, newConversation).then(({ error }) => {
+      withAuthRetry((client) => upsertConversation(client, newConversation)).then(({ error }) => {
         if (error) console.error('[useConversations] upsertConversationForUsers failed:', error.message)
       })
     }
 
     return newConversation
-  }, [currentUser?.id, conversations, isAuthenticated, mergeConversation, supabase])
+  }, [currentUser?.id, conversations, isAuthenticated, mergeConversation, withAuthRetry])
 
   const addLocalMessage = useCallback((conversationId, message) => {
     setConversations(prev => sortConversations(prev.map(c => (
@@ -199,7 +199,7 @@ export function useConversations(currentUser, seedConversations = []) {
 
     if (!isAuthenticated) return { data: optimisticMessage, error: null }
 
-    const { error: conversationError } = await upsertConversation(supabase, conversation)
+    const { error: conversationError } = await withAuthRetry((client) => upsertConversation(client, conversation))
     if (conversationError) {
       console.error('[useConversations] upsert before insertMessage failed:', {
         conversationId,
@@ -211,7 +211,7 @@ export function useConversations(currentUser, seedConversations = []) {
       return { data: optimisticMessage, error: conversationError }
     }
 
-    const { data, error } = await insertMessage(supabase, {
+    const { data, error } = await withAuthRetry((client) => insertMessage(client, {
       conversationId,
       senderId: message.senderId,
       recipientId,
@@ -220,7 +220,7 @@ export function useConversations(currentUser, seedConversations = []) {
       eventType: message.eventType || null,
       flagged: !!message.flagged,
       metadata: message.metadata || {},
-    })
+    }))
 
     if (error) {
       console.error('[useConversations] insertMessage failed:', {
@@ -247,7 +247,7 @@ export function useConversations(currentUser, seedConversations = []) {
     })))
 
     return { data, error: null }
-  }, [addLocalMessage, conversations, currentUser?.id, isAuthenticated, mergeConversation, supabase])
+  }, [addLocalMessage, conversations, currentUser?.id, isAuthenticated, mergeConversation, withAuthRetry])
 
   const markConversationRead = useCallback(async (conversationId) => {
     if (!currentUser?.id) return
@@ -261,12 +261,12 @@ export function useConversations(currentUser, seedConversations = []) {
     }))
 
     if (!isAuthenticated) return
-    const { error } = await dbMarkConversationRead(supabase, conversationId, currentUser.id)
+    const { error } = await withAuthRetry((client) => dbMarkConversationRead(client, conversationId, currentUser.id))
     if (error) {
       console.error('[useConversations] markConversationRead failed:', error.message)
       refreshConversations()
     }
-  }, [currentUser?.id, isAuthenticated, refreshConversations, supabase])
+  }, [currentUser?.id, isAuthenticated, refreshConversations, withAuthRetry])
 
   return {
     conversations,

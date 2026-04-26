@@ -14,7 +14,7 @@ import {
 } from '../lib/db/orders'
 
 export function useOrders() {
-  const { supabase } = useSupabase()
+  const { supabase, withAuthRetry } = useSupabase()
 
   const [orders, setOrders] = useState([])
   const [disputes, setDisputes] = useState([])
@@ -69,28 +69,28 @@ export function useOrders() {
     const check = requireDb()
     if (!check.ok) return { data: null, error: { message: check.reason } }
 
-    const { data, error } = await insertOrder(supabase, orderData)
+    const { data, error } = await withAuthRetry((client) => insertOrder(client, orderData))
     if (error) {
       console.error('[useOrders] insertOrder failed:', error.message)
       return { data: null, error }
     }
     setOrders(prev => [data, ...prev])
     return { data, error: null }
-  }, [supabase, requireDb])
+  }, [withAuthRetry, requireDb])
 
   /** Update an existing order by id. Returns { data, error }. */
   const patchOrder = useCallback(async (orderId, updates) => {
     const check = requireDb()
     if (!check.ok) return { data: null, error: { message: check.reason } }
 
-    const { data, error } = await updateOrder(supabase, orderId, updates)
+    const { data, error } = await withAuthRetry((client) => updateOrder(client, orderId, updates))
     if (error) {
       console.error('[useOrders] updateOrder failed:', error.message)
       return { data: null, error }
     }
     setOrders(prev => prev.map(o => o.id === orderId ? data : o))
     return { data, error: null }
-  }, [supabase, requireDb])
+  }, [withAuthRetry, requireDb])
 
   // ── Dispute mutations ────────────────────────────────────────────────────
 
@@ -98,27 +98,27 @@ export function useOrders() {
     const check = requireDb()
     if (!check.ok) return { data: null, error: { message: check.reason } }
 
-    const { data, error } = await insertDispute(supabase, disputeData)
+    const { data, error } = await withAuthRetry((client) => insertDispute(client, disputeData))
     if (error) {
       console.error('[useOrders] insertDispute failed:', error.message)
       return { data: null, error }
     }
     setDisputes(prev => [data, ...prev])
     return { data, error: null }
-  }, [supabase, requireDb])
+  }, [withAuthRetry, requireDb])
 
   const patchDispute = useCallback(async (disputeId, updates) => {
     const check = requireDb()
     if (!check.ok) return { data: null, error: { message: check.reason } }
 
-    const { data, error } = await updateDispute(supabase, disputeId, updates)
+    const { data, error } = await withAuthRetry((client) => updateDispute(client, disputeId, updates))
     if (error) {
       console.error('[useOrders] updateDispute failed:', error.message)
       return { data: null, error }
     }
     setDisputes(prev => prev.map(d => d.id === disputeId ? data : d))
     return { data, error: null }
-  }, [supabase, requireDb])
+  }, [withAuthRetry, requireDb])
 
   // ── Payout mutations ─────────────────────────────────────────────────────
 
@@ -126,27 +126,27 @@ export function useOrders() {
     const check = requireDb()
     if (!check.ok) return { data: null, error: { message: check.reason } }
 
-    const { data, error } = await insertPayout(supabase, payoutData)
+    const { data, error } = await withAuthRetry((client) => insertPayout(client, payoutData))
     if (error) {
       console.error('[useOrders] insertPayout failed:', error.message)
       return { data: null, error }
     }
     setPayouts(prev => [data, ...prev])
     return { data, error: null }
-  }, [supabase, requireDb])
+  }, [withAuthRetry, requireDb])
 
   const patchPayout = useCallback(async (payoutId, updates) => {
     const check = requireDb()
     if (!check.ok) return { data: null, error: { message: check.reason } }
 
-    const { data, error } = await updatePayout(supabase, payoutId, updates)
+    const { data, error } = await withAuthRetry((client) => updatePayout(client, payoutId, updates))
     if (error) {
       console.error('[useOrders] updatePayout failed:', error.message)
       return { data: null, error }
     }
     setPayouts(prev => prev.map(p => p.id === payoutId ? data : p))
     return { data, error: null }
-  }, [supabase, requireDb])
+  }, [withAuthRetry, requireDb])
 
   // ── Shipment mutations ───────────────────────────────────────────────────
 
@@ -154,27 +154,27 @@ export function useOrders() {
     const check = requireDb()
     if (!check.ok) return { data: null, error: { message: check.reason } }
 
-    const { data, error } = await insertShipment(supabase, shipmentData)
+    const { data, error } = await withAuthRetry((client) => insertShipment(client, shipmentData))
     if (error) {
       console.error('[useOrders] insertShipment failed:', error.message)
       return { data: null, error }
     }
     setShipments(prev => [data, ...prev])
     return { data, error: null }
-  }, [supabase, requireDb])
+  }, [withAuthRetry, requireDb])
 
   const patchShipment = useCallback(async (shipmentId, updates) => {
     const check = requireDb()
     if (!check.ok) return { data: null, error: { message: check.reason } }
 
-    const { data, error } = await updateShipment(supabase, shipmentId, updates)
+    const { data, error } = await withAuthRetry((client) => updateShipment(client, shipmentId, updates))
     if (error) {
       console.error('[useOrders] updateShipment failed:', error.message)
       return { data: null, error }
     }
     setShipments(prev => prev.map(s => s.id === shipmentId ? data : s))
     return { data, error: null }
-  }, [supabase, requireDb])
+  }, [withAuthRetry, requireDb])
 
   const patchShipmentByOrderId = useCallback(async (orderId, updates) => {
     const shipment = shipments.find(s => s.orderId === orderId)

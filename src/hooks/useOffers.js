@@ -22,7 +22,7 @@ function sortOffers(items) {
 }
 
 export function useOffers(currentUser) {
-  const { supabase, isAuthenticated } = useSupabase()
+  const { supabase, isAuthenticated, withAuthRetry } = useSupabase()
   const [offers, setOffers] = useState(() => loadFromStorage('sib_offers', []))
   const [dbAvailable, setDbAvailable] = useState(null)
 
@@ -74,7 +74,7 @@ export function useOffers(currentUser) {
       setOffers(prev => sortOffers([offer, ...prev]))
       return { data: offer, error: null }
     }
-    const { data, error } = await insertOffer(supabase, offer)
+    const { data, error } = await withAuthRetry((client) => insertOffer(client, offer))
     if (error) {
       console.error('[useOffers] insertOffer failed:', {
         listingId: offer.listingId,
@@ -87,14 +87,14 @@ export function useOffers(currentUser) {
     }
     setOffers(prev => sortOffers(prev.some(o => o.id === data.id) ? prev : [data, ...prev]))
     return { data, error: null }
-  }, [isAuthenticated, supabase])
+  }, [isAuthenticated, withAuthRetry])
 
   const patchOffer = useCallback(async (offerId, updates) => {
     if (!isAuthenticated) {
       setOffers(prev => prev.map(o => o.id === offerId ? { ...o, ...updates } : o))
       return { data: { id: offerId, ...updates }, error: null }
     }
-    const { data, error } = await updateOffer(supabase, offerId, updates)
+    const { data, error } = await withAuthRetry((client) => updateOffer(client, offerId, updates))
     if (error) {
       console.error('[useOffers] updateOffer failed:', {
         offerId,
@@ -105,7 +105,7 @@ export function useOffers(currentUser) {
     }
     setOffers(prev => sortOffers(prev.map(o => o.id === offerId ? data : o)))
     return { data, error: null }
-  }, [isAuthenticated, supabase])
+  }, [isAuthenticated, withAuthRetry])
 
   return {
     offers,
