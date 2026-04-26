@@ -39,8 +39,9 @@ export default function OffersPage() {
       return
     }
     showToast('Offer accepted!')
-    // Redirect buyer to checkout at accepted price
-    navigate(`/checkout/${offer.listingId}?offer=${offer.id}`)
+    if (offer.buyerId === currentUser.id) {
+      navigate(`/checkout/${offer.listingId}?offer=${offer.id}`)
+    }
   }
 
   const handleDecline = async (offerId) => {

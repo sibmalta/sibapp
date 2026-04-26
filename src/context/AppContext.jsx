@@ -8,7 +8,7 @@ import { useConversations as useConversationsHook } from '../hooks/useConversati
 import { useOffers as useOffersHook } from '../hooks/useOffers'
 import { SEED_USERS, SEED_MESSAGES, SEED_REVIEWS } from '../data/seedData'
 import {
-  sendOfferAcceptedEmail, sendCounterOfferAcceptedEmail, sendOfferDeclinedEmail, sendOfferCounteredEmail,
+  sendOfferAcceptedEmail, sendOfferDeclinedEmail, sendOfferCounteredEmail,
   sendOrderConfirmedEmail, sendOrderCancelledEmail, sendOrderCancelledSellerEmail,
   sendItemShippedEmail, sendItemDeliveredEmail,
   sendRefundConfirmedEmail, sendDisputeOpenedEmail, sendDisputeResolvedEmail, sendDisputeMessageEmail,
@@ -16,6 +16,7 @@ import {
   sendSuspiciousActivityEmail,
   sendMessageReceivedEmail,
   sendBundleOfferReceivedEmail, sendBundleOfferAcceptedEmail, sendBundleOfferDeclinedEmail, sendBundleOfferCounteredEmail,
+  sendSellerPreparePackageEmail,
 } from '../lib/email'
 import { createTransfer, createRefund } from '../lib/stripe'
 import { analyseMessage } from '../utils/circumventionDetector'
@@ -243,6 +244,7 @@ export function AppProvider({ children }) {
   const [bundleOffers, setBundleOffers] = useState(() => loadFromStorage('sib_bundleOffers', []))
   const [toast, setToast] = useState(null)
   const counterOfferRequestsRef = useRef(new Map())
+  const [packagePrepDismissedOfferIds, setPackagePrepDismissedOfferIds] = useState(() => new Set())
 
   // ── Notification helpers (must be before effects that depend on it) ──
   const {
@@ -1172,7 +1174,17 @@ export function AppProvider({ children }) {
     const listing = listings.find(l => l.id === offer.listingId)
     if (!listing || !['active', 'reserved'].includes(listing.status)) return { error: 'This item is no longer available.' }
     const acceptedPrice = offer?.counterPrice || offer?.price
-    const { error } = await dbPatchOffer(offerId, { status: 'accepted', acceptedPrice, updatedAt: now.toISOString() })
+    const acceptedMetadata = {
+      ...(offer.metadata || {}),
+      acceptedAt: now.toISOString(),
+      sellerPreparationStatus: 'seller_preparing_package',
+    }
+    const { error } = await dbPatchOffer(offerId, {
+      status: 'accepted',
+      acceptedPrice,
+      updatedAt: now.toISOString(),
+      metadata: acceptedMetadata,
+    })
     if (error) {
       return { error: 'Failed to accept offer: ' + error.message }
     }
@@ -1180,7 +1192,7 @@ export function AppProvider({ children }) {
     setOffers(prev => prev.map(o => {
       if (o.id !== offerId) return o
       const acceptedPrice = o.counterPrice || o.price
-      return { ...o, status: 'accepted', acceptedPrice, updatedAt: now.toISOString() }
+      return { ...o, status: 'accepted', acceptedPrice, updatedAt: now.toISOString(), metadata: acceptedMetadata }
     }))
     const notifyUserId = offer.status === 'countered' ? offer.sellerId : offer.buyerId
     const acceptor = users.find(u => u.id === (offer.status === 'countered' ? offer.buyerId : offer.sellerId))
@@ -1217,7 +1229,45 @@ export function AppProvider({ children }) {
         actionTarget: `/messages/${conversation.id}`,
       })
 
-    // Email: notify the other party that the active offer/counter was accepted.
+    const sellerForPrep = await ensureUserById?.(offer.sellerId) || users.find(u => u.id === offer.sellerId)
+    const buyerForPrep = users.find(u => u.id === offer.buyerId)
+    await addNotification({
+        userId: offer.sellerId,
+        type: 'seller_prepare_package',
+        title: 'Prepare your package for MaltaPost pickup',
+        message: 'Your offer has been accepted. Package the item securely and keep it ready for MaltaPost pickup.',
+        offerId: offer.id,
+        listingId: offer.listingId,
+        conversationId: conversation.id,
+        actionTarget: `/messages/${conversation.id}`,
+        status: 'seller_preparing_package',
+      })
+    const prepEmailResult = await sendSellerPreparePackageEmail(
+      sellerForPrep?.email || null,
+      sellerForPrep?.name || sellerForPrep?.username || 'seller',
+      listing?.title || 'item',
+      acceptedPrice,
+      buyerForPrep?.username || buyerForPrep?.name || currentUser?.username || 'buyer',
+      {
+        offerId: offer.id,
+        listingId: offer.listingId,
+        conversationId: conversation.id,
+        buyerId: offer.buyerId,
+        sellerId: offer.sellerId,
+        related_entity_type: 'offer',
+        related_entity_id: offer.id,
+      },
+    )
+    if (!prepEmailResult?.success || !prepEmailResult?.emailSent) {
+      console.warn('[offers] seller prepare package email failed or not sent', {
+        offerId: offer.id,
+        sellerId: offer.sellerId,
+        response: prepEmailResult,
+      })
+    }
+
+    // Email: notify the buyer when a seller accepts an offer. Seller action-required
+    // email is sent above for both direct acceptances and accepted counter offers.
     const buyer = users.find(u => u.id === offer.buyerId)
     const sellerUser = users.find(u => u.id === offer.sellerId)
     const emailMeta = {
@@ -1229,29 +1279,7 @@ export function AppProvider({ children }) {
       related_entity_type: 'offer',
       related_entity_id: offer.id,
     }
-    if (offer.status === 'countered') {
-      if (sellerUser?.email) {
-        const emailResult = await sendCounterOfferAcceptedEmail(
-          sellerUser.email,
-          listing?.title || 'item',
-          acceptedPrice,
-          buyer?.username || currentUser?.username || 'buyer',
-          emailMeta,
-        )
-        if (!emailResult) {
-          console.error('[offers] counter offer accepted email failed', {
-            offerId: offer.id,
-            sellerId: offer.sellerId,
-            conversationId: conversation.id,
-          })
-        }
-      } else {
-        console.warn('[offers] seller email missing; counter offer accepted email skipped', {
-          offerId: offer.id,
-          sellerId: offer.sellerId,
-        })
-      }
-    } else if (buyer?.email) {
+    if (offer.status !== 'countered' && buyer?.email) {
       const emailResult = await sendOfferAcceptedEmail(buyer.email, listing?.title || 'item', acceptedPrice, sellerUser?.username || 'seller', emailMeta)
       if (!emailResult) {
         console.error('[offers] offer accepted email failed', {
@@ -1260,14 +1288,14 @@ export function AppProvider({ children }) {
           buyerId: offer.buyerId,
         })
       }
-    } else {
+    } else if (offer.status !== 'countered') {
       console.warn('[offers] buyer email missing; offer accepted email skipped', {
         offerId: offer.id,
         buyerId: offer.buyerId,
       })
     }
     return { ok: true }
-  }, [offers, listings, users, addNotification, currentUser, getOrCreateConversationForUsers, addConversationEvent, dbPatchOffer, dbMarkReserved, showToast])
+  }, [offers, listings, users, addNotification, currentUser, getOrCreateConversationForUsers, addConversationEvent, dbPatchOffer, dbMarkReserved, showToast, ensureUserById])
 
   const declineOffer = useCallback(async (offerId) => {
     const now = new Date()
@@ -1620,6 +1648,50 @@ export function AppProvider({ children }) {
   const getUserActiveOfferOnListing = useCallback((userId, listingId) => {
     return offers.find(o => o.buyerId === userId && o.listingId === listingId && isActiveOffer(o))
   }, [offers])
+
+  const pendingPackagePreparationOffer = useMemo(() => {
+    if (!currentUser?.id) return null
+    return offers.find(o => (
+      o.sellerId === currentUser.id &&
+      o.status === 'accepted' &&
+      o.metadata?.sellerPreparationStatus === 'seller_preparing_package' &&
+      !o.metadata?.packagePreparedAt &&
+      !packagePrepDismissedOfferIds.has(o.id)
+    )) || null
+  }, [currentUser?.id, offers, packagePrepDismissedOfferIds])
+
+  const dismissPackagePreparationPrompt = useCallback((offerId) => {
+    if (!offerId) return
+    setPackagePrepDismissedOfferIds(prev => new Set([...prev, offerId]))
+  }, [])
+
+  const markOfferPackagePrepared = useCallback(async (offerId) => {
+    const offer = offers.find(o => o.id === offerId)
+    if (!offer) return { error: 'Offer not found. Please refresh and try again.' }
+    if (currentUser?.id !== offer.sellerId) return { error: 'Only the seller can update package preparation.' }
+    const now = new Date().toISOString()
+    const metadata = {
+      ...(offer.metadata || {}),
+      sellerPreparationStatus: 'ready_for_pickup',
+      packagePreparedAt: now,
+    }
+    const { error } = await dbPatchOffer(offerId, {
+      updatedAt: now,
+      metadata,
+    })
+    if (error) {
+      console.error('[offers] mark package prepared failed', {
+        offerId,
+        sellerId: offer.sellerId,
+        message: error.message,
+        code: error.code || null,
+      })
+      return { error: 'Could not save package preparation. Please try again.' }
+    }
+    setOffers(prev => prev.map(o => o.id === offerId ? { ...o, updatedAt: now, metadata } : o))
+    setPackagePrepDismissedOfferIds(prev => new Set([...prev, offerId]))
+    return { ok: true }
+  }, [offers, currentUser?.id, dbPatchOffer, setOffers])
 
   // ── Bundle system ──────────────────────────────────────────────────
   // Bundle: { sellerId, items: [listingId, ...] }
@@ -2472,6 +2544,7 @@ export function AppProvider({ children }) {
       confirmDelivery, openDispute, adminOpenDispute, flagOrderOverdue, DISPUTE_REASONS,
       addNotification, markNotificationRead, markAllNotificationsRead, getUserNotifications, refreshNotifications,
       createOffer, acceptOffer, declineOffer, counterOffer, releaseListingReservation, recoverOfferConversationFromLink, getOfferById, getListingOffers, getUserActiveOfferOnListing,
+      pendingPackagePreparationOffer, dismissPackagePreparationPrompt, markOfferPackagePrepared,
       addToBundle, removeFromBundle, clearBundle, isInBundle, calculateBundleFees, placeBundleOrder,
       createBundleOffer, acceptBundleOffer, declineBundleOffer, counterBundleOffer, getBundleOfferById, placeBundleOfferOrder,
       suspendUser, banUser, restoreUser, updateSellerBadges, updateTrustTags, updateAdminRole, holdPayout, releasePayout, refundOrder, resolveDispute, cancelOrder, addDisputeMessage,

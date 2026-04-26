@@ -5,6 +5,7 @@ import { ThemeProvider } from './context/ThemeContext'
 import Layout from './components/Layout'
 import ScrollToTop from './components/ScrollToTop'
 import Toast from './components/Toast'
+import PackagePreparationModal from './components/PackagePreparationModal'
 import { useAuth } from './lib/auth-context'
 
 
@@ -112,6 +113,7 @@ function AppRoutes() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
+      <PackagePreparationModal />
       <Toast />
     </>
   )

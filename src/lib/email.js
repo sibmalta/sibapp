@@ -5,7 +5,7 @@ async function sendEmail(type, to, payload = {}, meta = {}) {
   try {
     const canResolveRecipient =
       !!meta?.sellerId &&
-      ['item_sold', 'offer_received', 'bundle_offer_received'].includes(type)
+      ['item_sold', 'offer_received', 'bundle_offer_received', 'seller_prepare_package'].includes(type)
 
     if (!to && !canResolveRecipient) {
       console.error('[sendEmail] missing recipient; email not sent', {
@@ -138,6 +138,10 @@ export function sendOfferDeclinedEmail(buyerEmail, itemTitle, declinedPrice, sel
 
 export function sendOfferCounteredEmail(buyerEmail, itemTitle, originalPrice, counterPrice, sellerName, meta = {}) {
   return sendEmail('offer_countered', buyerEmail, { itemTitle, originalPrice, counterPrice, sellerName }, meta)
+}
+
+export function sendSellerPreparePackageEmail(sellerEmail, sellerName, itemTitle, acceptedPrice, buyerName, meta = {}) {
+  return sendEmail('seller_prepare_package', sellerEmail, { sellerName, itemTitle, acceptedPrice, buyerName }, meta)
 }
 
 export function sendOrderCancelledEmail(buyerEmail, buyerName, orderRef, itemTitle, refundAmount, meta = {}) {

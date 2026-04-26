@@ -26,6 +26,7 @@ type EmailType =
   | 'counter_offer_accepted'
   | 'offer_declined'
   | 'offer_countered'
+  | 'seller_prepare_package'
   | 'order_cancelled'
   | 'order_cancelled_seller'
   | 'dispute_resolved'
@@ -107,7 +108,7 @@ async function resolveRecipientIfNeeded(payload: EmailPayload) {
   if (payload.to) return payload.to
 
   const sellerId = payload.meta?.sellerId
-  const sellerRecipientTypes = new Set(['item_sold', 'offer_received', 'bundle_offer_received'])
+  const sellerRecipientTypes = new Set(['item_sold', 'offer_received', 'bundle_offer_received', 'seller_prepare_package'])
   if (sellerRecipientTypes.has(payload.type) && sellerId) {
     const supabase = getServiceRoleClient()
     if (!supabase) {
@@ -646,6 +647,40 @@ case 'item_sold': {
     }
 
     // ── OFFER DECLINE / COUNTER EMAILS ────────────────────────
+    case 'seller_prepare_package': {
+      const { sellerName, itemTitle, acceptedPrice, buyerName } = data
+      const ph = `Your offer has been accepted. Please prepare "${itemTitle}" for MaltaPost pickup.`
+      return {
+        subject: 'Action required: prepare your item for MaltaPost pickup',
+        preheader: ph,
+        html: wrap(ph, `
+          <h2 style="font-size:18px;color:#1F2937;text-align:center;margin:14px 0 8px;">Prepare Your Package</h2>
+          <p style="font-size:14px;color:#4B5563;text-align:center;margin:0 0 14px;">
+            Hi ${sellerName || 'there'}, your offer has been accepted. Please package the item securely and keep it ready for MaltaPost pickup.
+          </p>
+          ${infoBox('#FFF7ED', `
+            <p style="font-size:14px;color:#4B5563;margin:0 0 4px;"><strong>Item:</strong> ${itemTitle || 'item'}</p>
+            <p style="font-size:14px;color:#4B5563;margin:0 0 4px;"><strong>Buyer:</strong> @${buyerName || 'buyer'}</p>
+            ${priceTag(acceptedPrice || '0.00', '#C75B2A')}
+          `)}
+          <div style="background:#F9FAFB;border-radius:8px;padding:14px;margin:14px 0;">
+            <p style="font-size:14px;color:#1F2937;font-weight:700;margin:0 0 8px;">Package checklist</p>
+            <ul style="font-size:13px;color:#4B5563;margin:0;padding-left:18px;line-height:1.7;">
+              <li>Package the item securely</li>
+              <li>Remove old shipping labels/barcodes</li>
+              <li>Attach the Sib/MaltaPost label when provided</li>
+              <li>Keep the package ready at the pickup address</li>
+              <li>Hand it only to MaltaPost or an approved courier</li>
+            </ul>
+          </div>
+          <p style="font-size:13px;color:#6B7280;text-align:center;">
+            Delays in preparing the package may delay delivery and payment.
+          </p>
+          ${btn('Open Messages', offerThreadUrl())}
+        `),
+      }
+    }
+
     case 'counter_offer_accepted': {
       const { itemTitle, acceptedPrice, buyerName } = data
       const ph = `@${buyerName || 'buyer'} accepted your counter offer of EUR ${acceptedPrice} on "${itemTitle}".`
@@ -969,6 +1004,9 @@ Deno.serve(async (req) => {
     const emailFrom = 'Sib <no-reply@sibmalta.com>'
 
     const resolvedRecipient = await resolveRecipientIfNeeded(payload)
+    if (resolvedRecipient && !payload.to) {
+      payload.to = resolvedRecipient
+    }
 
     if (!payload.to || !payload.type) {
       if (payload?.type || payload?.to) {
