@@ -31,6 +31,47 @@ export const SHOE_SIZES = [
   '43', '43.5', '44', '44.5', '45', '46',
 ]
 
+export function parseNumericSize(size) {
+  if (size === null || size === undefined) return null
+  const normalized = String(size)
+    .trim()
+    .replace(/^EU\s+/i, '')
+    .replace(',', '.')
+    .replace(/\+$/, '')
+
+  if (!/^\d+(?:\.\d+)?$/.test(normalized)) return null
+  const value = Number(normalized)
+  return Number.isFinite(value) ? value : null
+}
+
+export function compareNumericSizes(a, b) {
+  const aNum = parseNumericSize(a)
+  const bNum = parseNumericSize(b)
+  if (aNum !== null && bNum !== null) return aNum - bNum
+  return String(a).localeCompare(String(b), undefined, { numeric: true })
+}
+
+export function sizeFilterMatchesListing(filterSize, listingSize) {
+  if (filterSize === null || filterSize === undefined || listingSize === null || listingSize === undefined) return false
+
+  const filter = String(filterSize).trim()
+  const listing = String(listingSize).trim()
+  if (!filter || !listing) return false
+  if (filter.toLowerCase() === listing.toLowerCase()) return true
+
+  const normalizedFilter = filter.replace(/^EU\s+/i, '')
+  const normalizedListing = listing.replace(/^EU\s+/i, '')
+  if (normalizedFilter.toLowerCase() === normalizedListing.toLowerCase()) return true
+
+  const filterNum = parseNumericSize(normalizedFilter)
+  const listingNum = parseNumericSize(normalizedListing)
+  if (filter.endsWith('+') && filterNum !== null && listingNum !== null) {
+    return listingNum >= filterNum
+  }
+
+  return filterNum !== null && listingNum !== null && filterNum === listingNum
+}
+
 // ── Trouser/Jean waist & length ─────────────────────────────
 export const WAIST_SIZES = ['24', '25', '26', '27', '28', '29', '30', '31', '32', '33', '34', '36', '38', '40', '42']
 export const LENGTH_SIZES = ['28', '29', '30', '31', '32', '33', '34', '36']
@@ -137,7 +178,7 @@ export function getLengthFilterSizes() {
 export function getAllSizes() {
   const all = new Set()
   Object.values(SIZES_BY_CATEGORY).forEach(c => c.sizes.forEach(s => all.add(s)))
-  return [...all]
+  return [...all].sort(compareNumericSizes)
 }
 
 /**

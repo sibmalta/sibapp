@@ -11,6 +11,7 @@ import BrandInput from '../components/BrandInput'
 import { normalizeBrand } from '../lib/brands'
 import { moderateContent } from '../lib/moderation'
 import { DELIVERY_TIERS, getDefaultDeliverySize, getAllowedTiers, getDeliveryFee, BULKY_DELIVERY_NOTES, isForceBulky, SIZE_ACCURACY_WARNING, titleSuggestsBulky } from '../lib/deliveryPricing'
+import { SHOE_SIZES } from '../utils/sizeConfig'
 
 /* ── Static data ────────────────────────────────────────────── */
 
@@ -54,8 +55,6 @@ const KIDS_AGE_SIZES = [
   '5-6 years', '6-7 years', '7-8 years', '8-9 years',
   '9-10 years', '10-12 years', '12-14 years',
 ]
-
-const SHOE_SIZES = Array.from({ length: 17 }, (_, i) => String(i + 34))
 
 const WAIST_SIZES = ['W24', 'W25', 'W26', 'W27', 'W28', 'W29', 'W30', 'W31', 'W32', 'W33', 'W34', 'W36', 'W38', 'W40']
 

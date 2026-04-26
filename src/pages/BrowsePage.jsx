@@ -20,6 +20,7 @@ import { CATEGORY_TREE, getSubcategories, normalizeSubcategoryValue, resolveCate
 import { getSportChildren, getSportBrands } from '../data/sportsFilters'
 import { getShoeChildren } from '../data/shoeFilters'
 import { getSubcategoryChildren } from '../data/subcategoryChildren'
+import { sizeFilterMatchesListing } from '../utils/sizeConfig'
 
 const CATEGORIES = CATEGORY_TREE.map(c => ({ label: c.label, value: c.id }))
 
@@ -222,14 +223,17 @@ export default function BrowsePage() {
 
     if (sizes.length) {
       filtered = filtered.filter(l => {
-        // Direct match (letter sizes, belt sizes, shoe sizes, etc.)
-        if (sizes.includes(l.size)) return true
-        // EU-prefix match: SellPage stores "EU 38", filter has "38" or "46+" (from WOMEN_EU_SIZES)
-        if (l.size && l.size.startsWith('EU ')) {
-          const euNum = l.size.slice(3) // "EU 38" → "38"
-          if (sizes.includes(euNum)) return true
-          // Handle "46+" filter matching "EU 46"
-          if (sizes.some(s => s.endsWith('+') && parseInt(euNum) >= parseInt(s))) return true
+        // Match letter sizes, EU shoe/clothing sizes, half sizes, and legacy attribute storage.
+        const listingSizes = [
+          l.size,
+          l.shoe_size,
+          l.attributes?.size,
+          l.attributes?.shoe_size,
+          l.attributes?.kids_size,
+        ].filter(Boolean)
+
+        if (listingSizes.some(listingSize => sizes.some(size => sizeFilterMatchesListing(size, listingSize)))) {
+          return true
         }
         // Waist match: listing.size is "W30", filter has "W30"
         if (l.size && l.size.startsWith('W')) {
