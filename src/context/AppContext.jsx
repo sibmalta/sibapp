@@ -8,7 +8,7 @@ import { useConversations as useConversationsHook } from '../hooks/useConversati
 import { useOffers as useOffersHook } from '../hooks/useOffers'
 import { SEED_USERS, SEED_MESSAGES, SEED_REVIEWS } from '../data/seedData'
 import {
-  sendOfferReceivedEmail, sendOfferAcceptedEmail, sendOfferDeclinedEmail, sendOfferCounteredEmail,
+  sendOfferReceivedEmail, sendOfferAcceptedEmail, sendCounterOfferAcceptedEmail, sendOfferDeclinedEmail, sendOfferCounteredEmail,
   sendOrderConfirmedEmail, sendOrderCancelledEmail, sendOrderCancelledSellerEmail,
   sendItemShippedEmail, sendItemDeliveredEmail,
   sendRefundConfirmedEmail, sendDisputeOpenedEmail, sendDisputeResolvedEmail, sendDisputeMessageEmail,
@@ -1181,8 +1181,8 @@ export function AppProvider({ children }) {
         listingId: offer.listingId,
         buyerId: offer.buyerId,
         sellerId: offer.sellerId,
-        title: 'Offer accepted',
-        text: `@${acceptor?.username || 'user'} accepted €${acceptedPrice} on "${listing?.title || 'item'}"`,
+        title: offer.status === 'countered' ? 'Counter offer accepted' : 'Offer accepted',
+        text: `@${acceptor?.username || 'user'} accepted ${offer.status === 'countered' ? 'your counter offer' : 'the offer'} of €${acceptedPrice} on "${listing?.title || 'item'}"`,
         offerPrice: acceptedPrice,
         originalPrice: listing?.price,
         itemTitle: listing?.title || 'item',
@@ -1195,27 +1195,62 @@ export function AppProvider({ children }) {
     await addNotification({
         userId: notifyUserId,
         type: 'offer_accepted',
-        title: 'Offer accepted',
-        message: `@${acceptor?.username || 'user'} accepted €${acceptedPrice} on "${listing?.title || 'item'}"`,
+        title: offer.status === 'countered' ? 'Counter offer accepted' : 'Offer accepted',
+        message: `@${acceptor?.username || 'user'} accepted ${offer.status === 'countered' ? 'your counter offer' : 'the offer'} of €${acceptedPrice} on "${listing?.title || 'item'}"`,
         offerId: offer.id,
         listingId: offer.listingId,
         conversationId: conversation.id,
         actionTarget: `/messages/${conversation.id}`,
       })
 
-      // Email: notify buyer that offer was accepted
+    // Email: notify the other party that the active offer/counter was accepted.
     const buyer = users.find(u => u.id === offer.buyerId)
     const sellerUser = users.find(u => u.id === offer.sellerId)
-    if (buyer?.email) {
-      await sendOfferAcceptedEmail(buyer.email, listing?.title || 'item', acceptedPrice, sellerUser?.username || 'seller', {
+    const emailMeta = {
+      offerId: offer.id,
+      listingId: offer.listingId,
+      conversationId: conversation.id,
+      buyerId: offer.buyerId,
+      sellerId: offer.sellerId,
+      related_entity_type: 'offer',
+      related_entity_id: offer.id,
+    }
+    if (offer.status === 'countered') {
+      if (sellerUser?.email) {
+        const emailResult = await sendCounterOfferAcceptedEmail(
+          sellerUser.email,
+          listing?.title || 'item',
+          acceptedPrice,
+          buyer?.username || currentUser?.username || 'buyer',
+          emailMeta,
+        )
+        if (!emailResult) {
+          console.error('[offers] counter offer accepted email failed', {
+            offerId: offer.id,
+            sellerId: offer.sellerId,
+            conversationId: conversation.id,
+          })
+        }
+      } else {
+        console.warn('[offers] seller email missing; counter offer accepted email skipped', {
           offerId: offer.id,
-          listingId: offer.listingId,
+          sellerId: offer.sellerId,
+        })
+      }
+    } else if (buyer?.email) {
+      const emailResult = await sendOfferAcceptedEmail(buyer.email, listing?.title || 'item', acceptedPrice, sellerUser?.username || 'seller', emailMeta)
+      if (!emailResult) {
+        console.error('[offers] offer accepted email failed', {
+          offerId: offer.id,
           conversationId: conversation.id,
           buyerId: offer.buyerId,
-          sellerId: offer.sellerId,
-          related_entity_type: 'offer',
-          related_entity_id: offer.id,
         })
+      }
+    } else {
+      console.warn('[offers] buyer email missing; offer accepted email skipped', {
+        offerId: offer.id,
+        buyerId: offer.buyerId,
+      })
     }
     return { ok: true }
   }, [offers, listings, users, addNotification, currentUser, getOrCreateConversationForUsers, addConversationEvent, dbPatchOffer, showToast])

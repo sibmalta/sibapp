@@ -23,6 +23,7 @@ type EmailType =
   | 'moderation_notice'
   | 'offer_received'
   | 'offer_accepted'
+  | 'counter_offer_accepted'
   | 'offer_declined'
   | 'offer_countered'
   | 'order_cancelled'
@@ -644,6 +645,27 @@ case 'item_sold': {
     }
 
     // ── OFFER DECLINE / COUNTER EMAILS ────────────────────────
+    case 'counter_offer_accepted': {
+      const { itemTitle, acceptedPrice, buyerName } = data
+      const ph = `@${buyerName || 'buyer'} accepted your counter offer of EUR ${acceptedPrice} on "${itemTitle}".`
+      return {
+        subject: `Your counter offer was accepted — "${itemTitle}"`,
+        preheader: ph,
+        html: wrap(ph, `
+          <h2 style="font-size:18px;color:#1F2937;text-align:center;margin:14px 0 8px;">Your Counter Offer Was Accepted</h2>
+          ${infoBox('#ECFDF5', `
+            <p style="font-size:14px;color:#4B5563;margin:0 0 4px;"><strong>Item:</strong> ${itemTitle}</p>
+            <p style="font-size:14px;color:#4B5563;margin:0 0 4px;"><strong>Buyer:</strong> @${buyerName || 'buyer'}</p>
+            ${priceTag(acceptedPrice, '#059669')}
+          `)}
+          <p style="font-size:13px;color:#6B7280;text-align:center;">
+            Continue in Messages to keep the offer and checkout conversation in one place.
+          </p>
+          ${btn('View Conversation', offerThreadUrl())}
+        `),
+      }
+    }
+
     case 'offer_declined': {
       const { itemTitle, declinedPrice, sellerName } = data
       const ph = `Your offer of EUR ${declinedPrice} on "${itemTitle}" was declined.`

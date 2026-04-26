@@ -99,6 +99,10 @@ export function sendOfferAcceptedEmail(buyerEmail, itemTitle, acceptedPrice, sel
   return sendEmail('offer_accepted', buyerEmail, { itemTitle, acceptedPrice, sellerName }, meta)
 }
 
+export function sendCounterOfferAcceptedEmail(sellerEmail, itemTitle, acceptedPrice, buyerName, meta = {}) {
+  return sendEmail('counter_offer_accepted', sellerEmail, { itemTitle, acceptedPrice, buyerName }, meta)
+}
+
 export function sendOfferDeclinedEmail(buyerEmail, itemTitle, declinedPrice, sellerName, meta = {}) {
   return sendEmail('offer_declined', buyerEmail, { itemTitle, declinedPrice, sellerName }, meta)
 }
