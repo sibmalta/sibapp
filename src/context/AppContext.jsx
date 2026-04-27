@@ -23,6 +23,7 @@ import { analyseMessage } from '../utils/circumventionDetector'
 import { FULFILMENT_PROVIDER, getFulfilmentMethodLabel, getFulfilmentPrice, normalizeFulfilmentMethod } from '../lib/fulfilment'
 import { sendNewOfferSellerEmail } from '../lib/offerEmail'
 import { getOfferCreationBlockReason, isActiveOffer } from '../lib/offerStatus'
+import { createShippingProvider } from '../lib/shippingProvider'
 
 const AppContext = createContext(null)
 
@@ -398,6 +399,49 @@ export function AppProvider({ children }) {
   const updateCollectionTags = dbUpdateCollectionTags
   const adminUpdateListingMeta = dbAdminUpdateListingMeta
 
+  const ensureMaltaPostShipment = useCallback(async (order, source = 'order') => {
+    if (!order?.id) return { success: false, error: 'Order is required.' }
+    const accessToken = authSession?.access_token
+    if (!accessToken) {
+      console.warn('[maltapost] shipment create skipped: missing auth session', {
+        orderId: order.id,
+        source,
+      })
+      return { success: false, error: 'missing_auth_session' }
+    }
+
+    try {
+      const provider = createShippingProvider({ accessToken })
+      const result = await provider.createShipment(order)
+      if (!result?.success) {
+        console.error('[maltapost] shipment create failed', {
+          orderId: order.id,
+          source,
+          error: result?.error || 'unknown_error',
+          details: result?.details || null,
+        })
+        return result
+      }
+
+      console.info('[maltapost] shipment created/prepared', {
+        orderId: order.id,
+        source,
+        shipmentId: result.shipment?.shipmentId || null,
+        trackingNumber: result.shipment?.trackingNumber || null,
+        alreadyCreated: !!result.alreadyCreated,
+      })
+      await Promise.all([refreshOrders(), refreshShipments()])
+      return result
+    } catch (error) {
+      console.error('[maltapost] shipment create unexpected failure', {
+        orderId: order.id,
+        source,
+        message: error?.message || String(error),
+      })
+      return { success: false, error: error?.message || 'maltapost_request_failed' }
+    }
+  }, [authSession?.access_token, refreshOrders, refreshShipments])
+
   // ── Notification helpers (must be before placeOrder which depends on it) ──
   const placeOrder = useCallback(async (listingId, deliveryMethod, address, overridePrice, deliveryInfo, deliverySnapshot, stripePaymentIntentId = null, opts = {}) => {
     const listing = listings.find(l => l.id === listingId)
@@ -417,6 +461,10 @@ export function AppProvider({ children }) {
     const itemPrice = overridePrice != null ? overridePrice : listing.price
     const deliveryType = deliveryInfo?.type || 'home_delivery'
     const fulfilmentMethod = normalizeFulfilmentMethod(deliveryType)
+    if (fulfilmentMethod === 'locker' && listing.lockerEligible !== true) {
+      showToast('Locker delivery not available for this item', 'error')
+      return null
+    }
     const dFee = getFulfilmentPrice(fulfilmentMethod)
     const buyerProtectionFee = parseFloat((0.75 + itemPrice * 0.05).toFixed(2))
     const bundledFee = parseFloat((buyerProtectionFee + dFee).toFixed(2))
@@ -499,6 +547,7 @@ export function AppProvider({ children }) {
     shipmentData.deliveryType = deliveryType
     const { error: shipErr } = await dbCreateShipment(shipmentData)
     if (shipErr) console.error('[placeOrder] shipment create failed:', shipErr.message)
+    if (!shipErr) await ensureMaltaPostShipment(savedOrder, 'placeOrder')
 
     // Notify seller about collection deadline
     addNotification({
@@ -536,7 +585,7 @@ export function AppProvider({ children }) {
     })
 
     return savedOrder
-  }, [currentUser, listings, users, orders, offers, addNotification, dbCreateOrder, dbCreateShipment, dbMarkSold, showToast])
+  }, [currentUser, listings, users, orders, offers, addNotification, dbCreateOrder, dbCreateShipment, dbMarkSold, ensureMaltaPostShipment, showToast])
 
   const getOrCreateConversation = useCallback((otherUserId, listingId) => {
     return createConversation(otherUserId, listingId)
@@ -1676,8 +1725,15 @@ export function AppProvider({ children }) {
     }
     setOffers(prev => prev.map(o => o.id === offerId ? { ...o, updatedAt: now, metadata } : o))
     setPackagePrepDismissedOfferIds(prev => new Set([...prev, offerId]))
+    const paidOrder = orders.find(order => (
+      order.listingId === offer.listingId &&
+      order.sellerId === offer.sellerId &&
+      order.buyerId === offer.buyerId &&
+      ['paid', 'accepted', 'seller_preparing_package', 'ready_for_pickup'].includes(order.status || order.trackingStatus)
+    ))
+    if (paidOrder) await ensureMaltaPostShipment(paidOrder, 'sellerPackagePrepared')
     return { ok: true }
-  }, [offers, currentUser?.id, dbPatchOffer, setOffers])
+  }, [offers, currentUser?.id, dbPatchOffer, setOffers, orders, ensureMaltaPostShipment])
 
   // ── Bundle system ──────────────────────────────────────────────────
   // Bundle: { sellerId, items: [listingId, ...] }
@@ -1747,6 +1803,10 @@ export function AppProvider({ children }) {
     const subtotal = overrideSubtotal != null ? overrideSubtotal : items.reduce((sum, l) => sum + l.price, 0)
     const deliveryType = deliveryInfo?.type || 'home_delivery'
     const fulfilmentMethod = normalizeFulfilmentMethod(deliveryType)
+    if (fulfilmentMethod === 'locker' && items.some(item => item.lockerEligible !== true)) {
+      showToast('Locker delivery not available for this item', 'error')
+      return null
+    }
     const dFee = getFulfilmentPrice(fulfilmentMethod)
     const fees = calculateBundleFees(subtotal, dFee)
     const deliveryLabel = getFulfilmentMethodLabel(fulfilmentMethod)
@@ -1831,6 +1891,7 @@ export function AppProvider({ children }) {
     shipmentData.deliveryType = deliveryType
     const { error: shipErr } = await dbCreateShipment(shipmentData)
     if (shipErr) console.error('[placeBundleOrder] shipment create failed:', shipErr.message)
+    if (!shipErr) await ensureMaltaPostShipment(savedOrder, 'placeBundleOrder')
 
     // Notify seller
     addNotification({
@@ -1872,7 +1933,7 @@ export function AppProvider({ children }) {
     // Clear bundle after order
     setBundle(null)
     return savedOrder
-  }, [currentUser, bundle, listings, users, orders, calculateBundleFees, addNotification, dbCreateOrder, dbCreateShipment, showToast])
+  }, [currentUser, bundle, listings, users, orders, calculateBundleFees, addNotification, dbCreateOrder, dbCreateShipment, ensureMaltaPostShipment, showToast])
 
   // ── Bundle Offer system ──────────────────────────────────────────
   const BUNDLE_OFFER_EXPIRY_MS = 24 * 60 * 60 * 1000
@@ -2060,6 +2121,10 @@ export function AppProvider({ children }) {
 
     const deliveryType = deliveryInfo?.type || 'home_delivery'
     const fulfilmentMethod = normalizeFulfilmentMethod(deliveryType)
+    if (fulfilmentMethod === 'locker' && items.some(item => item.lockerEligible !== true)) {
+      showToast('Locker delivery not available for this item', 'error')
+      return null
+    }
     const dFee = getFulfilmentPrice(fulfilmentMethod)
     const fees = calculateBundleFees(acceptedPrice, dFee)
     const deliveryLabel = getFulfilmentMethodLabel(fulfilmentMethod)
@@ -2145,6 +2210,7 @@ export function AppProvider({ children }) {
     shipmentData.deliveryType = deliveryType
     const { error: shipErr } = await dbCreateShipment(shipmentData)
     if (shipErr) console.error('[placeBundleOfferOrder] shipment create failed:', shipErr.message)
+    if (!shipErr) await ensureMaltaPostShipment(savedOrder, 'placeBundleOfferOrder')
 
     addNotification({
       userId: offer.sellerId,
@@ -2192,7 +2258,7 @@ export function AppProvider({ children }) {
     })
 
     return savedOrder
-  }, [bundleOffers, listings, users, orders, calculateBundleFees, addNotification, dbCreateOrder, dbCreateShipment, showToast])
+  }, [bundleOffers, listings, users, orders, calculateBundleFees, addNotification, dbCreateOrder, dbCreateShipment, ensureMaltaPostShipment, showToast])
 
   // ── Admin actions — delegate to DB-backed profile hook ────────────
   const suspendUser = dbSuspendUser

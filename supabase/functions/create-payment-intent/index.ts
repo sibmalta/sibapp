@@ -15,6 +15,7 @@ type ListingRow = {
   price: number | string | null
   status: string | null
   category: string | null
+  locker_eligible: boolean | null
 }
 
 type OfferRow = {
@@ -201,7 +202,7 @@ async function loadListings(supabase: ReturnType<typeof createClient>, ids: stri
   logStep('listing_lookup', 'started', { listingCount: ids.length, listingIds: ids })
   const { data, error } = await supabase
     .from('listings')
-    .select('id, seller_id, title, price, status, category')
+    .select('id, seller_id, title, price, status, category, locker_eligible')
     .in('id', ids)
 
   if (error) {
@@ -366,6 +367,20 @@ function validateListingsForCheckout(listings: ListingRow[], buyerId: string, ac
   return sellerId
 }
 
+function validateLockerEligibility(listings: ListingRow[], deliveryMethod: string) {
+  if (deliveryMethod !== 'locker_collection') return
+  const ineligible = listings.find((listing) => listing.locker_eligible !== true)
+  if (!ineligible) return
+
+  throw new CheckoutError(
+    'Locker delivery not available for this item',
+    400,
+    'locker_not_available',
+    'delivery_method_validation',
+    { listingId: ineligible.id },
+  )
+}
+
 const SOLD_ORDER_STATUSES = ['paid', 'shipped', 'delivered', 'confirmed', 'completed']
 
 async function validateNoExistingSoldOrders(supabase: ReturnType<typeof createClient>, listingIds: string[]) {
@@ -513,6 +528,7 @@ Deno.serve(async (req) => {
       ? await loadAcceptedOffer(supabase, offerId, requestedListingIds[0], user.id)
       : null
     const sellerId = validateListingsForCheckout(listings, user.id, acceptedOffer)
+    validateLockerEligibility(listings, deliveryMethod)
     await validateNoExistingSoldOrders(supabase, requestedListingIds)
     await validateSellerProfile(supabase, sellerId)
 

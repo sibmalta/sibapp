@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { ShieldCheck, Truck, Lock, AlertCircle, Package, CreditCard, RefreshCw } from 'lucide-react'
 import { Elements, ExpressCheckoutElement, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
@@ -274,6 +274,10 @@ export default function BundleCheckoutPage() {
   const [addressPrefilled, setAddressPrefilled] = useState(false)
 
   const { savedAddress, hasSavedAddress, saveAddress: persistAddress } = useSavedAddress(currentUser?.id)
+  const bundleItems = useMemo(() => (
+    (bundle?.items || []).map(id => getListingById(id)).filter(Boolean)
+  ), [bundle?.items, getListingById])
+  const bundleLockerEligible = bundleItems.length > 0 && bundleItems.every(item => item.lockerEligible === true)
 
   // Prefill from saved address when it loads
   useEffect(() => {
@@ -290,11 +294,20 @@ export default function BundleCheckoutPage() {
     }
   }, [savedAddress, addressPrefilled, address, city, postcode])
 
+  useEffect(() => {
+    if (deliveryMethodId === 'locker_collection' && !bundleLockerEligible) {
+      setDeliveryMethodId('home_delivery')
+      setSelectedLockerId(null)
+      setAddressConfirmed(false)
+      setClientSecret(null)
+    }
+  }, [deliveryMethodId, bundleLockerEligible])
+
   if (!currentUser) { navigate('/auth'); return null }
   if (!bundle || bundle.items.length === 0) { navigate('/bundle'); return null }
 
   const seller = getUserById(bundle.sellerId)
-  const items = bundle.items.map(id => getListingById(id)).filter(Boolean)
+  const items = bundleItems
   const subtotal = items.reduce((sum, l) => sum + l.price, 0)
   const deliveryFee = getFulfilmentPrice(normalizeFulfilmentMethod(deliveryMethodId))
   const fees = calculateBundleFees(subtotal, deliveryFee)
@@ -305,6 +318,11 @@ export default function BundleCheckoutPage() {
   const clearErr = (field) => setErrors(prev => ({ ...prev, [field]: null }))
 
   const handleDeliveryChange = (methodId) => {
+    if (methodId === 'locker_collection' && !bundleLockerEligible) {
+      setErrors(prev => ({ ...prev, deliveryMethod: 'Locker delivery not available for this item' }))
+      return
+    }
+    setErrors(prev => ({ ...prev, deliveryMethod: null, locker: null }))
     setDeliveryMethodId(methodId)
     setAddressConfirmed(false)
     setClientSecret(null)
@@ -319,6 +337,7 @@ export default function BundleCheckoutPage() {
   const validateDelivery = () => {
     const e = {}
     if (isLocker) {
+      if (!bundleLockerEligible) e.deliveryMethod = 'Locker delivery not available for this item'
       if (!selectedLockerId) e.locker = 'Please select a locker location'
     } else {
       if (!address.trim()) e.address = 'Enter your street address'
@@ -484,7 +503,9 @@ export default function BundleCheckoutPage() {
               selectedLockerId={selectedLockerId}
               onLockerSelect={handleLockerSelect}
               disabled={addressConfirmed}
+              lockerEligible={bundleLockerEligible}
             />
+            {errors.deliveryMethod && <p className="text-red-500 text-xs -mt-3 mb-3 ml-1">{errors.deliveryMethod}</p>}
             {errors.locker && <p className="text-red-500 text-xs -mt-3 mb-3 ml-1">{errors.locker}</p>}
 
             {/* Address — only for home delivery */}

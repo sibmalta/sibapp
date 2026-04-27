@@ -12,6 +12,7 @@ import { getFulfilmentPrice } from '../lib/fulfilment'
  *  - selectedLockerId: string | null
  *  - onLockerSelect: (lockerId) => void
  *  - disabled: boolean
+ *  - lockerEligible: boolean
  */
 export default function DeliveryMethodSelector({
   selected,
@@ -19,6 +20,7 @@ export default function DeliveryMethodSelector({
   selectedLockerId,
   onLockerSelect,
   disabled = false,
+  lockerEligible = false,
 }) {
   const lockers = getActiveLockers()
   const [lockerSearch, setLockerSearch] = useState('')
@@ -48,7 +50,7 @@ export default function DeliveryMethodSelector({
       estimatedDays: '2-3 working days',
       icon: Home,
     },
-    {
+    ...(lockerEligible ? [{
       id: 'locker_collection',
       name: 'MaltaPost Locker',
       description: 'Collect from a MaltaPost locker near you',
@@ -56,12 +58,19 @@ export default function DeliveryMethodSelector({
       estimatedDays: '2-4 working days',
       icon: Box,
       helpText: 'Once your parcel arrives, MaltaPost will notify you with a collection code.',
-    },
+    }] : []),
   ]
 
   return (
     <div className="mb-5">
       <p className="text-xs font-semibold text-sib-text dark:text-[#f4efe7] uppercase tracking-wide mb-2">Fulfilment method</p>
+      {!lockerEligible && (
+        <div className="mb-2 rounded-xl border border-amber-200 dark:border-amber-400/20 bg-amber-50 dark:bg-[#26322f] px-3 py-2">
+          <p className="text-xs font-medium text-amber-800 dark:text-amber-200">
+            Locker delivery not available for this item
+          </p>
+        </div>
+      )}
       <div className="space-y-2">
         {methods.map(method => {
           const isSelected = selected === method.id

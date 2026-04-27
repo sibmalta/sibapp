@@ -318,6 +318,7 @@ export default function CheckoutPage() {
   const [addressPrefilled, setAddressPrefilled] = useState(false)
 
   const { savedAddress, saveAddress: persistAddress } = useSavedAddress(currentUser?.id)
+  const listingLockerEligible = listing?.lockerEligible === true
 
   useEffect(() => {
     if (savedAddress && !addressPrefilled && !address && !city && !postcode) {
@@ -332,6 +333,15 @@ export default function CheckoutPage() {
       setSaveAddressChecked(true)
     }
   }, [savedAddress, addressPrefilled, address, city, postcode])
+
+  useEffect(() => {
+    if (deliveryMethodId === 'locker_collection' && !listingLockerEligible) {
+      setDeliveryMethodId('home_delivery')
+      setSelectedLockerId(null)
+      setAddressConfirmed(false)
+      setClientSecret(null)
+    }
+  }, [deliveryMethodId, listingLockerEligible])
 
   if (!listing) return <div className="text-center py-20 text-sib-muted">Listing not found.</div>
   if (!currentUser) {
@@ -385,6 +395,11 @@ export default function CheckoutPage() {
   const clearErr = (field) => setErrors((prev) => ({ ...prev, [field]: null }))
 
   const handleDeliveryChange = (methodId) => {
+    if (methodId === 'locker_collection' && !listingLockerEligible) {
+      setErrors(prev => ({ ...prev, deliveryMethod: 'Locker delivery not available for this item' }))
+      return
+    }
+    setErrors(prev => ({ ...prev, deliveryMethod: null, locker: null }))
     setDeliveryMethodId(methodId)
     setAddressConfirmed(false)
     setClientSecret(null)
@@ -402,6 +417,7 @@ export default function CheckoutPage() {
   const validateDelivery = () => {
     const e = {}
     if (isLocker) {
+      if (!listingLockerEligible) e.deliveryMethod = 'Locker delivery not available for this item'
       if (!selectedLockerId) e.locker = 'Please select a locker location'
     } else {
       if (!address.trim()) e.address = 'Enter your street address'
@@ -576,7 +592,9 @@ export default function CheckoutPage() {
               selectedLockerId={selectedLockerId}
               onLockerSelect={handleLockerSelect}
               disabled={addressConfirmed}
+              lockerEligible={listingLockerEligible}
             />
+            {errors.deliveryMethod && <p className="text-red-500 text-xs -mt-3 mb-3 ml-1">{errors.deliveryMethod}</p>}
             {errors.locker && <p className="text-red-500 text-xs -mt-3 mb-3 ml-1">{errors.locker}</p>}
 
             <div className="flex items-center gap-2 mb-5 px-1">

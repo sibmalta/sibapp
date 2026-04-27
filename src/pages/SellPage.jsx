@@ -156,6 +156,7 @@ const INITIAL_FORM = {
   format: '', power_info: '', assembly_required: '',
   deliverySize: '',
   onePersonCarry: null,
+  lockerEligible: null,
 }
 
 function getSellDraftStorageKey(listingId) {
@@ -209,6 +210,7 @@ function isSellDraftDirty(form) {
     Boolean(form.gender) ||
     Boolean(form.brand.trim()) ||
     Boolean(form.deliverySize) ||
+    form.lockerEligible !== null ||
     Boolean(form.price) ||
     form.colors.length > 0 ||
     Boolean(form.model.trim()) ||
@@ -276,6 +278,7 @@ function buildFormFromListing(listing) {
     trouser_length: attributes.trouser_length || '',
     deliverySize: listing?.deliverySize || getDefaultDeliverySize(listing?.category, resolvedSubcategory),
     onePersonCarry: attributes.onePersonCarry ?? null,
+    lockerEligible: listing?.lockerEligible === true,
   }
 }
 
@@ -653,6 +656,7 @@ useEffect(() => {
   const validateStep1 = () => {
     const e = {}
     if (!form.price || isNaN(form.price) || Number(form.price) < 1) e.price = 'Enter a valid price'
+    if (deliveryEligible && form.lockerEligible === null) e.lockerEligible = 'Choose whether this item fits in a locker'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -693,6 +697,7 @@ useEffect(() => {
         colors: form.colors,
         images: form.images,
         deliverySize: form.deliverySize || getDefaultDeliverySize(form.category, form.subcategory),
+        lockerEligible: form.lockerEligible === true,
         clientCreateToken: isEditMode ? undefined : `listing-create:${currentUser.id}:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`,
       }
       console.log('[SellPage] submit listing payload', {
@@ -702,6 +707,7 @@ useEffect(() => {
         gender: form.gender,
         size: finalSize,
         deliverySize: listingPayload.deliverySize,
+        lockerEligible: listingPayload.lockerEligible,
       })
       const listing = isEditMode
         ? await updateListing(listingId, listingPayload)
@@ -1191,6 +1197,43 @@ useEffect(() => {
         <>
           <h2 className="text-xl font-bold text-sib-text mb-1">Price & Delivery</h2>
           <p className="text-xs text-sib-muted mb-5">Set your price and confirm the delivery size.</p>
+
+          {deliveryEligible && (
+            <div className="mb-5">
+              <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">
+                MaltaPost locker fit
+              </label>
+              <p className="text-[11px] text-sib-muted mb-2 leading-relaxed">
+                Does this item fit within 40 x 40 x 60 cm (locker size)?
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => set('lockerEligible', true)}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                    form.lockerEligible === true ? 'bg-sib-primary text-white' : 'bg-sib-sand text-sib-muted'
+                  }`}
+                >
+                  Yes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => set('lockerEligible', false)}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                    form.lockerEligible === false ? 'bg-sib-primary text-white' : 'bg-sib-sand text-sib-muted'
+                  }`}
+                >
+                  No
+                </button>
+              </div>
+              {errors.lockerEligible && <p className="text-red-500 text-xs mt-1">{errors.lockerEligible}</p>}
+              {form.lockerEligible === false && (
+                <p className="text-[11px] text-sib-muted mt-2">
+                  Locker delivery will not be offered for this item. Buyers can still choose MaltaPost delivery.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* ── Delivery Size Picker — with 1-person-carry toggle ── */}
           {deliveryEligible && (() => {
