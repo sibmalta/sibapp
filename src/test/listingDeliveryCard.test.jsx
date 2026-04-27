@@ -1,7 +1,7 @@
 import React from 'react'
 import { describe, expect, it } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { ListingDeliveryCard } from '../pages/ListingPage'
+import { ListingDeliveryCard, ListingSellerBadges } from '../pages/ListingPage'
 
 describe('ListingDeliveryCard', () => {
   it('shows locker price for locker eligible listings', () => {
@@ -24,5 +24,43 @@ describe('ListingDeliveryCard', () => {
     const { container } = render(<ListingDeliveryCard listing={{ lockerEligible: true }} />)
 
     expect(container).not.toHaveTextContent('API integration will be added later')
+  })
+})
+
+describe('ListingSellerBadges', () => {
+  it('shows New seller when the seller has no reviews', () => {
+    render(
+      <ListingSellerBadges
+        seller={{ reviewCount: 0, createdAt: '2024-01-01T00:00:00.000Z' }}
+        listing={{ category: 'fashion' }}
+        now={new Date('2026-04-27T00:00:00.000Z')}
+      />
+    )
+
+    expect(screen.getByText('New seller')).toBeInTheDocument()
+  })
+
+  it('shows Verified when the seller profile is verified', () => {
+    render(
+      <ListingSellerBadges
+        seller={{ reviewCount: 5, verified: true, createdAt: '2024-01-01T00:00:00.000Z' }}
+        listing={{ category: 'fashion' }}
+        now={new Date('2026-04-27T00:00:00.000Z')}
+      />
+    )
+
+    expect(screen.getByText('Verified')).toBeInTheDocument()
+  })
+
+  it('shows Ships with MaltaPost for delivery-eligible listings', () => {
+    render(
+      <ListingSellerBadges
+        seller={{ reviewCount: 5, createdAt: '2024-01-01T00:00:00.000Z' }}
+        listing={{ category: 'fashion' }}
+        now={new Date('2026-04-27T00:00:00.000Z')}
+      />
+    )
+
+    expect(screen.getByText('Ships with MaltaPost')).toBeInTheDocument()
   })
 })

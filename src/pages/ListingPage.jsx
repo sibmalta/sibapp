@@ -18,6 +18,69 @@ import { useSupabase } from '../lib/useSupabase'
 import { logActivity } from '../lib/activityTracker'
 import { trackReferralClick, setActiveReferral, getActiveReferral, buildShareableLink } from '../lib/referral'
 
+const NEW_SELLER_RECENT_DAYS = 90
+
+function isRecentlyJoined(seller, now = new Date()) {
+  const joined = seller?.joinedDate || seller?.createdAt
+  if (!joined) return false
+  const joinedDate = new Date(joined)
+  if (Number.isNaN(joinedDate.getTime())) return false
+  const diffDays = (now.getTime() - joinedDate.getTime()) / (1000 * 60 * 60 * 24)
+  return diffDays >= 0 && diffDays <= NEW_SELLER_RECENT_DAYS
+}
+
+export function ListingSellerBadges({ seller, listing, now }) {
+  if (!seller || !listing) return null
+
+  const badges = []
+  const reviewCount = Number(seller.reviewCount ?? seller.review_count ?? 0)
+  const isVerified = seller.verified === true || seller.isVerified === true || seller.is_verified === true
+  const shipsWithMaltaPost = isDeliveryEligible(resolveCategory(listing.category))
+
+  if (reviewCount === 0 || isRecentlyJoined(seller, now)) {
+    badges.push({
+      id: 'new-seller',
+      label: 'New seller',
+      icon: Sparkles,
+      className: 'border-sib-stone bg-sib-sand text-sib-muted dark:border-[rgba(242,238,231,0.10)] dark:bg-[#26322f] dark:text-[#aeb8b4]',
+    })
+  }
+
+  if (isVerified) {
+    badges.push({
+      id: 'verified',
+      label: 'Verified',
+      icon: ShieldCheck,
+      className: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-[rgba(242,238,231,0.10)] dark:bg-[#26322f] dark:text-[#e8751a]',
+    })
+  }
+
+  if (shipsWithMaltaPost) {
+    badges.push({
+      id: 'maltapost',
+      label: 'Ships with MaltaPost',
+      icon: Truck,
+      className: 'border-sib-primary/15 bg-sib-primary/5 text-sib-primary dark:border-[rgba(242,238,231,0.10)] dark:bg-[#26322f]',
+    })
+  }
+
+  if (badges.length === 0) return null
+
+  return (
+    <div className="mt-2 flex flex-wrap gap-1.5">
+      {badges.map(({ id, label, icon: Icon, className }) => (
+        <span
+          key={id}
+          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${className}`}
+        >
+          <Icon size={11} />
+          {label}
+        </span>
+      ))}
+    </div>
+  )
+}
+
 export function ListingDeliveryCard({ listing }) {
   const lockerEligible = listing?.lockerEligible === true
 
@@ -460,6 +523,7 @@ if (!listing) return (
                 )}
               </div>
               <SellerTrustBadges seller={seller} sellerOrders={sellerOrders} shipments={shipments} />
+              <ListingSellerBadges seller={seller} listing={listing} />
             </div>
           </div>
 
