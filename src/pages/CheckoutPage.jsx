@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { ShieldCheck, Truck, Lock, AlertCircle, CreditCard, RefreshCw } from 'lucide-react'
 import { Elements, ExpressCheckoutElement, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
@@ -16,7 +16,7 @@ import useSavedAddress from '../hooks/useSavedAddress'
 import { trackReferralConversion } from '../lib/referral'
 import { supabase } from '../lib/supabase'
 import { isLockerEligible } from '../lib/lockerEligibility'
-import { resolveCheckoutDeliveryMethod } from '../lib/checkoutPayment'
+import { getPaymentInitializationBlocker, resolveCheckoutDeliveryMethod } from '../lib/checkoutPayment'
 
 const TECHNICAL_PATTERNS = [
   /failed to fetch/i,
@@ -320,8 +320,10 @@ export default function CheckoutPage() {
   const [addressConfirmed, setAddressConfirmed] = useState(false)
   const [creatingIntent, setCreatingIntent] = useState(false)
   const [intentError, setIntentError] = useState('')
+  const [hasAttemptedPaymentIntent, setHasAttemptedPaymentIntent] = useState(false)
   const [saveAddressChecked, setSaveAddressChecked] = useState(false)
   const [addressPrefilled, setAddressPrefilled] = useState(false)
+  const autoIntentAttemptedRef = useRef(false)
 
   const { savedAddress, saveAddress: persistAddress } = useSavedAddress(currentUser?.id)
   const listingLockerEligible = isLockerEligible(listing)
@@ -344,10 +346,9 @@ export default function CheckoutPage() {
     if (deliveryMethodId === 'locker_collection' && !listingLockerEligible) {
       setDeliveryMethodId('home_delivery')
       setSelectedLockerId(null)
-      setAddressConfirmed(false)
-      setClientSecret(null)
+      resetPaymentIntentState()
     }
-  }, [deliveryMethodId, listingLockerEligible])
+  }, [deliveryMethodId, listingLockerEligible]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!listing) return <div className="text-center py-20 text-sib-muted">Listing not found.</div>
   if (!currentUser) {
@@ -398,6 +399,14 @@ export default function CheckoutPage() {
   const isLocker = normalizeFulfilmentMethod(deliveryMethodId) === 'locker'
   const selectedLocker = isLocker && selectedLockerId ? getLockerById(selectedLockerId) : null
 
+  const resetPaymentIntentState = () => {
+    autoIntentAttemptedRef.current = false
+    setHasAttemptedPaymentIntent(false)
+    setIntentError('')
+    setAddressConfirmed(false)
+    setClientSecret(null)
+  }
+
   const clearErr = (field) => setErrors((prev) => ({ ...prev, [field]: null }))
 
   const handleDeliveryChange = (methodId) => {
@@ -407,16 +416,14 @@ export default function CheckoutPage() {
     }
     setErrors(prev => ({ ...prev, deliveryMethod: null, locker: null }))
     setDeliveryMethodId(methodId)
-    setAddressConfirmed(false)
-    setClientSecret(null)
+    resetPaymentIntentState()
     setSelectedLockerId(null)
     setIntentError('')
   }
 
   const handleLockerSelect = (lockerId) => {
     setSelectedLockerId(lockerId)
-    setAddressConfirmed(false)
-    setClientSecret(null)
+    resetPaymentIntentState()
     setIntentError('')
   }
 
@@ -454,20 +461,49 @@ export default function CheckoutPage() {
     const addrErrors = validateDelivery()
     setErrors(addrErrors)
 
-    if (Object.keys(addrErrors).length > 0) return
+    console.info('[CheckoutPage] payment initialization requested', {
+      listingId: listing?.id || null,
+      buyerId: currentUser?.id || null,
+      deliveryMethod: safeDeliveryMethod,
+      isLocker,
+      lockerEligible: listingLockerEligible,
+      selectedLockerId,
+      hasAddress: Boolean(address.trim()),
+      hasCity: Boolean(city.trim()),
+      hasPostcode: Boolean(postcode.trim()),
+      hasSessionToken: Boolean(session?.access_token),
+      total: fees.total,
+    })
 
-    if (!session?.access_token || session.access_token.split('.').length !== 3) {
-      setIntentError('Please log in again before continuing to payment.')
-      return
-    }
+    const blocker = Object.keys(addrErrors).length > 0
+      ? Object.values(addrErrors).find(Boolean)
+      : getPaymentInitializationBlocker({
+          stripeConfigured: isStripeConfigured(),
+          currentUser,
+          sessionAccessToken: session?.access_token,
+          listing,
+          feesTotal: fees.total,
+          isLocker,
+          lockerEligible: listingLockerEligible,
+          selectedLockerId,
+          address,
+          city,
+          postcode,
+        })
 
-    if (fees.total < 0.5) {
-      setIntentError('Order total must be at least €0.50 to proceed.')
+    if (blocker) {
+      console.warn('[CheckoutPage] payment initialization blocked before createPaymentIntent', {
+        blocker,
+        listingId: listing?.id || null,
+        deliveryMethod: safeDeliveryMethod,
+      })
+      setIntentError(blocker)
       return
     }
 
     setCreatingIntent(true)
     setIntentError('')
+    setHasAttemptedPaymentIntent(true)
     setClientSecret(null)
     setAddressConfirmed(false)
 
@@ -585,6 +621,54 @@ export default function CheckoutPage() {
     showToast(friendly, 'error')
   }
 
+  useEffect(() => {
+    if (autoIntentAttemptedRef.current) return
+    if (creatingIntent || clientSecret || !isStripeConfigured()) return
+
+    const blocker = getPaymentInitializationBlocker({
+      stripeConfigured: isStripeConfigured(),
+      currentUser,
+      sessionAccessToken: session?.access_token,
+      listing,
+      feesTotal: fees.total,
+      isLocker,
+      lockerEligible: listingLockerEligible,
+      selectedLockerId,
+      address,
+      city,
+      postcode,
+    })
+
+    if (blocker) return
+    if (intentError && !hasAttemptedPaymentIntent) {
+      console.info('[CheckoutPage] clearing stale pre-attempt payment blocker; checkout data is now valid', {
+        previousError: intentError,
+      })
+      setIntentError('')
+    } else if (intentError) {
+      return
+    }
+
+    autoIntentAttemptedRef.current = true
+    console.info('[CheckoutPage] auto-starting payment initialization')
+    handleConfirmAddress()
+  }, [
+    creatingIntent,
+    clientSecret,
+    intentError,
+    hasAttemptedPaymentIntent,
+    currentUser?.id,
+    session?.access_token,
+    listing?.id,
+    fees.total,
+    isLocker,
+    listingLockerEligible,
+    selectedLockerId,
+    address,
+    city,
+    postcode,
+  ]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const stripeAppearance = {
     theme: 'stripe',
     variables: {
@@ -650,8 +734,7 @@ export default function CheckoutPage() {
                       value={fullName}
                       onChange={(e) => {
                         setFullName(e.target.value)
-                        setAddressConfirmed(false)
-                        setClientSecret(null)
+                        resetPaymentIntentState()
                       }}
                       placeholder="Full name"
                       disabled={addressConfirmed}
@@ -666,8 +749,7 @@ export default function CheckoutPage() {
                       value={phone}
                       onChange={(e) => {
                         setPhone(e.target.value)
-                        setAddressConfirmed(false)
-                        setClientSecret(null)
+                        resetPaymentIntentState()
                       }}
                       placeholder="Phone number"
                       disabled={addressConfirmed}
@@ -682,8 +764,7 @@ export default function CheckoutPage() {
                     onChange={(e) => {
                       setAddress(e.target.value)
                       clearErr('address')
-                      setAddressConfirmed(false)
-                      setClientSecret(null)
+                      resetPaymentIntentState()
                     }}
                     placeholder="Street address"
                     disabled={addressConfirmed}
@@ -701,8 +782,7 @@ export default function CheckoutPage() {
                       onChange={(e) => {
                         setCity(e.target.value)
                         clearErr('city')
-                        setAddressConfirmed(false)
-                        setClientSecret(null)
+                        resetPaymentIntentState()
                       }}
                       placeholder="City / Town"
                       disabled={addressConfirmed}
@@ -719,8 +799,7 @@ export default function CheckoutPage() {
                       onChange={(e) => {
                         setPostcode(e.target.value.toUpperCase())
                         clearErr('postcode')
-                        setAddressConfirmed(false)
-                        setClientSecret(null)
+                        resetPaymentIntentState()
                       }}
                       placeholder="Postcode"
                       maxLength={8}
@@ -737,8 +816,7 @@ export default function CheckoutPage() {
                   value={deliveryNotes}
                   onChange={(e) => {
                     setDeliveryNotes(e.target.value)
-                    setAddressConfirmed(false)
-                    setClientSecret(null)
+                    resetPaymentIntentState()
                   }}
                   placeholder="Delivery notes (optional)"
                   disabled={addressConfirmed}
@@ -769,8 +847,7 @@ export default function CheckoutPage() {
             {addressConfirmed && (
               <button
                 onClick={() => {
-                  setAddressConfirmed(false)
-                  setClientSecret(null)
+                  resetPaymentIntentState()
                 }}
                 className="text-xs text-sib-primary font-semibold underline underline-offset-2 mb-4 block"
               >
@@ -838,7 +915,7 @@ export default function CheckoutPage() {
                     className="mt-3 w-full flex items-center justify-center gap-2 text-sm font-semibold text-amber-700 dark:text-amber-100 bg-amber-100 dark:bg-amber-500/20 hover:bg-amber-200 dark:hover:bg-amber-500/30 rounded-xl py-2.5 transition-colors disabled:opacity-60"
                   >
                     <RefreshCw size={14} className={creatingIntent ? 'animate-spin' : ''} />
-                    {creatingIntent ? 'Checking...' : 'Check again'}
+                    {creatingIntent ? 'Checking...' : 'Retry loading payment options'}
                   </button>
                 </div>
               )}
@@ -861,7 +938,7 @@ export default function CheckoutPage() {
                     className="mt-3 w-full flex items-center justify-center gap-2 text-sm font-semibold text-red-700 dark:text-red-100 bg-red-100 dark:bg-red-500/20 hover:bg-red-200 dark:hover:bg-red-500/30 rounded-xl py-2.5 transition-colors disabled:opacity-60"
                   >
                     <RefreshCw size={14} className={creatingIntent ? 'animate-spin' : ''} />
-                    {creatingIntent ? 'Retrying...' : 'Try again'}
+                    {creatingIntent ? 'Retrying...' : 'Retry loading payment options'}
                   </button>
                 </div>
               )}
