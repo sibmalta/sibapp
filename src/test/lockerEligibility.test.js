@@ -15,6 +15,24 @@ describe('isLockerEligible', () => {
     expect(isLockerEligible({ category: 'books', lockerEligible: undefined })).toBe(true)
   })
 
+  it('treats pre-fix default false fashion coats as unknown and locker eligible', () => {
+    expect(isLockerEligible({
+      category: 'fashion',
+      subcategory: 'coats',
+      lockerEligible: false,
+      createdAt: '2026-04-26T12:00:00.000Z',
+    })).toBe(true)
+  })
+
+  it('keeps explicit false fashion coats ineligible after the fix date', () => {
+    expect(isLockerEligible({
+      category: 'fashion',
+      subcategory: 'coats',
+      lockerEligible: false,
+      createdAt: '2026-04-27T12:00:00.000Z',
+    })).toBe(false)
+  })
+
   it('keeps bulky categories conservative when eligibility is unknown', () => {
     expect(isLockerEligible({ category: 'furniture', subcategory: 'tables', lockerEligible: null })).toBe(false)
     expect(isLockerEligible({ category: 'sports', subcategory: 'cycling', lockerEligible: null })).toBe(false)

@@ -27,6 +27,22 @@ describe('ListingDeliveryCard', () => {
     expect(screen.queryByText('Locker not available for this item')).not.toBeInTheDocument()
   })
 
+  it('shows locker price for pre-fix default false Fashion > Coats & Jackets listings', () => {
+    render(
+      <ListingDeliveryCard
+        listing={{
+          category: 'fashion',
+          subcategory: 'coats',
+          lockerEligible: false,
+          createdAt: '2026-04-26T12:00:00.000Z',
+        }}
+      />
+    )
+
+    expect(screen.getByText(/Locker .*3\.25/)).toBeInTheDocument()
+    expect(screen.queryByText('Locker not available for this item')).not.toBeInTheDocument()
+  })
+
   it('respects explicit false even for normally locker-fit fashion listings', () => {
     render(<ListingDeliveryCard listing={{ category: 'fashion', subcategory: 'tops', lockerEligible: false }} />)
 

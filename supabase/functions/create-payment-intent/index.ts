@@ -16,6 +16,7 @@ type ListingRow = {
   status: string | null
   category: string | null
   subcategory: string | null
+  created_at: string | null
   locker_eligible: boolean | null
 }
 
@@ -64,6 +65,7 @@ const LOCKER_ELIGIBLE_SUBCATEGORIES: Record<string, Set<string>> = {
   toys: new Set(['action_figures', 'board_games', 'lego', 'educational', 'plush', 'collectibles']),
   kids: new Set(['baby_clothing', 'kids_clothing', 'maternity']),
 }
+const LOCKER_ELIGIBILITY_FIX_TIME = Date.parse('2026-04-27T00:00:00.000Z')
 
 function jsonResponse(body: JsonObject, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -123,12 +125,23 @@ function resolveCategory(category: string | null) {
 }
 
 function isLockerEligible(listing: ListingRow) {
-  if (typeof listing.locker_eligible === 'boolean') return listing.locker_eligible
-
   const category = resolveCategory(listing.category)
   const subcategory = listing.subcategory || ''
-  if (ALWAYS_LOCKER_ELIGIBLE_CATEGORIES.has(category)) return true
-  if (LOCKER_ELIGIBLE_SUBCATEGORIES[category]?.has(subcategory)) return true
+  const defaultEligible =
+    ALWAYS_LOCKER_ELIGIBLE_CATEGORIES.has(category) ||
+    Boolean(LOCKER_ELIGIBLE_SUBCATEGORIES[category]?.has(subcategory))
+
+  if (typeof listing.locker_eligible === 'boolean') {
+    const createdTime = listing.created_at ? Date.parse(listing.created_at) : Number.NaN
+    const legacyDefaultFalse =
+      listing.locker_eligible === false &&
+      defaultEligible &&
+      Number.isFinite(createdTime) &&
+      createdTime < LOCKER_ELIGIBILITY_FIX_TIME
+    return legacyDefaultFalse ? defaultEligible : listing.locker_eligible
+  }
+
+  if (defaultEligible) return true
   return false
 }
 
@@ -233,7 +246,7 @@ async function loadListings(supabase: ReturnType<typeof createClient>, ids: stri
   logStep('listing_lookup', 'started', { listingCount: ids.length, listingIds: ids })
   const { data, error } = await supabase
     .from('listings')
-    .select('id, seller_id, title, price, status, category, subcategory, locker_eligible')
+    .select('id, seller_id, title, price, status, category, subcategory, created_at, locker_eligible')
     .in('id', ids)
 
   if (error) {

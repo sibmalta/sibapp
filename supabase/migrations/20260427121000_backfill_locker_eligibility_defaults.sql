@@ -21,7 +21,7 @@ WHERE locker_eligible IS NULL
 UPDATE public.listings
 SET locker_eligible = true
 WHERE locker_eligible IS false
-  AND COALESCE(created_at, TIMESTAMPTZ '1970-01-01') < TIMESTAMPTZ '2026-04-27 00:00:00+00'
+  AND COALESCE(created_at, TIMESTAMPTZ '1970-01-01') < TIMESTAMPTZ '2026-04-28 00:00:00+00'
   AND (
     category IN ('fashion', 'books', 'women', 'men', 'shoes', 'accessories', 'vintage')
     OR (category = 'home' AND COALESCE(subcategory, '') IN ('decor', 'kitchenware', 'bedding', 'bathroom', 'lighting', 'storage', 'other_home'))
