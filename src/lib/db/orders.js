@@ -582,7 +582,9 @@ export function rowToShipment(row) {
     fulfilmentMethod,
     fulfilmentPrice: row.fulfilment_price != null ? Number(row.fulfilment_price) : getFulfilmentPrice(fulfilmentMethod),
     fulfilmentStatus: row.fulfilment_status || row.status || 'awaiting_fulfilment',
-    deliveryType: fulfilmentMethod === 'locker' ? 'locker_collection' : 'home_delivery',
+    deliveryType: row.delivery_type || (fulfilmentMethod === 'locker' ? 'locker_collection' : 'home_delivery'),
+    shipmentCreatedAt: row.shipment_created_at || null,
+    shipmentReference: row.shipment_reference || null,
     lockerLocation: row.locker_location || null,
     deliveryAddressSnapshot: row.delivery_address_snapshot || null,
     trackingNumber: row.tracking_number || null,
@@ -626,6 +628,9 @@ export function shipmentToRow(shipment) {
   if (shipment.fulfilmentMethod !== undefined) row.fulfilment_method = normalizeFulfilmentMethod(shipment.fulfilmentMethod)
   if (shipment.fulfilmentPrice !== undefined) row.fulfilment_price = shipment.fulfilmentPrice
   if (shipment.fulfilmentStatus !== undefined) row.fulfilment_status = shipment.fulfilmentStatus
+  if (shipment.deliveryType !== undefined) row.delivery_type = shipment.deliveryType
+  if (shipment.shipmentCreatedAt !== undefined) row.shipment_created_at = shipment.shipmentCreatedAt
+  if (shipment.shipmentReference !== undefined) row.shipment_reference = shipment.shipmentReference
   if (shipment.lockerLocation !== undefined) row.locker_location = shipment.lockerLocation
   if (shipment.deliveryAddressSnapshot !== undefined) row.delivery_address_snapshot = shipment.deliveryAddressSnapshot
   if (shipment.trackingNumber !== undefined) row.tracking_number = shipment.trackingNumber

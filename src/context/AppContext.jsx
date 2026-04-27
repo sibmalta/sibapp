@@ -27,6 +27,7 @@ import { createShippingProvider } from '../lib/shippingProvider'
 import { autoReleaseBuyerProtectionOrders, confirmBuyerProtectionOrder, disputeBuyerProtectionOrder } from '../lib/buyerProtectionApi'
 import { getBuyerConfirmationDeadline } from '../lib/buyerProtection'
 import { isLockerEligible } from '../lib/lockerEligibility'
+import { buildAdminShipmentPayload } from '../lib/adminShipment'
 
 const AppContext = createContext(null)
 
@@ -2581,6 +2582,58 @@ export function AppProvider({ children }) {
     }
   }, [dbPatchShipment, showToast])
 
+  const adminCreateShipmentShortcut = useCallback(async (orderId, payload) => {
+    const order = orders.find(o => o.id === orderId)
+    if (!order) return { data: null, error: { message: 'Order not found.' } }
+
+    const shipmentPayload = payload || buildAdminShipmentPayload(order, {
+      buyer: users.find(u => u.id === order.buyerId),
+    })
+    const now = new Date().toISOString()
+    const existing = shipments.find(s => s.orderId === orderId)
+
+    if (existing?.shipmentReference || existing?.shipmentCreatedAt) {
+      return { data: existing, error: null, duplicate: true, payload: shipmentPayload }
+    }
+
+    const updates = {
+      status: 'label_created',
+      fulfilmentStatus: 'label_created',
+      shipmentCreatedAt: now,
+      shipmentReference: shipmentPayload.shipmentReference,
+      deliveryType: shipmentPayload.deliveryType,
+      recipientAddress: {
+        name: [shipmentPayload.recipientName, shipmentPayload.recipientSurname].filter(Boolean).join(' '),
+        phone: shipmentPayload.recipientPhone || null,
+        email: shipmentPayload.recipientEmail || null,
+        address: shipmentPayload.address || null,
+        postcode: shipmentPayload.postcode || null,
+        country: shipmentPayload.country || 'Malta',
+      },
+      notes: `Admin MaltaPost shipment shortcut generated for ${shipmentPayload.orderReference}`,
+      updatedAt: now,
+    }
+
+    if (existing?.id) {
+      const { data, error } = await dbPatchShipment(existing.id, updates)
+      if (error) return { data: null, error, payload: shipmentPayload }
+      return { data, error: null, duplicate: false, payload: shipmentPayload }
+    }
+
+    const { data, error } = await dbCreateShipment({
+      orderId: order.id,
+      orderRef: order.orderRef,
+      sellerId: order.sellerId,
+      buyerId: order.buyerId,
+      courier: 'MaltaPost',
+      fulfilmentProvider: order.fulfilmentProvider || FULFILMENT_PROVIDER,
+      fulfilmentMethod: order.fulfilmentMethod,
+      fulfilmentPrice: order.fulfilmentPrice ?? order.deliveryFee,
+      ...updates,
+    })
+    return { data, error, duplicate: false, payload: shipmentPayload }
+  }, [orders, shipments, users, dbCreateShipment, dbPatchShipment])
+
   // ──────────────────────────────────────────────────────────────────
   // getUserById, getUserByUsername, getListingById, getUserListings come from hooks above
 
@@ -2622,7 +2675,7 @@ export function AppProvider({ children }) {
       suspendUser, banUser, restoreUser, updateSellerBadges, updateTrustTags, updateAdminRole, holdPayout, releasePayout, refundOrder, resolveDispute, cancelOrder, addDisputeMessage,
       savePayoutProfile, getPayoutProfile,
       refreshCurrentProfile, ensureUserById,
-      getShipmentByOrderId, getSellerShipments, getBuyerShipments, markShipmentShipped, updateShipmentStatus, adminUpdateShipment,
+      getShipmentByOrderId, getSellerShipments, getBuyerShipments, markShipmentShipped, updateShipmentStatus, adminUpdateShipment, adminCreateShipmentShortcut,
       getUserById, getUserByUsername, getListingById, getUserListings,
       getUserOrders, getUserSales,
       getUserConversations, getConversationById, getConversation, refreshConversations,

@@ -14,6 +14,7 @@ import { supabase } from '../lib/supabase'
 import { STYLE_RULES, classifyListing, getStyleLabel } from '../lib/styleClassifier'
 import { SELLER_BADGE_DEFS } from '../components/SellerTrustBadges'
 import LogisticsTab from '../components/LogisticsTab'
+import { buildAdminShipmentPayload, formatAdminShipmentPayload } from '../lib/adminShipment'
 
 const TABS = [
   { id: 'orders', label: 'Orders', icon: ShoppingBag },
@@ -96,6 +97,7 @@ export default function AdminPage() {
     deleteListing, flagListing, hideListing, updateStyleTags,
     adminOpenDispute, DISPUTE_REASONS,
     updateSellerBadges,
+    getShipmentByOrderId, adminCreateShipmentShortcut,
   } = useApp()
   const navigate = useNavigate()
 
@@ -109,6 +111,7 @@ export default function AdminPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [disputeMsg, setDisputeMsg] = useState('')
   const [userActivityTab, setUserActivityTab] = useState({})
+  const [shipmentModal, setShipmentModal] = useState(null)
 
   // ── Email logs from DB ────────────────────────────────────────
   const [emailLogs, setEmailLogs] = useState([])
@@ -224,6 +227,32 @@ export default function AdminPage() {
     return flags
   }
 
+  const handleCreateShipmentShortcut = async (order, buyer) => {
+    const payload = buildAdminShipmentPayload(order, { buyer })
+    const result = await adminCreateShipmentShortcut(order.id, payload)
+    if (result?.error) {
+      showToast(`Shipment shortcut failed: ${result.error.message}`, 'error')
+      return
+    }
+    showToast(result?.duplicate ? 'Shipment already exists - showing saved data.' : 'Shipment shortcut created.')
+    setShipmentModal({
+      order,
+      payload: result?.payload || payload,
+      shipment: result?.data || getShipmentByOrderId(order.id),
+      duplicate: Boolean(result?.duplicate),
+    })
+  }
+
+  const copyShipmentPayload = async () => {
+    if (!shipmentModal?.payload) return
+    try {
+      await navigator.clipboard.writeText(formatAdminShipmentPayload(shipmentModal.payload))
+      showToast('Shipment data copied.')
+    } catch {
+      showToast('Could not copy shipment data.', 'error')
+    }
+  }
+
   return (
     <div className="pb-20">
       <div className="px-4 py-3 bg-sib-primary flex items-center gap-2">
@@ -289,6 +318,7 @@ export default function AdminPage() {
                 const listing = getListingById(order.listingId)
                 const buyer = getUserById(order.buyerId)
                 const seller = getUserById(order.sellerId)
+                const shipment = getShipmentByOrderId(order.id)
                 const isExpanded = expandedOrder === order.id
                 return (
                   <div key={order.id} className={`rounded-2xl border ${isExpanded ? 'border-sib-primary/30 shadow-sm' : 'border-sib-ash'}`}>
@@ -341,8 +371,9 @@ export default function AdminPage() {
                           {order.shippedAt && <p><Truck size={9} className="inline mr-1" />Shipped: {formatDate(order.shippedAt)}</p>}
                           {order.deliveredAt && <p><CheckCircle size={9} className="inline mr-1" />Delivered: {formatDate(order.deliveredAt)}</p>}
                           {order.payoutReleasedAt && <p><Unlock size={9} className="inline mr-1" />Payout released: {formatDate(order.payoutReleasedAt)}</p>}
-                          {order.address && <p><Truck size={9} className="inline mr-1" />Address: {order.address}</p>}
-                        </div>
+                            {order.address && <p><Truck size={9} className="inline mr-1" />Address: {order.address}</p>}
+                            {shipment?.shipmentReference && <p><Clipboard size={9} className="inline mr-1" />Shipment ref: {shipment.shipmentReference}</p>}
+                          </div>
 
                         {/* ── Delivery snapshot ─── */}
                         {(order.buyerFullName || order.sellerName) && (
@@ -372,6 +403,10 @@ export default function AdminPage() {
                         <div className="space-y-1.5">
                           <p className="text-[10px] font-semibold text-sib-muted uppercase tracking-wider">Admin Actions</p>
                           <div className="grid grid-cols-2 gap-1.5">
+                            <button onClick={() => handleCreateShipmentShortcut(order, buyer)}
+                              className="py-2 bg-sib-primary/10 text-sib-primary text-[11px] font-semibold rounded-xl flex items-center justify-center gap-1 border border-sib-primary/20 active:scale-95 transition-transform">
+                              <Clipboard size={12} /> {shipment?.shipmentReference ? 'View Shipment' : 'Create Shipment'}
+                            </button>
                             {order.trackingStatus === 'pending' && (
                               <button onClick={() => { updateOrderStatus(order.id, 'shipped'); showToast('Marked as shipped') }}
                                 className="py-2 bg-blue-50 text-blue-700 text-[11px] font-semibold rounded-xl flex items-center justify-center gap-1 border border-blue-100 active:scale-95 transition-transform">
@@ -1163,6 +1198,72 @@ export default function AdminPage() {
         )}
 
       </div>
+
+      {shipmentModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/45 px-4" onClick={() => setShipmentModal(null)}>
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-white dark:bg-[#202b28] shadow-2xl border border-sib-ash dark:border-[rgba(242,238,231,0.10)]" onClick={e => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white dark:bg-[#202b28] border-b border-sib-ash dark:border-[rgba(242,238,231,0.10)] px-4 py-3 flex items-center justify-between rounded-t-3xl">
+              <div>
+                <p className="text-[10px] font-mono text-sib-muted dark:text-[#aeb8b4]">
+                  Order #{shipmentModal.payload.orderReference}
+                </p>
+                <h2 className="text-sm font-bold text-sib-text dark:text-[#f4efe7]">MaltaPost shipment data</h2>
+              </div>
+              <button onClick={() => setShipmentModal(null)} className="p-2 rounded-xl bg-sib-sand dark:bg-[#26322f] text-sib-muted dark:text-[#aeb8b4]">
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-4">
+              <div className={`rounded-2xl border p-3 ${shipmentModal.duplicate ? 'border-amber-200 bg-amber-50 dark:bg-[#332d20] dark:border-amber-500/20' : 'border-green-200 bg-green-50 dark:bg-[#20322b] dark:border-green-500/20'}`}>
+                <p className={`text-xs font-semibold ${shipmentModal.duplicate ? 'text-amber-800 dark:text-amber-200' : 'text-green-800 dark:text-green-200'}`}>
+                  {shipmentModal.duplicate ? 'Shipment already created for this order.' : 'Shipment shortcut saved.'}
+                </p>
+                <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] mt-0.5">
+                  Copy these fields into MaltaPost eSeller. This does not call the MaltaPost API.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  ['Name', shipmentModal.payload.recipientName],
+                  ['Surname', shipmentModal.payload.recipientSurname],
+                  ['Phone', shipmentModal.payload.recipientPhone],
+                  ['Email', shipmentModal.payload.recipientEmail],
+                  ['Postcode', shipmentModal.payload.postcode],
+                  ['Country', shipmentModal.payload.country],
+                  ['Delivery type', shipmentModal.payload.deliveryTypeLabel],
+                  ['Order ref', shipmentModal.payload.orderReference],
+                  ['Shipment ref', shipmentModal.payload.shipmentReference],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-xl bg-sib-sand dark:bg-[#26322f] p-2">
+                    <p className="text-[10px] text-sib-muted dark:text-[#aeb8b4] font-semibold mb-0.5">{label}</p>
+                    <p className="text-xs font-medium text-sib-text dark:text-[#f4efe7] break-words">{value || '-'}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="rounded-xl bg-sib-sand dark:bg-[#26322f] p-2">
+                <p className="text-[10px] text-sib-muted dark:text-[#aeb8b4] font-semibold mb-0.5">Address</p>
+                <p className="text-xs font-medium text-sib-text dark:text-[#f4efe7] whitespace-pre-wrap">{shipmentModal.payload.address || '-'}</p>
+              </div>
+
+              <textarea
+                readOnly
+                value={formatAdminShipmentPayload(shipmentModal.payload)}
+                className="w-full min-h-44 rounded-xl border border-sib-ash dark:border-[rgba(242,238,231,0.10)] bg-sib-sand dark:bg-[#26322f] p-3 text-xs text-sib-text dark:text-[#f4efe7] font-mono"
+              />
+
+              <button
+                onClick={copyShipmentPayload}
+                className="w-full py-3 rounded-2xl bg-sib-secondary text-white text-sm font-bold flex items-center justify-center gap-2"
+              >
+                <Clipboard size={14} /> Copy shipment data
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
