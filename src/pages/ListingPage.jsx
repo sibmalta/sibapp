@@ -173,10 +173,12 @@ if (!listing) return (
     const result = await createOffer(listing.id, price)
     if (result.error) {
       showToast(result.error, 'error')
+      return result
     } else {
       showToast('Offer sent!')
       setShowOfferModal(false)
     }
+    return result
   }
 
   const handleAddToBundle = () => {

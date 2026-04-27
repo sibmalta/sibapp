@@ -1,14 +1,18 @@
-import React, { useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { X, Tag, AlertCircle } from 'lucide-react'
 
 export default function MakeOfferModal({ listing, onSubmit, onClose }) {
   const [price, setPrice] = useState('')
   const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const submittingRef = useRef(false)
 
   const listingPrice = listing.price
   const minOffer = Math.max(1, Math.ceil(listingPrice * 0.5))
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (submittingRef.current) return
+    setError('')
     const offerPrice = parseFloat(price)
     if (!price || Number.isNaN(offerPrice) || offerPrice <= 0) {
       setError('Enter a valid price.')
@@ -22,8 +26,16 @@ export default function MakeOfferModal({ listing, onSubmit, onClose }) {
       setError(`Minimum offer is EUR ${minOffer} (50% of listing price).`)
       return
     }
-    setError('')
-    onSubmit(offerPrice)
+    submittingRef.current = true
+    setSubmitting(true)
+    const result = await onSubmit(offerPrice)
+    if (result?.error) {
+      setError(result.error)
+      submittingRef.current = false
+      setSubmitting(false)
+      return
+    }
+    setSubmitting(false)
   }
 
   const parsedPrice = parseFloat(price)
@@ -64,6 +76,7 @@ export default function MakeOfferModal({ listing, onSubmit, onClose }) {
                 step="0.50"
                 value={price}
                 onChange={e => { setPrice(e.target.value); setError('') }}
+                disabled={submitting}
                 placeholder={`${minOffer} - ${listingPrice - 1}`}
                 className="w-full border border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-white dark:bg-[#26322f] rounded-xl pl-14 pr-4 py-3.5 text-lg font-bold text-sib-text dark:text-[#f4efe7] outline-none focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20 transition-colors"
               />
@@ -91,9 +104,10 @@ export default function MakeOfferModal({ listing, onSubmit, onClose }) {
 
           <button
             onClick={handleSubmit}
-            className="w-full bg-sib-primary text-white font-bold py-3.5 rounded-2xl text-sm hover:bg-sib-primaryDark transition-colors active:scale-[0.98]"
+            disabled={submitting}
+            className="w-full bg-sib-primary text-white font-bold py-3.5 rounded-2xl text-sm hover:bg-sib-primaryDark transition-colors active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
           >
-            Send Offer{price && !Number.isNaN(parsedPrice) && parsedPrice >= minOffer ? ` - EUR ${parsedPrice.toFixed(2)}` : ''}
+            {submitting ? 'Sending...' : `Send Offer${price && !Number.isNaN(parsedPrice) && parsedPrice >= minOffer ? ` - EUR ${parsedPrice.toFixed(2)}` : ''}`}
           </button>
         </div>
       </div>
