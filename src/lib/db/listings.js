@@ -49,7 +49,7 @@ export function rowToListing(row) {
     createdAt: row.created_at || new Date().toISOString(),
     updatedAt: row.updated_at || new Date().toISOString(),
     deliverySize: row.delivery_size || '',
-    lockerEligible: row.locker_eligible === true,
+    lockerEligible: row.locker_eligible == null ? null : row.locker_eligible === true,
     styleTags: row.style_tags || [],
     manualStyleTags: row.manual_style_tags || [],
     collectionTags: row.collection_tags || [],
@@ -96,8 +96,8 @@ export function listingToRow(listing) {
   if (listing.manualCollectionTags !== undefined) row.manual_collection_tags = listing.manualCollectionTags
   if (listing.deliverySize !== undefined) row.delivery_size = listing.deliverySize
   if (listing.delivery_size !== undefined) row.delivery_size = listing.delivery_size
-  if (listing.lockerEligible !== undefined) row.locker_eligible = listing.lockerEligible === true
-  if (listing.locker_eligible !== undefined) row.locker_eligible = listing.locker_eligible === true
+  if (listing.lockerEligible !== undefined) row.locker_eligible = listing.lockerEligible == null ? null : listing.lockerEligible === true
+  if (listing.locker_eligible !== undefined) row.locker_eligible = listing.locker_eligible == null ? null : listing.locker_eligible === true
   row.updated_at = new Date().toISOString()
   return row
 }

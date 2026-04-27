@@ -13,11 +13,25 @@ describe('ListingDeliveryCard', () => {
   })
 
   it('hides locker price for non-locker eligible listings and keeps delivery visible', () => {
-    render(<ListingDeliveryCard listing={{ lockerEligible: false }} />)
+    render(<ListingDeliveryCard listing={{ category: 'sports', subcategory: 'cycling', lockerEligible: false }} />)
 
     expect(screen.getByText('Delivery €4.50')).toBeInTheDocument()
     expect(screen.getByText('Locker not available for this item')).toBeInTheDocument()
     expect(screen.queryByText('Locker €3.25')).not.toBeInTheDocument()
+  })
+
+  it('shows locker price for legacy fashion listings with unknown locker eligibility', () => {
+    render(<ListingDeliveryCard listing={{ category: 'fashion', subcategory: 'tops', lockerEligible: null }} />)
+
+    expect(screen.getByText(/Locker .*3\.25/)).toBeInTheDocument()
+    expect(screen.queryByText('Locker not available for this item')).not.toBeInTheDocument()
+  })
+
+  it('respects explicit false even for normally locker-fit fashion listings', () => {
+    render(<ListingDeliveryCard listing={{ category: 'fashion', subcategory: 'tops', lockerEligible: false }} />)
+
+    expect(screen.getByText('Locker not available for this item')).toBeInTheDocument()
+    expect(screen.queryByText(/Locker .*3\.25/)).not.toBeInTheDocument()
   })
 
   it('does not render stale MaltaPost API integration copy', () => {

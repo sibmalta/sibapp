@@ -15,6 +15,7 @@ type ListingRow = {
   price: number | string | null
   status: string | null
   category: string | null
+  subcategory: string | null
   locker_eligible: boolean | null
 }
 
@@ -47,6 +48,21 @@ class CheckoutError extends Error {
 const BUNDLE_DELIVERY_FEES: Record<string, number> = {
   home_delivery: 4.50,
   locker_collection: 3.25,
+}
+
+const LEGACY_CATEGORY_MAP: Record<string, string> = {
+  women: 'fashion',
+  men: 'fashion',
+  shoes: 'fashion',
+  accessories: 'fashion',
+  vintage: 'fashion',
+}
+
+const ALWAYS_LOCKER_ELIGIBLE_CATEGORIES = new Set(['fashion', 'books'])
+const LOCKER_ELIGIBLE_SUBCATEGORIES: Record<string, Set<string>> = {
+  home: new Set(['decor', 'kitchenware', 'bedding', 'bathroom', 'lighting', 'storage', 'other_home']),
+  toys: new Set(['action_figures', 'board_games', 'lego', 'educational', 'plush', 'collectibles']),
+  kids: new Set(['baby_clothing', 'kids_clothing', 'maternity']),
 }
 
 function jsonResponse(body: JsonObject, status = 200) {
@@ -99,6 +115,21 @@ function eurosToCents(value: number) {
 
 function getBuyerProtectionFee(itemSubtotal: number) {
   return Number((0.75 + itemSubtotal * 0.05).toFixed(2))
+}
+
+function resolveCategory(category: string | null) {
+  const normalized = (category || '').toLowerCase()
+  return LEGACY_CATEGORY_MAP[normalized] || normalized
+}
+
+function isLockerEligible(listing: ListingRow) {
+  if (typeof listing.locker_eligible === 'boolean') return listing.locker_eligible
+
+  const category = resolveCategory(listing.category)
+  const subcategory = listing.subcategory || ''
+  if (ALWAYS_LOCKER_ELIGIBLE_CATEGORIES.has(category)) return true
+  if (LOCKER_ELIGIBLE_SUBCATEGORIES[category]?.has(subcategory)) return true
+  return false
 }
 
 function getDefaultDeliverySize(category: string | null) {
@@ -202,7 +233,7 @@ async function loadListings(supabase: ReturnType<typeof createClient>, ids: stri
   logStep('listing_lookup', 'started', { listingCount: ids.length, listingIds: ids })
   const { data, error } = await supabase
     .from('listings')
-    .select('id, seller_id, title, price, status, category, locker_eligible')
+    .select('id, seller_id, title, price, status, category, subcategory, locker_eligible')
     .in('id', ids)
 
   if (error) {
@@ -369,7 +400,7 @@ function validateListingsForCheckout(listings: ListingRow[], buyerId: string, ac
 
 function validateLockerEligibility(listings: ListingRow[], deliveryMethod: string) {
   if (deliveryMethod !== 'locker_collection') return
-  const ineligible = listings.find((listing) => listing.locker_eligible !== true)
+  const ineligible = listings.find((listing) => !isLockerEligible(listing))
   if (!ineligible) return
 
   throw new CheckoutError(

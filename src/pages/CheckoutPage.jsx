@@ -15,6 +15,7 @@ import { getFulfilmentMethodLabel, getFulfilmentPrice, normalizeFulfilmentMethod
 import useSavedAddress from '../hooks/useSavedAddress'
 import { trackReferralConversion } from '../lib/referral'
 import { supabase } from '../lib/supabase'
+import { isLockerEligible } from '../lib/lockerEligibility'
 
 const TECHNICAL_PATTERNS = [
   /failed to fetch/i,
@@ -318,7 +319,7 @@ export default function CheckoutPage() {
   const [addressPrefilled, setAddressPrefilled] = useState(false)
 
   const { savedAddress, saveAddress: persistAddress } = useSavedAddress(currentUser?.id)
-  const listingLockerEligible = listing?.lockerEligible === true
+  const listingLockerEligible = isLockerEligible(listing)
 
   useEffect(() => {
     if (savedAddress && !addressPrefilled && !address && !city && !postcode) {

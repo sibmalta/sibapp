@@ -17,6 +17,7 @@ import { trackView } from '../lib/browsingHistory'
 import { useSupabase } from '../lib/useSupabase'
 import { logActivity } from '../lib/activityTracker'
 import { trackReferralClick, setActiveReferral, getActiveReferral, buildShareableLink } from '../lib/referral'
+import { isLockerEligible } from '../lib/lockerEligibility'
 
 const NEW_SELLER_RECENT_DAYS = 90
 
@@ -82,7 +83,7 @@ export function ListingSellerBadges({ seller, listing, now }) {
 }
 
 export function ListingDeliveryCard({ listing }) {
-  const lockerEligible = listing?.lockerEligible === true
+  const lockerEligible = isLockerEligible(listing)
 
   return (
     <div className="flex items-center gap-3 p-3.5 rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-sib-warm dark:bg-[#202b28] mb-3 transition-colors">

@@ -12,6 +12,7 @@ import { getFulfilmentPrice, normalizeFulfilmentMethod } from '../lib/fulfilment
 import useSavedAddress from '../hooks/useSavedAddress'
 import { useSupabase } from '../lib/useSupabase'
 import { trackReferralConversion, getActiveReferral } from '../lib/referral'
+import { isLockerEligible } from '../lib/lockerEligibility'
 
 /* ── Friendly error mapping (mirrors CheckoutPage) ──────── */
 const TECHNICAL_PATTERNS = [
@@ -277,7 +278,7 @@ export default function BundleCheckoutPage() {
   const bundleItems = useMemo(() => (
     (bundle?.items || []).map(id => getListingById(id)).filter(Boolean)
   ), [bundle?.items, getListingById])
-  const bundleLockerEligible = bundleItems.length > 0 && bundleItems.every(item => item.lockerEligible === true)
+  const bundleLockerEligible = bundleItems.length > 0 && bundleItems.every(item => isLockerEligible(item))
 
   // Prefill from saved address when it loads
   useEffect(() => {

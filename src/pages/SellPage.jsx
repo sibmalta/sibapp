@@ -278,7 +278,7 @@ function buildFormFromListing(listing) {
     trouser_length: attributes.trouser_length || '',
     deliverySize: listing?.deliverySize || getDefaultDeliverySize(listing?.category, resolvedSubcategory),
     onePersonCarry: attributes.onePersonCarry ?? null,
-    lockerEligible: listing?.lockerEligible === true,
+    lockerEligible: typeof listing?.lockerEligible === 'boolean' ? listing.lockerEligible : null,
   }
 }
 

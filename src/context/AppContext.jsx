@@ -26,6 +26,7 @@ import { getOfferCreationBlockReason, isActiveOffer } from '../lib/offerStatus'
 import { createShippingProvider } from '../lib/shippingProvider'
 import { autoReleaseBuyerProtectionOrders, confirmBuyerProtectionOrder, disputeBuyerProtectionOrder } from '../lib/buyerProtectionApi'
 import { getBuyerConfirmationDeadline } from '../lib/buyerProtection'
+import { isLockerEligible } from '../lib/lockerEligibility'
 
 const AppContext = createContext(null)
 
@@ -463,7 +464,7 @@ export function AppProvider({ children }) {
     const itemPrice = overridePrice != null ? overridePrice : listing.price
     const deliveryType = deliveryInfo?.type || 'home_delivery'
     const fulfilmentMethod = normalizeFulfilmentMethod(deliveryType)
-    if (fulfilmentMethod === 'locker' && listing.lockerEligible !== true) {
+    if (fulfilmentMethod === 'locker' && !isLockerEligible(listing)) {
       showToast('Locker delivery not available for this item', 'error')
       return null
     }
@@ -1822,7 +1823,7 @@ export function AppProvider({ children }) {
     const subtotal = overrideSubtotal != null ? overrideSubtotal : items.reduce((sum, l) => sum + l.price, 0)
     const deliveryType = deliveryInfo?.type || 'home_delivery'
     const fulfilmentMethod = normalizeFulfilmentMethod(deliveryType)
-    if (fulfilmentMethod === 'locker' && items.some(item => item.lockerEligible !== true)) {
+    if (fulfilmentMethod === 'locker' && items.some(item => !isLockerEligible(item))) {
       showToast('Locker delivery not available for this item', 'error')
       return null
     }
@@ -2140,7 +2141,7 @@ export function AppProvider({ children }) {
 
     const deliveryType = deliveryInfo?.type || 'home_delivery'
     const fulfilmentMethod = normalizeFulfilmentMethod(deliveryType)
-    if (fulfilmentMethod === 'locker' && items.some(item => item.lockerEligible !== true)) {
+    if (fulfilmentMethod === 'locker' && items.some(item => !isLockerEligible(item))) {
       showToast('Locker delivery not available for this item', 'error')
       return null
     }
