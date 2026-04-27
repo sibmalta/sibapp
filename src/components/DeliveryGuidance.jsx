@@ -69,7 +69,7 @@ function GuidanceBody() {
         <div>
           <p className="text-xs font-bold text-sib-text dark:text-[#f4efe7] mb-0.5">MaltaPost fulfilment</p>
           <ul className="text-[11px] text-sib-muted dark:text-[#aeb8b4] leading-relaxed space-y-0.5">
-            <li>MaltaPost API integration will be added later</li>
+            <li>Tracked delivery handled via MaltaPost</li>
           </ul>
         </div>
       </div>

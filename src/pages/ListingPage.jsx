@@ -18,6 +18,38 @@ import { useSupabase } from '../lib/useSupabase'
 import { logActivity } from '../lib/activityTracker'
 import { trackReferralClick, setActiveReferral, getActiveReferral, buildShareableLink } from '../lib/referral'
 
+export function ListingDeliveryCard({ listing }) {
+  const lockerEligible = listing?.lockerEligible === true
+
+  return (
+    <div className="flex items-center gap-3 p-3.5 rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-sib-warm dark:bg-[#202b28] mb-3 transition-colors">
+      <Truck size={16} className="text-sib-primary flex-shrink-0" />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7]">
+          MaltaPost fulfilment
+        </p>
+        <div className="mt-1 flex flex-wrap gap-2 text-xs font-semibold">
+          <span className="rounded-full bg-white/70 dark:bg-[#26322f] px-2.5 py-1 text-sib-primary">
+            Delivery €{FULFILMENT_PRICES.delivery.toFixed(2)}
+          </span>
+          {lockerEligible ? (
+            <span className="rounded-full bg-white/70 dark:bg-[#26322f] px-2.5 py-1 text-sib-primary">
+              Locker €{FULFILMENT_PRICES.locker.toFixed(2)}
+            </span>
+          ) : (
+            <span className="rounded-full bg-sib-sand dark:bg-[#26322f] px-2.5 py-1 text-sib-muted dark:text-[#aeb8b4]">
+              Locker not available for this item
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mt-1.5">
+          Tracked delivery handled via MaltaPost.
+        </p>
+      </div>
+    </div>
+  )
+}
+
 export default function ListingPage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -373,23 +405,7 @@ if (!listing) return (
           {/* Delivery & Protection - category-aware, with actual fee */}
           {isDeliveryEligible(resolveCategory(listing.category)) ? (
             <>
-              {(() => {
-                const deliveryLabel = `locker €${FULFILMENT_PRICES.locker.toFixed(2)} / delivery €${FULFILMENT_PRICES.delivery.toFixed(2)}`
-                const deliveryNote = 'MaltaPost fulfilment. API integration will be added later.'
-                return (
-                  <>
-                    <div className="flex items-center gap-3 p-3.5 rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-sib-warm dark:bg-[#202b28] mb-3 transition-colors">
-                      <Truck size={16} className="text-sib-primary flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-sib-text">
-                          MaltaPost fulfilment - <span className="text-sib-primary">{deliveryLabel}</span>
-                        </p>
-                        <p className="text-xs text-sib-muted mt-0.5">{deliveryNote}</p>
-                      </div>
-                    </div>
-                  </>
-                )
-              })()}
+              <ListingDeliveryCard listing={listing} />
               <Link to="/buyer-protection" className="flex items-start gap-2.5 px-3.5 py-3 rounded-2xl bg-green-50 mb-5 active:opacity-80 hover:bg-green-100/70 transition-colors">
                 <ShieldCheck size={16} className="text-green-600 flex-shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">

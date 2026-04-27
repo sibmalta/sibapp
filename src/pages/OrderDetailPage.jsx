@@ -359,7 +359,7 @@ export default function OrderDetailPage() {
               <div className="flex items-start gap-2 p-2.5 rounded-xl bg-white/70 dark:bg-[#26322f]/80 border border-blue-100 dark:border-blue-500/20 mb-3 transition-colors">
                 <ShieldCheck size={14} className="text-blue-600 flex-shrink-0 mt-0.5" />
                 <p className="text-[11px] text-blue-700 dark:text-[#aeb8b4] leading-relaxed">
-                  Fulfilment method: {fulfilmentShortLabel}. MaltaPost API integration will be added later.
+                  Fulfilment method: {fulfilmentShortLabel}. Tracked delivery handled via MaltaPost.
                 </p>
               </div>
               {shipment.shipByDeadline && (
@@ -467,7 +467,7 @@ export default function OrderDetailPage() {
                 </p>
               </div>
               <p className="text-xs text-sib-muted dark:text-[#aeb8b4] leading-relaxed">
-                Seller next step: Prepare this order for MaltaPost fulfilment. MaltaPost API integration will be added later.
+                Seller next step: Prepare this order for MaltaPost fulfilment. Tracked delivery handled via MaltaPost.
               </p>
             </div>
           </div>
