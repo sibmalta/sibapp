@@ -83,6 +83,50 @@ Deno.serve(async (req) => {
       }
     }
 
+    if (event.type === 'payment_intent.succeeded') {
+      const paymentIntent = event.data.object as Stripe.PaymentIntent
+      const supabase = getServiceRoleClient()
+      const now = new Date().toISOString()
+
+      const { data: order, error: orderLookupError } = await supabase
+        .from('orders')
+        .select('id,payment_status,payout_status,status,tracking_status')
+        .eq('stripe_payment_intent_id', paymentIntent.id)
+        .maybeSingle()
+
+      if (orderLookupError) {
+        console.error('[stripe-webhook] Failed to look up order for PaymentIntent:', orderLookupError)
+        return jsonResponse({ error: 'Failed to look up order.' }, 500)
+      }
+
+      if (!order) {
+        console.warn('[stripe-webhook] PaymentIntent succeeded before order row existed:', {
+          paymentIntentId: paymentIntent.id,
+          listingId: paymentIntent.metadata?.listing_id || null,
+          buyerId: paymentIntent.metadata?.buyer_id || null,
+        })
+      } else if (order.payment_status !== 'paid') {
+        const { error } = await supabase
+          .from('orders')
+          .update({
+            status: 'paid',
+            tracking_status: ['delivered', 'completed', 'under_review'].includes(order.tracking_status)
+              ? order.tracking_status
+              : 'awaiting_delivery',
+            payment_status: 'paid',
+            payout_status: order.payout_status || 'held',
+            paid_at: now,
+            updated_at: now,
+          })
+          .eq('id', order.id)
+
+        if (error) {
+          console.error('[stripe-webhook] Failed to confirm paid order:', error)
+          return jsonResponse({ error: 'Failed to confirm paid order.' }, 500)
+        }
+      }
+    }
+
     return jsonResponse({ received: true })
   } catch (error) {
     console.error('[stripe-webhook] Unexpected error:', error)

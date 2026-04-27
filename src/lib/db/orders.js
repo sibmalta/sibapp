@@ -57,6 +57,10 @@ export function rowToOrder(row) {
     paidAt: row.paid_at || null,
     shippedAt: row.shipped_at || null,
     deliveredAt: row.delivered_at || null,
+    buyerConfirmationDeadline: row.buyer_confirmation_deadline || null,
+    buyerConfirmedAt: row.buyer_confirmed_at || null,
+    disputedAt: row.disputed_at || null,
+    completedAt: row.completed_at || null,
     confirmedAt: row.confirmed_at || null,
     payoutReleasedAt: row.payout_released_at || null,
     cancelledAt: row.cancelled_at || null,
@@ -133,6 +137,10 @@ export function orderToRow(order) {
   if (order.paidAt !== undefined) row.paid_at = order.paidAt
   if (order.shippedAt !== undefined) row.shipped_at = order.shippedAt
   if (order.deliveredAt !== undefined) row.delivered_at = order.deliveredAt
+  if (order.buyerConfirmationDeadline !== undefined) row.buyer_confirmation_deadline = order.buyerConfirmationDeadline
+  if (order.buyerConfirmedAt !== undefined) row.buyer_confirmed_at = order.buyerConfirmedAt
+  if (order.disputedAt !== undefined) row.disputed_at = order.disputedAt
+  if (order.completedAt !== undefined) row.completed_at = order.completedAt
   if (order.confirmedAt !== undefined) row.confirmed_at = order.confirmedAt
   if (order.payoutReleasedAt !== undefined) row.payout_released_at = order.payoutReleasedAt
   if (order.cancelledAt !== undefined) row.cancelled_at = order.cancelledAt

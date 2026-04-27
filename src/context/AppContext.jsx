@@ -24,6 +24,8 @@ import { FULFILMENT_PROVIDER, getFulfilmentMethodLabel, getFulfilmentPrice, norm
 import { sendNewOfferSellerEmail } from '../lib/offerEmail'
 import { getOfferCreationBlockReason, isActiveOffer } from '../lib/offerStatus'
 import { createShippingProvider } from '../lib/shippingProvider'
+import { autoReleaseBuyerProtectionOrders, confirmBuyerProtectionOrder, disputeBuyerProtectionOrder } from '../lib/buyerProtectionApi'
+import { getBuyerConfirmationDeadline } from '../lib/buyerProtection'
 
 const AppContext = createContext(null)
 
@@ -333,18 +335,18 @@ export function AppProvider({ children }) {
   // ── Auto-confirm timer: check every 30s for expired 48h windows ───
   useEffect(() => {
     const checkAutoConfirm = async () => {
-      const now = Date.now()
-      for (const o of orders) {
-        if (o.trackingStatus !== 'delivered' || !o.deliveredAt) continue
-        const elapsed = now - new Date(o.deliveredAt).getTime()
-        if (elapsed >= PROTECTION_WINDOW_MS) {
-          const ts = new Date().toISOString()
-          await dbPatchOrder(o.id, {
-            trackingStatus: 'confirmed',
-            payoutStatus: 'available',
-            confirmedAt: ts,
-            autoConfirmed: true,
-          })
+      if (!orders.some(o => o.trackingStatus === 'delivered' && o.deliveredAt)) return
+      const result = await autoReleaseBuyerProtectionOrders().catch(error => {
+        console.error('[buyer-protection] auto release check failed:', error?.message || error)
+        return null
+      })
+      if (!result?.completed?.length) return
+      await refreshOrders()
+      await refreshDisputes()
+      const ts = new Date().toISOString()
+      for (const completed of result.completed) {
+        const o = orders.find(order => order.id === completed.orderId)
+        if (o) {
           addNotification({
             id: `n${Date.now()}_ac_${o.id}`,
             userId: o.buyerId,
@@ -367,7 +369,7 @@ export function AppProvider({ children }) {
     checkAutoConfirm()
     const interval = setInterval(checkAutoConfirm, 30000)
     return () => clearInterval(interval)
-  }, [orders, dbPatchOrder, addNotification])
+  }, [orders, addNotification, refreshOrders, refreshDisputes])
 
   const showToast = useCallback((message, type = 'success') => {
     setToast({ message, type })
@@ -528,7 +530,7 @@ export function AppProvider({ children }) {
       fulfilmentStatus: 'awaiting_fulfilment',
       lockerLocation,
       deliveryAddressSnapshot,
-      trackingStatus: 'paid',
+      trackingStatus: 'awaiting_delivery',
       payoutStatus: 'held',
       paidAt: now,
       shippingAddress,
@@ -799,7 +801,12 @@ export function AppProvider({ children }) {
     const order = orders.find(o => o.id === orderId)
     const updates = { trackingStatus: status, fulfilmentStatus: status }
     if (status === 'shipped') updates.shippedAt = now
-    if (status === 'delivered') updates.deliveredAt = now
+    if (status === 'delivered') {
+      updates.deliveredAt = now
+      updates.status = 'delivered'
+      updates.buyerConfirmationDeadline = getBuyerConfirmationDeadline(now)
+      updates.payoutStatus = 'held'
+    }
 
     const { error } = await dbPatchOrder(orderId, updates)
     if (error) {
@@ -876,18 +883,15 @@ export function AppProvider({ children }) {
 
   // ── Buyer confirms delivery → release payout ──────────────────────
   const confirmDelivery = useCallback(async (orderId) => {
-    const now = new Date().toISOString()
     const order = orders.find(o => o.id === orderId)
-    const { error } = await dbPatchOrder(orderId, {
-      trackingStatus: 'confirmed',
-      payoutStatus: 'available',
-      confirmedAt: now,
-      autoConfirmed: false,
-    })
-    if (error) {
-      console.error('[confirmDelivery] DB write failed:', error.message)
-      showToast('Failed to confirm delivery: ' + error.message, 'error')
-      return
+    try {
+      await confirmBuyerProtectionOrder(orderId)
+      await refreshOrders()
+      await refreshDisputes()
+    } catch (error) {
+      console.error('[confirmDelivery] buyer-protection function failed:', error?.message || error)
+      showToast('Failed to confirm delivery: ' + (error?.message || 'Please try again.'), 'error')
+      return false
     }
     if (order) {
       const listing = listings.find(l => l.id === order.listingId)
@@ -918,7 +922,8 @@ export function AppProvider({ children }) {
         message: 'Thank you for confirming. The seller will receive their payment.',
       })
     }
-  }, [orders, users, listings, addNotification, dbPatchOrder, showToast, getOrCreateConversationForUsers, addConversationEvent])
+    return true
+  }, [orders, users, listings, addNotification, showToast, getOrCreateConversationForUsers, addConversationEvent, refreshOrders, refreshDisputes])
 
   // ── Dispute reason types ──────────────────────────────────────────
   const DISPUTE_REASONS = {
@@ -941,26 +946,40 @@ export function AppProvider({ children }) {
     const description = reason || DISPUTE_REASONS[type] || reason
     const source = opts.source || 'buyer' // 'buyer', 'admin', 'system'
 
-    const { data: newDispute, error: disputeErr } = await dbCreateDispute({
-      orderId,
-      buyerId: order.buyerId,
-      sellerId: order.sellerId,
-      type,
-      reason: description,
-      description,
-      status: 'open',
-      source,
-      messages: [],
-      adminMessages: [],
-    })
-    if (disputeErr) {
-      console.error('[openDispute] DB write failed:', disputeErr.message)
-      showToast('Failed to open dispute: ' + disputeErr.message, 'error')
-      return null
+    let newDispute = null
+    if (source === 'buyer') {
+      try {
+        const result = await disputeBuyerProtectionOrder(orderId, { type, reason: description })
+        newDispute = result.dispute || { id: result.disputeId, orderId, buyerId: order.buyerId, sellerId: order.sellerId, type, reason: description, description, status: 'open', source }
+        await refreshOrders()
+        await refreshDisputes()
+      } catch (error) {
+        console.error('[openDispute] buyer-protection function failed:', error?.message || error)
+        showToast('Failed to open dispute: ' + (error?.message || 'Please try again.'), 'error')
+        return null
+      }
+    } else {
+      const { data, error: disputeErr } = await dbCreateDispute({
+        orderId,
+        buyerId: order.buyerId,
+        sellerId: order.sellerId,
+        type,
+        reason: description,
+        description,
+        status: 'open',
+        source,
+        messages: [],
+        adminMessages: [],
+      })
+      if (disputeErr) {
+        console.error('[openDispute] DB write failed:', disputeErr.message)
+        showToast('Failed to open dispute: ' + disputeErr.message, 'error')
+        return null
+      }
+      newDispute = data
+      const { error: orderErr } = await dbPatchOrder(orderId, { status: 'disputed', trackingStatus: 'under_review', payoutStatus: 'disputed', disputedAt: new Date().toISOString() })
+      if (orderErr) console.error('[openDispute] order patch failed:', orderErr.message)
     }
-
-    const { error: orderErr } = await dbPatchOrder(orderId, { trackingStatus: 'under_review', payoutStatus: 'held' })
-    if (orderErr) console.error('[openDispute] order patch failed:', orderErr.message)
 
     addNotification({
       userId: order.sellerId,
@@ -1006,7 +1025,7 @@ export function AppProvider({ children }) {
     }
 
     return newDispute
-  }, [orders, disputes, users, addNotification, dbCreateDispute, dbPatchOrder, showToast])
+  }, [orders, disputes, users, addNotification, dbCreateDispute, dbPatchOrder, showToast, refreshOrders, refreshDisputes])
 
   // ── Admin opens dispute on an order ─────────────────────────────
   const adminOpenDispute = useCallback((orderId, reason) => {
@@ -1869,7 +1888,7 @@ export function AppProvider({ children }) {
       fulfilmentStatus: 'awaiting_fulfilment',
       lockerLocation,
       deliveryAddressSnapshot,
-      trackingStatus: 'paid',
+      trackingStatus: 'awaiting_delivery',
       payoutStatus: 'held',
       paidAt: now,
       shippingAddress,
@@ -2187,7 +2206,7 @@ export function AppProvider({ children }) {
       fulfilmentStatus: 'awaiting_fulfilment',
       lockerLocation,
       deliveryAddressSnapshot,
-      trackingStatus: 'paid',
+      trackingStatus: 'awaiting_delivery',
       payoutStatus: 'held',
       paidAt: now,
       shippingAddress,

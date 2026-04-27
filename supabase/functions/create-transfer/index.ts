@@ -189,7 +189,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    if (!['pending', 'held'].includes(String(payout.status))) {
+    if (!['pending', 'held', 'releasable'].includes(String(payout.status))) {
       return jsonResponse(
         { error: `Payout is not eligible for release from status "${payout.status}".` },
         400
@@ -242,7 +242,8 @@ Deno.serve(async (req) => {
       order.tracking_status === 'confirmed' ||
       !!order.confirmed_at
 
-    if (!deliveredOrConfirmed && !protectionWindowExpired) {
+    const payoutMarkedReleasable = order.payout_status === 'releasable'
+    if (!payoutMarkedReleasable && !deliveredOrConfirmed && !protectionWindowExpired) {
       blockingReasons.push(
         'Order is not marked delivered and the buyer protection window has not expired.'
       )

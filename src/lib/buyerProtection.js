@@ -1,0 +1,46 @@
+export const BUYER_CONFIRMATION_WINDOW_MS = 48 * 60 * 60 * 1000
+
+export function getBuyerConfirmationDeadline(deliveredAt, windowMs = BUYER_CONFIRMATION_WINDOW_MS) {
+  if (!deliveredAt) return null
+  const deliveredTime = new Date(deliveredAt).getTime()
+  if (Number.isNaN(deliveredTime)) return null
+  return new Date(deliveredTime + windowMs).toISOString()
+}
+
+export function canAutoReleaseOrder(order, now = new Date(), windowMs = BUYER_CONFIRMATION_WINDOW_MS) {
+  if (!order?.deliveredAt && !order?.delivered_at) return false
+  if (['disputed', 'under_review'].includes(order.trackingStatus || order.tracking_status)) return false
+  if (['disputed', 'released'].includes(order.payoutStatus || order.payout_status)) return false
+  if (order.disputedAt || order.disputed_at || order.completedAt || order.completed_at) return false
+
+  const deliveredAt = order.deliveredAt || order.delivered_at
+  const deadline = order.buyerConfirmationDeadline || order.buyer_confirmation_deadline || getBuyerConfirmationDeadline(deliveredAt, windowMs)
+  const deadlineMs = new Date(deadline).getTime()
+  return Number.isFinite(deadlineMs) && now.getTime() >= deadlineMs
+}
+
+export function getReleasedOrderPatch({ now = new Date(), autoConfirmed = false } = {}) {
+  const timestamp = now.toISOString()
+  return {
+    status: 'completed',
+    trackingStatus: 'completed',
+    fulfilmentStatus: 'completed',
+    payoutStatus: 'releasable',
+    sellerPayoutStatus: 'available',
+    buyerConfirmedAt: autoConfirmed ? null : timestamp,
+    confirmedAt: timestamp,
+    completedAt: timestamp,
+    autoConfirmed,
+  }
+}
+
+export function getDisputedOrderPatch({ now = new Date() } = {}) {
+  const timestamp = now.toISOString()
+  return {
+    status: 'disputed',
+    trackingStatus: 'under_review',
+    fulfilmentStatus: 'under_review',
+    payoutStatus: 'disputed',
+    disputedAt: timestamp,
+  }
+}

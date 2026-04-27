@@ -61,7 +61,9 @@ export default function OrderDetailPage() {
       return
     }
     const calc = () => {
-      const deadline = new Date(order.deliveredAt).getTime() + PROTECTION_WINDOW_MS
+      const deadline = order.buyerConfirmationDeadline
+        ? new Date(order.buyerConfirmationDeadline).getTime()
+        : new Date(order.deliveredAt).getTime() + PROTECTION_WINDOW_MS
       return Math.max(0, deadline - Date.now())
     }
     setCountdown(calc())
@@ -71,7 +73,7 @@ export default function OrderDetailPage() {
       if (remaining <= 0) clearInterval(interval)
     }, 1000)
     return () => clearInterval(interval)
-  }, [order?.deliveredAt, order?.trackingStatus, PROTECTION_WINDOW_MS])
+  }, [order?.deliveredAt, order?.buyerConfirmationDeadline, order?.trackingStatus, PROTECTION_WINDOW_MS])
 
   if (!order) {
     return (
@@ -88,9 +90,9 @@ export default function OrderDetailPage() {
   const isSeller = currentUser?.id === order.sellerId
   const other = isBuyer ? seller : buyer
 
-  const isPaid = order.trackingStatus === 'paid' || order.trackingStatus === 'pending'
+  const isPaid = ['paid', 'pending', 'awaiting_delivery'].includes(order.trackingStatus)
   const isDelivered = order.trackingStatus === 'delivered'
-  const isConfirmed = order.trackingStatus === 'confirmed' || order.trackingStatus === 'completed'
+  const isConfirmed = order.trackingStatus === 'confirmed' || order.trackingStatus === 'completed' || order.status === 'completed'
   const isDisputed = order.trackingStatus === 'disputed' || order.trackingStatus === 'under_review'
   const isAwaitingShipment = shipment?.status === 'awaiting_shipment'
   const fulfilmentMethod = order.fulfilmentMethod || order.deliveryMethod
@@ -119,9 +121,9 @@ export default function OrderDetailPage() {
     setShipLoading(false)
   }
 
-  const handleConfirm = () => {
-    confirmDelivery(order.id)
-    showToast('Order confirmed — payment released to seller.')
+  const handleConfirm = async () => {
+    const ok = await confirmDelivery(order.id)
+    if (ok) showToast('Order confirmed - seller payment is now available.')
   }
 
   const handleDispute = () => {
@@ -159,9 +161,9 @@ export default function OrderDetailPage() {
                 <CheckCircle size={18} className="text-green-600" />
               </div>
               <div className="min-w-0">
-                <h2 className="text-sm font-bold text-green-800 dark:text-green-300">Order confirmed</h2>
+                <h2 className="text-sm font-bold text-green-800 dark:text-green-300">Payment received</h2>
                 <p className="text-xs text-green-700 dark:text-[#aeb8b4] leading-relaxed mt-1">
-                  Your item is reserved and will be shipped shortly. You'll receive updates when it's on the way.
+                  Your payment has been captured and is held securely until delivery is confirmed.
                 </p>
               </div>
             </div>
@@ -220,7 +222,7 @@ export default function OrderDetailPage() {
                 onClick={handleConfirm}
                 className="w-full py-3.5 rounded-2xl bg-sib-primary text-white font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-sm mb-2"
               >
-                <ThumbsUp size={16} /> Confirm item received
+                <ThumbsUp size={16} /> Everything is OK
               </button>
 
               {/* Secondary CTA — Report issue */}
@@ -228,7 +230,7 @@ export default function OrderDetailPage() {
                 onClick={() => setDisputeOpen(true)}
                 className="w-full py-3 rounded-2xl border border-red-200 text-red-600 font-semibold text-sm flex items-center justify-center gap-2 active:bg-red-50"
               >
-                <AlertTriangle size={14} /> Report an issue
+                <AlertTriangle size={14} /> I have an issue
               </button>
 
               {/* Helper text */}
@@ -294,10 +296,10 @@ export default function OrderDetailPage() {
           <div className="p-4 rounded-2xl bg-amber-50 dark:bg-[#26322f] border border-amber-200 dark:border-[rgba(242,238,231,0.10)] transition-colors">
             <div className="flex items-center gap-2 mb-2">
               <Clock size={16} className="text-amber-600" />
-              <h2 className="text-sm font-bold text-amber-800">Waiting for buyer confirmation (48h)</h2>
+              <h2 className="text-sm font-bold text-amber-800">Payment pending buyer confirmation</h2>
             </div>
             <p className="text-xs text-amber-700 leading-relaxed mb-2">
-              The buyer has 48 hours after delivery to confirm or report an issue. If no action is taken, the order is auto-confirmed and your payout is released to your bank on the next payout day (Tuesday or Friday).
+              The buyer has 48 hours after delivery to confirm or report an issue. If no action is taken, the order is auto-completed and your payment becomes available.
             </p>
             {countdown !== null && countdown > 0 && (
               <div className="flex items-center gap-2 mt-1">
@@ -322,8 +324,8 @@ export default function OrderDetailPage() {
             </div>
             <p className="text-xs text-green-700 leading-relaxed">
               {isBuyer
-                ? 'Thank you for confirming. The seller will receive their payment.'
-                : `Delivery confirmed${order.autoConfirmed ? ' (48h window expired)' : ' by buyer'}. Your payout is available and will be sent on the next payout day.`
+                ? 'Thank you for confirming. The seller payout is now available.'
+                : `Delivery confirmed${order.autoConfirmed ? ' (48h window expired)' : ' by buyer'}. Payment available.`
               }
             </p>
           </div>
