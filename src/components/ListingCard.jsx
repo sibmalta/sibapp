@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Heart, ImageIcon, Zap } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { CONDITION_LABELS, CONDITION_DOT, getCardSubtitle, getCardBadge } from '../lib/listingMeta'
+import { getOptimizedListingImageUrl } from '../lib/imageUrls'
 
 function isValidImageUrl(image) {
   if (typeof image !== 'string') return null
@@ -31,7 +32,8 @@ function getListingImage(listing) {
 
 function ListingImage({ listing, className, src }) {
   const [failed, setFailed] = useState(false)
-  const imageSrc = failed ? null : src || getListingImage(listing)
+  const rawImageSrc = src || getListingImage(listing)
+  const imageSrc = failed ? null : getOptimizedListingImageUrl(rawImageSrc)
 
   if (!imageSrc) {
     return (
@@ -47,6 +49,8 @@ function ListingImage({ listing, className, src }) {
       alt={listing.title || ''}
       className={className}
       loading="lazy"
+      decoding="async"
+      sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, 50vw"
       draggable={false}
       onError={() => setFailed(true)}
       onDragStart={(e) => e.preventDefault()}

@@ -34,6 +34,7 @@ import { classifyCollection, backfillCollectionTags } from '../lib/collectionCla
 
 const SUPABASE_ENABLED = true // flip to false to force localStorage-only mode
 const SESSION_EXPIRED_MESSAGE = 'Your session expired. Please log in again to publish your listing.'
+const BROWSE_PAGE_SIZE = 80
 
 function isSessionExpiredError(error) {
   const message = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase()
@@ -95,8 +96,11 @@ export function useListings(localListings, localLikes, currentUser) {
   const [listings, setListings] = useState(SUPABASE_ENABLED ? [] : localListings)
   const [likedListings, setLikedListings] = useState(SUPABASE_ENABLED ? [] : localLikes)
   const [loading, setLoading] = useState(SUPABASE_ENABLED)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMoreListings, setHasMoreListings] = useState(false)
   const [dbAvailable, setDbAvailable] = useState(false)
   const fetchedRef = useRef(false)
+  const browseOffsetRef = useRef(0)
 
   // ── Initial load from Supabase ─────────────────────────────────────────────
   useEffect(() => {
@@ -105,10 +109,12 @@ export function useListings(localListings, localLikes, currentUser) {
 
     async function load() {
       setLoading(true)
-      const { data, error } = await fetchActiveListings(supabase, { limit: 200 })
+      const { data, error } = await fetchActiveListings(supabase, { limit: BROWSE_PAGE_SIZE })
       if (!error && data) {
         // DB reachable — use DB as single source of truth (even if empty)
         setDbAvailable(true)
+        browseOffsetRef.current = data.length
+        setHasMoreListings(data.length === BROWSE_PAGE_SIZE)
         // Backfill style_tags in memory first, then persist to DB for any that were missing
         const tagged = backfillCollectionTags(backfillStyleTags(data))
         setListings(tagged)
@@ -119,11 +125,33 @@ export function useListings(localListings, localLikes, currentUser) {
         console.warn('[useListings] Supabase unavailable. Listing grid will render empty instead of demo data:', error.message)
         setDbAvailable(false)
         setListings([])
+        setHasMoreListings(false)
       }
       setLoading(false)
     }
     load()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadMoreListings = useCallback(async () => {
+    if (!SUPABASE_ENABLED || !dbAvailable || loadingMore || !hasMoreListings) return
+    setLoadingMore(true)
+    const offset = browseOffsetRef.current
+    const { data, error } = await fetchActiveListings(supabase, { limit: BROWSE_PAGE_SIZE, offset })
+    if (!error && data) {
+      browseOffsetRef.current = offset + data.length
+      setHasMoreListings(data.length === BROWSE_PAGE_SIZE)
+      const tagged = backfillCollectionTags(backfillStyleTags(data))
+      setListings(prev => {
+        const seen = new Set(prev.map(listing => listing.id))
+        const next = tagged.filter(listing => !seen.has(listing.id))
+        return next.length ? [...prev, ...next] : prev
+      })
+      persistBackfilledTags(supabase, data, tagged)
+    } else if (error) {
+      console.warn('[useListings] Could not load more browse listings:', error.message)
+    }
+    setLoadingMore(false)
+  }, [supabase, dbAvailable, loadingMore, hasMoreListings])
 
   // ── Sync liked listings for authenticated users ────────────────────────────
   useEffect(() => {
@@ -433,7 +461,10 @@ export function useListings(localListings, localLikes, currentUser) {
     listings,
     likedListings,
     loading,
+    loadingMore,
+    hasMoreListings,
     dbAvailable,
+    loadMoreListings,
     // mutations
     createListing,
     updateListing,

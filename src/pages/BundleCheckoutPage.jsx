@@ -13,6 +13,7 @@ import useSavedAddress from '../hooks/useSavedAddress'
 import { useSupabase } from '../lib/useSupabase'
 import { trackReferralConversion, getActiveReferral } from '../lib/referral'
 import { isLockerEligible } from '../lib/lockerEligibility'
+import { resolveCheckoutDeliveryMethod } from '../lib/checkoutPayment'
 
 /* ── Friendly error mapping (mirrors CheckoutPage) ──────── */
 const TECHNICAL_PATTERNS = [
@@ -353,6 +354,18 @@ export default function BundleCheckoutPage() {
   }
 
   const handleConfirmAddress = async () => {
+    const safeDeliveryMethod = resolveCheckoutDeliveryMethod(deliveryMethodId, bundleLockerEligible)
+    if (safeDeliveryMethod !== deliveryMethodId) {
+      console.warn('[BundleCheckoutPage] Requested locker checkout for ineligible bundle; forcing home delivery', {
+        listingIds: items.map(item => item.id),
+        requestedDeliveryMethod: deliveryMethodId,
+        safeDeliveryMethod,
+        lockerEligible: bundleLockerEligible,
+      })
+      setDeliveryMethodId(safeDeliveryMethod)
+      setSelectedLockerId(null)
+    }
+
     const addrErrors = validateDelivery()
     setErrors(addrErrors)
     if (Object.keys(addrErrors).length > 0) return
@@ -369,9 +382,20 @@ export default function BundleCheckoutPage() {
     }
 
     try {
+      console.info('[BundleCheckoutPage] create-payment-intent payload', {
+        listingIds: items.map(item => item.id),
+        buyerId: currentUser?.id || null,
+        sellerId: items[0]?.sellerId || null,
+        deliveryMethod: safeDeliveryMethod,
+        lockerEligible: bundleLockerEligible,
+        itemSubtotal: items.reduce((sum, item) => sum + Number(item.price || 0), 0),
+        deliveryFee,
+        total: fees.total,
+      })
       const result = await createPaymentIntent({
         listingIds: items.map(item => item.id),
-        deliveryMethod: deliveryMethodId,
+        deliveryMethod: safeDeliveryMethod,
+        lockerEligible: bundleLockerEligible,
       }, session.access_token)
       const nextClientSecret = result?.clientSecret || result?.client_secret || null
       if (!isValidClientSecret(nextClientSecret)) {

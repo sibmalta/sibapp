@@ -421,7 +421,13 @@ function validateLockerEligibility(listings: ListingRow[], deliveryMethod: strin
     400,
     'locker_not_available',
     'delivery_method_validation',
-    { listingId: ineligible.id },
+    {
+      listingId: ineligible.id,
+      category: ineligible.category,
+      subcategory: ineligible.subcategory,
+      lockerEligible: ineligible.locker_eligible,
+      createdAt: ineligible.created_at,
+    },
   )
 }
 
@@ -551,6 +557,14 @@ Deno.serve(async (req) => {
       : []
     const requestedListingIds = [...new Set(listingIds.length > 0 ? listingIds : listingId ? [listingId] : [])]
     const deliveryMethod = requestBody.deliveryMethod === 'locker_collection' ? 'locker_collection' : 'home_delivery'
+    logStep('request_body_validation', 'payload_received', {
+      listingId: listingId || null,
+      listingIds,
+      offerId: offerId || null,
+      deliveryMethod,
+      rawDeliveryMethod: typeof requestBody.deliveryMethod === 'string' ? requestBody.deliveryMethod : null,
+      buyerId: user.id,
+    })
 
     if (requestedListingIds.length === 0) {
       throw new CheckoutError(
@@ -606,9 +620,20 @@ Deno.serve(async (req) => {
       deliveryFeeCents,
       buyerProtectionFeeCents,
       totalAmountCents,
+      subtotalEuros,
+      deliveryFeeEuros,
+      buyerProtectionFeeEuros,
+      totalEuros,
     })
 
-    logStep('payment_intent_creation', 'started', { totalAmountCents, currency: 'eur' })
+    logStep('payment_intent_creation', 'started', {
+      totalAmountCents,
+      currency: 'eur',
+      buyerId: user.id,
+      sellerId,
+      listingIds: requestedListingIds,
+      deliveryMethod,
+    })
     let paymentIntent: Stripe.PaymentIntent
     try {
       paymentIntent = await stripe.paymentIntents.create({

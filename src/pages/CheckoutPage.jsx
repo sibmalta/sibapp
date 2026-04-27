@@ -16,6 +16,7 @@ import useSavedAddress from '../hooks/useSavedAddress'
 import { trackReferralConversion } from '../lib/referral'
 import { supabase } from '../lib/supabase'
 import { isLockerEligible } from '../lib/lockerEligibility'
+import { resolveCheckoutDeliveryMethod } from '../lib/checkoutPayment'
 
 const TECHNICAL_PATTERNS = [
   /failed to fetch/i,
@@ -87,8 +88,12 @@ function friendlyIntentError(raw) {
   return raw
 }
 
-function isValidClientSecret(value) {
+export function isValidClientSecret(value) {
   return typeof value === 'string' && /^pi_[^_]+_secret_.+/.test(value)
+}
+
+export function shouldMountStripeElements(clientSecret, intentError = '') {
+  return isValidClientSecret(clientSecret) && !intentError
 }
 
 function StripeCheckoutForm({ fees, onSuccess, onError }) {
@@ -434,6 +439,18 @@ export default function CheckoutPage() {
   }
 
   const handleConfirmAddress = async () => {
+    const safeDeliveryMethod = resolveCheckoutDeliveryMethod(deliveryMethodId, listingLockerEligible)
+    if (safeDeliveryMethod !== deliveryMethodId) {
+      console.warn('[CheckoutPage] Requested locker checkout for ineligible listing; forcing home delivery', {
+        listingId: listing?.id,
+        requestedDeliveryMethod: deliveryMethodId,
+        safeDeliveryMethod,
+        lockerEligible: listingLockerEligible,
+      })
+      setDeliveryMethodId(safeDeliveryMethod)
+      setSelectedLockerId(null)
+    }
+
     const addrErrors = validateDelivery()
     setErrors(addrErrors)
 
@@ -467,11 +484,24 @@ export default function CheckoutPage() {
     }
 
     try {
+      console.info('[CheckoutPage] create-payment-intent payload', {
+        listingId: listing.id,
+        offerId: acceptedOffer?.id || null,
+        buyerId: currentUser?.id || null,
+        sellerId: listing.sellerId || null,
+        deliveryMethod: safeDeliveryMethod,
+        lockerEligible: listingLockerEligible,
+        listingPrice: Number(listing.price),
+        checkoutPrice,
+        deliveryFee,
+        total: fees.total,
+      })
       const result = await createPaymentIntent(
         {
           listingId: listing.id,
           offerId: acceptedOffer?.id || undefined,
-          deliveryMethod: deliveryMethodId,
+          deliveryMethod: safeDeliveryMethod,
+          lockerEligible: listingLockerEligible,
         },
         session.access_token
       )
@@ -546,6 +576,11 @@ export default function CheckoutPage() {
 
   const handlePaymentError = (msg) => {
     const friendly = friendlyPaymentError(msg) || 'Payment could not be completed. Please try again.'
+    if (/load payment options/i.test(friendly)) {
+      setClientSecret(null)
+      setAddressConfirmed(false)
+      setIntentError(friendly)
+    }
     if (canCheckoutReservedListing) releaseListingReservation?.(listing.id)
     showToast(friendly, 'error')
   }
@@ -862,7 +897,7 @@ export default function CheckoutPage() {
                 </div>
               )}
 
-              {clientSecret && (
+              {shouldMountStripeElements(clientSecret, intentError) && (
                 <Elements key={clientSecret} stripe={getStripe()} options={{ clientSecret, appearance: stripeAppearance }}>
                   <StripeCheckoutForm fees={fees} onSuccess={handlePaymentSuccess} onError={handlePaymentError} />
                 </Elements>

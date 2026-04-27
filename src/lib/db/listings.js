@@ -119,13 +119,45 @@ function stripNewColumns(row) {
 
 const BASE_SELECT = `*, seller:profiles!listings_seller_id_fkey(id, username, name, avatar, rating, review_count, is_shop, location)`
 
-/** Fetch public listings. Browse/home filter this list to active items only. */
+const BROWSE_SELECT = `
+  id,
+  seller_id,
+  title,
+  description,
+  price,
+  category,
+  subcategory,
+  type,
+  category_type,
+  attributes,
+  gender,
+  size,
+  brand,
+  condition,
+  color,
+  colors,
+  images,
+  status,
+  likes_count,
+  views_count,
+  boosted,
+  created_at,
+  updated_at,
+  delivery_size,
+  locker_eligible,
+  style_tags,
+  manual_style_tags,
+  collection_tags,
+  manual_collection_tags,
+  seller:profiles!listings_seller_id_fkey(id, username, name, avatar, rating, review_count, is_shop, location)
+`
+
+/** Fetch public browse/home listings with only card/filter fields. */
 export async function fetchActiveListings(supabase, { limit = 100, offset = 0 } = {}) {
   const { data, error } = await supabase
     .from('listings')
-    .select(BASE_SELECT)
-    .neq('status', 'deleted')
-    .neq('status', 'hidden')
+    .select(BROWSE_SELECT)
+    .eq('status', 'active')
     .order('boosted', { ascending: false })
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)

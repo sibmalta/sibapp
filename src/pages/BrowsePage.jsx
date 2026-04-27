@@ -1,12 +1,8 @@
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { Suspense, lazy, useMemo, useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { SlidersHorizontal, X, Search, Sparkles, Tag, TrendingUp, Gem, Clock, DollarSign, Plus, ChevronRight } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import ListingCard from '../components/ListingCard'
-import SearchAutocomplete from '../components/SearchAutocomplete'
-import FilterPanel from '../components/FilterPanel'
-import FilterModal from '../components/FilterModal'
-import SubcategorySheet from '../components/SubcategorySheet'
 import EmptyBrowseState from '../components/EmptyBrowseState'
 import VintageVerifiedIcon from '../components/VintageVerifiedIcon'
 import useScrollRestore from '../hooks/useScrollRestore'
@@ -23,6 +19,10 @@ import { getSubcategoryChildren } from '../data/subcategoryChildren'
 import { sizeFilterMatchesListing } from '../utils/sizeConfig'
 
 const CATEGORIES = CATEGORY_TREE.map(c => ({ label: c.label, value: c.id }))
+const SearchAutocomplete = lazy(() => import('../components/SearchAutocomplete'))
+const FilterPanel = lazy(() => import('../components/FilterPanel'))
+const FilterModal = lazy(() => import('../components/FilterModal'))
+const SubcategorySheet = lazy(() => import('../components/SubcategorySheet'))
 
 const SORT_OPTIONS = [
   { label: 'Newest first', value: 'newest' },
@@ -42,9 +42,9 @@ function BrowseGridSkeleton() {
     <div className="grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-4 lg:gap-4">
       {Array.from({ length: 8 }).map((_, i) => (
         <div key={i}>
-          <div className="rounded-xl bg-gray-200 animate-pulse aspect-[3/4]" />
-          <div className="h-3 w-24 bg-gray-200 rounded mt-2 animate-pulse" />
-          <div className="h-3 w-14 bg-gray-100 rounded mt-1 animate-pulse" />
+          <div className="rounded-xl bg-gray-200 dark:bg-[#26322f] animate-pulse aspect-[3/4]" />
+          <div className="h-3 w-24 bg-gray-200 dark:bg-[#26322f] rounded mt-2 animate-pulse" />
+          <div className="h-3 w-14 bg-gray-100 dark:bg-[#202b28] rounded mt-1 animate-pulse" />
         </div>
       ))}
     </div>
@@ -52,7 +52,7 @@ function BrowseGridSkeleton() {
 }
 
 export default function BrowsePage() {
-  const { listings, listingsLoading } = useApp()
+  const { listings, listingsLoading, listingsLoadingMore, hasMoreListings, loadMoreListings } = useApp()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const [searchFocused, setSearchFocused] = useState(false)
@@ -120,7 +120,10 @@ export default function BrowsePage() {
 
   useScrollRestore('/browse')
 
-  const activeListings = listings.filter(l => l.status === 'active' && isRenderableListing(l))
+  const activeListings = useMemo(
+    () => listings.filter(l => l.status === 'active' && isRenderableListing(l)),
+    [listings],
+  )
 
   const allBrands = useMemo(() => {
     const set = new Set()
@@ -316,7 +319,11 @@ export default function BrowsePage() {
   }, [activeListings, query, category, subcategory, conditions, sizes, colors, brands, maxPrice, sort, quickFilter, styleTag, genderFilter, sportDetail, sportAttributes])
 
   // Infinite scroll
-  const { visibleItems, hasMore, sentinelRef } = useInfiniteScroll(results)
+  const { visibleItems, hasMore, sentinelRef } = useInfiniteScroll(results, {
+    canLoadMore: hasMoreListings,
+    isLoadingMore: listingsLoadingMore,
+    onNeedMore: loadMoreListings,
+  })
 
   // Sport-specific derived data
   const isSports = category === 'sports'
@@ -468,24 +475,26 @@ export default function BrowsePage() {
               </button>
             )}
             {searchFocused && query.trim().length >= 2 && (
-              <SearchAutocomplete
-                query={query}
-                onSelect={(suggestion) => {
-                  if (suggestion.type === 'auth_prompt') {
-                    navigate('/auth', { state: { from: '/browse' } })
-                  } else if (suggestion.type === 'user' && suggestion.username) {
-                    navigate(`/profile/${suggestion.username}`)
-                  } else if (suggestion.type === 'item' && suggestion.id) {
-                    navigate(`/listing/${suggestion.id}`)
-                  } else {
-                    if (suggestion.category) setCategory(suggestion.category)
-                    if (suggestion.subcategory) setSubcategory(suggestion.subcategory)
-                    if (suggestion.brand) setBrands([suggestion.brand])
-                    setQuery(suggestion.query || '')
-                  }
-                  setSearchFocused(false)
-                }}
-              />
+              <Suspense fallback={null}>
+                <SearchAutocomplete
+                  query={query}
+                  onSelect={(suggestion) => {
+                    if (suggestion.type === 'auth_prompt') {
+                      navigate('/auth', { state: { from: '/browse' } })
+                    } else if (suggestion.type === 'user' && suggestion.username) {
+                      navigate(`/profile/${suggestion.username}`)
+                    } else if (suggestion.type === 'item' && suggestion.id) {
+                      navigate(`/listing/${suggestion.id}`)
+                    } else {
+                      if (suggestion.category) setCategory(suggestion.category)
+                      if (suggestion.subcategory) setSubcategory(suggestion.subcategory)
+                      if (suggestion.brand) setBrands([suggestion.brand])
+                      setQuery(suggestion.query || '')
+                    }
+                    setSearchFocused(false)
+                  }}
+                />
+              </Suspense>
             )}
           </div>
         </div>
@@ -657,35 +666,37 @@ export default function BrowsePage() {
               )}
             </div>
 
-            <FilterPanel
-              category={category}
-              subcategory={subcategory}
-              conditions={conditions}
-              setConditions={setConditions}
-              sizes={sizes}
-              setSizes={setSizes}
-              maxPrice={maxPrice}
-              setMaxPrice={setMaxPrice}
-              colors={colors}
-              setColors={setColors}
-              brands={brands}
-              setBrands={setBrands}
-              genderFilter={genderFilter}
-              setGenderFilter={setGenderFilter}
-              materials={materials}
-              setMaterials={setMaterials}
-              deliveryType={deliveryType}
-              setDeliveryType={setDeliveryType}
-              sportDetail={sportDetail}
-              setSportDetail={setSportDetail}
-              sportAttributes={sportAttributes}
-              setSportAttributes={setSportAttributes}
-              quickFilter={quickFilter}
-              setQuickFilter={setQuickFilter}
-              clearFilters={clearFilters}
-              activeFilterCount={activeFilterCount}
-              allBrands={allBrands}
-            />
+            <Suspense fallback={<div className="h-40 rounded-lg bg-gray-100 dark:bg-[#26322f] animate-pulse" />}>
+              <FilterPanel
+                category={category}
+                subcategory={subcategory}
+                conditions={conditions}
+                setConditions={setConditions}
+                sizes={sizes}
+                setSizes={setSizes}
+                maxPrice={maxPrice}
+                setMaxPrice={setMaxPrice}
+                colors={colors}
+                setColors={setColors}
+                brands={brands}
+                setBrands={setBrands}
+                genderFilter={genderFilter}
+                setGenderFilter={setGenderFilter}
+                materials={materials}
+                setMaterials={setMaterials}
+                deliveryType={deliveryType}
+                setDeliveryType={setDeliveryType}
+                sportDetail={sportDetail}
+                setSportDetail={setSportDetail}
+                sportAttributes={sportAttributes}
+                setSportAttributes={setSportAttributes}
+                quickFilter={quickFilter}
+                setQuickFilter={setQuickFilter}
+                clearFilters={clearFilters}
+                activeFilterCount={activeFilterCount}
+                allBrands={allBrands}
+              />
+            </Suspense>
 
             <div className="pt-4 border-t border-gray-200 dark:border-[rgba(242,238,231,0.10)]">
               <p className="text-xs font-bold text-sib-text uppercase tracking-wide mb-2">Sort by</p>
@@ -789,55 +800,59 @@ export default function BrowsePage() {
       </button>
 
       {/* ── Full-screen filter modal — mobile ── */}
-      <FilterModal
-        open={filterModalOpen}
-        onClose={() => setFilterModalOpen(false)}
-        category={category}
-        subcategory={subcategory}
-        conditions={conditions}
-        setConditions={setConditions}
-        sizes={sizes}
-        setSizes={setSizes}
-        maxPrice={maxPrice}
-        setMaxPrice={setMaxPrice}
-        colors={colors}
-        setColors={setColors}
-        brands={brands}
-        setBrands={setBrands}
-        genderFilter={genderFilter}
-        setGenderFilter={setGenderFilter}
-        materials={materials}
-        setMaterials={setMaterials}
-        deliveryType={deliveryType}
-        setDeliveryType={setDeliveryType}
-        sportDetail={sportDetail}
-        setSportDetail={setSportDetail}
-        sportAttributes={sportAttributes}
-        setSportAttributes={setSportAttributes}
-        quickFilter={quickFilter}
-        setQuickFilter={setQuickFilter}
-        sort={sort}
-        setSort={setSort}
-        clearFilters={clearFilters}
-        activeFilterCount={activeFilterCount}
-        allBrands={allBrands}
-        resultCount={results.length}
-      />
+      <Suspense fallback={null}>
+        <FilterModal
+          open={filterModalOpen}
+          onClose={() => setFilterModalOpen(false)}
+          category={category}
+          subcategory={subcategory}
+          conditions={conditions}
+          setConditions={setConditions}
+          sizes={sizes}
+          setSizes={setSizes}
+          maxPrice={maxPrice}
+          setMaxPrice={setMaxPrice}
+          colors={colors}
+          setColors={setColors}
+          brands={brands}
+          setBrands={setBrands}
+          genderFilter={genderFilter}
+          setGenderFilter={setGenderFilter}
+          materials={materials}
+          setMaterials={setMaterials}
+          deliveryType={deliveryType}
+          setDeliveryType={setDeliveryType}
+          sportDetail={sportDetail}
+          setSportDetail={setSportDetail}
+          sportAttributes={sportAttributes}
+          setSportAttributes={setSportAttributes}
+          quickFilter={quickFilter}
+          setQuickFilter={setQuickFilter}
+          sort={sort}
+          setSort={setSort}
+          clearFilters={clearFilters}
+          activeFilterCount={activeFilterCount}
+          allBrands={allBrands}
+          resultCount={results.length}
+        />
+      </Suspense>
 
       {/* ── Subcategory bottom sheet — mobile only ── */}
       {category && (
-        <SubcategorySheet
-          open={subcategorySheetOpen}
-          onClose={() => setSubcategorySheetOpen(false)}
-          subcategories={getSubcategories(category)}
-          selected={subcategory}
-          categoryLabel={getCategoryById(category)?.label || 'Subcategories'}
-          onSelect={(id) => {
-            setSubcategory(id)
-            setSportDetail('')
-            setSubcategorySheetOpen(false)
-          }}
-        />
+        <Suspense fallback={null}>
+          <SubcategorySheet
+            open={subcategorySheetOpen}
+            onClose={() => setSubcategorySheetOpen(false)}
+            subcategories={getSubcategories(category)}
+            selected={subcategory}
+            categoryLabel={getCategoryById(category)?.label || 'Subcategories'}
+            onSelect={(id) => {
+              setSubcategory(id)
+              setSportDetail('')
+              setSubcategorySheetOpen(false)
+            }}
+          />
+        </Suspense>
       )}
     </div>
   )

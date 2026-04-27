@@ -1,4 +1,6 @@
 import { loadStripe } from '@stripe/stripe-js'
+import { ensureFreshSupabaseSession } from './supabase'
+import { buildPaymentIntentPayload } from './checkoutPayment'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -24,8 +26,33 @@ function isValidSupabaseAccessToken(value) {
     && value.split('.').length === 3
 }
 
+async function resolveAccessToken(accessToken) {
+  try {
+    const freshSession = await ensureFreshSupabaseSession()
+    if (isValidSupabaseAccessToken(freshSession?.access_token)) {
+      return freshSession.access_token
+    }
+  } catch (error) {
+    console.warn('[stripe] Could not resolve fresh Supabase session before Edge Function call:', {
+      message: error?.message || String(error),
+      hasFallbackToken: Boolean(accessToken),
+    })
+  }
+
+  if (isValidSupabaseAccessToken(accessToken)) {
+    return accessToken
+  }
+
+  throw new Error('Not authenticated. Please log in again to continue.')
+}
+
 function getHeaders(accessToken) {
   if (!isValidSupabaseAccessToken(accessToken)) {
+    console.error('[stripe] Missing or invalid Supabase access token for Edge Function call', {
+      hasToken: Boolean(accessToken),
+      tokenParts: typeof accessToken === 'string' ? accessToken.split('.').length : 0,
+      tokenLooksLikeAnonKey: accessToken === SUPABASE_ANON_KEY,
+    })
     throw new Error('Not authenticated. Please log in again to continue.')
   }
 
@@ -52,9 +79,14 @@ async function callEdgeFunction(fnName, body, accessToken) {
 
   let res
   try {
+    const token = await resolveAccessToken(accessToken)
+    console.info(`[${fnName}] Calling Edge Function`, {
+      hasAuthToken: true,
+      payload: body,
+    })
     res = await fetch(`${SUPABASE_URL}/functions/v1/${fnName}`, {
       method: 'POST',
-      headers: getHeaders(accessToken),
+      headers: getHeaders(token),
       body: JSON.stringify(body),
       signal: controller.signal,
     })
@@ -71,7 +103,42 @@ async function callEdgeFunction(fnName, body, accessToken) {
   try {
     data = await res.json()
   } catch {
-    throw new Error(`Edge function ${fnName} returned a non-JSON response (${res.status}).`)
+    if (res.status === 401) {
+      console.error(`[${fnName}] Edge function rejected auth before JSON response`, {
+        status: res.status,
+        hasAccessToken: Boolean(accessToken),
+      })
+      data = {
+        error: 'Your session expired. Please log in again before continuing.',
+        code: 'edge_auth_rejected',
+        step: 'edge_gateway_auth',
+      }
+    } else {
+      throw new Error(`Edge function ${fnName} returned a non-JSON response (${res.status}).`)
+    }
+  }
+
+  if (res.status === 401) {
+    console.warn(`[${fnName}] Edge function returned 401; refreshing session and retrying once`, {
+      code: data?.code || null,
+      step: data?.step || null,
+      error: data?.error || null,
+    })
+    try {
+      const refreshed = await ensureFreshSupabaseSession({ minTtlSeconds: Number.MAX_SAFE_INTEGER })
+      const retryRes = await fetch(`${SUPABASE_URL}/functions/v1/${fnName}`, {
+        method: 'POST',
+        headers: getHeaders(refreshed.access_token),
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      })
+      res = retryRes
+      data = await retryRes.json().catch(() => null)
+    } catch (retryError) {
+      console.error(`[${fnName}] Session refresh/retry after 401 failed`, {
+        message: retryError?.message || String(retryError),
+      })
+    }
   }
 
   if (!res.ok) {
@@ -79,17 +146,18 @@ async function callEdgeFunction(fnName, body, accessToken) {
       status: res.status,
       code: data?.code || null,
       step: data?.step || null,
+      error: data?.error || null,
       details: data?.details || {},
     })
 
-    const extra = Array.isArray(data.blocking_reasons) && data.blocking_reasons.length
+    const extra = Array.isArray(data?.blocking_reasons) && data.blocking_reasons.length
       ? ` ${data.blocking_reasons.join(' ')}`
       : ''
 
     const requestId = res.headers.get('x-request-id') || res.headers.get('x-supabase-request-id')
     const diagnostic = requestId ? ` Request ID: ${requestId}.` : ''
     const structured = data?.code && data?.step ? ` [${data.code} at ${data.step}]` : ''
-    throw new Error((data.error || `Edge function ${fnName} failed (${res.status}).`) + structured + extra + diagnostic)
+    throw new Error((data?.error || `Edge function ${fnName} failed (${res.status}).`) + structured + extra + diagnostic)
   }
 
   return data
@@ -100,14 +168,10 @@ function isValidPaymentIntentClientSecret(value) {
 }
 
 export async function createPaymentIntent(opts = {}, accessToken) {
+  const payload = buildPaymentIntentPayload(opts)
   const data = await callEdgeFunction(
     'create-payment-intent',
-      {
-        listingId: opts.listingId || '',
-        listingIds: opts.listingIds || [],
-        offerId: opts.offerId || '',
-        deliveryMethod: opts.deliveryMethod || 'home_delivery',
-      },
+      payload,
     accessToken
   )
 

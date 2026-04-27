@@ -192,6 +192,9 @@ export function AppProvider({ children }) {
     listings,
     likedListings,
     loading: listingsLoading,
+    loadingMore: listingsLoadingMore,
+    hasMoreListings,
+    loadMoreListings,
     dbAvailable: listingsDbAvailable,
     createListing: dbCreateListing,
     updateListing: dbUpdateListing,
@@ -2661,10 +2664,10 @@ export function AppProvider({ children }) {
 
   return (
     <AppContext.Provider value={{
-      currentUser, users, listings, listingsLoading, orders, conversations, reviews, disputes, likedListings, payoutProfiles, notifications, offers, bundle, bundleOffers, shipments, toast,
+      currentUser, users, listings, listingsLoading, listingsLoadingMore, hasMoreListings, orders, conversations, reviews, disputes, likedListings, payoutProfiles, notifications, offers, bundle, bundleOffers, shipments, toast,
       PROTECTION_WINDOW_MS, SHIPPING_DEADLINE_MS,
       login, signup, register, logout, requestPasswordReset, validateResetToken, resetPassword, updateProfile,
-      createListing, updateListing, deleteListing, boostListing, unboostListing, flagListing, approveListing, hideListing, updateStyleTags, updateCollectionTags, adminUpdateListingMeta, toggleLike,
+      createListing, updateListing, deleteListing, boostListing, unboostListing, flagListing, approveListing, hideListing, updateStyleTags, updateCollectionTags, adminUpdateListingMeta, toggleLike, loadMoreListings,
       placeOrder, getOrCreateConversation, sendMessage, markConversationRead, getUnreadConversationCount, updateOrderStatus,
       confirmDelivery, openDispute, adminOpenDispute, flagOrderOverdue, DISPUTE_REASONS,
       addNotification, markNotificationRead, markAllNotificationsRead, getUserNotifications, refreshNotifications,
