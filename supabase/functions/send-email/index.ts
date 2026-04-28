@@ -16,6 +16,7 @@ type EmailType =
   | 'item_delivered'
   | 'refund_confirmed'
   | 'dispute_opened'
+  | 'dispute_admin_alert'
   | 'item_sold'
   | 'shipping_reminder'
   | 'payout_released'
@@ -456,6 +457,45 @@ function buildEmail(payload: EmailPayload): { subject: string; html: string; pre
             ${isSellerNotice ? 'Our team will review and contact both parties as soon as possible.' : 'Our team will review and respond as soon as possible.'}
           </p>
           ${btn('View Order', orderUrl(payload.meta?.orderId))}
+        `),
+      }
+    }
+
+    case 'dispute_admin_alert': {
+      const {
+        orderRef,
+        orderId,
+        listingTitle,
+        buyerName,
+        buyerEmail,
+        sellerName,
+        sellerEmail,
+        reason,
+        details,
+        createdAt,
+      } = data
+      const ph = `A new Sib dispute was raised for order ${orderRef || orderId}.`
+      return {
+        subject: `New Sib dispute raised - order #${orderRef || orderId}`,
+        preheader: ph,
+        html: wrap(ph, `
+          <h2 style="font-size:18px;color:#1F2937;text-align:center;margin:14px 0 8px;">New dispute raised</h2>
+          <p style="font-size:14px;color:#4B5563;text-align:center;margin:0 0 14px;">
+            A buyer raised a dispute. Review it in Admin Control Panel &gt; Disputes.
+          </p>
+          ${infoBox('#FFF7ED', `
+            <p style="font-size:14px;color:#4B5563;margin:0 0 4px;"><strong>Order:</strong> ${orderRef || orderId}</p>
+            <p style="font-size:14px;color:#4B5563;margin:0 0 4px;"><strong>Item:</strong> ${listingTitle || 'N/A'}</p>
+            <p style="font-size:14px;color:#4B5563;margin:0 0 4px;"><strong>Buyer:</strong> ${buyerName || 'N/A'} ${buyerEmail ? `(${buyerEmail})` : ''}</p>
+            <p style="font-size:14px;color:#4B5563;margin:0 0 4px;"><strong>Seller:</strong> ${sellerName || 'N/A'} ${sellerEmail ? `(${sellerEmail})` : ''}</p>
+            <p style="font-size:14px;color:#4B5563;margin:0 0 4px;"><strong>Reason:</strong> ${reason || 'Issue reported'}</p>
+            <p style="font-size:14px;color:#4B5563;margin:0 0 4px;"><strong>Details:</strong> ${details || 'No details provided'}</p>
+            <p style="font-size:13px;color:#6B7280;margin:0;"><strong>Raised:</strong> ${createdAt || new Date().toISOString()}</p>
+          `)}
+          <p style="font-size:13px;color:#6B7280;text-align:center;">
+            Seller payout remains held while this dispute is open.
+          </p>
+          ${btn('Open Admin Disputes', buildAppUrl('/admin?tab=disputes'))}
         `),
       }
     }

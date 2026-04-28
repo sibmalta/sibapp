@@ -43,6 +43,9 @@ export function useOrders() {
         setDbError(ordersRes.error.message || 'Database connection failed')
         return
       }
+      if (disputesRes.error) {
+        console.error('[useOrders] fetchAllDisputes failed:', disputesRes.error.message)
+      }
 
       setDbAvailable(true)
       setDbError(null)

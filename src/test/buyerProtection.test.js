@@ -67,6 +67,16 @@ describe('buyer protection release flow', () => {
     expect(canAutoReleaseOrder(order, new Date('2026-04-27T10:00:00.000Z'))).toBe(false)
   })
 
+  it('frontend refresh cannot release funds while order is in dispute review', () => {
+    const order = {
+      deliveredAt: '2026-04-25T09:00:00.000Z',
+      trackingStatus: 'in_review',
+      payoutStatus: 'held',
+    }
+
+    expect(canAutoReleaseOrder(order, new Date('2026-04-27T10:00:00.000Z'))).toBe(false)
+  })
+
   it('48h passed -> transfer should be triggered', () => {
     const deliveredAt = '2026-04-25T09:00:00.000Z'
     const order = {

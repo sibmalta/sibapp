@@ -275,7 +275,7 @@ Deno.serve(async (req) => {
       .from('disputes')
       .select('id, status')
       .eq('order_id', orderId)
-      .in('status', ['open', 'under_review', 'escalated'])
+      .in('status', ['open', 'in_review', 'under_review', 'escalated'])
       .limit(1)
       .maybeSingle()
 

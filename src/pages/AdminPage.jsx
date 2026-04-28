@@ -16,6 +16,7 @@ import { SELLER_BADGE_DEFS } from '../components/SellerTrustBadges'
 import LogisticsTab from '../components/LogisticsTab'
 import { buildAdminShipmentPayload, formatAdminShipmentPayload } from '../lib/adminShipment'
 import { ADMIN_ORDER_STATUSES, filterAdminOrders } from '../lib/adminOrders'
+import { isActiveDisputeStatus, sortDisputesForAdmin } from '../lib/disputes'
 
 const TABS = [
   { id: 'orders', label: 'Orders', icon: ShoppingBag },
@@ -41,6 +42,9 @@ const STATUS_COLORS = {
   cancelled: 'bg-gray-100 text-gray-500 border-gray-200',
   under_review: 'bg-purple-50 text-purple-700 border-purple-200',
   open: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+  in_review: 'bg-purple-50 text-purple-700 border-purple-200',
+  resolved_buyer: 'bg-blue-50 text-blue-700 border-blue-200',
+  resolved_seller: 'bg-green-50 text-green-700 border-green-200',
   resolved: 'bg-green-50 text-green-700 border-green-200',
   active: 'bg-green-50 text-green-700 border-green-200',
   sold: 'bg-gray-100 text-gray-500 border-gray-200',
@@ -159,7 +163,8 @@ export default function AdminPage() {
   }
 
   const pendingOrders = orders.filter(o => o.trackingStatus === 'pending')
-  const openDisputes = (disputes || []).filter(d => d.status === 'open')
+  const sortedDisputes = useMemo(() => sortDisputesForAdmin(disputes || []), [disputes])
+  const openDisputes = (disputes || []).filter(d => isActiveDisputeStatus(d.status))
 
   const filteredOrders = useMemo(() => {
     return filterAdminOrders(orders, {
@@ -441,7 +446,7 @@ export default function AdminPage() {
                                 <XCircle size={12} /> Cancel Order
                               </button>
                             )}
-                            {order.trackingStatus !== 'under_review' && order.trackingStatus !== 'refunded' && order.trackingStatus !== 'cancelled' && !(disputes || []).some(d => d.orderId === order.id && d.status === 'open') && (
+                            {order.trackingStatus !== 'under_review' && order.trackingStatus !== 'refunded' && order.trackingStatus !== 'cancelled' && !(disputes || []).some(d => d.orderId === order.id && isActiveDisputeStatus(d.status)) && (
                               <button onClick={() => { adminOpenDispute(order.id, 'Admin-initiated review'); showToast('Dispute opened') }}
                                 className="py-2 bg-purple-50 text-purple-700 text-[11px] font-semibold rounded-xl flex items-center justify-center gap-1 border border-purple-100 active:scale-95 transition-transform">
                                 <AlertTriangle size={12} /> Open Dispute
@@ -725,24 +730,24 @@ export default function AdminPage() {
             )}
 
             <div className="space-y-2">
-              {(disputes || []).map(d => {
+              {sortedDisputes.map(d => {
                 const buyer = getUserById(d.buyerId)
                 const seller = getUserById(d.sellerId)
                 const order = orders.find(o => o.id === d.orderId)
-                const listing = order ? getListingById(order.listingId) : null
+                const listing = getListingById(d.listingId || order?.listingId)
                 const isExpanded = expandedDispute === d.id
                 const typeLabels = DISPUTE_REASONS || { not_as_described: 'Not as described', not_received: 'Item not received', delivery_issue: 'Delivery issue', wrong_item: 'Wrong item received', damaged: 'Item damaged', admin_review: 'Admin review' }
                 const relatedConvo = (conversations || []).find(c =>
                   c.participants.includes(d.buyerId) && c.participants.includes(d.sellerId)
                 )
                 return (
-                  <div key={d.id} className={`rounded-2xl border ${d.status === 'open' ? 'border-orange-200 bg-orange-50/30' : 'border-sib-ash'}`}>
+                  <div key={d.id} className={`rounded-2xl border ${isActiveDisputeStatus(d.status) ? 'border-orange-200 bg-orange-50/30' : 'border-sib-ash'}`}>
                     <button onClick={() => setExpandedDispute(isExpanded ? null : d.id)} className="w-full flex items-center gap-3 p-3 text-left">
-                      <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${d.status === 'open' ? 'bg-orange-500 animate-pulse' : 'bg-green-400'}`} />
+                      <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${isActiveDisputeStatus(d.status) ? 'bg-orange-500 animate-pulse' : 'bg-green-400'}`} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-sib-text">{typeLabels[d.type] || d.type}</p>
-                        <p className="text-xs text-sib-muted">{buyer?.name} vs {seller?.name}</p>
-                        <p className="text-[10px] text-sib-muted mt-0.5">{formatDate(d.createdAt)}</p>
+                        <p className="text-sm font-semibold text-sib-text">{typeLabels[d.type] || d.reason || d.type}</p>
+                        <p className="text-xs text-sib-muted">{buyer?.name || 'Buyer'} vs {seller?.name || 'Seller'}</p>
+                        <p className="text-[10px] text-sib-muted mt-0.5">Order #{(order?.orderRef || d.orderId || '').slice(-10)} · {formatDate(d.createdAt)}</p>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <Badge status={d.status} />
@@ -766,7 +771,7 @@ export default function AdminPage() {
 
                         <div className="p-2.5 rounded-xl bg-white border border-sib-ash">
                           <p className="text-[10px] font-semibold text-sib-muted mb-1">Reason</p>
-                          <p className="text-xs text-sib-text leading-snug">{d.description}</p>
+                          <p className="text-xs text-sib-text leading-snug">{d.details || d.description || d.reason || 'No details provided.'}</p>
                         </div>
 
                         {relatedConvo && (
@@ -810,7 +815,7 @@ export default function AdminPage() {
                           </div>
                         )}
 
-                        {d.status === 'open' && (
+                        {isActiveDisputeStatus(d.status) && (
                           <div className="space-y-2">
                             <div className="flex gap-1.5">
                               <input type="text" placeholder="Send message to parties..."

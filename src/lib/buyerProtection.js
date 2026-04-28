@@ -9,7 +9,7 @@ export function getBuyerConfirmationDeadline(deliveredAt, windowMs = BUYER_CONFI
 
 export function canAutoReleaseOrder(order, now = new Date(), windowMs = BUYER_CONFIRMATION_WINDOW_MS) {
   if (!order?.deliveredAt && !order?.delivered_at) return false
-  if (['disputed', 'under_review'].includes(order.trackingStatus || order.tracking_status)) return false
+  if (['disputed', 'under_review', 'in_review'].includes(order.trackingStatus || order.tracking_status)) return false
   if (['disputed', 'released'].includes(order.payoutStatus || order.payout_status)) return false
   if (order.disputedAt || order.disputed_at || order.completedAt || order.completed_at) return false
 

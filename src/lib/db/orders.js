@@ -429,12 +429,16 @@ export function rowToDispute(row) {
     orderId: row.order_id || '',
     buyerId: row.buyer_id || '',
     sellerId: row.seller_id || '',
+    listingId: row.listing_id || '',
     type: row.type || 'not_as_described',
     reason: row.reason || '',
     description: row.description || '',
+    details: row.details || row.description || '',
     status: row.status || 'open',
     source: row.source || 'buyer',
     resolution: row.resolution || null,
+    resolvedAt: row.resolved_at || null,
+    adminNotes: row.admin_notes || null,
     evidenceUrls: row.evidence_urls || [],
     messages: row.messages || [],
     adminMessages: row.admin_messages || [],
@@ -448,12 +452,16 @@ export function disputeToRow(dispute) {
   if (dispute.orderId !== undefined) row.order_id = dispute.orderId
   if (dispute.buyerId !== undefined) row.buyer_id = dispute.buyerId
   if (dispute.sellerId !== undefined) row.seller_id = dispute.sellerId
+  if (dispute.listingId !== undefined) row.listing_id = dispute.listingId
   if (dispute.type !== undefined) row.type = dispute.type
   if (dispute.reason !== undefined) row.reason = dispute.reason
   if (dispute.description !== undefined) row.description = dispute.description
+  if (dispute.details !== undefined) row.details = dispute.details
   if (dispute.status !== undefined) row.status = dispute.status
   if (dispute.source !== undefined) row.source = dispute.source
   if (dispute.resolution !== undefined) row.resolution = dispute.resolution
+  if (dispute.resolvedAt !== undefined) row.resolved_at = dispute.resolvedAt
+  if (dispute.adminNotes !== undefined) row.admin_notes = dispute.adminNotes
   if (dispute.evidenceUrls !== undefined) row.evidence_urls = dispute.evidenceUrls
   if (dispute.messages !== undefined) row.messages = dispute.messages
   if (dispute.adminMessages !== undefined) row.admin_messages = dispute.adminMessages

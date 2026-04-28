@@ -28,6 +28,7 @@ import { autoReleaseBuyerProtectionOrders, confirmBuyerProtectionOrder, disputeB
 import { getBuyerConfirmationDeadline } from '../lib/buyerProtection'
 import { isLockerEligible } from '../lib/lockerEligibility'
 import { buildAdminShipmentPayload } from '../lib/adminShipment'
+import { isActiveDisputeStatus } from '../lib/disputes'
 
 const AppContext = createContext(null)
 
@@ -945,7 +946,7 @@ export function AppProvider({ children }) {
     const order = orders.find(o => o.id === orderId)
     if (!order) return null
     // Prevent duplicate dispute on same order
-    const existing = disputes.find(d => d.orderId === orderId && d.status === 'open')
+    const existing = disputes.find(d => d.orderId === orderId && isActiveDisputeStatus(d.status))
     if (existing) return existing
     const type = opts.type || 'not_as_described'
     const description = reason || DISPUTE_REASONS[type] || reason
@@ -958,6 +959,7 @@ export function AppProvider({ children }) {
         newDispute = result.dispute || { id: result.disputeId, orderId, buyerId: order.buyerId, sellerId: order.sellerId, type, reason: description, description, status: 'open', source }
         await refreshOrders()
         await refreshDisputes()
+        await refreshNotifications()
       } catch (error) {
         console.error('[openDispute] buyer-protection function failed:', error?.message || error)
         showToast('Failed to open dispute: ' + (error?.message || 'Please try again.'), 'error')
@@ -986,26 +988,28 @@ export function AppProvider({ children }) {
       if (orderErr) console.error('[openDispute] order patch failed:', orderErr.message)
     }
 
-    addNotification({
-      userId: order.sellerId,
-      orderId,
-      type: 'dispute_opened',
-      title: source === 'admin' ? 'Admin opened a dispute' : 'Buyer reported an issue',
-      message: `${source === 'admin' ? 'An admin has opened a dispute' : 'The buyer has reported an issue'}: "${description}". Your payout is on hold until this is resolved.`,
-    })
-    addNotification({
-      userId: order.buyerId,
-      orderId,
-      type: 'dispute_opened_buyer',
-      title: source === 'admin' ? 'Admin review opened' : 'Issue reported',
-      message: source === 'admin'
-        ? 'An admin has opened a review on your order. Your payment is protected until it is resolved.'
-        : 'We have received your report. Our team will review and get back to you shortly.',
-    })
+    if (source !== 'buyer') {
+      addNotification({
+        userId: order.sellerId,
+        orderId,
+        type: 'dispute_opened',
+        title: source === 'admin' ? 'Admin opened a dispute' : 'Buyer reported an issue',
+        message: `${source === 'admin' ? 'An admin has opened a dispute' : 'The buyer has reported an issue'}: "${description}". Your payout is on hold until this is resolved.`,
+      })
+      addNotification({
+        userId: order.buyerId,
+        orderId,
+        type: 'dispute_opened_buyer',
+        title: source === 'admin' ? 'Admin review opened' : 'Issue reported',
+        message: source === 'admin'
+          ? 'An admin has opened a review on your order. Your payment is protected until it is resolved.'
+          : 'We have received your report. Our team will review and get back to you shortly.',
+      })
+    }
 
     // Email: dispute confirmation to buyer
     const buyer = users.find(u => u.id === order.buyerId)
-    if (buyer?.email) {
+    if (source !== 'buyer' && buyer?.email) {
       sendDisputeOpenedEmail(buyer.email, buyer.name, order.orderRef || orderId, description, 'buyer', {
         related_entity_type: 'dispute',
         related_entity_id: newDispute.id,
@@ -1017,7 +1021,7 @@ export function AppProvider({ children }) {
       })
     }
     const seller = users.find(u => u.id === order.sellerId)
-    if (seller?.email) {
+    if (source !== 'buyer' && seller?.email) {
       sendDisputeOpenedEmail(seller.email, seller.name, order.orderRef || orderId, description, 'seller', {
         related_entity_type: 'dispute',
         related_entity_id: newDispute.id,
@@ -1030,7 +1034,7 @@ export function AppProvider({ children }) {
     }
 
     return newDispute
-  }, [orders, disputes, users, addNotification, dbCreateDispute, dbPatchOrder, showToast, refreshOrders, refreshDisputes])
+  }, [orders, disputes, users, addNotification, dbCreateDispute, dbPatchOrder, showToast, refreshOrders, refreshDisputes, refreshNotifications])
 
   // ── Admin opens dispute on an order ─────────────────────────────
   const adminOpenDispute = useCallback((orderId, reason) => {

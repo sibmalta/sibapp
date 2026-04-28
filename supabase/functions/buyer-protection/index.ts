@@ -182,6 +182,69 @@ async function notify(supabase: ReturnType<typeof createClient>, row: Record<str
   if (error && error.code !== '23505') console.error('[buyer-protection] notification failed:', error.message)
 }
 
+function displayName(profile: Record<string, any> | null | undefined, fallback = 'User') {
+  return profile?.name || profile?.username || profile?.email || fallback
+}
+
+async function profileById(supabase: ReturnType<typeof createClient>, userId: string) {
+  if (!userId) return null
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id,name,username,email')
+    .eq('id', userId)
+    .maybeSingle()
+  if (error) {
+    console.error('[buyer-protection] failed to load profile:', { userId, error: error.message })
+    return null
+  }
+  return data
+}
+
+async function sendTransactionalEmail(type: string, to: string | null | undefined, data: Record<string, any>, meta: Record<string, any>) {
+  if (!to) {
+    console.error('[buyer-protection] missing email recipient', { type, meta })
+    return { success: false, emailSent: false, error: 'missing_recipient' }
+  }
+
+  const supabaseUrl = getEnv('SUPABASE_URL', 'VITE_SUPABASE_URL')
+  const serviceRoleKey = getEnv('SERVICE_ROLE_KEY', 'SUPABASE_SERVICE_ROLE_KEY')
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.error('[buyer-protection] cannot send email; missing function auth configuration', { type, to })
+    return { success: false, emailSent: false, error: 'missing_function_auth' }
+  }
+
+  console.info('[buyer-protection] sending dispute email', { type, to, orderId: meta.orderId, disputeId: meta.disputeId })
+  const response = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${serviceRoleKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ type, to, data, meta }),
+  })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok || body?.emailSent === false) {
+    console.error('[buyer-protection] dispute email failed', { type, to, status: response.status, body })
+  } else {
+    console.info('[buyer-protection] dispute email sent', { type, to, response: body })
+  }
+  return { ok: response.ok, status: response.status, body }
+}
+
+async function insertDisputeWithFallback(supabase: ReturnType<typeof createClient>, row: Record<string, any>) {
+  const { data, error } = await supabase.from('disputes').insert(row).select('*').single()
+  if (!error) return { data, error: null }
+
+  const message = error.message || ''
+  const missingColumn = message.match(/Could not find the '([^']+)' column/i)?.[1]
+  if (missingColumn && missingColumn in row && ['listing_id', 'details', 'admin_notes', 'resolved_at'].includes(missingColumn)) {
+    console.warn('[buyer-protection] disputes schema missing optional column; retrying insert', { missingColumn })
+    const { [missingColumn]: _removed, ...nextRow } = row
+    return insertDisputeWithFallback(supabase, nextRow)
+  }
+  return { data: null, error }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405)
@@ -242,35 +305,40 @@ Deno.serve(async (req) => {
       const type = String(body.type || 'not_as_described')
       const normalizedType = type === 'not_received' ? 'item_not_received' : type
       const reason = String(body.reason || normalizedType)
+      const details = String(body.details || body.description || reason)
       const { data: order, error } = await supabase.from('orders').select('*').eq('id', orderId).single()
       if (error || !order) return jsonResponse({ error: 'Order not found.' }, 404)
       if (order.buyer_id !== user.id) return jsonResponse({ error: 'Only the buyer can report an issue.' }, 403)
       if (!order.delivered_at) return jsonResponse({ error: 'Issues can be reported after delivery.' }, 400)
       if (order.completed_at || order.payout_status === 'released') return jsonResponse({ error: 'This order is already completed.' }, 409)
 
+      const [buyerProfile, sellerProfile] = await Promise.all([
+        profileById(supabase, order.buyer_id),
+        profileById(supabase, order.seller_id),
+      ])
+      const listingTitle = order.listing_title || 'Unknown item'
+
       const { data: existing } = await supabase
         .from('disputes')
         .select('*')
         .eq('order_id', orderId)
-        .in('status', ['open', 'under_review', 'escalated'])
+        .in('status', ['open', 'in_review', 'under_review', 'escalated'])
         .limit(1)
         .maybeSingle()
       let dispute = existing
       if (!dispute) {
-        const { data, error: disputeError } = await supabase
-          .from('disputes')
-          .insert({
-            order_id: order.id,
-            buyer_id: order.buyer_id,
-            seller_id: order.seller_id,
-            type: normalizedType,
-            reason,
-            description: reason,
-            status: 'open',
-            source: 'buyer',
-          })
-          .select('*')
-          .single()
+        const { data, error: disputeError } = await insertDisputeWithFallback(supabase, {
+          order_id: order.id,
+          buyer_id: order.buyer_id,
+          seller_id: order.seller_id,
+          listing_id: order.listing_id || null,
+          type: normalizedType,
+          reason,
+          description: details,
+          details,
+          status: 'open',
+          source: 'buyer',
+        })
         if (disputeError) throw disputeError
         dispute = data
       }
@@ -291,10 +359,57 @@ Deno.serve(async (req) => {
       await notify(supabase, {
         user_id: order.seller_id,
         order_id: order.id,
+        listing_id: order.listing_id || null,
         type: 'dispute_opened',
         title: 'Buyer reported an issue',
-        message: `The buyer reported an issue: "${reason}". Funds remain held while Sib reviews it.`,
+        message: 'A dispute has been raised on this order. Sib is investigating and may contact you for more details. The payout for this order is temporarily held until the dispute is resolved.',
+        metadata: { disputeId: dispute.id, reason, details },
       })
+      await notify(supabase, {
+        user_id: order.buyer_id,
+        order_id: order.id,
+        listing_id: order.listing_id || null,
+        type: 'dispute_opened_buyer',
+        title: 'Dispute raised',
+        message: 'Your dispute has been raised. Sib is investigating and may contact you for more details. Funds will remain held while we review the issue.',
+        metadata: { disputeId: dispute.id, reason, details },
+      })
+
+      const orderRef = order.order_ref || order.id
+      const commonMeta = {
+        related_entity_type: 'dispute',
+        related_entity_id: dispute.id,
+        disputeId: dispute.id,
+        orderId: order.id,
+        listingId: order.listing_id || null,
+        buyerId: order.buyer_id,
+        sellerId: order.seller_id,
+      }
+      await sendTransactionalEmail('dispute_admin_alert', 'info@sibmalta.com', {
+        orderRef,
+        orderId: order.id,
+        listingTitle,
+        buyerName: displayName(buyerProfile, 'Buyer'),
+        buyerEmail: buyerProfile?.email || '',
+        sellerName: displayName(sellerProfile, 'Seller'),
+        sellerEmail: sellerProfile?.email || '',
+        reason,
+        details,
+        createdAt: now,
+      }, commonMeta)
+      await sendTransactionalEmail('dispute_opened', buyerProfile?.email, {
+        recipientName: displayName(buyerProfile, 'there'),
+        orderRef,
+        reason,
+        role: 'buyer',
+      }, commonMeta)
+      await sendTransactionalEmail('dispute_opened', sellerProfile?.email, {
+        recipientName: displayName(sellerProfile, 'there'),
+        orderRef,
+        reason,
+        role: 'seller',
+      }, commonMeta)
+
       console.warn('[buyer-protection] support review required', { orderId: order.id, disputeId: dispute.id })
 
       return jsonResponse({ success: true, dispute })
@@ -345,6 +460,21 @@ Deno.serve(async (req) => {
         }
         if (order.disputed_at || order.payout_status === 'disputed') {
           skipped.push({ orderId: order.id, reason: 'disputed' })
+          continue
+        }
+        const { data: openDispute, error: disputeCheckError } = await supabase
+          .from('disputes')
+          .select('id,status')
+          .eq('order_id', order.id)
+          .in('status', ['open', 'in_review', 'under_review', 'escalated'])
+          .limit(1)
+          .maybeSingle()
+        if (disputeCheckError) {
+          failed.push({ orderId: order.id, error: `dispute_check_failed: ${disputeCheckError.message}` })
+          continue
+        }
+        if (openDispute) {
+          skipped.push({ orderId: order.id, reason: `active_dispute:${openDispute.status}` })
           continue
         }
         const deadline = order.buyer_confirmation_deadline || (order.delivered_at ? deadlineFor(order.delivered_at) : null)
