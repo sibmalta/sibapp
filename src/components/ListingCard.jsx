@@ -30,7 +30,7 @@ function getListingImage(listing) {
   return getListingImages(listing)[0] || null
 }
 
-function ListingImage({ listing, className, src }) {
+function ListingImage({ listing, className, src, layered = false }) {
   const [failed, setFailed] = useState(false)
   const rawImageSrc = src || getListingImage(listing)
   const imageSrc = failed ? null : getOptimizedListingImageUrl(rawImageSrc)
@@ -39,6 +39,35 @@ function ListingImage({ listing, className, src }) {
     return (
       <div className={`${className} flex items-center justify-center bg-sib-sand dark:bg-[#26322f] text-sib-muted dark:text-[#aeb8b4]`}>
         <ImageIcon size={22} strokeWidth={1.7} />
+      </div>
+    )
+  }
+
+  if (layered) {
+    return (
+      <div className={`${className} relative`}>
+        <img
+          src={imageSrc}
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 w-full h-full object-cover object-center blur-md scale-110 opacity-40"
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+          onError={() => setFailed(true)}
+          onDragStart={(e) => e.preventDefault()}
+        />
+        <img
+          src={imageSrc}
+          alt={listing.title || ''}
+          className="relative z-10 w-full h-full object-contain object-center"
+          loading="lazy"
+          decoding="async"
+          sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, 50vw"
+          draggable={false}
+          onError={() => setFailed(true)}
+          onDragStart={(e) => e.preventDefault()}
+        />
       </div>
     )
   }
@@ -58,7 +87,7 @@ function ListingImage({ listing, className, src }) {
   )
 }
 
-function SwipeableListingImage({ listing, className, imageClassName, children, onSwipe }) {
+function SwipeableListingImage({ listing, className, imageClassName, children, onSwipe, layered = false }) {
   const images = getListingImages(listing)
   const hasMultipleImages = images.length > 1
   const [imageIndex, setImageIndex] = useState(0)
@@ -135,7 +164,7 @@ function SwipeableListingImage({ listing, className, imageClassName, children, o
       onTouchCancel={handleTouchCancel}
       style={hasMultipleImages ? { touchAction: 'pan-y' } : undefined}
     >
-      <ListingImage listing={listing} src={images[imageIndex]} className={imageClassName} />
+      <ListingImage listing={listing} src={images[imageIndex]} className={imageClassName} layered={layered} />
       {children}
       {hasMultipleImages && (
         <>
@@ -214,7 +243,8 @@ export default function ListingCard({ listing, size = 'normal' }) {
         <SwipeableListingImage
           listing={listing}
           className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl bg-gray-100 dark:bg-[#26322f]"
-          imageClassName="w-full h-full object-cover object-center"
+          imageClassName="w-full h-full"
+          layered
           onSwipe={handleImageSwipe}
         >
           {listing.status === 'sold' && (
@@ -244,7 +274,8 @@ export default function ListingCard({ listing, size = 'normal' }) {
       <SwipeableListingImage
         listing={listing}
         className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl bg-gray-100 dark:bg-[#26322f]"
-        imageClassName="w-full h-full object-cover object-center"
+        imageClassName="w-full h-full"
+        layered
         onSwipe={handleImageSwipe}
       >
 
