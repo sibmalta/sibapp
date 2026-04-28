@@ -127,7 +127,6 @@ const BROWSE_SELECT = `
   price,
   category,
   subcategory,
-  type,
   category_type,
   attributes,
   gender,
