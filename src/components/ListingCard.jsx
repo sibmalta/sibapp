@@ -213,7 +213,7 @@ export default function ListingCard({ listing, size = 'normal' }) {
       >
         <SwipeableListingImage
           listing={listing}
-          className="relative rounded-xl overflow-hidden bg-sib-sand dark:bg-[#26322f] aspect-square"
+          className="relative rounded-xl overflow-hidden bg-sib-sand dark:bg-[#26322f] aspect-[4/5]"
           imageClassName="w-full h-full object-cover"
           onSwipe={handleImageSwipe}
         >
@@ -243,7 +243,7 @@ export default function ListingCard({ listing, size = 'normal' }) {
       {/* Image container */}
       <SwipeableListingImage
         listing={listing}
-        className="relative rounded-xl overflow-hidden bg-sib-sand dark:bg-[#26322f] aspect-square"
+        className="relative rounded-xl overflow-hidden bg-sib-sand dark:bg-[#26322f] aspect-[4/5]"
         imageClassName="w-full h-full object-cover"
         onSwipe={handleImageSwipe}
       >
