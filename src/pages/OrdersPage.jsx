@@ -18,6 +18,7 @@ const SELLER_FILTERS = [
 const BUYER_STATUS_STYLES = {
   paid: 'bg-yellow-50 text-yellow-700 dark:bg-[#332d20] dark:text-amber-300',
   pending: 'bg-yellow-50 text-yellow-700 dark:bg-[#332d20] dark:text-amber-300',
+  awaiting_delivery: 'bg-yellow-50 text-yellow-700 dark:bg-[#332d20] dark:text-amber-300',
   shipped: 'bg-blue-50 text-blue-700 dark:bg-[#26322f] dark:text-blue-300',
   delivered: 'bg-amber-50 text-amber-700 dark:bg-[#332d20] dark:text-amber-300',
   confirmed: 'bg-green-50 text-green-700 dark:bg-[#20322b] dark:text-green-300',
@@ -31,6 +32,7 @@ const BUYER_STATUS_STYLES = {
 const BUYER_STATUS_LABELS = {
   paid: 'Order placed',
   pending: 'Pending',
+  awaiting_delivery: 'Order placed',
   shipped: 'Shipped',
   delivered: 'Awaiting buyer confirmation',
   confirmed: 'Confirmed',

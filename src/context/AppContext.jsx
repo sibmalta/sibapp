@@ -37,7 +37,12 @@ const PROTECTION_WINDOW_MS = 48 * 60 * 60 * 1000 // 48 hours
 const SHIPPING_DEADLINE_MS = 3 * 24 * 60 * 60 * 1000 // 3 business days
 const SHIPPING_REMINDER_MS = 2 * 24 * 60 * 60 * 1000 // Remind after 2 days
 const COUNTER_OFFER_DEDUPE_MS = 30 * 1000
-const SOLD_ORDER_STATUSES = new Set(['paid', 'shipped', 'delivered', 'confirmed', 'completed'])
+const SELLER_PAYOUT_PENDING_STATUS = 'payment_received_seller_payout_pending'
+const SOLD_ORDER_STATUSES = new Set(['paid', SELLER_PAYOUT_PENDING_STATUS, 'shipped', 'delivered', 'confirmed', 'completed'])
+
+function canSellerReceivePayouts(seller) {
+  return Boolean(seller?.stripeAccountId && seller?.detailsSubmitted && seller?.payoutsEnabled)
+}
 
 function hasBlockingOrderForListings(orders, listingIds) {
   const ids = new Set(listingIds.filter(Boolean))
@@ -486,6 +491,8 @@ export function AppProvider({ children }) {
     const now = new Date().toISOString()
     const deliveryLabel = getFulfilmentMethodLabel(fulfilmentMethod)
     const seller = users.find(u => u.id === listing.sellerId)
+    const sellerPayoutReady = canSellerReceivePayouts(seller)
+    const orderStatus = sellerPayoutReady ? 'paid' : SELLER_PAYOUT_PENDING_STATUS
     const lockerLocation = fulfilmentMethod === 'locker' ? {
       name: deliveryInfo?.lockerName || null,
       address: deliveryInfo?.lockerAddress || address || null,
@@ -530,7 +537,7 @@ export function AppProvider({ children }) {
       sellerPayout: itemPrice,
       platformFee: bundledFee,
       paymentFlowType: 'separate_charge',
-      status: 'paid',
+      status: orderStatus,
       paymentStatus: 'paid',
       stripePaymentIntentId,
       deliveryMethod: deliveryType,
@@ -543,6 +550,7 @@ export function AppProvider({ children }) {
       deliveryAddressSnapshot,
       trackingStatus: 'awaiting_delivery',
       payoutStatus: 'held',
+      sellerPayoutStatus: sellerPayoutReady ? 'held' : 'setup_pending',
       paidAt: now,
       shippingAddress,
     }
@@ -573,6 +581,18 @@ export function AppProvider({ children }) {
       title: 'New sale — ship within 3 days',
       message: `You have a new order (${orderRef}) — ${deliveryLabel}. Please ship via MaltaPost within 3 business days.`,
     })
+
+    if (!sellerPayoutReady) {
+      addNotification({
+        userId: listing.sellerId,
+        orderId: savedOrder.id,
+        listingId: listing.id,
+        actionTarget: '/seller/payout-settings',
+        type: 'seller_payout_setup_required',
+        title: 'Complete payout setup',
+        message: 'You made a sale. Please complete payout setup to receive your funds.',
+      })
+    }
 
     // Email: order confirmation + payment confirmation to buyer
     if (currentUser?.email) {
@@ -1846,6 +1866,8 @@ export function AppProvider({ children }) {
     const orderRef = `SIB-B${Date.now().toString(36).toUpperCase()}`
     const now = new Date().toISOString()
     const seller = users.find(u => u.id === bundle.sellerId)
+    const sellerPayoutReady = canSellerReceivePayouts(seller)
+    const orderStatus = sellerPayoutReady ? 'paid' : SELLER_PAYOUT_PENDING_STATUS
     const lockerLocation = fulfilmentMethod === 'locker' ? {
       name: deliveryInfo?.lockerName || null,
       address: deliveryInfo?.lockerAddress || address || null,
@@ -1893,7 +1915,7 @@ export function AppProvider({ children }) {
       sellerPayout: subtotal,
       platformFee: fees.bundledFee,
       paymentFlowType: 'separate_charge',
-      status: 'paid',
+      status: orderStatus,
       deliveryMethod: deliveryType,
       deliveryFee: dFee,
       fulfilmentProvider: FULFILMENT_PROVIDER,
@@ -1904,6 +1926,7 @@ export function AppProvider({ children }) {
       deliveryAddressSnapshot,
       trackingStatus: 'awaiting_delivery',
       payoutStatus: 'held',
+      sellerPayoutStatus: sellerPayoutReady ? 'held' : 'setup_pending',
       paidAt: now,
       shippingAddress,
     }
@@ -1937,6 +1960,18 @@ export function AppProvider({ children }) {
       title: `${items.length}-item bundle sold — ship within 3 days`,
       message: `@${currentUser.username} purchased ${items.length} items for €${fees.total.toFixed(2)} — ${deliveryLabel}. Ship via MaltaPost within 3 business days.`,
     })
+
+    if (!sellerPayoutReady) {
+      addNotification({
+        userId: bundle.sellerId,
+        orderId: savedOrder.id,
+        listingId: savedOrder.listingId,
+        actionTarget: '/seller/payout-settings',
+        type: 'seller_payout_setup_required',
+        title: 'Complete payout setup',
+        message: 'You made a sale. Please complete payout setup to receive your funds.',
+      })
+    }
 
     // Email buyer order confirmation + payment confirmation
     if (currentUser?.email) {
@@ -2164,6 +2199,8 @@ export function AppProvider({ children }) {
     const orderRef = `SIB-B${Date.now().toString(36).toUpperCase()}`
     const now = new Date().toISOString()
     const sellerUser = users.find(u => u.id === offer.sellerId)
+    const sellerPayoutReady = canSellerReceivePayouts(sellerUser)
+    const orderStatus = sellerPayoutReady ? 'paid' : SELLER_PAYOUT_PENDING_STATUS
     const lockerLocation = fulfilmentMethod === 'locker' ? {
       name: deliveryInfo?.lockerName || null,
       address: deliveryInfo?.lockerAddress || address || null,
@@ -2211,7 +2248,7 @@ export function AppProvider({ children }) {
       sellerPayout: acceptedPrice,
       platformFee: fees.bundledFee,
       paymentFlowType: 'separate_charge',
-      status: 'paid',
+      status: orderStatus,
       deliveryMethod: deliveryType,
       deliveryFee: dFee,
       fulfilmentProvider: FULFILMENT_PROVIDER,
@@ -2222,6 +2259,7 @@ export function AppProvider({ children }) {
       deliveryAddressSnapshot,
       trackingStatus: 'awaiting_delivery',
       payoutStatus: 'held',
+      sellerPayoutStatus: sellerPayoutReady ? 'held' : 'setup_pending',
       paidAt: now,
       shippingAddress,
       bundleOfferId: offerId,
@@ -2255,6 +2293,18 @@ export function AppProvider({ children }) {
       title: `${items.length}-item bundle sold — ship within 3 days`,
       message: `@${users.find(u => u.id === offer.buyerId)?.username || 'buyer'} purchased ${items.length} items for €${fees.total.toFixed(2)} — ${deliveryLabel}. Ship via MaltaPost within 3 business days.`,
     })
+
+    if (!sellerPayoutReady) {
+      addNotification({
+        userId: offer.sellerId,
+        orderId: savedOrder.id,
+        listingId: savedOrder.listingId,
+        actionTarget: '/seller/payout-settings',
+        type: 'seller_payout_setup_required',
+        title: 'Complete payout setup',
+        message: 'You made a sale. Please complete payout setup to receive your funds.',
+      })
+    }
 
     // Email buyer order confirmation
     const buyer = users.find(u => u.id === offer.buyerId)

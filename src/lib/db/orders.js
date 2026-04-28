@@ -263,7 +263,7 @@ async function findExistingOrderByPaymentIntent(supabase, paymentIntentId) {
   return { data: rowToOrder(data), error: null }
 }
 
-const SOLD_ORDER_STATUSES = ['paid', 'shipped', 'delivered', 'confirmed', 'completed']
+const SOLD_ORDER_STATUSES = ['paid', 'payment_received_seller_payout_pending', 'shipped', 'delivered', 'confirmed', 'completed']
 
 async function assertListingCanBeOrdered(supabase, listingId) {
   if (!listingId) return { error: { message: 'Item already sold' } }

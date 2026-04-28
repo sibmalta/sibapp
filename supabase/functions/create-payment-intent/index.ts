@@ -431,7 +431,7 @@ function validateLockerEligibility(listings: ListingRow[], deliveryMethod: strin
   )
 }
 
-const SOLD_ORDER_STATUSES = ['paid', 'shipped', 'delivered', 'confirmed', 'completed']
+const SOLD_ORDER_STATUSES = ['paid', 'payment_received_seller_payout_pending', 'shipped', 'delivered', 'confirmed', 'completed']
 
 async function validateNoExistingSoldOrders(supabase: ReturnType<typeof createClient>, listingIds: string[]) {
   logStep('duplicate_order_check', 'started', { listingCount: listingIds.length })
@@ -493,22 +493,14 @@ async function validateSellerProfile(supabase: ReturnType<typeof createClient>, 
     )
   }
 
-  const blockingReasons: string[] = []
-  if (!data.stripe_account_id) blockingReasons.push('Seller has no Stripe connected account.')
-  if (!data.details_submitted) blockingReasons.push('Seller has not completed Stripe verification.')
-  if (!data.payouts_enabled) blockingReasons.push('Seller Stripe account cannot receive payouts yet.')
+  const payoutSetupReasons: string[] = []
+  if (!data.stripe_account_id) payoutSetupReasons.push('missing_stripe_account')
+  if (!data.details_submitted) payoutSetupReasons.push('verification_incomplete')
+  if (!data.payouts_enabled) payoutSetupReasons.push('payouts_not_enabled')
 
-  if (blockingReasons.length > 0) {
-    throw new CheckoutError(
-      'Seller cannot receive payments yet.',
-      400,
-      'seller_payments_not_ready',
-      'seller_lookup',
-      { sellerId, blockingReasons },
-    )
-  }
-
-  logStep('seller_lookup', 'succeeded', { sellerId })
+  const payoutReady = payoutSetupReasons.length === 0
+  logStep('seller_lookup', 'succeeded', { sellerId, payoutReady, payoutSetupReasons })
+  return { payoutReady, payoutSetupReasons }
 }
 
 Deno.serve(async (req) => {
@@ -605,7 +597,7 @@ Deno.serve(async (req) => {
     const sellerId = validateListingsForCheckout(listings, user.id, acceptedOffer)
     validateLockerEligibility(listings, deliveryMethod)
     await validateNoExistingSoldOrders(supabase, requestedListingIds)
-    await validateSellerProfile(supabase, sellerId)
+    const sellerPayout = await validateSellerProfile(supabase, sellerId)
 
     logStep('pricing', 'started', { listingCount: listings.length, deliveryMethod })
     const acceptedOfferPrice = getAcceptedOfferPrice(acceptedOffer)
@@ -667,6 +659,8 @@ Deno.serve(async (req) => {
           listing_ids: requestedListingIds.join(','),
           offer_id: offerId,
           delivery_method: deliveryMethod,
+          seller_payout_ready: sellerPayout.payoutReady ? 'true' : 'false',
+          seller_payout_setup_reasons: sellerPayout.payoutSetupReasons.join(','),
           subtotal_cents: String(subtotalCents),
           delivery_fee_cents: String(deliveryFeeCents),
           buyer_protection_fee_cents: String(buyerProtectionFeeCents),
@@ -709,6 +703,8 @@ Deno.serve(async (req) => {
       subtotalCents,
       deliveryFeeCents,
       buyerProtectionFeeCents,
+      sellerPayoutReady: sellerPayout.payoutReady,
+      sellerPayoutSetupReasons: sellerPayout.payoutSetupReasons,
     }
     logStep('response_payload', 'succeeded', {
       paymentIntentId: paymentIntent.id,

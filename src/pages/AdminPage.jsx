@@ -31,6 +31,8 @@ const TABS = [
 const STATUS_COLORS = {
   pending: 'bg-yellow-50 text-yellow-700 border-yellow-200',
   paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  payment_received_seller_payout_pending: 'bg-amber-50 text-amber-700 border-amber-200',
+  setup_pending: 'bg-amber-50 text-amber-700 border-amber-200',
   shipped: 'bg-blue-50 text-blue-700 border-blue-200',
   delivered: 'bg-green-50 text-green-700 border-green-200',
   refunded: 'bg-red-50 text-red-500 border-red-200',
@@ -355,6 +357,7 @@ export default function AdminPage() {
                         <div className="flex gap-1">
                           <Badge status={order.trackingStatus} />
                           {order.payoutStatus === 'held' && <Badge label="Funds held" status="held" />}
+                          {order.sellerPayoutStatus === 'setup_pending' && <Badge label="Payout setup pending" status="setup_pending" />}
                           {order.payoutStatus === 'released' && <Badge label="Released" status="released" />}
                           {order.overdueFlag && <Badge label="Overdue" status="flagged" />}
                         </div>

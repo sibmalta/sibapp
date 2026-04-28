@@ -81,6 +81,9 @@ function friendlyIntentError(raw) {
   if (/amount must be at least/i.test(raw) || /minimum amount/i.test(raw)) {
     return 'Order total must be at least €0.50 to proceed.'
   }
+  if (/seller_payments_not_ready|seller cannot receive payments|seller payout/i.test(raw)) {
+    return 'This item is temporarily unavailable for checkout.'
+  }
   const isTechnical = TECHNICAL_PATTERNS.some((p) => p.test(raw))
   if (isTechnical) {
     return "We couldn't load payment options right now. Please try again in a moment."
