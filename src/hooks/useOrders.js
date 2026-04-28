@@ -11,6 +11,7 @@ import {
   fetchAllDisputes, insertDispute, updateDispute,
   fetchAllPayouts, insertPayout, updatePayout,
   fetchAllShipments, insertShipment, updateShipment,
+  fetchLogisticsDeliverySheet, upsertLogisticsDeliverySheetRow,
 } from '../lib/db/orders'
 
 export function useOrders() {
@@ -20,6 +21,7 @@ export function useOrders() {
   const [disputes, setDisputes] = useState([])
   const [payouts, setPayouts] = useState([])
   const [shipments, setShipments] = useState([])
+  const [logisticsDeliverySheet, setLogisticsDeliverySheet] = useState([])
   const [dbAvailable, setDbAvailable] = useState(null) // null = loading, true/false after first fetch
   const [dbError, setDbError] = useState(null)
   const fetchedRef = useRef(false)
@@ -30,11 +32,12 @@ export function useOrders() {
     fetchedRef.current = true
 
     async function load() {
-      const [ordersRes, disputesRes, payoutsRes, shipmentsRes] = await Promise.all([
+      const [ordersRes, disputesRes, payoutsRes, shipmentsRes, deliverySheetRes] = await Promise.all([
         fetchAllOrders(supabase),
         fetchAllDisputes(supabase),
         fetchAllPayouts(supabase),
         fetchAllShipments(supabase),
+        fetchLogisticsDeliverySheet(supabase),
       ])
 
       if (ordersRes.error) {
@@ -46,6 +49,9 @@ export function useOrders() {
       if (disputesRes.error) {
         console.error('[useOrders] fetchAllDisputes failed:', disputesRes.error.message)
       }
+      if (deliverySheetRes.error) {
+        console.error('[useOrders] fetchLogisticsDeliverySheet failed:', deliverySheetRes.error.message)
+      }
 
       setDbAvailable(true)
       setDbError(null)
@@ -53,6 +59,7 @@ export function useOrders() {
       setDisputes(disputesRes.data || [])
       setPayouts(payoutsRes.data || [])
       setShipments(shipmentsRes.data || [])
+      setLogisticsDeliverySheet(deliverySheetRes.data || [])
     }
     load()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -185,6 +192,23 @@ export function useOrders() {
     return patchShipment(shipment.id, updates)
   }, [shipments, patchShipment])
 
+  const upsertDeliverySheetRow = useCallback(async (row) => {
+    const check = requireDb()
+    if (!check.ok) return { data: null, error: { message: check.reason } }
+
+    const { data, error } = await withAuthRetry((client) => upsertLogisticsDeliverySheetRow(client, row))
+    if (error) {
+      console.error('[useOrders] upsertLogisticsDeliverySheetRow failed:', error.message)
+      return { data: null, error }
+    }
+    setLogisticsDeliverySheet(prev => {
+      const existingIndex = prev.findIndex(item => item.shipmentId === data.shipmentId)
+      if (existingIndex === -1) return [data, ...prev]
+      return prev.map((item, index) => index === existingIndex ? data : item)
+    })
+    return { data, error: null }
+  }, [withAuthRetry, requireDb])
+
   // ── Refresh from DB ──────────────────────────────────────────────────────
   const refreshOrders = useCallback(async () => {
     if (!dbAvailable) return
@@ -204,11 +228,18 @@ export function useOrders() {
     if (data) setShipments(data)
   }, [supabase, dbAvailable])
 
+  const refreshLogisticsDeliverySheet = useCallback(async () => {
+    if (!dbAvailable) return
+    const { data } = await fetchLogisticsDeliverySheet(supabase)
+    if (data) setLogisticsDeliverySheet(data)
+  }, [supabase, dbAvailable])
+
   return {
     orders,
     disputes,
     payouts,
     shipments,
+    logisticsDeliverySheet,
     dbAvailable,
     dbError,
     // Setters exposed for AppContext backward compat — prefer DB mutations for new code
@@ -228,9 +259,11 @@ export function useOrders() {
     createShipment,
     patchShipment,
     patchShipmentByOrderId,
+    upsertDeliverySheetRow,
     // Refresh
     refreshOrders,
     refreshDisputes,
     refreshShipments,
+    refreshLogisticsDeliverySheet,
   }
 }

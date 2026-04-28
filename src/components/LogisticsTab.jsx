@@ -347,7 +347,7 @@ function FormField({ label, children }) {
 /* ══════════════════════════════════════════════════════════════
    MAIN EXPORT — LogisticsTab
    ══════════════════════════════════════════════════════════════ */
-export default function LogisticsTab({ orders, getUserById, getListingById, showToast }) {
+export default function LogisticsTab({ orders, getUserById, getListingById, deliverySheetRows = [], showToast }) {
   const {
     logisticsData, logisticsNotifications, getLogistics, updateLogistics, initOrder,
     markNotifRead, clearNotifs,
@@ -356,7 +356,7 @@ export default function LogisticsTab({ orders, getUserById, getListingById, show
   const [filter, setFilter] = useState('all')
   const [searchQ, setSearchQ] = useState('')
   const [drawerOrder, setDrawerOrder] = useState(null)
-  const [viewMode, setViewMode] = useState('dispatch') // 'dispatch' | 'driver' | 'notifications'
+  const [viewMode, setViewMode] = useState('dispatch') // 'dispatch' | 'driver' | 'sheet' | 'notifications'
 
   // Auto-init paid orders that don't have logistics records yet
   useEffect(() => {
@@ -452,6 +452,12 @@ export default function LogisticsTab({ orders, getUserById, getListingById, show
             </span>
           )}
         </button>
+        <button onClick={() => setViewMode('sheet')}
+          className={`text-[11px] font-semibold px-3 py-1.5 rounded-full border transition-colors ${
+            viewMode === 'sheet' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200'
+          }`}>
+          <Clipboard size={11} className="inline mr-1" />Delivery Sheet
+        </button>
       </div>
 
       {/* ── Notifications view ─── */}
@@ -501,6 +507,54 @@ export default function LogisticsTab({ orders, getUserById, getListingById, show
       )}
 
       {/* ── Dispatch board ─── */}
+      {viewMode === 'sheet' && (
+        <div>
+          <p className="text-[11px] text-gray-500 font-medium mb-2">
+            {deliverySheetRows.length} delivery spreadsheet row{deliverySheetRows.length !== 1 ? 's' : ''}
+          </p>
+          {deliverySheetRows.length === 0 ? (
+            <div className="text-center py-10">
+              <Clipboard size={28} className="mx-auto text-gray-300 mb-2" />
+              <p className="text-gray-500 text-sm">No store drop-offs yet.</p>
+              <p className="text-[11px] text-gray-400 mt-1">Rows appear here when a MYconvenience store scans a seller drop-off code.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white">
+              <table className="w-full min-w-[980px] text-left">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    {['Order', 'Shipment', 'Seller', 'Buyer', 'Item', 'Drop-off store', 'Dropped off', 'Buyer address', 'Buyer contact', 'Status', 'Fallback', 'Notes'].map(header => (
+                      <th key={header} className="px-3 py-2.5 font-semibold text-gray-500 text-[10px] uppercase tracking-wider">{header}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {deliverySheetRows.map(row => (
+                    <tr key={row.shipmentId || row.id} className="hover:bg-gray-50">
+                      <td className="px-3 py-2.5 text-[11px] font-mono text-gray-500">{row.orderId?.slice(-8) || '—'}</td>
+                      <td className="px-3 py-2.5 text-[11px] font-mono text-gray-500">{row.shipmentId?.slice(-8) || '—'}</td>
+                      <td className="px-3 py-2.5 text-xs text-gray-700">{row.sellerName || '—'}</td>
+                      <td className="px-3 py-2.5 text-xs text-gray-700">{row.buyerName || '—'}</td>
+                      <td className="px-3 py-2.5 text-xs text-gray-900 font-medium">{row.itemTitle || '—'}</td>
+                      <td className="px-3 py-2.5 text-xs text-gray-700">
+                        <p className="font-medium">{row.dropoffStoreName || '—'}</p>
+                        <p className="text-[10px] text-gray-400">{row.dropoffStoreAddress || '—'}</p>
+                      </td>
+                      <td className="px-3 py-2.5 text-xs text-gray-600 whitespace-nowrap">{fmtDate(row.droppedOffAt)}</td>
+                      <td className="px-3 py-2.5 text-xs text-gray-600 max-w-[180px] truncate">{row.buyerDeliveryAddress || '—'}</td>
+                      <td className="px-3 py-2.5 text-xs text-gray-600">{row.buyerContact || '—'}</td>
+                      <td className="px-3 py-2.5"><StatusBadge statusId={row.deliveryStatus || 'dropped_off'} /></td>
+                      <td className="px-3 py-2.5 text-xs text-gray-600">{row.fallbackStoreName || '—'}</td>
+                      <td className="px-3 py-2.5 text-xs text-gray-600 max-w-[160px] truncate">{row.notes || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {viewMode === 'dispatch' && (
         <>
           {/* Search */}

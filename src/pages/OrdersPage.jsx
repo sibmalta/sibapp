@@ -96,6 +96,15 @@ function getSellerOrderState(order, shipment) {
     }
   }
 
+  if (shipmentStatus === 'dropped_off') {
+    return {
+      filter: 'active',
+      label: 'Dropped off',
+      style: 'bg-amber-50 text-amber-700 dark:bg-[#332d20] dark:text-amber-300',
+      nextStep: 'Parcel is at the MYconvenience store and ready for logistics processing.',
+    }
+  }
+
   if (shipmentStatus === 'awaiting_collection') {
     return {
       filter: 'active',

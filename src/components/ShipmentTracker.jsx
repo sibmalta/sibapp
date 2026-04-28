@@ -25,6 +25,7 @@ const TERMINAL_STATES = {
 
 export const SHIPMENT_STATUS_CONFIG = {
   awaiting_shipment: { label: 'Awaiting collection', color: 'bg-yellow-50 text-yellow-700 dark:bg-[#332d20] dark:text-amber-300', dotColor: 'bg-yellow-500' },
+  dropped_off: { label: 'Dropped off', color: 'bg-amber-50 text-amber-700 dark:bg-[#332d20] dark:text-amber-300', dotColor: 'bg-amber-500' },
   shipped: { label: 'Collected', color: 'bg-blue-50 text-blue-700 dark:bg-[#21303a] dark:text-blue-300', dotColor: 'bg-blue-500' },
   in_transit: { label: 'In transit', color: 'bg-indigo-50 text-indigo-700 dark:bg-[#252b3f] dark:text-indigo-300', dotColor: 'bg-indigo-500' },
   delivered: { label: 'Delivered', color: 'bg-green-50 text-green-700 dark:bg-[#20322b] dark:text-green-300', dotColor: 'bg-green-500' },

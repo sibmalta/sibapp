@@ -29,6 +29,7 @@ import { getBuyerConfirmationDeadline } from '../lib/buyerProtection'
 import { isLockerEligible } from '../lib/lockerEligibility'
 import { buildAdminShipmentPayload } from '../lib/adminShipment'
 import { isActiveDisputeStatus } from '../lib/disputes'
+import { buildDeliverySheetRow } from '../lib/logisticsDeliverySheet'
 
 const AppContext = createContext(null)
 
@@ -222,7 +223,7 @@ export function AppProvider({ children }) {
 
   // ── Supabase-backed orders/disputes/payouts/shipments hook (no localStorage fallback) ────
   const {
-    orders, disputes, payouts: dbPayouts, shipments,
+    orders, disputes, payouts: dbPayouts, shipments, logisticsDeliverySheet,
     dbAvailable: ordersDbAvailable,
     dbError: ordersDbError,
     setOrders, setDisputes, setShipments,
@@ -238,6 +239,8 @@ export function AppProvider({ children }) {
     refreshOrders,
     refreshDisputes,
     refreshShipments,
+    upsertDeliverySheetRow,
+    refreshLogisticsDeliverySheet,
   } = useOrdersHook()
 
   const [reviews, setReviews] = useState(() => loadFromStorage('sib_reviews', SEED_REVIEWS))
@@ -2548,6 +2551,13 @@ export function AppProvider({ children }) {
     const now = new Date().toISOString()
     const shipment = shipments.find(s => s.orderId === orderId)
     const updates = { status, fulfilmentStatus: status, updatedAt: now, ...extraData }
+    if (status === 'dropped_off' && (!shipment || !shipment.droppedOffAt)) {
+      updates.droppedOffAt = extraData.droppedOffAt || now
+      updates.dropoffStoreId = extraData.dropoffStoreId || extraData.storeId || shipment?.dropoffStoreId || null
+      updates.dropoffStoreName = extraData.dropoffStoreName || extraData.storeName || shipment?.dropoffStoreName || ''
+      updates.dropoffStoreAddress = extraData.dropoffStoreAddress || extraData.storeAddress || shipment?.dropoffStoreAddress || ''
+      updates.currentLocation = extraData.currentLocation || [updates.dropoffStoreName, updates.dropoffStoreAddress].filter(Boolean).join(' - ')
+    }
     if (status === 'in_transit' && (!shipment || !shipment.inTransitAt)) updates.inTransitAt = now
     if (status === 'delivered' && (!shipment || !shipment.deliveredAt)) {
       updates.deliveredAt = now
@@ -2573,11 +2583,76 @@ export function AppProvider({ children }) {
       showToast('Failed to update shipment status: ' + error.message, 'error')
       return
     }
+    if (status === 'dropped_off') {
+      const order = orders.find(o => o.id === orderId)
+      if (order && shipment) {
+        const mergedShipment = { ...shipment, ...updates }
+        const seller = users.find(u => u.id === order.sellerId)
+        const buyer = users.find(u => u.id === order.buyerId)
+        const listing = listings.find(l => l.id === order.listingId)
+        const sheetRow = buildDeliverySheetRow({ order, shipment: mergedShipment, seller, buyer, listing })
+        const { error: sheetError } = await upsertDeliverySheetRow(sheetRow)
+        if (sheetError) {
+          console.error('[updateShipmentStatus] delivery sheet upsert failed:', sheetError.message)
+          showToast('Shipment updated, but delivery sheet update failed: ' + sheetError.message, 'error')
+        }
+      }
+    }
     // Sync order tracking status for delivered/failed
     if (status === 'delivered') {
       await updateOrderStatus(orderId, 'delivered')
     }
-  }, [updateOrderStatus, shipments, dbPatchShipmentByOrderId, showToast])
+  }, [updateOrderStatus, orders, shipments, users, listings, dbPatchShipmentByOrderId, upsertDeliverySheetRow, showToast])
+
+  const markShipmentDroppedOff = useCallback(async (orderId, store = {}, extraData = {}) => {
+    const order = orders.find(o => o.id === orderId)
+    const shipment = shipments.find(s => s.orderId === orderId)
+    if (!order || !shipment) {
+      const error = { message: !order ? 'Order not found.' : 'Shipment not found for this order.' }
+      showToast(error.message, 'error')
+      return { data: null, error }
+    }
+
+    const now = extraData.droppedOffAt || new Date().toISOString()
+    const dropoffStoreName = store.name || store.storeName || extraData.dropoffStoreName || ''
+    const dropoffStoreAddress = store.address || store.storeAddress || extraData.dropoffStoreAddress || ''
+    const updates = {
+      status: 'dropped_off',
+      fulfilmentStatus: 'dropped_off',
+      dropoffStoreId: store.id || store.storeId || extraData.dropoffStoreId || null,
+      dropoffStoreName,
+      dropoffStoreAddress,
+      droppedOffAt: now,
+      currentLocation: extraData.currentLocation || [dropoffStoreName, dropoffStoreAddress].filter(Boolean).join(' - '),
+      fallbackStoreName: extraData.fallbackStoreName || shipment.fallbackStoreName || '',
+      notes: extraData.notes || shipment.notes || '',
+      updatedAt: now,
+    }
+
+    const { data: updatedShipment, error } = await dbPatchShipment(shipment.id, updates)
+    if (error) {
+      console.error('[markShipmentDroppedOff] DB write failed:', error.message)
+      showToast('Failed to record store drop-off: ' + error.message, 'error')
+      return { data: null, error }
+    }
+
+    const mergedShipment = { ...shipment, ...updatedShipment, ...updates }
+    const seller = users.find(u => u.id === order.sellerId)
+    const buyer = users.find(u => u.id === order.buyerId)
+    const listing = listings.find(l => l.id === order.listingId)
+    const sheetRow = buildDeliverySheetRow({ order, shipment: mergedShipment, seller, buyer, listing })
+    const { data: deliverySheetRow, error: sheetError } = await upsertDeliverySheetRow(sheetRow)
+    if (sheetError) {
+      console.error('[markShipmentDroppedOff] delivery sheet upsert failed:', sheetError.message)
+      showToast('Drop-off saved, but delivery sheet update failed: ' + sheetError.message, 'error')
+      return { data: updatedShipment, deliverySheetRow: null, error: sheetError }
+    }
+
+    await refreshShipments()
+    await refreshLogisticsDeliverySheet()
+    showToast('Parcel drop-off recorded.')
+    return { data: updatedShipment, deliverySheetRow, error: null }
+  }, [orders, shipments, users, listings, dbPatchShipment, upsertDeliverySheetRow, refreshShipments, refreshLogisticsDeliverySheet, showToast])
 
   // Admin: force update any shipment field
   const adminUpdateShipment = useCallback(async (shipmentId, updates) => {
@@ -2668,7 +2743,7 @@ export function AppProvider({ children }) {
 
   return (
     <AppContext.Provider value={{
-      currentUser, users, listings, listingsLoading, listingsLoadingMore, hasMoreListings, orders, conversations, reviews, disputes, likedListings, payoutProfiles, notifications, offers, bundle, bundleOffers, shipments, toast,
+      currentUser, users, listings, listingsLoading, listingsLoadingMore, hasMoreListings, orders, conversations, reviews, disputes, likedListings, payoutProfiles, notifications, offers, bundle, bundleOffers, shipments, logisticsDeliverySheet, toast,
       PROTECTION_WINDOW_MS, SHIPPING_DEADLINE_MS,
       login, signup, register, logout, requestPasswordReset, validateResetToken, resetPassword, updateProfile,
       createListing, updateListing, deleteListing, boostListing, unboostListing, flagListing, approveListing, hideListing, updateStyleTags, updateCollectionTags, adminUpdateListingMeta, toggleLike, loadMoreListings,
@@ -2682,7 +2757,7 @@ export function AppProvider({ children }) {
       suspendUser, banUser, restoreUser, updateSellerBadges, updateTrustTags, updateAdminRole, holdPayout, releasePayout, refundOrder, resolveDispute, cancelOrder, addDisputeMessage,
       savePayoutProfile, getPayoutProfile,
       refreshCurrentProfile, ensureUserById,
-      getShipmentByOrderId, getSellerShipments, getBuyerShipments, markShipmentShipped, updateShipmentStatus, adminUpdateShipment, adminCreateShipmentShortcut,
+      getShipmentByOrderId, getSellerShipments, getBuyerShipments, markShipmentShipped, updateShipmentStatus, markShipmentDroppedOff, adminUpdateShipment, adminCreateShipmentShortcut,
       getUserById, getUserByUsername, getListingById, getUserListings,
       getUserOrders, getUserSales,
       getUserConversations, getConversationById, getConversation, refreshConversations,

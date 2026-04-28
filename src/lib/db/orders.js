@@ -631,6 +631,12 @@ export function rowToShipment(row) {
     shippedAt: row.shipped_at || null,
     inTransitAt: row.in_transit_at || null,
     deliveredAt: row.delivered_at || null,
+    dropoffStoreId: row.dropoff_store_id || null,
+    dropoffStoreName: row.dropoff_store_name || null,
+    dropoffStoreAddress: row.dropoff_store_address || null,
+    droppedOffAt: row.dropped_off_at || null,
+    currentLocation: row.current_location || null,
+    fallbackStoreName: row.fallback_store_name || null,
     failedAt: row.failed_at || null,
     returnedAt: row.returned_at || null,
     deliveryProof: row.delivery_proof || null,
@@ -677,6 +683,12 @@ export function shipmentToRow(shipment) {
   if (shipment.shippedAt !== undefined) row.shipped_at = shipment.shippedAt
   if (shipment.inTransitAt !== undefined) row.in_transit_at = shipment.inTransitAt
   if (shipment.deliveredAt !== undefined) row.delivered_at = shipment.deliveredAt
+  if (shipment.dropoffStoreId !== undefined) row.dropoff_store_id = shipment.dropoffStoreId
+  if (shipment.dropoffStoreName !== undefined) row.dropoff_store_name = shipment.dropoffStoreName
+  if (shipment.dropoffStoreAddress !== undefined) row.dropoff_store_address = shipment.dropoffStoreAddress
+  if (shipment.droppedOffAt !== undefined) row.dropped_off_at = shipment.droppedOffAt
+  if (shipment.currentLocation !== undefined) row.current_location = shipment.currentLocation
+  if (shipment.fallbackStoreName !== undefined) row.fallback_store_name = shipment.fallbackStoreName
   if (shipment.failedAt !== undefined) row.failed_at = shipment.failedAt
   if (shipment.returnedAt !== undefined) row.returned_at = shipment.returnedAt
   if (shipment.deliveryProof !== undefined) row.delivery_proof = shipment.deliveryProof
@@ -738,6 +750,56 @@ export async function updateShipment(supabase, shipmentId, updates) {
       .single()
     if (error) return { data: null, error }
     return { data: rowToShipment(data), error: null }
+  } catch (e) {
+    return { data: null, error: { message: e.message } }
+  }
+}
+
+export function rowToLogisticsDeliverySheetRow(row) {
+  if (!row) return null
+  return {
+    id: row.id,
+    orderId: row.order_id || '',
+    shipmentId: row.shipment_id || '',
+    sellerName: row.seller_name || '',
+    buyerName: row.buyer_name || '',
+    itemTitle: row.item_title || '',
+    dropoffStoreName: row.dropoff_store_name || '',
+    dropoffStoreAddress: row.dropoff_store_address || '',
+    droppedOffAt: row.dropped_off_at || null,
+    buyerDeliveryAddress: row.buyer_delivery_address || '',
+    buyerContact: row.buyer_contact || '',
+    deliveryStatus: row.delivery_status || '',
+    fallbackStoreName: row.fallback_store_name || '',
+    notes: row.notes || '',
+    createdAt: row.created_at || new Date().toISOString(),
+    updatedAt: row.updated_at || new Date().toISOString(),
+  }
+}
+
+export async function fetchLogisticsDeliverySheet(supabase) {
+  try {
+    const { data, error } = await supabase
+      .from('logistics_delivery_sheet')
+      .select('*')
+      .order('dropped_off_at', { ascending: false, nullsFirst: false })
+      .limit(1000)
+    if (error) return { data: null, error }
+    return { data: (data || []).map(rowToLogisticsDeliverySheetRow), error: null }
+  } catch (e) {
+    return { data: null, error: { message: e.message } }
+  }
+}
+
+export async function upsertLogisticsDeliverySheetRow(supabase, row) {
+  try {
+    const { data, error } = await supabase
+      .from('logistics_delivery_sheet')
+      .upsert(row, { onConflict: 'shipment_id' })
+      .select()
+      .single()
+    if (error) return { data: null, error }
+    return { data: rowToLogisticsDeliverySheetRow(data), error: null }
   } catch (e) {
     return { data: null, error: { message: e.message } }
   }

@@ -94,7 +94,7 @@ function detectFlags(text) {
 
 export default function AdminPage() {
   const {
-    currentUser, users, listings, orders, conversations, disputes,
+    currentUser, users, listings, orders, conversations, disputes, logisticsDeliverySheet,
     updateOrderStatus, refundOrder, holdPayout, releasePayout, cancelOrder,
     suspendUser, banUser, restoreUser,
     resolveDispute, addDisputeMessage, showToast,
@@ -482,6 +482,7 @@ export default function AdminPage() {
             orders={orders}
             getUserById={getUserById}
             getListingById={getListingById}
+            deliverySheetRows={logisticsDeliverySheet}
             showToast={showToast}
           />
         )}
