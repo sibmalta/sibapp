@@ -213,8 +213,8 @@ export default function ListingCard({ listing, size = 'normal' }) {
       >
         <SwipeableListingImage
           listing={listing}
-          className="relative w-full overflow-hidden rounded-2xl bg-transparent"
-          imageClassName="w-full h-auto object-contain rounded-2xl"
+          className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl bg-[#f5f5f5]"
+          imageClassName="h-full w-full object-cover object-center"
           onSwipe={handleImageSwipe}
         >
           {listing.status === 'sold' && (
@@ -243,8 +243,8 @@ export default function ListingCard({ listing, size = 'normal' }) {
       {/* Image container */}
       <SwipeableListingImage
         listing={listing}
-        className="relative w-full overflow-hidden rounded-2xl bg-transparent"
-        imageClassName="w-full h-auto object-contain rounded-2xl"
+        className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl bg-[#f5f5f5]"
+        imageClassName="h-full w-full object-cover object-center"
         onSwipe={handleImageSwipe}
       >
 
