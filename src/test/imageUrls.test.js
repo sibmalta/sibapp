@@ -6,7 +6,7 @@ describe('getOptimizedListingImageUrl', () => {
     const url = 'https://abc.supabase.co/storage/v1/object/public/listings/user/photo.jpg'
 
     expect(getOptimizedListingImageUrl(url)).toBe(
-      'https://abc.supabase.co/storage/v1/render/image/public/listings/user/photo.jpg?width=520&quality=72&resize=cover',
+      'https://abc.supabase.co/storage/v1/render/image/public/listings/user/photo.jpg?width=520&quality=72&resize=contain',
     )
   })
 

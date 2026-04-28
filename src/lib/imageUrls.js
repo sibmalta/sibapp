@@ -1,4 +1,4 @@
-export function getOptimizedListingImageUrl(url, { width = 520, quality = 72 } = {}) {
+export function getOptimizedListingImageUrl(url, { width = 520, quality = 72, resize = 'contain' } = {}) {
   if (typeof url !== 'string') return url
   const trimmed = url.trim()
   if (!trimmed) return trimmed
@@ -16,6 +16,7 @@ export function getOptimizedListingImageUrl(url, { width = 520, quality = 72 } =
   parsed.pathname = parsed.pathname.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/')
   parsed.searchParams.set('width', String(width))
   parsed.searchParams.set('quality', String(quality))
-  parsed.searchParams.set('resize', 'cover')
+  // Avoid server-side cover crops; the card frame handles visual cropping.
+  parsed.searchParams.set('resize', resize)
   return parsed.toString()
 }
