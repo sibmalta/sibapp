@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react'
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ShieldCheck, Shield, Users, ShoppingBag, AlertTriangle, MessageSquare, Package,
@@ -94,18 +94,20 @@ function detectFlags(text) {
 
 export default function AdminPage() {
   const {
-    currentUser, users, listings, orders, conversations, disputes, logisticsDeliverySheet,
+    currentUser, users, listings, orders, ordersLoading, shipmentsLoading, logisticsDeliverySheetLoading, conversations, disputes, disputesLoading, logisticsDeliverySheet,
     updateOrderStatus, refundOrder, holdPayout, releasePayout, cancelOrder,
     suspendUser, banUser, restoreUser,
     resolveDispute, addDisputeMessage, showToast,
     getUserById, getListingById, getUserListings, getUserOrders, getUserSales,
     getUserConversations,
+    refreshOrders, refreshDisputes, refreshShipments, refreshLogisticsDeliverySheet,
     deleteListing, flagListing, hideListing, updateStyleTags,
     adminOpenDispute, DISPUTE_REASONS,
     updateSellerBadges,
     getShipmentByOrderId, markShipmentDroppedOff, adminCreateShipmentShortcut,
   } = useApp()
   const navigate = useNavigate()
+  const loadedAdminTabsRef = useRef(new Set())
 
   const [tab, setTab] = useState('orders')
   const [expandedOrder, setExpandedOrder] = useState(null)
@@ -150,6 +152,27 @@ export default function AdminPage() {
   useEffect(() => {
     if (tab === 'emails') fetchEmailLogs()
   }, [tab, fetchEmailLogs])
+
+  useEffect(() => {
+    if (!currentUser?.isAdmin) return
+    if (loadedAdminTabsRef.current.has(tab)) return
+    loadedAdminTabsRef.current.add(tab)
+    if (tab === 'orders') {
+      refreshOrders()
+      refreshShipments()
+      return
+    }
+    if (tab === 'logistics') {
+      refreshOrders()
+      refreshShipments()
+      refreshLogisticsDeliverySheet()
+      return
+    }
+    if (tab === 'disputes') {
+      refreshDisputes()
+      refreshOrders()
+    }
+  }, [currentUser?.isAdmin, tab, refreshOrders, refreshDisputes, refreshShipments, refreshLogisticsDeliverySheet])
 
   if (!currentUser?.isAdmin) {
     return (
@@ -303,7 +326,14 @@ export default function AdminPage() {
             </div>
             <p className="text-[11px] text-sib-muted font-medium mb-2">{filteredOrders.length} order{filteredOrders.length !== 1 ? 's' : ''}</p>
 
-            {filteredOrders.length === 0 && (
+            {ordersLoading && (
+              <div className="text-center py-10">
+                <RefreshCw size={24} className="mx-auto text-sib-muted mb-2 animate-spin" />
+                <p className="text-sib-muted text-sm">Loading orders...</p>
+              </div>
+            )}
+
+            {!ordersLoading && filteredOrders.length === 0 && (
               <div className="text-center py-10">
                 <ShoppingBag size={28} className="mx-auto text-sib-ash mb-2" />
                 <p className="text-sib-muted text-sm">No orders match this filter.</p>
@@ -485,6 +515,7 @@ export default function AdminPage() {
             getShipmentByOrderId={getShipmentByOrderId}
             deliverySheetRows={logisticsDeliverySheet}
             markShipmentDroppedOff={markShipmentDroppedOff}
+            loading={ordersLoading || shipmentsLoading || logisticsDeliverySheetLoading}
             showToast={showToast}
           />
         )}

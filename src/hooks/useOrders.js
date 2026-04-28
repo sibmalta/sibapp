@@ -1,10 +1,11 @@
 /**
- * useOrders — Supabase-only hook for orders, disputes, payouts, and shipments.
+ * useOrders - Supabase-only hook for orders, disputes, payouts, shipments,
+ * and the MVP logistics delivery sheet.
  *
- * NO localStorage fallback. If the database is unavailable or a write fails,
- * the error is surfaced to callers. Transaction data never persists locally.
+ * Admin/order tables are intentionally lazy-loaded. Marketplace pages should
+ * not pay for heavy admin queries during initial app boot.
  */
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useCallback } from 'react'
 import { useSupabase } from '../lib/useSupabase'
 import {
   fetchAllOrders, insertOrder, updateOrder,
@@ -22,49 +23,19 @@ export function useOrders() {
   const [payouts, setPayouts] = useState([])
   const [shipments, setShipments] = useState([])
   const [logisticsDeliverySheet, setLogisticsDeliverySheet] = useState([])
-  const [dbAvailable, setDbAvailable] = useState(null) // null = loading, true/false after first fetch
+  const [dbAvailable, setDbAvailable] = useState(null)
   const [dbError, setDbError] = useState(null)
-  const fetchedRef = useRef(false)
+  const [ordersLoading, setOrdersLoading] = useState(false)
+  const [disputesLoading, setDisputesLoading] = useState(false)
+  const [payoutsLoading, setPayoutsLoading] = useState(false)
+  const [shipmentsLoading, setShipmentsLoading] = useState(false)
+  const [logisticsDeliverySheetLoading, setLogisticsDeliverySheetLoading] = useState(false)
 
-  // ── Load from Supabase on mount (no fallback) ────────────────────────────
-  useEffect(() => {
-    if (fetchedRef.current) return
-    fetchedRef.current = true
+  const markDbOk = useCallback(() => {
+    setDbAvailable(true)
+    setDbError(null)
+  }, [])
 
-    async function load() {
-      const [ordersRes, disputesRes, payoutsRes, shipmentsRes, deliverySheetRes] = await Promise.all([
-        fetchAllOrders(supabase),
-        fetchAllDisputes(supabase),
-        fetchAllPayouts(supabase),
-        fetchAllShipments(supabase),
-        fetchLogisticsDeliverySheet(supabase),
-      ])
-
-      if (ordersRes.error) {
-        console.error('[useOrders] DB unavailable:', ordersRes.error.message)
-        setDbAvailable(false)
-        setDbError(ordersRes.error.message || 'Database connection failed')
-        return
-      }
-      if (disputesRes.error) {
-        console.error('[useOrders] fetchAllDisputes failed:', disputesRes.error.message)
-      }
-      if (deliverySheetRes.error) {
-        console.error('[useOrders] fetchLogisticsDeliverySheet failed:', deliverySheetRes.error.message)
-      }
-
-      setDbAvailable(true)
-      setDbError(null)
-      setOrders(ordersRes.data || [])
-      setDisputes(disputesRes.data || [])
-      setPayouts(payoutsRes.data || [])
-      setShipments(shipmentsRes.data || [])
-      setLogisticsDeliverySheet(deliverySheetRes.data || [])
-    }
-    load()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── DB guard — all mutations fail if DB is down ─────────────────────────
   const requireDb = useCallback(() => {
     if (dbAvailable === false) {
       return { ok: false, reason: 'Database is unavailable. Transaction data cannot be saved locally.' }
@@ -72,9 +43,6 @@ export function useOrders() {
     return { ok: true }
   }, [dbAvailable])
 
-  // ── Order mutations (DB-only, no optimistic local fallback) ─────────────
-
-  /** Insert a new order. Returns { data, error }. Fails if DB is down. */
   const createOrder = useCallback(async (orderData) => {
     const check = requireDb()
     if (!check.ok) return { data: null, error: { message: check.reason } }
@@ -84,11 +52,11 @@ export function useOrders() {
       console.error('[useOrders] insertOrder failed:', error.message)
       return { data: null, error }
     }
+    markDbOk()
     setOrders(prev => [data, ...prev])
     return { data, error: null }
-  }, [withAuthRetry, requireDb])
+  }, [withAuthRetry, requireDb, markDbOk])
 
-  /** Update an existing order by id. Returns { data, error }. */
   const patchOrder = useCallback(async (orderId, updates) => {
     const check = requireDb()
     if (!check.ok) return { data: null, error: { message: check.reason } }
@@ -98,11 +66,10 @@ export function useOrders() {
       console.error('[useOrders] updateOrder failed:', error.message)
       return { data: null, error }
     }
+    markDbOk()
     setOrders(prev => prev.map(o => o.id === orderId ? data : o))
     return { data, error: null }
-  }, [withAuthRetry, requireDb])
-
-  // ── Dispute mutations ────────────────────────────────────────────────────
+  }, [withAuthRetry, requireDb, markDbOk])
 
   const createDispute = useCallback(async (disputeData) => {
     const check = requireDb()
@@ -113,9 +80,10 @@ export function useOrders() {
       console.error('[useOrders] insertDispute failed:', error.message)
       return { data: null, error }
     }
+    markDbOk()
     setDisputes(prev => [data, ...prev])
     return { data, error: null }
-  }, [withAuthRetry, requireDb])
+  }, [withAuthRetry, requireDb, markDbOk])
 
   const patchDispute = useCallback(async (disputeId, updates) => {
     const check = requireDb()
@@ -126,11 +94,10 @@ export function useOrders() {
       console.error('[useOrders] updateDispute failed:', error.message)
       return { data: null, error }
     }
+    markDbOk()
     setDisputes(prev => prev.map(d => d.id === disputeId ? data : d))
     return { data, error: null }
-  }, [withAuthRetry, requireDb])
-
-  // ── Payout mutations ─────────────────────────────────────────────────────
+  }, [withAuthRetry, requireDb, markDbOk])
 
   const createPayout = useCallback(async (payoutData) => {
     const check = requireDb()
@@ -141,9 +108,10 @@ export function useOrders() {
       console.error('[useOrders] insertPayout failed:', error.message)
       return { data: null, error }
     }
+    markDbOk()
     setPayouts(prev => [data, ...prev])
     return { data, error: null }
-  }, [withAuthRetry, requireDb])
+  }, [withAuthRetry, requireDb, markDbOk])
 
   const patchPayout = useCallback(async (payoutId, updates) => {
     const check = requireDb()
@@ -154,11 +122,10 @@ export function useOrders() {
       console.error('[useOrders] updatePayout failed:', error.message)
       return { data: null, error }
     }
+    markDbOk()
     setPayouts(prev => prev.map(p => p.id === payoutId ? data : p))
     return { data, error: null }
-  }, [withAuthRetry, requireDb])
-
-  // ── Shipment mutations ───────────────────────────────────────────────────
+  }, [withAuthRetry, requireDb, markDbOk])
 
   const createShipment = useCallback(async (shipmentData) => {
     const check = requireDb()
@@ -169,9 +136,10 @@ export function useOrders() {
       console.error('[useOrders] insertShipment failed:', error.message)
       return { data: null, error }
     }
+    markDbOk()
     setShipments(prev => [data, ...prev])
     return { data, error: null }
-  }, [withAuthRetry, requireDb])
+  }, [withAuthRetry, requireDb, markDbOk])
 
   const patchShipment = useCallback(async (shipmentId, updates) => {
     const check = requireDb()
@@ -182,9 +150,10 @@ export function useOrders() {
       console.error('[useOrders] updateShipment failed:', error.message)
       return { data: null, error }
     }
+    markDbOk()
     setShipments(prev => prev.map(s => s.id === shipmentId ? data : s))
     return { data, error: null }
-  }, [withAuthRetry, requireDb])
+  }, [withAuthRetry, requireDb, markDbOk])
 
   const patchShipmentByOrderId = useCallback(async (orderId, updates) => {
     const shipment = shipments.find(s => s.orderId === orderId)
@@ -201,38 +170,81 @@ export function useOrders() {
       console.error('[useOrders] upsertLogisticsDeliverySheetRow failed:', error.message)
       return { data: null, error }
     }
+    markDbOk()
     setLogisticsDeliverySheet(prev => {
       const existingIndex = prev.findIndex(item => item.shipmentId === data.shipmentId)
       if (existingIndex === -1) return [data, ...prev]
       return prev.map((item, index) => index === existingIndex ? data : item)
     })
     return { data, error: null }
-  }, [withAuthRetry, requireDb])
+  }, [withAuthRetry, requireDb, markDbOk])
 
-  // ── Refresh from DB ──────────────────────────────────────────────────────
   const refreshOrders = useCallback(async () => {
-    if (!dbAvailable) return
-    const { data } = await fetchAllOrders(supabase)
-    if (data) setOrders(data)
-  }, [supabase, dbAvailable])
+    if (dbAvailable === false) return
+    setOrdersLoading(true)
+    const { data, error } = await fetchAllOrders(supabase)
+    if (error) {
+      console.error('[useOrders] fetchAllOrders failed:', error.message)
+      setDbAvailable(false)
+      setDbError(error.message || 'Database connection failed')
+    } else {
+      markDbOk()
+      setOrders(data || [])
+    }
+    setOrdersLoading(false)
+  }, [supabase, dbAvailable, markDbOk])
 
   const refreshDisputes = useCallback(async () => {
-    if (!dbAvailable) return
-    const { data } = await fetchAllDisputes(supabase)
-    if (data) setDisputes(data)
-  }, [supabase, dbAvailable])
+    if (dbAvailable === false) return
+    setDisputesLoading(true)
+    const { data, error } = await fetchAllDisputes(supabase)
+    if (error) {
+      console.error('[useOrders] fetchAllDisputes failed:', error.message)
+    } else {
+      markDbOk()
+      setDisputes(data || [])
+    }
+    setDisputesLoading(false)
+  }, [supabase, dbAvailable, markDbOk])
+
+  const refreshPayouts = useCallback(async () => {
+    if (dbAvailable === false) return
+    setPayoutsLoading(true)
+    const { data, error } = await fetchAllPayouts(supabase)
+    if (error) {
+      console.error('[useOrders] fetchAllPayouts failed:', error.message)
+    } else {
+      markDbOk()
+      setPayouts(data || [])
+    }
+    setPayoutsLoading(false)
+  }, [supabase, dbAvailable, markDbOk])
 
   const refreshShipments = useCallback(async () => {
-    if (!dbAvailable) return
-    const { data } = await fetchAllShipments(supabase)
-    if (data) setShipments(data)
-  }, [supabase, dbAvailable])
+    if (dbAvailable === false) return
+    setShipmentsLoading(true)
+    const { data, error } = await fetchAllShipments(supabase)
+    if (error) {
+      console.error('[useOrders] fetchAllShipments failed:', error.message)
+    } else {
+      markDbOk()
+      setShipments(data || [])
+    }
+    setShipmentsLoading(false)
+  }, [supabase, dbAvailable, markDbOk])
 
   const refreshLogisticsDeliverySheet = useCallback(async () => {
-    if (!dbAvailable) return
-    const { data } = await fetchLogisticsDeliverySheet(supabase)
-    if (data) setLogisticsDeliverySheet(data)
-  }, [supabase, dbAvailable])
+    if (dbAvailable === false) return
+    setLogisticsDeliverySheetLoading(true)
+    const { data, error } = await fetchLogisticsDeliverySheet(supabase)
+    if (error) {
+      console.error('[useOrders] fetchLogisticsDeliverySheet failed:', error.message)
+    } else {
+      markDbOk()
+      setLogisticsDeliverySheet(data || [])
+    }
+    setLogisticsDeliverySheetLoading(false)
+  }, [supabase, dbAvailable, markDbOk])
 
   return {
     orders,
@@ -242,27 +254,27 @@ export function useOrders() {
     logisticsDeliverySheet,
     dbAvailable,
     dbError,
-    // Setters exposed for AppContext backward compat — prefer DB mutations for new code
+    ordersLoading,
+    disputesLoading,
+    payoutsLoading,
+    shipmentsLoading,
+    logisticsDeliverySheetLoading,
     setOrders,
     setDisputes,
     setShipments,
-    // Order
     createOrder,
     patchOrder,
-    // Dispute
     createDispute,
     patchDispute,
-    // Payout
     createPayout,
     patchPayout,
-    // Shipment
     createShipment,
     patchShipment,
     patchShipmentByOrderId,
     upsertDeliverySheetRow,
-    // Refresh
     refreshOrders,
     refreshDisputes,
+    refreshPayouts,
     refreshShipments,
     refreshLogisticsDeliverySheet,
   }

@@ -353,7 +353,7 @@ function FormField({ label, children }) {
 /* ══════════════════════════════════════════════════════════════
    MAIN EXPORT — LogisticsTab
    ══════════════════════════════════════════════════════════════ */
-export default function LogisticsTab({ orders, getUserById, getListingById, getShipmentByOrderId, deliverySheetRows = [], markShipmentDroppedOff, showToast }) {
+export default function LogisticsTab({ orders, getUserById, getListingById, getShipmentByOrderId, deliverySheetRows = [], markShipmentDroppedOff, loading = false, showToast }) {
   const {
     logisticsData, logisticsNotifications, getLogistics, updateLogistics, initOrder,
     markNotifRead, clearNotifs,
@@ -488,6 +488,12 @@ export default function LogisticsTab({ orders, getUserById, getListingById, getS
           </button>
         </div>
       </div>
+
+      {loading && (
+        <div className="mb-3 rounded-2xl border border-gray-200 bg-white p-3 text-xs font-semibold text-gray-500">
+          Loading logistics data...
+        </div>
+      )}
 
       {/* View toggle */}
       <div className="flex items-center gap-2 mb-3">

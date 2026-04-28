@@ -226,6 +226,7 @@ export function AppProvider({ children }) {
     orders, disputes, payouts: dbPayouts, shipments, logisticsDeliverySheet,
     dbAvailable: ordersDbAvailable,
     dbError: ordersDbError,
+    ordersLoading, disputesLoading, payoutsLoading, shipmentsLoading, logisticsDeliverySheetLoading,
     setOrders, setDisputes, setShipments,
     createOrder: dbCreateOrder,
     patchOrder: dbPatchOrder,
@@ -238,6 +239,7 @@ export function AppProvider({ children }) {
     patchShipmentByOrderId: dbPatchShipmentByOrderId,
     refreshOrders,
     refreshDisputes,
+    refreshPayouts,
     refreshShipments,
     upsertDeliverySheetRow,
     refreshLogisticsDeliverySheet,
@@ -2743,13 +2745,14 @@ export function AppProvider({ children }) {
 
   return (
     <AppContext.Provider value={{
-      currentUser, users, listings, listingsLoading, listingsLoadingMore, hasMoreListings, orders, conversations, reviews, disputes, likedListings, payoutProfiles, notifications, offers, bundle, bundleOffers, shipments, logisticsDeliverySheet, toast,
+      currentUser, users, listings, listingsLoading, listingsLoadingMore, hasMoreListings, orders, ordersLoading, ordersDbAvailable, ordersDbError, conversations, reviews, disputes, disputesLoading, likedListings, payoutProfiles, notifications, offers, bundle, bundleOffers, shipments, shipmentsLoading, logisticsDeliverySheet, logisticsDeliverySheetLoading, toast,
       PROTECTION_WINDOW_MS, SHIPPING_DEADLINE_MS,
       login, signup, register, logout, requestPasswordReset, validateResetToken, resetPassword, updateProfile,
       createListing, updateListing, deleteListing, boostListing, unboostListing, flagListing, approveListing, hideListing, updateStyleTags, updateCollectionTags, adminUpdateListingMeta, toggleLike, loadMoreListings,
       placeOrder, getOrCreateConversation, sendMessage, markConversationRead, getUnreadConversationCount, updateOrderStatus,
       confirmDelivery, openDispute, adminOpenDispute, flagOrderOverdue, DISPUTE_REASONS,
       addNotification, markNotificationRead, markAllNotificationsRead, getUserNotifications, refreshNotifications,
+      refreshOrders, refreshDisputes, refreshPayouts, refreshShipments, refreshLogisticsDeliverySheet,
       createOffer, acceptOffer, declineOffer, counterOffer, releaseListingReservation, recoverOfferConversationFromLink, getOfferById, getListingOffers, getUserActiveOfferOnListing,
       pendingPackagePreparationOffer, dismissPackagePreparationPrompt, markOfferPackagePrepared,
       addToBundle, removeFromBundle, clearBundle, isInBundle, calculateBundleFees, placeBundleOrder,

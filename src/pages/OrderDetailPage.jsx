@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   CheckCircle, Clock, Truck, Package, ShieldCheck,
@@ -31,6 +31,7 @@ export default function OrderDetailPage() {
     orders, getListingById, getUserById, currentUser,
     confirmDelivery, openDispute, showToast, PROTECTION_WINDOW_MS,
     getShipmentByOrderId, markShipmentShipped, DISPUTE_REASONS,
+    refreshOrders, refreshShipments, ordersLoading, shipmentsLoading,
   } = useApp()
 
   const BUYER_REASONS = ['not_received', 'not_as_described', 'wrong_item', 'damaged']
@@ -42,8 +43,17 @@ export default function OrderDetailPage() {
   const [showShipForm, setShowShipForm] = useState(false)
   const [trackingInput, setTrackingInput] = useState('')
   const [shipLoading, setShipLoading] = useState(false)
+  const loadedOrderRef = useRef(false)
 
   const routeOrderIdentifier = normalizeOrderIdentifier(id)
+
+  useEffect(() => {
+    if (loadedOrderRef.current) return
+    loadedOrderRef.current = true
+    refreshOrders()
+    refreshShipments()
+  }, [refreshOrders, refreshShipments])
+
   const order = orders.find((candidate) => (
     routeOrderIdentifier &&
     [
@@ -74,6 +84,14 @@ export default function OrderDetailPage() {
     }, 1000)
     return () => clearInterval(interval)
   }, [order?.deliveredAt, order?.buyerConfirmationDeadline, order?.trackingStatus, PROTECTION_WINDOW_MS])
+
+  if (!order && (ordersLoading || shipmentsLoading)) {
+    return (
+      <div className="text-center py-20 text-sib-muted dark:text-[#aeb8b4]">
+        Loading order...
+      </div>
+    )
+  }
 
   if (!order) {
     return (

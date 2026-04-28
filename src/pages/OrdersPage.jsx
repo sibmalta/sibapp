@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Package, ShoppingBag, Truck } from 'lucide-react'
 import { useApp } from '../context/AppContext'
@@ -132,11 +132,15 @@ function getSellerOrderState(order, shipment) {
 }
 
 export default function OrdersPage() {
-  const { currentUser, getUserOrders, getUserSales, getListingById, getUserById, getShipmentByOrderId } = useApp()
+  const {
+    currentUser, getUserOrders, getUserSales, getListingById, getUserById, getShipmentByOrderId,
+    refreshOrders, refreshShipments, ordersLoading, shipmentsLoading,
+  } = useApp()
   const { loading: authLoading } = useAuth()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const authNav = useAuthNav()
+  const loadedOrdersRef = useRef(false)
   const initialTab = searchParams.get('tab') === 'selling' ? 'selling' : 'buying'
   const [tab, setTab] = useState(initialTab)
   const shipmentFilter = searchParams.get('shipment')
@@ -157,7 +161,15 @@ export default function OrdersPage() {
     }
   }, [authLoading, currentUser, navigate])
 
-  if (authLoading) {
+  useEffect(() => {
+    if (!authLoading && currentUser && !loadedOrdersRef.current) {
+      loadedOrdersRef.current = true
+      refreshOrders()
+      refreshShipments()
+    }
+  }, [authLoading, currentUser?.id, refreshOrders, refreshShipments])
+
+  if (authLoading || ordersLoading || shipmentsLoading) {
     return (
       <div>
         <PageHeader title="Orders" />

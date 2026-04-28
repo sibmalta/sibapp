@@ -224,19 +224,6 @@ export async function fetchActiveListings(supabase, { limit = 100, offset = 0 } 
   }
 
   const mapped = (data || []).map(rowToListing)
-  console.info('[listings] fetchActiveListings raw result', {
-    count: mapped.length,
-    offset,
-    limit,
-    error: error?.message || null,
-    sample: mapped.slice(0, 5).map(listing => ({
-      id: listing.id,
-      category: listing.category,
-      subcategory: listing.subcategory,
-      status: listing.status,
-      price: listing.price,
-    })),
-  })
   return { data: mapped, error }
 }
 
