@@ -1,0 +1,57 @@
+export const ADMIN_ORDER_STATUSES = [
+  'all',
+  'pending',
+  'paid',
+  'awaiting_delivery',
+  'shipped',
+  'delivered',
+  'under_review',
+  'held',
+  'releasable',
+  'released',
+  'disputed',
+  'transfer_failed',
+  'refunded',
+  'cancelled',
+]
+
+export function adminOrderMatchesStatus(order, status) {
+  if (status === 'all') return true
+  return [
+    order?.status,
+    order?.trackingStatus,
+    order?.paymentStatus,
+    order?.payoutStatus,
+    order?.sellerPayoutStatus,
+  ].includes(status)
+}
+
+export function filterAdminOrders(orders, { status = 'all', search = '', tab = 'orders', getListingById, getUserById } = {}) {
+  let result = Array.isArray(orders) ? orders : []
+
+  if (status !== 'all') {
+    result = result.filter(order => adminOrderMatchesStatus(order, status))
+  }
+
+  if (search.trim() && tab === 'orders') {
+    const q = search.toLowerCase()
+    result = result.filter(order => {
+      const listing = getListingById?.(order.listingId)
+      const buyer = getUserById?.(order.buyerId)
+      const seller = getUserById?.(order.sellerId)
+      return (
+        order.id?.toLowerCase().includes(q) ||
+        order.orderRef?.toLowerCase().includes(q) ||
+        order.stripePaymentIntentId?.toLowerCase().includes(q) ||
+        listing?.title?.toLowerCase().includes(q) ||
+        order.listingTitle?.toLowerCase().includes(q) ||
+        buyer?.name?.toLowerCase().includes(q) ||
+        buyer?.username?.toLowerCase().includes(q) ||
+        seller?.name?.toLowerCase().includes(q) ||
+        seller?.username?.toLowerCase().includes(q)
+      )
+    })
+  }
+
+  return result
+}

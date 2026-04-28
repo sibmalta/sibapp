@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
     // Get the order and its payment intent
     const { data: order, error: orderErr } = await supabase
       .from('orders')
-      .select('stripe_payment_intent_id, total_price, payment_status, payment_flow_type, seller_payout_status')
+      .select('stripe_payment_intent_id, total_price, payment_status, payment_flow_type, seller_payout_status, payout_status, payout_released_at')
       .eq('id', orderId)
       .single()
 
@@ -74,6 +74,16 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'This order has already been refunded.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (order.payout_status === 'released' || order.seller_payout_status === 'paid' || order.payout_released_at) {
+      return new Response(
+        JSON.stringify({
+          error: 'Seller payout was already released. Refund requires transfer reversal/manual review.',
+          code: 'payout_already_released',
+        }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 

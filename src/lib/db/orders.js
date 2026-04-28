@@ -84,6 +84,9 @@ export function rowToOrder(row) {
     paymentStatus: row.payment_status || null,
     paymentFlowType: row.payment_flow_type || null,
     sellerPayoutStatus: row.seller_payout_status || null,
+    autoReleaseAttemptedAt: row.auto_release_attempted_at || null,
+    autoReleaseResult: row.auto_release_result || null,
+    autoReleaseError: row.auto_release_error || null,
     refundedAt: row.refunded_at || null,
     stripeRefundId: row.stripe_refund_id || null,
   }
@@ -149,6 +152,9 @@ export function orderToRow(order) {
   if (order.paymentStatus !== undefined) row.payment_status = order.paymentStatus
   if (order.paymentFlowType !== undefined) row.payment_flow_type = order.paymentFlowType
   if (order.sellerPayoutStatus !== undefined) row.seller_payout_status = order.sellerPayoutStatus
+  if (order.autoReleaseAttemptedAt !== undefined) row.auto_release_attempted_at = order.autoReleaseAttemptedAt
+  if (order.autoReleaseResult !== undefined) row.auto_release_result = order.autoReleaseResult
+  if (order.autoReleaseError !== undefined) row.auto_release_error = order.autoReleaseError
   if (order.refundedAt !== undefined) row.refunded_at = order.refundedAt
   if (order.stripeRefundId !== undefined) row.stripe_refund_id = order.stripeRefundId
 
@@ -225,15 +231,36 @@ export async function insertOrder(supabase, order) {
     const validationError = validateOrderRowForInsert(row)
     if (validationError) return { data: null, error: validationError }
 
+    const existingOrder = await findExistingOrderByPaymentIntent(supabase, row.stripe_payment_intent_id)
+    if (existingOrder.error) return { data: null, error: existingOrder.error }
+    if (existingOrder.data) return { data: existingOrder.data, error: null }
+
     const listingCheck = await assertListingCanBeOrdered(supabase, row.listing_id)
     if (listingCheck.error) return { data: null, error: listingCheck.error }
 
     const { data, error } = await insertOrderRow(supabase, row)
-    if (error) return { data: null, error }
+    if (error) {
+      const duplicateOrder = await findExistingOrderByPaymentIntent(supabase, row.stripe_payment_intent_id)
+      if (!duplicateOrder.error && duplicateOrder.data) return { data: duplicateOrder.data, error: null }
+      return { data: null, error }
+    }
     return { data: rowToOrder(data), error: null }
   } catch (e) {
     return { data: null, error: { message: e.message } }
   }
+}
+
+async function findExistingOrderByPaymentIntent(supabase, paymentIntentId) {
+  if (!paymentIntentId) return { data: null, error: null }
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('stripe_payment_intent_id', paymentIntentId)
+    .maybeSingle()
+
+  if (error) return { data: null, error }
+  return { data: rowToOrder(data), error: null }
 }
 
 const SOLD_ORDER_STATUSES = ['paid', 'shipped', 'delivered', 'confirmed', 'completed']

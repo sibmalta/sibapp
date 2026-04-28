@@ -15,6 +15,207 @@ function jsonResponse(body: Record<string, unknown>, status = 200) {
   })
 }
 
+function centsToEuros(value: string | number | null | undefined) {
+  const cents = Number(value || 0)
+  return Number.isFinite(cents) ? Number((cents / 100).toFixed(2)) : 0
+}
+
+function normalizeFulfilmentMethod(value: string | null | undefined) {
+  return value === 'locker_collection' || value === 'locker' ? 'locker' : 'delivery'
+}
+
+function getFulfilmentPrice(method: string) {
+  return method === 'locker' ? 3.25 : 4.50
+}
+
+function getPaymentIntentListingIds(paymentIntent: Stripe.PaymentIntent) {
+  const listingIds = String(paymentIntent.metadata?.listing_ids || '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean)
+  const listingId = paymentIntent.metadata?.listing_id || ''
+  return [...new Set(listingIds.length > 0 ? listingIds : listingId ? [listingId] : [])]
+}
+
+function getFirstImage(images: unknown) {
+  return Array.isArray(images) && typeof images[0] === 'string' ? images[0] : null
+}
+
+function buildRecoveredOrderRef(paymentIntentId: string) {
+  return `SIB-${paymentIntentId.replace(/^pi_/, '').slice(-8).toUpperCase()}`
+}
+
+async function markListingsSold(supabase: ReturnType<typeof createClient>, listingIds: string[]) {
+  if (!listingIds.length) return
+
+  const { error } = await supabase
+    .from('listings')
+    .update({ status: 'sold', updated_at: new Date().toISOString() })
+    .in('id', listingIds)
+    .in('status', ['active', 'reserved'])
+
+  if (error) {
+    console.error('[stripe-webhook] Failed to mark paid listing(s) sold:', {
+      listingIds,
+      error,
+    })
+  }
+}
+
+async function confirmPaidOrder(
+  supabase: ReturnType<typeof createClient>,
+  order: { id: string; payout_status: string | null; tracking_status: string | null },
+  paymentIntent: Stripe.PaymentIntent,
+  now: string,
+) {
+  const { error } = await supabase
+    .from('orders')
+    .update({
+      status: 'paid',
+      tracking_status: ['delivered', 'completed', 'under_review'].includes(order.tracking_status || '')
+        ? order.tracking_status
+        : 'awaiting_delivery',
+      payment_status: 'paid',
+      payout_status: order.payout_status || 'held',
+      paid_at: now,
+      updated_at: now,
+    })
+    .eq('id', order.id)
+
+  if (error) throw error
+  await markListingsSold(supabase, getPaymentIntentListingIds(paymentIntent))
+}
+
+async function recoverPaidOrderFromPaymentIntent(
+  supabase: ReturnType<typeof createClient>,
+  paymentIntent: Stripe.PaymentIntent,
+  now: string,
+) {
+  const listingIds = getPaymentIntentListingIds(paymentIntent)
+  const buyerId = paymentIntent.metadata?.buyer_id || ''
+  const sellerId = paymentIntent.metadata?.seller_id || ''
+
+  if (!buyerId || !sellerId || listingIds.length === 0) {
+    console.error('[stripe-webhook] Cannot recover paid order from PaymentIntent metadata:', {
+      paymentIntentId: paymentIntent.id,
+      buyerId: buyerId || null,
+      sellerId: sellerId || null,
+      listingIds,
+      metadata: paymentIntent.metadata || {},
+    })
+    return null
+  }
+
+  const { data: listings, error: listingsError } = await supabase
+    .from('listings')
+    .select('id,title,price,images,seller_id')
+    .in('id', listingIds)
+
+  if (listingsError || !listings?.length) {
+    console.error('[stripe-webhook] Cannot recover paid order because listing lookup failed:', {
+      paymentIntentId: paymentIntent.id,
+      listingIds,
+      error: listingsError || null,
+    })
+    return null
+  }
+
+  const subtotal = centsToEuros(paymentIntent.metadata?.subtotal_cents)
+  const deliveryFee = centsToEuros(paymentIntent.metadata?.delivery_fee_cents)
+  const buyerProtectionFee = centsToEuros(paymentIntent.metadata?.buyer_protection_fee_cents)
+  const total = centsToEuros(paymentIntent.metadata?.total_cents) || centsToEuros(paymentIntent.amount_received || paymentIntent.amount)
+  const itemPrice = subtotal || Number(listings.reduce((sum, listing) => sum + Number(listing.price || 0), 0).toFixed(2))
+  const platformFee = Number((total - itemPrice).toFixed(2))
+  const fulfilmentMethod = normalizeFulfilmentMethod(paymentIntent.metadata?.delivery_method)
+  const fulfilmentPrice = deliveryFee || getFulfilmentPrice(fulfilmentMethod)
+  const firstListing = listings[0]
+  const listingTitle = listings.length === 1
+    ? firstListing.title || 'Purchased item'
+    : `${listings.length} item bundle`
+
+  const recoveredOrder = {
+    order_ref: buildRecoveredOrderRef(paymentIntent.id),
+    listing_id: listingIds.length === 1 ? listingIds[0] : listingIds[0],
+    buyer_id: buyerId,
+    seller_id: sellerId,
+    listing_title: listingTitle,
+    listing_image: getFirstImage(firstListing.images),
+    item_price: itemPrice,
+    bundled_fee: platformFee,
+    total_price: total,
+    seller_payout: itemPrice,
+    platform_fee: platformFee,
+    amount: total,
+    status: 'paid',
+    tracking_status: 'awaiting_delivery',
+    payout_status: 'held',
+    delivery_method: paymentIntent.metadata?.delivery_method === 'locker_collection' ? 'locker_collection' : 'home_delivery',
+    delivery_fee: fulfilmentPrice,
+    fulfilment_provider: 'MaltaPost',
+    fulfilment_method: fulfilmentMethod,
+    fulfilment_price: fulfilmentPrice,
+    fulfilment_status: 'awaiting_fulfilment',
+    shipping_address: {
+      recoveredFromStripeWebhook: true,
+      paymentIntentId: paymentIntent.id,
+      fulfilmentProvider: 'MaltaPost',
+      fulfilmentMethod,
+      fulfilmentPrice,
+      deliveryFee,
+      buyerProtectionFee,
+    },
+    is_bundle: listingIds.length > 1,
+    bundle_listing_ids: listingIds.length > 1 ? listingIds : [],
+    paid_at: now,
+    stripe_payment_intent_id: paymentIntent.id,
+    payment_status: 'paid',
+    payment_flow_type: paymentIntent.metadata?.payment_flow_type || 'separate_charge',
+    seller_payout_status: 'held',
+    created_at: now,
+    updated_at: now,
+  }
+
+  const { data: inserted, error: insertError } = await supabase
+    .from('orders')
+    .insert(recoveredOrder)
+    .select('id,order_ref')
+    .single()
+
+  if (insertError) {
+    const { data: existing } = await supabase
+      .from('orders')
+      .select('id,order_ref')
+      .eq('stripe_payment_intent_id', paymentIntent.id)
+      .maybeSingle()
+
+    if (existing?.id) {
+      console.warn('[stripe-webhook] Recovered order already existed after insert race:', {
+        paymentIntentId: paymentIntent.id,
+        orderId: existing.id,
+      })
+      return existing
+    }
+
+    console.error('[stripe-webhook] Failed to recover paid order from PaymentIntent:', {
+      paymentIntentId: paymentIntent.id,
+      error: insertError,
+      recoveredOrder,
+    })
+    return null
+  }
+
+  await markListingsSold(supabase, listingIds)
+  console.info('[stripe-webhook] Recovered missing paid order from PaymentIntent metadata:', {
+    paymentIntentId: paymentIntent.id,
+    orderId: inserted.id,
+    orderRef: inserted.order_ref,
+    listingIds,
+    buyerId,
+    sellerId,
+  })
+  return inserted
+}
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, 405)
@@ -100,30 +301,24 @@ Deno.serve(async (req) => {
       }
 
       if (!order) {
-        console.warn('[stripe-webhook] PaymentIntent succeeded before order row existed:', {
+        console.warn('[stripe-webhook] PaymentIntent succeeded before order row existed; attempting recovery:', {
           paymentIntentId: paymentIntent.id,
           listingId: paymentIntent.metadata?.listing_id || null,
+          listingIds: paymentIntent.metadata?.listing_ids || null,
           buyerId: paymentIntent.metadata?.buyer_id || null,
+          sellerId: paymentIntent.metadata?.seller_id || null,
+          orderId: paymentIntent.metadata?.order_id || null,
         })
+        await recoverPaidOrderFromPaymentIntent(supabase, paymentIntent, now)
       } else if (order.payment_status !== 'paid') {
-        const { error } = await supabase
-          .from('orders')
-          .update({
-            status: 'paid',
-            tracking_status: ['delivered', 'completed', 'under_review'].includes(order.tracking_status)
-              ? order.tracking_status
-              : 'awaiting_delivery',
-            payment_status: 'paid',
-            payout_status: order.payout_status || 'held',
-            paid_at: now,
-            updated_at: now,
-          })
-          .eq('id', order.id)
-
-        if (error) {
+        try {
+          await confirmPaidOrder(supabase, order, paymentIntent, now)
+        } catch (error) {
           console.error('[stripe-webhook] Failed to confirm paid order:', error)
           return jsonResponse({ error: 'Failed to confirm paid order.' }, 500)
         }
+      } else {
+        await markListingsSold(supabase, getPaymentIntentListingIds(paymentIntent))
       }
     }
 

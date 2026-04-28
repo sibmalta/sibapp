@@ -10,8 +10,11 @@ import { ShipmentStatusBadge } from '../components/ShipmentTracker'
 
 const PAYOUT_STATUS_MAP = {
   held: { label: 'Pending', desc: 'Held until buyer confirms (48h window)', color: 'bg-amber-50 text-amber-700 dark:bg-[#332d20] dark:text-amber-300', dot: 'bg-amber-400', icon: Clock },
+  releasable: { label: 'Payment available', desc: 'Ready for Sib payout processing', color: 'bg-emerald-50 text-emerald-700 dark:bg-[#20322b] dark:text-emerald-300', dot: 'bg-emerald-400', icon: CheckCircle },
   available: { label: 'Available', desc: 'Ready for next payout', color: 'bg-emerald-50 text-emerald-700 dark:bg-[#20322b] dark:text-emerald-300', dot: 'bg-emerald-400', icon: CheckCircle },
   released: { label: 'Paid out', desc: 'Sent to your bank', color: 'bg-sky-50 text-sky-700 dark:bg-[#21303a] dark:text-sky-300', dot: 'bg-sky-400', icon: Banknote },
+  disputed: { label: 'Issue reported', desc: 'Funds held while the issue is reviewed', color: 'bg-red-50 text-red-600 dark:bg-[#362322] dark:text-red-300', dot: 'bg-red-400', icon: AlertCircle },
+  transfer_failed: { label: 'Payout needs review', desc: 'Sib will retry or review this payout', color: 'bg-red-50 text-red-600 dark:bg-[#362322] dark:text-red-300', dot: 'bg-red-400', icon: AlertCircle },
   refunded: { label: 'Refunded', desc: 'Returned to buyer', color: 'bg-red-50 text-red-500 dark:bg-[#362322] dark:text-red-300', dot: 'bg-red-400', icon: AlertCircle },
 }
 

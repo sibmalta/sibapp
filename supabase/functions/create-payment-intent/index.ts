@@ -469,7 +469,7 @@ async function validateSellerProfile(supabase: ReturnType<typeof createClient>, 
   logStep('seller_lookup', 'started', { sellerId })
   const { data, error } = await supabase
     .from('profiles')
-    .select('id')
+    .select('id, stripe_account_id, details_submitted, payouts_enabled')
     .eq('id', sellerId)
     .maybeSingle()
 
@@ -490,6 +490,21 @@ async function validateSellerProfile(supabase: ReturnType<typeof createClient>, 
       'seller_profile_not_found',
       'seller_lookup',
       { sellerId },
+    )
+  }
+
+  const blockingReasons: string[] = []
+  if (!data.stripe_account_id) blockingReasons.push('Seller has no Stripe connected account.')
+  if (!data.details_submitted) blockingReasons.push('Seller has not completed Stripe verification.')
+  if (!data.payouts_enabled) blockingReasons.push('Seller Stripe account cannot receive payouts yet.')
+
+  if (blockingReasons.length > 0) {
+    throw new CheckoutError(
+      'Seller cannot receive payments yet.',
+      400,
+      'seller_payments_not_ready',
+      'seller_lookup',
+      { sellerId, blockingReasons },
     )
   }
 
@@ -552,6 +567,7 @@ Deno.serve(async (req) => {
     const requestBody = body as Record<string, unknown>
     const listingId = typeof requestBody.listingId === 'string' ? requestBody.listingId.trim() : ''
     const offerId = typeof requestBody.offerId === 'string' ? requestBody.offerId.trim() : ''
+    const orderId = typeof requestBody.orderId === 'string' ? requestBody.orderId.trim() : ''
     const listingIds = Array.isArray(requestBody.listingIds)
       ? requestBody.listingIds.filter((id: unknown) => typeof id === 'string' && id.trim()).map((id: string) => id.trim())
       : []
@@ -559,6 +575,7 @@ Deno.serve(async (req) => {
     const deliveryMethod = requestBody.deliveryMethod === 'locker_collection' ? 'locker_collection' : 'home_delivery'
     logStep('request_body_validation', 'payload_received', {
       listingId: listingId || null,
+      orderId: orderId || null,
       listingIds,
       offerId: offerId || null,
       deliveryMethod,
@@ -645,6 +662,7 @@ Deno.serve(async (req) => {
         metadata: {
           buyer_id: user.id,
           seller_id: sellerId,
+          order_id: orderId,
           listing_id: requestedListingIds.length === 1 ? requestedListingIds[0] : '',
           listing_ids: requestedListingIds.join(','),
           offer_id: offerId,

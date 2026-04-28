@@ -7,6 +7,7 @@ export function buildPaymentIntentPayload({
   listingId = '',
   listingIds = [],
   offerId = '',
+  orderId = '',
   deliveryMethod = 'home_delivery',
   lockerEligible = true,
 } = {}) {
@@ -18,6 +19,7 @@ export function buildPaymentIntentPayload({
   if (listingId) payload.listingId = listingId
   if (Array.isArray(listingIds) && listingIds.length > 0) payload.listingIds = listingIds
   if (offerId) payload.offerId = offerId
+  if (orderId) payload.orderId = orderId
 
   return payload
 }

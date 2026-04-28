@@ -1,6 +1,6 @@
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-secret',
 }
 
 import Stripe from 'npm:stripe@14.14.0'
@@ -25,6 +25,16 @@ function getBearerToken(req: Request): string | null {
   if (scheme?.toLowerCase() !== 'bearer' || !token) return null
 
   return token
+}
+
+function getInternalFunctionSecret() {
+  return Deno.env.get('BUYER_PROTECTION_CRON_SECRET') || Deno.env.get('INTERNAL_FUNCTION_SECRET') || ''
+}
+
+function isValidInternalCaller(req: Request) {
+  const expectedSecret = getInternalFunctionSecret()
+  const receivedSecret = req.headers.get('x-cron-secret') || ''
+  return Boolean(expectedSecret && receivedSecret && receivedSecret === expectedSecret)
 }
 
 Deno.serve(async (req) => {
@@ -55,14 +65,21 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Missing bearer token.' }, 401)
     }
 
-    const authClient = createClient(supabaseUrl, supabaseAnonKey)
-    const {
-      data: { user },
-      error: authError,
-    } = await authClient.auth.getUser(token)
+    const isInternalCaller = isValidInternalCaller(req)
+    let user: { id: string } | null = isInternalCaller ? { id: 'system:auto-release' } : null
 
-    if (authError || !user) {
-      return jsonResponse({ error: 'Invalid or expired token.' }, 401)
+    if (!isInternalCaller) {
+      const authClient = createClient(supabaseUrl, supabaseAnonKey)
+      const {
+        data: { user: authUser },
+        error: authError,
+      } = await authClient.auth.getUser(token)
+
+      if (authError || !authUser) {
+        return jsonResponse({ error: 'Invalid or expired token.' }, 401)
+      }
+
+      user = authUser
     }
 
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' })
@@ -82,27 +99,29 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey)
 
-    // Authorize caller.
-    // This function should be privileged. For now, only allow the sibadmin account.
-    // Adjust this query if you use a dedicated role/permissions table later.
-    const { data: callerProfile, error: callerProfileError } = await supabase
-      .from('profiles')
-      .select('id, username')
-      .eq('id', user.id)
-      .single()
+    if (!isInternalCaller) {
+      // Authorize caller.
+      // This function should be privileged. For now, only allow the sibadmin account.
+      // Adjust this query if you use a dedicated role/permissions table later.
+      const { data: callerProfile, error: callerProfileError } = await supabase
+        .from('profiles')
+        .select('id, username')
+        .eq('id', user.id)
+        .single()
 
-    if (callerProfileError || !callerProfile) {
-      return jsonResponse({ error: 'Caller profile not found.' }, 403)
-    }
+      if (callerProfileError || !callerProfile) {
+        return jsonResponse({ error: 'Caller profile not found.' }, 403)
+      }
 
-    const callerUsername = String(callerProfile.username || '').toLowerCase()
-    const isPrivilegedCaller = callerUsername === 'sibadmin' || callerUsername === '@sibadmin'
+      const callerUsername = String(callerProfile.username || '').toLowerCase()
+      const isPrivilegedCaller = callerUsername === 'sibadmin' || callerUsername === '@sibadmin'
 
-    if (!isPrivilegedCaller) {
-      return jsonResponse(
-        { error: 'You are not authorized to release seller payouts.' },
-        403
-      )
+      if (!isPrivilegedCaller) {
+        return jsonResponse(
+          { error: 'You are not authorized to release seller payouts.' },
+          403
+        )
+      }
     }
 
     // Fetch order server-side. Never trust sellerId or amount from the client.
@@ -183,13 +202,15 @@ Deno.serve(async (req) => {
     }
 
     if (payout.stripe_transfer_id) {
-      return jsonResponse(
-        { error: 'This payout already has a Stripe transfer attached.' },
-        400
-      )
+      return jsonResponse({
+        transferId: payout.stripe_transfer_id,
+        amount: Number(payout.amount),
+        status: 'completed',
+        alreadyReleased: true,
+      })
     }
 
-    if (!['pending', 'held', 'releasable'].includes(String(payout.status))) {
+    if (String(payout.status) !== 'releasable') {
       return jsonResponse(
         { error: `Payout is not eligible for release from status "${payout.status}".` },
         400
@@ -201,7 +222,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Invalid payout amount on payout record.' }, 400)
     }
 
-    const transferAmount = Math.round(payoutAmount)
+    const transferAmount = Math.round(payoutAmount * 100)
     if (transferAmount <= 0) {
       return jsonResponse({ error: 'Transfer amount must be greater than zero.' }, 400)
     }
@@ -243,10 +264,11 @@ Deno.serve(async (req) => {
       !!order.confirmed_at
 
     const payoutMarkedReleasable = order.payout_status === 'releasable'
-    if (!payoutMarkedReleasable && !deliveredOrConfirmed && !protectionWindowExpired) {
-      blockingReasons.push(
-        'Order is not marked delivered and the buyer protection window has not expired.'
-      )
+    if (!payoutMarkedReleasable) {
+      blockingReasons.push('Order payout is not releasable yet.')
+    }
+    if (!deliveredOrConfirmed && !protectionWindowExpired) {
+      blockingReasons.push('Order is not marked delivered and the buyer protection window has not expired.')
     }
 
     const { data: openDispute, error: disputeError } = await supabase
@@ -317,7 +339,8 @@ Deno.serve(async (req) => {
           order_id: orderId,
           payout_id: payout.id,
           seller_id: order.seller_id,
-          initiated_by: user.id,
+          initiated_by: user?.id || 'system:auto-release',
+          initiated_by_internal_cron: String(isInternalCaller),
         },
       }
 
@@ -325,9 +348,32 @@ Deno.serve(async (req) => {
         transferParams.source_transaction = sourceTransactionId
       }
 
-      const transfer = await stripe.transfers.create(transferParams)
-      transferId = transfer.id
-      finalAmount = transfer.amount
+      try {
+        const transfer = await stripe.transfers.create(transferParams, {
+          idempotencyKey: `sib-transfer-${orderId}`,
+        })
+        transferId = transfer.id
+        finalAmount = transfer.amount
+      } catch (transferError) {
+        const now = new Date().toISOString()
+        await supabase
+          .from('payouts')
+          .update({ status: 'transfer_failed', updated_at: now })
+          .eq('id', payout.id)
+          .is('stripe_transfer_id', null)
+        await supabase
+          .from('orders')
+          .update({ payout_status: 'transfer_failed', updated_at: now })
+          .eq('id', orderId)
+          .eq('payout_status', 'releasable')
+        return jsonResponse(
+          {
+            error: 'Stripe transfer failed. Seller payout was not marked released.',
+            stripeError: transferError instanceof Error ? transferError.message : String(transferError),
+          },
+          500,
+        )
+      }
     }
 
     // Write payout record update.

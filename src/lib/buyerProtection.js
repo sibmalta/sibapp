@@ -19,6 +19,28 @@ export function canAutoReleaseOrder(order, now = new Date(), windowMs = BUYER_CO
   return Number.isFinite(deadlineMs) && now.getTime() >= deadlineMs
 }
 
+export function shouldTriggerAutoTransfer(order, now = new Date(), windowMs = BUYER_CONFIRMATION_WINDOW_MS) {
+  const payoutStatus = order?.payoutStatus || order?.payout_status
+  if (payoutStatus === 'releasable') return true
+  return canAutoReleaseOrder(order, now, windowMs)
+}
+
+export function validateCronSecretHeader({ action, headerSecret, expectedSecret } = {}) {
+  if (action !== 'auto_release_due') {
+    return { ok: false, code: 'unauthorized', message: 'Cron auth is only allowed for auto_release_due.' }
+  }
+  if (!expectedSecret) {
+    return { ok: false, code: 'missing_cron_secret', message: 'Buyer protection cron secret is not configured.' }
+  }
+  if (!headerSecret) {
+    return { ok: false, code: 'missing_cron_secret', message: 'Missing x-cron-secret header.' }
+  }
+  if (headerSecret !== expectedSecret) {
+    return { ok: false, code: 'invalid_cron_secret', message: 'Invalid x-cron-secret header.' }
+  }
+  return { ok: true, code: '', message: '' }
+}
+
 export function getReleasedOrderPatch({ now = new Date(), autoConfirmed = false } = {}) {
   const timestamp = now.toISOString()
   return {

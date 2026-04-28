@@ -15,6 +15,7 @@ import { STYLE_RULES, classifyListing, getStyleLabel } from '../lib/styleClassif
 import { SELLER_BADGE_DEFS } from '../components/SellerTrustBadges'
 import LogisticsTab from '../components/LogisticsTab'
 import { buildAdminShipmentPayload, formatAdminShipmentPayload } from '../lib/adminShipment'
+import { ADMIN_ORDER_STATUSES, filterAdminOrders } from '../lib/adminOrders'
 
 const TABS = [
   { id: 'orders', label: 'Orders', icon: ShoppingBag },
@@ -26,8 +27,6 @@ const TABS = [
   { id: 'emails', label: 'Emails', icon: Mail },
 ]
 
-const ORDER_STATUSES = ['all', 'pending', 'shipped', 'delivered', 'under_review', 'held', 'refunded', 'cancelled']
-
 const STATUS_COLORS = {
   pending: 'bg-yellow-50 text-yellow-700 border-yellow-200',
   paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -35,7 +34,10 @@ const STATUS_COLORS = {
   delivered: 'bg-green-50 text-green-700 border-green-200',
   refunded: 'bg-red-50 text-red-500 border-red-200',
   held: 'bg-orange-50 text-orange-700 border-orange-200',
+  releasable: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   released: 'bg-green-50 text-green-700 border-green-200',
+  disputed: 'bg-red-50 text-red-700 border-red-200',
+  transfer_failed: 'bg-red-50 text-red-700 border-red-200',
   cancelled: 'bg-gray-100 text-gray-500 border-gray-200',
   under_review: 'bg-purple-50 text-purple-700 border-purple-200',
   open: 'bg-yellow-50 text-yellow-700 border-yellow-200',
@@ -160,24 +162,14 @@ export default function AdminPage() {
   const openDisputes = (disputes || []).filter(d => d.status === 'open')
 
   const filteredOrders = useMemo(() => {
-    let result = orders
-    if (orderFilter !== 'all') result = result.filter(o => o.trackingStatus === orderFilter || o.payoutStatus === orderFilter)
-    if (searchQuery.trim() && tab === 'orders') {
-      const q = searchQuery.toLowerCase()
-      result = result.filter(o => {
-        const listing = getListingById(o.listingId)
-        const buyer = getUserById(o.buyerId)
-        const seller = getUserById(o.sellerId)
-        return (
-          o.id?.toLowerCase().includes(q) ||
-          listing?.title?.toLowerCase().includes(q) ||
-          buyer?.name?.toLowerCase().includes(q) ||
-          seller?.name?.toLowerCase().includes(q)
-        )
-      })
-    }
-    return result
-  }, [orders, orderFilter, searchQuery, tab])
+    return filterAdminOrders(orders, {
+      status: orderFilter,
+      search: searchQuery,
+      tab,
+      getListingById,
+      getUserById,
+    })
+  }, [orders, orderFilter, searchQuery, tab, getListingById, getUserById])
 
   const analyzedChats = useMemo(() => {
     return (conversations || []).map(c => {
@@ -295,7 +287,7 @@ export default function AdminPage() {
               </div>
             </div>
             <div className="flex gap-1.5 mb-3 overflow-x-auto no-scrollbar pb-1">
-              {ORDER_STATUSES.map(s => (
+              {ADMIN_ORDER_STATUSES.map(s => (
                 <button key={s} onClick={() => setOrderFilter(s)}
                   className={`text-[10px] font-semibold px-2.5 py-1 rounded-full capitalize whitespace-nowrap border transition-colors ${
                     orderFilter === s ? 'bg-sib-primary text-white border-sib-primary' : 'bg-white text-sib-muted border-sib-ash'
@@ -371,6 +363,12 @@ export default function AdminPage() {
                           {order.shippedAt && <p><Truck size={9} className="inline mr-1" />Shipped: {formatDate(order.shippedAt)}</p>}
                           {order.deliveredAt && <p><CheckCircle size={9} className="inline mr-1" />Delivered: {formatDate(order.deliveredAt)}</p>}
                           {order.payoutReleasedAt && <p><Unlock size={9} className="inline mr-1" />Payout released: {formatDate(order.payoutReleasedAt)}</p>}
+                          {order.autoReleaseAttemptedAt && (
+                            <p><RefreshCw size={9} className="inline mr-1" />Auto-release checked: {formatDate(order.autoReleaseAttemptedAt)}</p>
+                          )}
+                          {order.autoReleaseError && (
+                            <p className="text-red-500"><AlertTriangle size={9} className="inline mr-1" />Auto-release failed: {order.autoReleaseError}</p>
+                          )}
                             {order.address && <p><Truck size={9} className="inline mr-1" />Address: {order.address}</p>}
                             {shipment?.shipmentReference && <p><Clipboard size={9} className="inline mr-1" />Shipment ref: {shipment.shipmentReference}</p>}
                           </div>
