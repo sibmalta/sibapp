@@ -133,6 +133,14 @@ export default function BrowsePage() {
 
   const results = useMemo(() => {
     let filtered = activeListings
+    const debug = {
+      raw: activeListings.length,
+      category: category || '(none)',
+      subcategory: subcategory || '(none)',
+      genderFilter: genderFilter || '(none)',
+      sizes: sizes.length,
+      quickFilter: quickFilter || '(none)',
+    }
 
     if (query) {
       const q = query.toLowerCase()
@@ -152,6 +160,7 @@ export default function BrowsePage() {
         return false
       })
     }
+    debug.afterCategory = filtered.length
 
     if (subcategory) {
       const normalizedSelectedSubcategory = normalizeSubcategoryValue(subcategory, category)
@@ -164,6 +173,7 @@ export default function BrowsePage() {
         return normalizedListingSubcategory === normalizedSelectedSubcategory
       })
     }
+    debug.afterSubcategory = filtered.length
 
     // Third-level detail filter (sport children, shoe types, OR generic subcategory children)
     if (sportDetail) {
@@ -219,6 +229,7 @@ export default function BrowsePage() {
         return false
       })
     }
+    debug.afterGender = filtered.length
 
     if (conditions.length) {
       filtered = filtered.filter(l => conditions.includes(l.condition))
@@ -249,6 +260,7 @@ export default function BrowsePage() {
         return false
       })
     }
+    debug.afterSize = filtered.length
 
     if (colors.length) {
       filtered = filtered.filter(l => {
@@ -307,8 +319,37 @@ export default function BrowsePage() {
       filtered = filtered.filter(l => new Date(l.createdAt) >= sevenDaysAgo)
     } else if (quickFilter === 'trending') {
       filtered = [...filtered].sort((a, b) => b.likes - a.likes)
+      console.info('[BrowsePage] filter pipeline', {
+        ...debug,
+        afterQuickFilters: filtered.length,
+        final: filtered.length,
+        sample: filtered.slice(0, 5).map(l => ({
+          id: l.id,
+          category: l.category,
+          subcategory: l.subcategory,
+          gender: l.gender,
+          size: l.size,
+          status: l.status,
+          price: l.price,
+        })),
+      })
       return filtered
     }
+    debug.afterQuickFilters = filtered.length
+
+    console.info('[BrowsePage] filter pipeline', {
+      ...debug,
+      finalBeforeSort: filtered.length,
+      sample: filtered.slice(0, 5).map(l => ({
+        id: l.id,
+        category: l.category,
+        subcategory: l.subcategory,
+        gender: l.gender,
+        size: l.size,
+        status: l.status,
+        price: l.price,
+      })),
+    })
 
     switch (sort) {
       case 'price_asc': return [...filtered].sort((a, b) => a.price - b.price)

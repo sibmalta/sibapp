@@ -111,6 +111,21 @@ export function useListings(localListings, localLikes, currentUser) {
       setLoading(true)
       const { data, error } = await fetchActiveListings(supabase, { limit: BROWSE_PAGE_SIZE })
       if (!error && data) {
+        console.info('[useListings] fetchActiveListings loaded', {
+          count: data.length,
+          categories: data.reduce((acc, listing) => {
+            const key = listing.category || '(missing)'
+            acc[key] = (acc[key] || 0) + 1
+            return acc
+          }, {}),
+          sample: data.slice(0, 5).map(listing => ({
+            id: listing.id,
+            category: listing.category,
+            subcategory: listing.subcategory,
+            status: listing.status,
+            price: listing.price,
+          })),
+        })
         // DB reachable — use DB as single source of truth (even if empty)
         setDbAvailable(true)
         browseOffsetRef.current = data.length

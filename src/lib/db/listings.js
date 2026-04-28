@@ -7,6 +7,15 @@
 
 import { normalizeSubcategoryValue } from '../../data/categories'
 
+function normalizeListingStatus(status) {
+  const value = String(status || 'active').toLowerCase()
+  if (['active', 'available', 'published', 'approved', 'live'].includes(value)) return 'active'
+  if (['sold', 'purchased', 'completed'].includes(value)) return 'sold'
+  if (['deleted', 'removed'].includes(value)) return 'deleted'
+  if (['reserved', 'pending_sale', 'pending-sale'].includes(value)) return 'reserved'
+  return value || 'active'
+}
+
 // ── Shape helpers ────────────────────────────────────────────────────────────
 
 /**
@@ -31,8 +40,8 @@ export function rowToListing(row) {
     price: Number(row.price || 0),
     category: row.category || '',
     subcategory: normalizeSubcategoryValue(row.subcategory || '', row.category || ''),
-    type: row.type || undefined,
-    categoryType: row.category_type || undefined,
+    type: row.type || row.attributes?.type || undefined,
+    categoryType: row.category_type || row.attributes?.category_type || undefined,
     attributes: resolvedAttributes,
     gender: resolvedGender,
     size: resolvedSize,
@@ -41,7 +50,7 @@ export function rowToListing(row) {
     color: row.color || '',
     colors: row.colors || (row.color ? [row.color] : []),
     images: row.images || [],
-    status: row.status || 'active',
+    status: normalizeListingStatus(row.status),
     likes: row.likes_count ?? 0,
     views: row.views_count ?? 0,
     boosted: row.boosted || false,
@@ -127,7 +136,6 @@ const BROWSE_SELECT = `
   price,
   category,
   subcategory,
-  category_type,
   attributes,
   gender,
   size,
@@ -151,16 +159,85 @@ const BROWSE_SELECT = `
   seller:profiles!listings_seller_id_fkey(id, username, name, avatar, rating, review_count, is_shop, location)
 `
 
+const MINIMAL_BROWSE_SELECT = `
+  id,
+  seller_id,
+  title,
+  description,
+  price,
+  category
+`
+
+function isMissingListingColumnError(error) {
+  const message = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase()
+  return (
+    error?.code === '42703' ||
+    error?.code === 'PGRST204' ||
+    message.includes('column listings.') ||
+    message.includes('could not find') && message.includes('column') ||
+    message.includes('schema cache')
+  )
+}
+
+async function runBrowseQuery(supabase, select, { limit, offset, useStatusFilter = true, useOrdering = true } = {}) {
+  let query = supabase
+    .from('listings')
+    .select(select)
+
+  if (useStatusFilter) query = query.eq('status', 'active')
+  if (useOrdering) {
+    query = query
+      .order('boosted', { ascending: false })
+      .order('created_at', { ascending: false })
+  }
+
+  return query.range(offset, offset + limit - 1)
+}
+
 /** Fetch public browse/home listings with only card/filter fields. */
 export async function fetchActiveListings(supabase, { limit = 100, offset = 0 } = {}) {
-  const { data, error } = await supabase
-    .from('listings')
-    .select(BROWSE_SELECT)
-    .eq('status', 'active')
-    .order('boosted', { ascending: false })
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1)
-  return { data: (data || []).map(rowToListing), error }
+  let { data, error } = await runBrowseQuery(supabase, BROWSE_SELECT, { limit, offset })
+
+  if (error && isMissingListingColumnError(error)) {
+    console.warn('[listings] Browse select hit live-schema mismatch, retrying minimal listing query:', {
+      message: error.message,
+      code: error.code,
+    })
+    ;({ data, error } = await runBrowseQuery(supabase, MINIMAL_BROWSE_SELECT, {
+      limit,
+      offset,
+      useStatusFilter: false,
+      useOrdering: false,
+    }))
+  } else if (!error && offset === 0 && (data || []).length === 0) {
+    console.warn('[listings] Browse active query returned 0 rows; retrying without status filter to diagnose status mismatch.')
+    const retry = await runBrowseQuery(supabase, BROWSE_SELECT, {
+      limit,
+      offset,
+      useStatusFilter: false,
+      useOrdering: true,
+    })
+    if (!retry.error && retry.data?.length) {
+      data = retry.data
+      error = null
+    }
+  }
+
+  const mapped = (data || []).map(rowToListing)
+  console.info('[listings] fetchActiveListings raw result', {
+    count: mapped.length,
+    offset,
+    limit,
+    error: error?.message || null,
+    sample: mapped.slice(0, 5).map(listing => ({
+      id: listing.id,
+      category: listing.category,
+      subcategory: listing.subcategory,
+      status: listing.status,
+      price: listing.price,
+    })),
+  })
+  return { data: mapped, error }
 }
 
 /** Fetch a single listing by id. */
