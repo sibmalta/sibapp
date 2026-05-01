@@ -275,6 +275,28 @@ async function notify(supabase: ReturnType<typeof createClient>, row: Record<str
   if (error && error.code !== '23505') console.error('[buyer-protection] notification failed:', error.message)
 }
 
+async function notifyOnce(supabase: ReturnType<typeof createClient>, row: Record<string, unknown>) {
+  const userId = String(row.user_id || '')
+  const type = String(row.type || '')
+  const orderId = String(row.order_id || '')
+  if (!userId || !type || !orderId) return notify(supabase, row)
+
+  const { data: existing, error: existingError } = await supabase
+    .from('notifications')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('type', type)
+    .eq('order_id', orderId)
+    .limit(1)
+    .maybeSingle()
+
+  if (existingError) {
+    console.error('[buyer-protection] notification dedupe check failed:', existingError.message)
+  }
+  if (existing) return existing
+  return notify(supabase, row)
+}
+
 function displayName(profile: Record<string, any> | null | undefined, fallback = 'User') {
   return profile?.name || profile?.username || profile?.email || fallback
 }
@@ -544,7 +566,7 @@ Deno.serve(async (req) => {
         .from('orders')
         .select('*')
         .eq('status', 'delivered')
-        .eq('payout_status', BUYER_PROTECTION_HOLD_STATUS)
+        .in('payout_status', [BUYER_PROTECTION_HOLD_STATUS, SELLER_SETUP_BLOCKED_STATUS])
         .lte('buyer_confirmation_deadline', nowIso)
         .is('disputed_at', null)
         .is('payout_released_at', null)
@@ -573,6 +595,17 @@ Deno.serve(async (req) => {
         }
         if (!sellerReadiness.ready) {
           await updateAutoReleaseBlockedStatus(supabase, order.id, SELLER_SETUP_BLOCKED_STATUS, now)
+          await notifyOnce(supabase, {
+            user_id: order.seller_id,
+            order_id: order.id,
+            listing_id: order.listing_id || null,
+            type: 'seller_payout_setup_required',
+            title: 'Funds waiting for payout',
+            message: 'You have a sale waiting for payout. Complete payout setup to receive your funds.',
+            target_path: '/seller/payout-settings',
+            action_target: '/seller/payout-settings',
+            metadata: { source: 'auto_release_due', payoutStatus: SELLER_SETUP_BLOCKED_STATUS },
+          })
           const failure = autoReleaseFailure(
             { ...order, payout_status: SELLER_SETUP_BLOCKED_STATUS },
             sellerReadiness,

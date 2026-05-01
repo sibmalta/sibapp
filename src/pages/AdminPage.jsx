@@ -41,6 +41,8 @@ const STATUS_COLORS = {
   released: 'bg-green-50 text-green-700 border-green-200',
   disputed: 'bg-red-50 text-red-700 border-red-200',
   transfer_failed: 'bg-red-50 text-red-700 border-red-200',
+  blocked_payouts: 'bg-amber-50 text-amber-800 border-amber-200',
+  blocked_seller_setup: 'bg-amber-50 text-amber-800 border-amber-200',
   cancelled: 'bg-gray-100 text-gray-500 border-gray-200',
   under_review: 'bg-purple-50 text-purple-700 border-purple-200',
   open: 'bg-yellow-50 text-yellow-700 border-yellow-200',
@@ -68,6 +70,12 @@ function formatDate(d) {
   try {
     return new Date(d).toLocaleDateString('en-MT', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
   } catch { return d }
+}
+
+function formatAdminOrderFilterLabel(status) {
+  if (status === 'blocked_payouts') return 'Blocked payouts'
+  if (status === 'blocked_seller_setup') return 'Seller setup blocked'
+  return status.replace(/_/g, ' ')
 }
 
 const FLAG_PATTERNS = [
@@ -322,7 +330,7 @@ export default function AdminPage() {
                   className={`text-[10px] font-semibold px-2.5 py-1 rounded-full capitalize whitespace-nowrap border transition-colors ${
                     orderFilter === s ? 'bg-sib-primary text-white border-sib-primary' : 'bg-white text-sib-muted border-sib-ash'
                   }`}>
-                  {s}
+                  {formatAdminOrderFilterLabel(s)}
                 </button>
               ))}
             </div>
@@ -357,6 +365,7 @@ export default function AdminPage() {
                         <div className="flex gap-1">
                           <Badge status={order.trackingStatus} />
                           {order.payoutStatus === 'held' && <Badge label="Funds held" status="held" />}
+                          {order.payoutStatus === 'blocked_seller_setup' && <Badge label="Payout blocked: seller setup" status="blocked_seller_setup" />}
                           {order.sellerPayoutStatus === 'setup_pending' && <Badge label="Payout setup pending" status="setup_pending" />}
                           {order.payoutStatus === 'released' && <Badge label="Released" status="released" />}
                           {order.overdueFlag && <Badge label="Overdue" status="flagged" />}
@@ -382,6 +391,7 @@ export default function AdminPage() {
                             <p className="text-[10px] text-sib-muted font-medium mb-0.5">Seller</p>
                             <p className="font-semibold text-sib-text">{seller?.name || '—'}</p>
                             <p className="text-[10px] text-sib-muted">@{seller?.username}</p>
+                            {seller?.email && <p className="text-[10px] text-sib-muted">{seller.email}</p>}
                           </div>
                           <div className="p-2 bg-sib-sand rounded-xl">
                             <p className="text-[10px] text-sib-muted font-medium mb-0.5">Item</p>
@@ -394,6 +404,16 @@ export default function AdminPage() {
                             <p className="text-[10px] text-sib-muted">Payout: {order.payoutStatus || 'pending'}</p>
                           </div>
                         </div>
+
+                        {order.payoutStatus === 'blocked_seller_setup' && (
+                          <div className="p-2 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-800">
+                            <p className="font-bold">Payout blocked: seller setup</p>
+                            <p>Seller: {seller?.name || seller?.username || order.sellerId} {seller?.email ? `Â· ${seller.email}` : ''}</p>
+                            <p>Order amount: â‚¬{Number(order.totalPrice || order.itemPrice || 0).toFixed(2)}</p>
+                            <p>Created: {formatDate(order.createdAt)}</p>
+                            {order.deliveredAt && <p>Delivered: {formatDate(order.deliveredAt)}</p>}
+                          </div>
+                        )}
 
                         <div className="p-2 bg-sib-sand rounded-xl text-[10px] text-sib-muted space-y-0.5">
                           <p><Clock size={9} className="inline mr-1" />Created: {formatDate(order.createdAt)}</p>

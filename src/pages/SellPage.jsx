@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  Camera, X, Info, Check, ChevronDown, Search, Package, Truck,
+  Camera, X, Info, Check, ChevronDown, Search, Package, Truck, Wallet,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { CATEGORY_TREE, getSubcategories, getCategoryAttributes, isDeliveryEligible } from '../data/categories'
@@ -1383,6 +1383,24 @@ useEffect(() => {
             </div>
           ) : (
             <DeliveryGuidance variant="full" />
+          )}
+
+          {currentUser && !(currentUser.stripeAccountId && currentUser.detailsSubmitted && currentUser.payoutsEnabled) && (
+            <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <div className="flex items-start gap-3">
+                <Wallet size={17} className="mt-0.5 text-amber-700" />
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-amber-900">You have funds waiting. Complete payout setup to receive money from your sales.</p>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/seller/payout-settings')}
+                    className="mt-2 rounded-full bg-sib-secondary px-4 py-2 text-xs font-bold text-white"
+                  >
+                    Set up payouts
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
 
           <div className="flex gap-3">

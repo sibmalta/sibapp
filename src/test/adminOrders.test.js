@@ -30,6 +30,21 @@ describe('admin order visibility', () => {
     expect(filterAdminOrders([paidHeldOrder], { status: 'awaiting_delivery' })).toEqual([paidHeldOrder])
   })
 
+  it('shows blocked seller setup orders in the blocked payouts filter', () => {
+    const blockedOrder = {
+      ...paidHeldOrder,
+      id: 'order-blocked',
+      payoutStatus: 'blocked_seller_setup',
+      status: 'delivered',
+      trackingStatus: 'delivered',
+    }
+
+    expect(ADMIN_ORDER_STATUSES).toContain('blocked_payouts')
+    expect(ADMIN_ORDER_STATUSES).toContain('blocked_seller_setup')
+    expect(filterAdminOrders([paidHeldOrder, blockedOrder], { status: 'blocked_payouts' })).toEqual([blockedOrder])
+    expect(filterAdminOrders([paidHeldOrder, blockedOrder], { status: 'blocked_seller_setup' })).toEqual([blockedOrder])
+  })
+
   it('can find recovered orders by Stripe PaymentIntent ID', () => {
     const result = filterAdminOrders([paidHeldOrder], {
       search: 'pi_today_paid',

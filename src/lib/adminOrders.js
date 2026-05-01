@@ -13,12 +13,15 @@ export const ADMIN_ORDER_STATUSES = [
   'released',
   'disputed',
   'transfer_failed',
+  'blocked_payouts',
+  'blocked_seller_setup',
   'refunded',
   'cancelled',
 ]
 
 export function adminOrderMatchesStatus(order, status) {
   if (status === 'all') return true
+  if (status === 'blocked_payouts') return order?.payoutStatus === 'blocked_seller_setup'
   return [
     order?.status,
     order?.trackingStatus,

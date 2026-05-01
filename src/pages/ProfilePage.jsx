@@ -112,7 +112,7 @@ export default function ProfilePage() {
   const { username } = useParams()
   const navigate = useNavigate()
   const authNav = useAuthNav()
-  const { currentUser, getUserByUsername, getUserListings, likedListings, getListingById } = useApp()
+  const { currentUser, getUserByUsername, getUserListings, getUserSales, likedListings, getListingById } = useApp()
 
   const isOwnProfile = !username || (currentUser && currentUser.username === username)
   const profileUser = isOwnProfile ? currentUser : getUserByUsername(username)
@@ -143,6 +143,7 @@ export default function ProfilePage() {
 
   const userListings = getUserListings(profileUser.id)
 const activeListings = userListings.filter(l => l.status === 'active')
+  const blockedPayoutSales = isOwnProfile ? getUserSales(profileUser.id).filter(o => o.payoutStatus === 'blocked_seller_setup') : []
 
   const likedItems = isOwnProfile
       ? likedListings.map(id => getListingById(id)).filter(Boolean)
@@ -261,6 +262,20 @@ const activeListings = userListings.filter(l => l.status === 'active')
                     {badge.label}
                   </span>
                 ))}
+              </div>
+            )}
+
+            {blockedPayoutSales.length > 0 && (
+              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-3.5 dark:border-amber-500/30 dark:bg-[#332d20]">
+                <p className="text-sm font-bold text-amber-900 dark:text-amber-200">
+                  You have funds waiting. Complete payout setup to receive money from your sales.
+                </p>
+                <button
+                  onClick={() => navigate('/seller/payout-settings')}
+                  className="mt-2 rounded-full bg-sib-secondary px-4 py-2 text-xs font-bold text-white"
+                >
+                  Set up payouts
+                </button>
               </div>
             )}
 

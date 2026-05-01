@@ -11,6 +11,7 @@ import { getFulfilmentMethodLabel } from '../lib/fulfilment'
 const SELLER_FILTERS = [
   { id: 'active', label: 'Active' },
   { id: 'awaiting_confirmation', label: 'Awaiting confirmation' },
+  { id: 'blocked_payouts', label: 'Blocked payouts' },
   { id: 'completed', label: 'Completed' },
   { id: 'cancelled', label: 'Cancelled' },
 ]
@@ -68,6 +69,15 @@ function getSellerOrderState(order, shipment) {
       label: orderStatus === 'refunded' ? 'Refunded' : 'Cancelled',
       style: 'bg-red-50 text-red-600 dark:bg-[#362322] dark:text-red-300',
       nextStep: 'This order was cancelled.',
+    }
+  }
+
+  if (order.payoutStatus === 'blocked_seller_setup') {
+    return {
+      filter: 'blocked_payouts',
+      label: 'Payout setup needed',
+      style: 'bg-amber-50 text-amber-800 dark:bg-[#332d20] dark:text-amber-200',
+      nextStep: 'Complete payout setup to receive money from this sale.',
     }
   }
 
@@ -188,6 +198,7 @@ export default function OrdersPage() {
 
   const buyingOrders = getUserOrders(currentUser.id)
   const sellingOrders = getUserSales(currentUser.id)
+  const blockedPayoutSales = sellingOrders.filter(order => order.payoutStatus === 'blocked_seller_setup')
   const displayed = (tab === 'buying' ? buyingOrders : sellingOrders)
     .filter(order => {
       if (!shipmentFilter) return true
@@ -242,7 +253,21 @@ export default function OrdersPage() {
       </div>
 
       {tab === 'selling' && (
-        <div className="px-4 py-3 border-b border-sib-stone dark:border-[rgba(242,238,231,0.10)] overflow-x-auto">
+        <div className="px-4 py-3 border-b border-sib-stone dark:border-[rgba(242,238,231,0.10)]">
+          {blockedPayoutSales.length > 0 && (
+            <div className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 p-3.5 dark:border-amber-500/30 dark:bg-[#332d20]">
+              <p className="text-sm font-bold text-amber-900 dark:text-amber-200">
+                You have funds waiting. Complete payout setup to receive money from your sales.
+              </p>
+              <button
+                onClick={() => navigate('/seller/payout-settings')}
+                className="mt-2 rounded-full bg-sib-secondary px-4 py-2 text-xs font-bold text-white"
+              >
+                Set up payouts
+              </button>
+            </div>
+          )}
+          <div className="overflow-x-auto">
           <div className="flex gap-2 min-w-max">
             {SELLER_FILTERS.map(filter => (
               <button
@@ -257,6 +282,7 @@ export default function OrdersPage() {
                 {filter.label}
               </button>
             ))}
+          </div>
           </div>
         </div>
       )}
@@ -345,6 +371,11 @@ export default function OrdersPage() {
                     {tab === 'selling' && (
                       <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-[#26322f] dark:text-blue-300">
                         {titleCaseFulfilment(fulfilmentMethod)}
+                      </span>
+                    )}
+                    {tab === 'selling' && order.payoutStatus === 'blocked_seller_setup' && (
+                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 dark:bg-[#332d20] dark:text-amber-200">
+                        Payout blocked: seller setup
                       </span>
                     )}
 
