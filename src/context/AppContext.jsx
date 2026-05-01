@@ -25,7 +25,7 @@ import { sendNewOfferSellerEmail } from '../lib/offerEmail'
 import { getOfferCreationBlockReason, isActiveOffer } from '../lib/offerStatus'
 import { createShippingProvider } from '../lib/shippingProvider'
 import { autoReleaseBuyerProtectionOrders, confirmBuyerProtectionOrder, disputeBuyerProtectionOrder } from '../lib/buyerProtectionApi'
-import { getBuyerConfirmationDeadline } from '../lib/buyerProtection'
+import { getDeliveredOrderPatch } from '../lib/buyerProtection'
 import { isLockerEligible } from '../lib/lockerEligibility'
 import { buildAdminShipmentPayload } from '../lib/adminShipment'
 import { isActiveDisputeStatus } from '../lib/disputes'
@@ -833,10 +833,7 @@ export function AppProvider({ children }) {
     const updates = { trackingStatus: status, fulfilmentStatus: status }
     if (status === 'shipped') updates.shippedAt = now
     if (status === 'delivered') {
-      updates.deliveredAt = now
-      updates.status = 'delivered'
-      updates.buyerConfirmationDeadline = getBuyerConfirmationDeadline(now)
-      updates.payoutStatus = 'held'
+      Object.assign(updates, getDeliveredOrderPatch({ order, now: new Date(now) }))
     }
 
     const { error } = await dbPatchOrder(orderId, updates)

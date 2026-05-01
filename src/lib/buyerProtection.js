@@ -1,10 +1,29 @@
 export const BUYER_CONFIRMATION_WINDOW_MS = 48 * 60 * 60 * 1000
+export const BUYER_PROTECTION_HOLD_STATUS = 'buyer_protection_hold'
 
 export function getBuyerConfirmationDeadline(deliveredAt, windowMs = BUYER_CONFIRMATION_WINDOW_MS) {
   if (!deliveredAt) return null
   const deliveredTime = new Date(deliveredAt).getTime()
   if (Number.isNaN(deliveredTime)) return null
   return new Date(deliveredTime + windowMs).toISOString()
+}
+
+export function getDeliveredOrderPatch({ order = {}, now = new Date(), windowMs = BUYER_CONFIRMATION_WINDOW_MS } = {}) {
+  const timestamp = now instanceof Date ? now.toISOString() : new Date(now).toISOString()
+  const deliveredAt = order.deliveredAt || order.delivered_at || timestamp
+  const buyerConfirmationDeadline =
+    order.buyerConfirmationDeadline ||
+    order.buyer_confirmation_deadline ||
+    getBuyerConfirmationDeadline(deliveredAt, windowMs)
+
+  return {
+    status: 'delivered',
+    trackingStatus: 'delivered',
+    fulfilmentStatus: 'delivered',
+    deliveredAt,
+    buyerConfirmationDeadline,
+    payoutStatus: BUYER_PROTECTION_HOLD_STATUS,
+  }
 }
 
 export function canAutoReleaseOrder(order, now = new Date(), windowMs = BUYER_CONFIRMATION_WINDOW_MS) {

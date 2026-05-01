@@ -6,6 +6,13 @@ const corsHeaders = {
 }
 
 const WINDOW_MS = 48 * 60 * 60 * 1000
+const BUYER_PROTECTION_HOLD_STATUS = 'buyer_protection_hold'
+const SELLER_SETUP_BLOCKED_STATUS = 'blocked_seller_setup'
+
+function isSellerSetupBlocked(body: Record<string, any>) {
+  const reasons = Array.isArray(body?.blocking_reasons) ? body.blocking_reasons.map(String) : []
+  return reasons.some((reason) => /seller|stripe account|verification|payout/i.test(reason))
+}
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -429,7 +436,7 @@ Deno.serve(async (req) => {
           fulfilment_status: 'delivered',
           delivered_at: deliveredAt,
           buyer_confirmation_deadline: order.buyer_confirmation_deadline || deadlineFor(deliveredAt),
-          payout_status: 'held',
+          payout_status: BUYER_PROTECTION_HOLD_STATUS,
           updated_at: now,
         })
         .eq('id', orderId)
@@ -441,19 +448,34 @@ Deno.serve(async (req) => {
 
     if (action === 'auto_release_due') {
       const nowMs = Date.now()
+      const nowIso = new Date(nowMs).toISOString()
+      console.info('[buyer-protection] auto_release_due started', { now: nowIso })
       const { data: dueOrders, error } = await supabase
         .from('orders')
         .select('*')
-        .in('tracking_status', ['delivered', 'completed', 'confirmed'])
-        .in('payout_status', ['held', 'releasable', 'transfer_failed'])
+        .or('status.eq.delivered,tracking_status.in.(delivered,completed,confirmed)')
+        .in('payout_status', ['held', BUYER_PROTECTION_HOLD_STATUS, 'releasable', 'transfer_failed'])
+        .lte('buyer_confirmation_deadline', nowIso)
         .is('disputed_at', null)
         .is('payout_released_at', null)
       if (error) throw error
+      console.info('[buyer-protection] auto_release_due eligible orders found', {
+        count: dueOrders?.length || 0,
+        orderIds: (dueOrders || []).map((order) => order.id),
+      })
 
       const processed: Array<Record<string, unknown>> = []
       const skipped: Array<Record<string, unknown>> = []
       const failed: Array<Record<string, unknown>> = []
       for (const order of dueOrders || []) {
+        console.info('[buyer-protection] auto_release_due processing order', {
+          orderId: order.id,
+          status: order.status,
+          trackingStatus: order.tracking_status,
+          payoutStatus: order.payout_status,
+          deliveredAt: order.delivered_at,
+          buyerConfirmationDeadline: order.buyer_confirmation_deadline,
+        })
         if (order.payout_status === 'released' || order.seller_payout_status === 'paid') {
           skipped.push({ orderId: order.id, reason: 'already_released' })
           continue
@@ -499,18 +521,47 @@ Deno.serve(async (req) => {
           const transferResult = await triggerTransfer(order.id)
           if (!transferResult.ok) {
             const errorMessage = String(transferResult.body?.error || 'automatic_transfer_failed')
+            const payoutStatus = isSellerSetupBlocked(transferResult.body as Record<string, any>)
+              ? SELLER_SETUP_BLOCKED_STATUS
+              : 'transfer_failed'
+            const { error: statusError } = await supabase
+              .from('orders')
+              .update({
+                payout_status: payoutStatus,
+                updated_at: now,
+              })
+              .eq('id', order.id)
+              .neq('payout_status', 'released')
+            if (statusError) {
+              console.error('[buyer-protection] failed to update failed auto-release payout status', {
+                orderId: order.id,
+                payoutStatus,
+                error: statusError.message,
+              })
+            }
             await recordAutoReleaseAttempt(supabase, order.id, {
               auto_release_result: {
                 success: false,
                 status: transferResult.status,
                 transfer: transferResult.body,
+                payoutStatus,
               },
               auto_release_error: errorMessage,
+            })
+            console.error('[buyer-protection] auto_release_due transfer failed', {
+              orderId: order.id,
+              status: transferResult.status,
+              payoutStatus,
+              body: transferResult.body,
             })
             failed.push({ orderId: order.id, status: transferResult.status, error: errorMessage })
             continue
           }
 
+          console.info('[buyer-protection] auto_release_due transfer succeeded', {
+            orderId: order.id,
+            transfer: transferResult.body,
+          })
           await recordAutoReleaseAttempt(supabase, order.id, {
             auto_release_result: {
               success: true,

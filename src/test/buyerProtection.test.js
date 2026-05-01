@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   canAutoReleaseOrder,
   getBuyerConfirmationDeadline,
+  getDeliveredOrderPatch,
   getDisputedOrderPatch,
   getReleasedOrderPatch,
   shouldTriggerAutoTransfer,
@@ -27,6 +28,32 @@ describe('buyer protection release flow', () => {
       buyerConfirmationDeadline: getBuyerConfirmationDeadline(deliveredAt),
       trackingStatus: 'delivered',
       payoutStatus: 'held',
+    }
+
+    expect(canAutoReleaseOrder(order, new Date('2026-04-27T09:00:01.000Z'))).toBe(true)
+  })
+
+  it('mark delivered patch starts buyer protection without overwriting delivery timestamp', () => {
+    const deliveredAt = '2026-04-27T09:00:00.000Z'
+    const patch = getDeliveredOrderPatch({
+      order: { deliveredAt },
+      now: new Date('2026-04-28T10:00:00.000Z'),
+    })
+
+    expect(patch.status).toBe('delivered')
+    expect(patch.trackingStatus).toBe('delivered')
+    expect(patch.deliveredAt).toBe(deliveredAt)
+    expect(patch.buyerConfirmationDeadline).toBe('2026-04-29T09:00:00.000Z')
+    expect(patch.payoutStatus).toBe('buyer_protection_hold')
+  })
+
+  it('buyer protection hold orders become cron eligible after the deadline', () => {
+    const deliveredAt = '2026-04-25T09:00:00.000Z'
+    const order = {
+      deliveredAt,
+      buyerConfirmationDeadline: getBuyerConfirmationDeadline(deliveredAt),
+      trackingStatus: 'delivered',
+      payoutStatus: 'buyer_protection_hold',
     }
 
     expect(canAutoReleaseOrder(order, new Date('2026-04-27T09:00:01.000Z'))).toBe(true)
