@@ -14,6 +14,92 @@ function isSellerSetupBlocked(body: Record<string, any>) {
   return reasons.some((reason) => /seller|stripe account|verification|payout/i.test(reason))
 }
 
+async function sellerStripeReadiness(supabase: ReturnType<typeof createClient>, sellerId: string) {
+  if (!sellerId) return { found: false, ready: false, reason: 'missing_seller_id' }
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id,stripe_account_id,details_submitted,charges_enabled,payouts_enabled')
+    .eq('id', sellerId)
+    .maybeSingle()
+
+  if (error) {
+    return { found: false, ready: false, reason: 'seller_profile_lookup_failed', error: error.message }
+  }
+
+  const readiness = {
+    found: Boolean(data),
+    stripeAccountIdPresent: Boolean(data?.stripe_account_id),
+    detailsSubmitted: Boolean(data?.details_submitted),
+    chargesEnabled: Boolean(data?.charges_enabled),
+    payoutsEnabled: Boolean(data?.payouts_enabled),
+  }
+
+  return {
+    ...readiness,
+    ready: Boolean(
+      readiness.found &&
+      readiness.stripeAccountIdPresent &&
+      readiness.detailsSubmitted &&
+      readiness.chargesEnabled &&
+      readiness.payoutsEnabled
+    ),
+  }
+}
+
+function autoReleaseOrderContext(order: Record<string, any>, sellerReadiness: Record<string, any> | null = null) {
+  return {
+    orderId: order.id,
+    payoutStatus: order.payout_status,
+    status: order.status,
+    trackingStatus: order.tracking_status,
+    sellerId: order.seller_id,
+    sellerStripeAccountIdPresent: Boolean(sellerReadiness?.stripeAccountIdPresent),
+    sellerPayoutReady: Boolean(sellerReadiness?.ready),
+    paymentIntentIdPresent: Boolean(order.stripe_payment_intent_id),
+    buyerConfirmationDeadline: order.buyer_confirmation_deadline,
+  }
+}
+
+function autoReleaseFailure(
+  order: Record<string, any>,
+  sellerReadiness: Record<string, any> | null,
+  reason: string,
+  message: string,
+  extra: Record<string, unknown> = {},
+) {
+  return {
+    ...autoReleaseOrderContext(order, sellerReadiness),
+    reason,
+    message,
+    ...extra,
+  }
+}
+
+async function updateAutoReleaseBlockedStatus(
+  supabase: ReturnType<typeof createClient>,
+  orderId: string,
+  payoutStatus: string,
+  now: string,
+) {
+  const { error } = await supabase
+    .from('orders')
+    .update({
+      payout_status: payoutStatus,
+      updated_at: now,
+    })
+    .eq('id', orderId)
+    .neq('payout_status', 'released')
+
+  if (error) {
+    console.error('[buyer-protection] failed to update blocked auto-release payout status', {
+      orderId,
+      payoutStatus,
+      error: error.message,
+    })
+  }
+  return error
+}
+
 function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -272,7 +358,11 @@ Deno.serve(async (req) => {
       const { data: order, error } = await supabase.from('orders').select('*').eq('id', orderId).single()
       if (error || !order) return jsonResponse({ error: 'Order not found.' }, 404)
       if (order.buyer_id !== user.id) return jsonResponse({ error: 'Only the buyer can confirm this order.' }, 403)
-      if (!order.delivered_at || !['delivered', 'completed', 'confirmed'].includes(order.tracking_status)) {
+      if (
+        !order.delivered_at ||
+        !['delivered', 'completed', 'confirmed'].includes(order.status) &&
+        !['delivered', 'completed', 'confirmed'].includes(order.tracking_status)
+      ) {
         return jsonResponse({ error: 'Order is not ready for buyer confirmation.' }, 400)
       }
       if (order.disputed_at || order.payout_status === 'disputed') return jsonResponse({ error: 'Order is disputed.' }, 409)
@@ -453,8 +543,8 @@ Deno.serve(async (req) => {
       const { data: dueOrders, error } = await supabase
         .from('orders')
         .select('*')
-        .or('status.eq.delivered,tracking_status.in.(delivered,completed,confirmed)')
-        .in('payout_status', ['held', BUYER_PROTECTION_HOLD_STATUS, 'releasable', 'transfer_failed'])
+        .eq('status', 'delivered')
+        .eq('payout_status', BUYER_PROTECTION_HOLD_STATUS)
         .lte('buyer_confirmation_deadline', nowIso)
         .is('disputed_at', null)
         .is('payout_released_at', null)
@@ -468,20 +558,50 @@ Deno.serve(async (req) => {
       const skipped: Array<Record<string, unknown>> = []
       const failed: Array<Record<string, unknown>> = []
       for (const order of dueOrders || []) {
+        const sellerReadiness = await sellerStripeReadiness(supabase, order.seller_id)
+        const context = autoReleaseOrderContext(order, sellerReadiness)
         console.info('[buyer-protection] auto_release_due processing order', {
-          orderId: order.id,
-          status: order.status,
-          trackingStatus: order.tracking_status,
-          payoutStatus: order.payout_status,
-          deliveredAt: order.delivered_at,
-          buyerConfirmationDeadline: order.buyer_confirmation_deadline,
+          ...context,
         })
         if (order.payout_status === 'released' || order.seller_payout_status === 'paid') {
-          skipped.push({ orderId: order.id, reason: 'already_released' })
+          skipped.push(autoReleaseFailure(order, sellerReadiness, 'already_released', 'Seller payout has already been released.'))
           continue
         }
         if (order.disputed_at || order.payout_status === 'disputed') {
-          skipped.push({ orderId: order.id, reason: 'disputed' })
+          skipped.push(autoReleaseFailure(order, sellerReadiness, 'disputed', 'Order has a dispute and cannot be auto-released.'))
+          continue
+        }
+        if (!sellerReadiness.ready) {
+          await updateAutoReleaseBlockedStatus(supabase, order.id, SELLER_SETUP_BLOCKED_STATUS, now)
+          const failure = autoReleaseFailure(
+            { ...order, payout_status: SELLER_SETUP_BLOCKED_STATUS },
+            sellerReadiness,
+            'seller_not_ready',
+            'Seller payout setup is incomplete, so automatic transfer cannot be created.',
+            { sellerStripeReadiness: sellerReadiness },
+          )
+          await recordAutoReleaseAttempt(supabase, order.id, {
+            auto_release_result: { success: false, ...failure },
+            auto_release_error: failure.message,
+          })
+          console.error('[buyer-protection] auto_release_due seller not ready', failure)
+          failed.push(failure)
+          continue
+        }
+        if (!order.stripe_payment_intent_id) {
+          await updateAutoReleaseBlockedStatus(supabase, order.id, 'transfer_failed', now)
+          const failure = autoReleaseFailure(
+            { ...order, payout_status: 'transfer_failed' },
+            sellerReadiness,
+            'missing_payment_intent',
+            'Order is missing a Stripe payment intent, so automatic transfer cannot be created.',
+          )
+          await recordAutoReleaseAttempt(supabase, order.id, {
+            auto_release_result: { success: false, ...failure },
+            auto_release_error: failure.message,
+          })
+          console.error('[buyer-protection] auto_release_due missing payment intent', failure)
+          failed.push(failure)
           continue
         }
         const { data: openDispute, error: disputeCheckError } = await supabase
@@ -492,30 +612,65 @@ Deno.serve(async (req) => {
           .limit(1)
           .maybeSingle()
         if (disputeCheckError) {
-          failed.push({ orderId: order.id, error: `dispute_check_failed: ${disputeCheckError.message}` })
+          const failure = autoReleaseFailure(
+            order,
+            sellerReadiness,
+            'dispute_check_failed',
+            'Could not verify whether this order has an active dispute.',
+            { error: disputeCheckError.message },
+          )
+          console.error('[buyer-protection] auto_release_due failed before transfer', failure)
+          failed.push(failure)
           continue
         }
         if (openDispute) {
-          skipped.push({ orderId: order.id, reason: `active_dispute:${openDispute.status}` })
+          skipped.push(autoReleaseFailure(
+            order,
+            sellerReadiness,
+            'active_dispute',
+            'Order has an active dispute and cannot be auto-released.',
+            { disputeStatus: openDispute.status },
+          ))
           continue
         }
         const deadline = order.buyer_confirmation_deadline || (order.delivered_at ? deadlineFor(order.delivered_at) : null)
         if (order.payout_status !== 'releasable' && (!deadline || nowMs < new Date(deadline).getTime())) {
-          skipped.push({ orderId: order.id, reason: 'deadline_not_due' })
+          skipped.push(autoReleaseFailure(
+            order,
+            sellerReadiness,
+            'deadline_not_due',
+            'Buyer protection deadline has not passed yet.',
+            { computedDeadline: deadline },
+          ))
           continue
         }
 
         try {
           await markPayoutReleasable(supabase, order)
+          let orderForTransfer = order
           if (order.payout_status !== 'releasable') {
-            const { error: updateError } = await supabase
+            const { data: releaseOrder, error: updateError } = await supabase
               .from('orders')
               .update(releasePatch(now, true))
               .eq('id', order.id)
               .eq('payout_status', order.payout_status)
               .is('disputed_at', null)
               .is('payout_released_at', null)
+              .select('*')
+              .maybeSingle()
             if (updateError) throw updateError
+            if (!releaseOrder) {
+              const failure = autoReleaseFailure(
+                order,
+                sellerReadiness,
+                'order_release_update_matched_no_rows',
+                'Order could not be marked releasable because its payout state changed during auto-release.',
+              )
+              console.error('[buyer-protection] auto_release_due failed before transfer', failure)
+              failed.push(failure)
+              continue
+            }
+            orderForTransfer = releaseOrder
           }
 
           const transferResult = await triggerTransfer(order.id)
@@ -539,22 +694,28 @@ Deno.serve(async (req) => {
                 error: statusError.message,
               })
             }
+            const failure = autoReleaseFailure(
+              { ...orderForTransfer, payout_status: payoutStatus },
+              sellerReadiness,
+              payoutStatus === SELLER_SETUP_BLOCKED_STATUS ? 'seller_not_ready' : 'transfer_failed',
+              errorMessage,
+              {
+                httpStatus: transferResult.status,
+                finalPayoutStatus: payoutStatus,
+                transfer: transferResult.body,
+              },
+            )
             await recordAutoReleaseAttempt(supabase, order.id, {
               auto_release_result: {
                 success: false,
-                status: transferResult.status,
-                transfer: transferResult.body,
-                payoutStatus,
+                ...failure,
               },
               auto_release_error: errorMessage,
             })
             console.error('[buyer-protection] auto_release_due transfer failed', {
-              orderId: order.id,
-              status: transferResult.status,
-              payoutStatus,
-              body: transferResult.body,
+              ...failure,
             })
-            failed.push({ orderId: order.id, status: transferResult.status, error: errorMessage })
+            failed.push(failure)
             continue
           }
 
@@ -572,14 +733,22 @@ Deno.serve(async (req) => {
           processed.push({ orderId: order.id, transfer: transferResult.body })
         } catch (releaseError) {
           const errorMessage = releaseError instanceof Error ? releaseError.message : String(releaseError)
+          await updateAutoReleaseBlockedStatus(supabase, order.id, 'transfer_failed', now)
+          const failure = autoReleaseFailure(
+            { ...order, payout_status: 'transfer_failed' },
+            sellerReadiness,
+            'auto_release_exception',
+            errorMessage,
+          )
           await recordAutoReleaseAttempt(supabase, order.id, {
             auto_release_result: {
               success: false,
-              error: errorMessage,
+              ...failure,
             },
             auto_release_error: errorMessage,
           })
-          failed.push({ orderId: order.id, error: errorMessage })
+          console.error('[buyer-protection] auto_release_due failed with exception', failure)
+          failed.push(failure)
         }
       }
       console.info('[buyer-protection] auto_release_due processed', {
