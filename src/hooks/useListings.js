@@ -111,6 +111,11 @@ export function useListings(localListings, localLikes, currentUser) {
       setLoading(true)
       const { data, error } = await fetchActiveListings(supabase, { limit: BROWSE_PAGE_SIZE })
       if (!error && data) {
+        console.info('[useListings] using live Supabase listings for marketplace', {
+          count: data.length,
+          idsAndStatuses: data.map(listing => ({ id: listing.id, status: listing.status, soldAt: listing.soldAt || null })),
+          fallbackUsed: false,
+        })
         // DB reachable — use DB as single source of truth (even if empty)
         setDbAvailable(true)
         browseOffsetRef.current = data.length
@@ -122,7 +127,11 @@ export function useListings(localListings, localLikes, currentUser) {
         persistBackfilledTags(supabase, data, tagged)
       } else if (error) {
         // Backend unavailable — keep localStorage data
-        console.warn('[useListings] Supabase unavailable. Listing grid will render empty instead of demo data:', error.message)
+        console.warn('[useListings] Supabase unavailable. Listing grid will render empty instead of demo/localStorage data:', {
+          message: error.message,
+          code: error.code || null,
+          fallbackUsed: false,
+        })
         setDbAvailable(false)
         setListings([])
         setHasMoreListings(false)
@@ -138,6 +147,12 @@ export function useListings(localListings, localLikes, currentUser) {
     const offset = browseOffsetRef.current
     const { data, error } = await fetchActiveListings(supabase, { limit: BROWSE_PAGE_SIZE, offset })
     if (!error && data) {
+      console.info('[useListings] loaded more live Supabase listings', {
+        offset,
+        count: data.length,
+        idsAndStatuses: data.map(listing => ({ id: listing.id, status: listing.status, soldAt: listing.soldAt || null })),
+        fallbackUsed: false,
+      })
       browseOffsetRef.current = offset + data.length
       setHasMoreListings(data.length === BROWSE_PAGE_SIZE)
       const tagged = backfillCollectionTags(backfillStyleTags(data))

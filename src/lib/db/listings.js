@@ -28,6 +28,25 @@ export function filterActiveInventoryListings(listings = []) {
   return listings.filter(listing => isActiveInventoryStatus(listing.status))
 }
 
+function logListingStatusSnapshot(label, listings = []) {
+  const rows = (listings || []).map((listing) => ({
+    id: listing?.id,
+    status: listing?.status,
+    category: listing?.category,
+    sold_at: listing?.sold_at || listing?.soldAt || null,
+    buyer_id_present: Boolean(listing?.buyer_id || listing?.buyerId),
+  }))
+  console.info(label, {
+    count: rows.length,
+    statuses: rows.reduce((acc, row) => {
+      const key = row.status || '(empty)'
+      acc[key] = (acc[key] || 0) + 1
+      return acc
+    }, {}),
+    rows,
+  })
+}
+
 // ── Shape helpers ────────────────────────────────────────────────────────────
 
 /**
@@ -214,6 +233,7 @@ async function runBrowseQuery(supabase, select, { limit, offset, useStatusFilter
 /** Fetch public browse/home listings with only card/filter fields. */
 export async function fetchActiveListings(supabase, { limit = 100, offset = 0 } = {}) {
   let { data, error } = await runBrowseQuery(supabase, BROWSE_SELECT, { limit, offset })
+  let source = 'browse_select'
 
   if (error && isMissingListingColumnError(error)) {
     console.warn('[listings] Browse select hit live-schema mismatch, retrying minimal listing query:', {
@@ -226,9 +246,20 @@ export async function fetchActiveListings(supabase, { limit = 100, offset = 0 } 
       useStatusFilter: true,
       useOrdering: false,
     }))
+    source = 'minimal_browse_select_schema_fallback'
   }
 
-  const mapped = filterActiveInventoryListings((data || []).map(rowToListing))
+  logListingStatusSnapshot('[listings] raw Supabase active inventory query result', data || [])
+  const mappedBeforeFilter = (data || []).map(rowToListing)
+  logListingStatusSnapshot('[listings] mapped listings before active filter', mappedBeforeFilter)
+  const mapped = filterActiveInventoryListings(mappedBeforeFilter)
+  logListingStatusSnapshot('[listings] mapped listings after active filter', mapped)
+  console.info('[listings] fetchActiveListings source', {
+    source,
+    limit,
+    offset,
+    error: error ? { message: error.message, code: error.code } : null,
+  })
   return { data: mapped, error }
 }
 

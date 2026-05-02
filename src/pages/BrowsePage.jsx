@@ -17,6 +17,7 @@ import { getSportChildren, getSportBrands } from '../data/sportsFilters'
 import { getShoeChildren } from '../data/shoeFilters'
 import { getSubcategoryChildren } from '../data/subcategoryChildren'
 import { sizeFilterMatchesListing } from '../utils/sizeConfig'
+import { isActiveInventoryStatus } from '../lib/db/listings'
 
 const CATEGORIES = CATEGORY_TREE.map(c => ({ label: c.label, value: c.id }))
 const SearchAutocomplete = lazy(() => import('../components/SearchAutocomplete'))
@@ -120,10 +121,24 @@ export default function BrowsePage() {
 
   useScrollRestore('/browse')
 
+  useEffect(() => {
+    console.info('[BrowsePage] listings from AppContext before Browse filtering', {
+      count: listings.length,
+      idsAndStatuses: listings.map(listing => ({ id: listing.id, status: listing.status, soldAt: listing.soldAt || null })),
+    })
+  }, [listings])
+
   const activeListings = useMemo(
-    () => listings.filter(l => l.status === 'active' && isRenderableListing(l)),
+    () => listings.filter(l => isActiveInventoryStatus(l.status) && isRenderableListing(l)),
     [listings],
   )
+
+  useEffect(() => {
+    console.info('[BrowsePage] listings after active/renderable filtering', {
+      count: activeListings.length,
+      idsAndStatuses: activeListings.map(listing => ({ id: listing.id, status: listing.status, soldAt: listing.soldAt || null })),
+    })
+  }, [activeListings])
 
   const allBrands = useMemo(() => {
     const set = new Set()
@@ -313,6 +328,16 @@ export default function BrowsePage() {
       default: return [...filtered].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     }
   }, [activeListings, query, category, subcategory, conditions, sizes, colors, brands, maxPrice, sort, quickFilter, styleTag, genderFilter, sportDetail, sportAttributes])
+
+  useEffect(() => {
+    console.info('[BrowsePage] final Browse results after all filters', {
+      query,
+      category,
+      subcategory,
+      count: results.length,
+      idsAndStatuses: results.map(listing => ({ id: listing.id, status: listing.status, soldAt: listing.soldAt || null })),
+    })
+  }, [results, query, category, subcategory])
 
   // Infinite scroll
   const { visibleItems, hasMore, sentinelRef } = useInfiniteScroll(results, {

@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext'
 import { CATEGORIES, CONDITIONS, LOCATIONS } from '../lib/constants'
 import ListingCard from '../components/ListingCard'
 import { trackSearch, trackFilter } from '../lib/browsingHistory'
+import { isActiveInventoryStatus } from '../lib/db/listings'
 
 export default function SearchPage() {
   const { listings, searchQuery, setSearchQuery } = useApp()
@@ -20,7 +21,7 @@ export default function SearchPage() {
   })
 
   const results = useMemo(() => {
-    let items = [...listings]
+    let items = listings.filter(listing => isActiveInventoryStatus(listing.status))
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase()

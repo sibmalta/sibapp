@@ -11,6 +11,7 @@ import useAuthNav from '../hooks/useAuthNav'
 import CategoryBento from '../components/CategoryBento'
 import SearchAutocomplete from '../components/SearchAutocomplete'
 import { CATEGORY_TREE, resolveCategory } from '../data/categories'
+import { isActiveInventoryStatus } from '../lib/db/listings'
 
 /* ── Category image map — curated Unsplash photos keyed by category id ── */
 const CATEGORY_IMAGES = {
@@ -66,7 +67,7 @@ export default function HomePage() {
 
   useScrollRestore('/')
 
-  const activeListings = listings.filter(l => l.status === 'active' && isRenderableListing(l))
+  const activeListings = listings.filter(l => isActiveInventoryStatus(l.status) && isRenderableListing(l))
 
   const freshListings = useMemo(() => {
     return [...activeListings]
