@@ -9,28 +9,28 @@ import {
 import { shouldMountStripeElements } from '../pages/CheckoutPage'
 
 describe('checkout payment helpers', () => {
-  it('builds a valid home delivery payment-intent payload', () => {
+  it('builds a valid locker payment-intent payload', () => {
     expect(buildPaymentIntentPayload({
       listingId: 'listing_123',
       offerId: 'offer_123',
-      deliveryMethod: 'home_delivery',
-      lockerEligible: false,
+      deliveryMethod: 'locker_collection',
+      lockerEligible: true,
     })).toEqual({
       listingId: 'listing_123',
       offerId: 'offer_123',
-      deliveryMethod: 'home_delivery',
+      deliveryMethod: 'locker_collection',
     })
   })
 
-  it('forces home delivery when locker is requested for a non-locker listing', () => {
-    expect(resolveCheckoutDeliveryMethod('locker_collection', false)).toBe('home_delivery')
+  it('does not silently convert ineligible locker checkout to legacy home delivery', () => {
+    expect(resolveCheckoutDeliveryMethod('locker_collection', false)).toBe('locker_collection')
     expect(buildPaymentIntentPayload({
       listingId: 'listing_123',
       deliveryMethod: 'locker_collection',
       lockerEligible: false,
     })).toEqual({
       listingId: 'listing_123',
-      deliveryMethod: 'home_delivery',
+      deliveryMethod: 'locker_collection',
     })
   })
 
@@ -48,10 +48,10 @@ describe('checkout payment helpers', () => {
       sessionAccessToken: 'aaa.bbb.ccc',
       listing: { id: 'listing_123', sellerId: 'seller_123' },
       feesTotal: 12.5,
-      isLocker: false,
-      address: '1 Main Street',
-      city: 'Valletta',
-      postcode: 'VLT1234',
+      isLocker: true,
+      lockerEligible: true,
+      deliveryMethod: 'locker_collection',
+      selectedLockerId: 'lk_sliema',
     }
 
     expect(getPaymentInitializationBlocker(state)).toBe('')
@@ -66,6 +66,20 @@ describe('checkout payment helpers', () => {
       listing: { id: 'listing_123', sellerId: 'seller_123' },
       feesTotal: 12.5,
       isLocker: false,
+      deliveryMethod: 'home_delivery',
+      address: '1 Main Street',
+      city: 'Valletta',
+      postcode: 'VLT1234',
+    })).toBe('This delivery method is no longer available.')
+
+    expect(getPaymentInitializationBlocker({
+      stripeConfigured: true,
+      currentUser: { id: 'buyer_123' },
+      sessionAccessToken: 'aaa.bbb.ccc',
+      listing: { id: 'listing_123', sellerId: 'seller_123' },
+      feesTotal: 12.5,
+      isLocker: false,
+      deliveryMethod: 'courier_partner',
       address: '',
       city: 'Valletta',
       postcode: 'VLT1234',
@@ -92,6 +106,7 @@ describe('checkout payment helpers', () => {
       listing: { id: 'listing_123', sellerId: 'seller_123' },
       feesTotal: 12.5,
       isLocker: false,
+      deliveryMethod: 'courier_partner',
       address: '',
       city: 'Valletta',
       postcode: 'VLT1234',
@@ -117,11 +132,10 @@ describe('checkout payment helpers', () => {
       listing: { id: 'listing_123', sellerId: 'seller_123' },
       listingId: 'listing_123',
       feesTotal: 12.5,
-      isLocker: false,
-      address: '1 Main Street',
-      city: 'Valletta',
-      postcode: 'VLT1234',
-      deliveryMethod: 'home_delivery',
+      isLocker: true,
+      lockerEligible: true,
+      selectedLockerId: 'lk_sliema',
+      deliveryMethod: 'locker_collection',
     }, async (payload) => {
       receivedPayload = payload
       return { clientSecret: 'pi_123_secret_456' }
@@ -130,7 +144,7 @@ describe('checkout payment helpers', () => {
     expect(response.called).toBe(true)
     expect(receivedPayload).toEqual({
       listingId: 'listing_123',
-      deliveryMethod: 'home_delivery',
+      deliveryMethod: 'locker_collection',
     })
   })
 
@@ -141,10 +155,10 @@ describe('checkout payment helpers', () => {
       sessionAccessToken: 'aaa.bbb.ccc',
       listing: { id: 'listing_123', sellerId: 'seller_123' },
       feesTotal: 12.5,
-      isLocker: false,
-      address: '1 Main Street',
-      city: 'Valletta',
-      postcode: 'VLT1234',
+      isLocker: true,
+      lockerEligible: true,
+      deliveryMethod: 'locker_collection',
+      selectedLockerId: 'lk_sliema',
       intentError: 'Enter your street address before continuing to payment.',
       hasAttemptedPaymentIntent: false,
     })).toBe(true)
@@ -155,10 +169,10 @@ describe('checkout payment helpers', () => {
       sessionAccessToken: 'aaa.bbb.ccc',
       listing: { id: 'listing_123', sellerId: 'seller_123' },
       feesTotal: 12.5,
-      isLocker: false,
-      address: '1 Main Street',
-      city: 'Valletta',
-      postcode: 'VLT1234',
+      isLocker: true,
+      lockerEligible: true,
+      deliveryMethod: 'locker_collection',
+      selectedLockerId: 'lk_sliema',
       intentError: "We couldn't load payment options right now. Please try again in a moment.",
       hasAttemptedPaymentIntent: true,
     })).toBe(false)

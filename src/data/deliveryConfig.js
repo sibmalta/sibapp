@@ -7,21 +7,21 @@
 export const DELIVERY_METHODS = [
   {
     id: 'home_delivery',
-    name: 'MaltaPost Delivery',
-    description: 'Delivered to your address by MaltaPost',
+    name: 'Legacy delivery method',
+    description: 'No longer available for new checkouts',
     price: 4.50,
-    estimatedDays: '2–3 working days',
+    estimatedDays: '',
     icon: 'home',
-    active: true,
+    active: false,
   },
   {
     id: 'locker_collection',
-    name: 'MaltaPost Locker',
-    description: 'Collect from a MaltaPost locker near you',
+    name: 'Locker collection',
+    description: 'Collect from an available locker near you',
     price: 3.25,
     estimatedDays: '2–4 working days',
     icon: 'locker',
-    helpText: 'Once your parcel arrives, MaltaPost will notify you with a collection code.',
+    helpText: 'Once your parcel arrives, you will be notified with collection instructions.',
     active: true,
   },
 ]

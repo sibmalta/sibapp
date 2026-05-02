@@ -310,7 +310,7 @@ export default function CheckoutPage() {
   const { session } = useAuth()
 
   const listing = getListingById(id)
-  const [deliveryMethodId, setDeliveryMethodId] = useState('home_delivery')
+  const [deliveryMethodId, setDeliveryMethodId] = useState('locker_collection')
   const [selectedLockerId, setSelectedLockerId] = useState(null)
   const [fullName, setFullName] = useState('')
   const [phone, setPhone] = useState('')
@@ -339,7 +339,9 @@ export default function CheckoutPage() {
       setCity(savedAddress.city || '')
       setPostcode(savedAddress.postcode || '')
       setDeliveryNotes(savedAddress.notes || '')
-      if (savedAddress.deliveryMethod) setDeliveryMethodId(savedAddress.deliveryMethod)
+      if (savedAddress.deliveryMethod && savedAddress.deliveryMethod !== 'home_delivery') {
+        setDeliveryMethodId(savedAddress.deliveryMethod)
+      }
       setAddressPrefilled(true)
       setSaveAddressChecked(true)
     }
@@ -347,7 +349,6 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (deliveryMethodId === 'locker_collection' && !listingLockerEligible) {
-      setDeliveryMethodId('home_delivery')
       setSelectedLockerId(null)
       resetPaymentIntentState()
     }
@@ -488,6 +489,7 @@ export default function CheckoutPage() {
           feesTotal: fees.total,
           isLocker,
           lockerEligible: listingLockerEligible,
+          deliveryMethod: safeDeliveryMethod,
           selectedLockerId,
           address,
           city,
@@ -636,6 +638,7 @@ export default function CheckoutPage() {
       feesTotal: fees.total,
       isLocker,
       lockerEligible: listingLockerEligible,
+      deliveryMethod: deliveryMethodId,
       selectedLockerId,
       address,
       city,
@@ -682,7 +685,7 @@ export default function CheckoutPage() {
   }
 
   const deliveryLabel = isLocker
-    ? `MaltaPost locker: ${selectedLocker?.locationName || 'Select locker'}`
+    ? `Locker: ${selectedLocker?.locationName || 'Select locker'}`
     : getFulfilmentMethodLabel(deliveryMethodId)
 
   const estimatedDays = isLocker ? '2-4 working days' : '2-3 working days'
@@ -723,7 +726,7 @@ export default function CheckoutPage() {
             <div className="flex items-center gap-2 mb-5 px-1">
               <ShieldCheck size={12} className="text-green-600 flex-shrink-0" />
               <p className="text-[11px] text-green-700 dark:text-green-300 font-medium">
-                MaltaPost fulfilment. Tracked and secure.
+                Secure fulfilment with buyer protection.
               </p>
             </div>
 

@@ -776,14 +776,14 @@ case 'item_sold': {
     // ── OFFER DECLINE / COUNTER EMAILS ────────────────────────
     case 'seller_prepare_package': {
       const { sellerName, itemTitle, acceptedPrice, buyerName } = data
-      const ph = `Your offer has been accepted. Please prepare "${itemTitle}" for MaltaPost pickup.`
+      const ph = `Your offer has been accepted. Please prepare "${itemTitle}" for pickup.`
       return {
-        subject: 'Action required: prepare your item for MaltaPost pickup',
+        subject: 'Action required: prepare your item for pickup',
         preheader: ph,
         html: wrap(ph, `
           <h2 style="font-size:18px;color:#1F2937;text-align:center;margin:14px 0 8px;">Prepare Your Package</h2>
           <p style="font-size:14px;color:#4B5563;text-align:center;margin:0 0 14px;">
-            Hi ${sellerName || 'there'}, your offer has been accepted. Please package the item securely and keep it ready for MaltaPost pickup.
+            Hi ${sellerName || 'there'}, your offer has been accepted. Please package the item securely and keep it ready for pickup.
           </p>
           ${infoBox('#FFF7ED', `
             <p style="font-size:14px;color:#4B5563;margin:0 0 4px;"><strong>Item:</strong> ${itemTitle || 'item'}</p>
@@ -795,9 +795,9 @@ case 'item_sold': {
             <ul style="font-size:13px;color:#4B5563;margin:0;padding-left:18px;line-height:1.7;">
               <li>Package the item securely</li>
               <li>Remove old shipping labels/barcodes</li>
-              <li>Attach the Sib/MaltaPost label when provided</li>
+              <li>Attach the Sib delivery label when provided</li>
               <li>Keep the package ready at the pickup address</li>
-              <li>Hand it only to MaltaPost or an approved courier</li>
+              <li>Hand it only to an approved drop-off partner or courier</li>
             </ul>
           </div>
           <p style="font-size:13px;color:#6B7280;text-align:center;">

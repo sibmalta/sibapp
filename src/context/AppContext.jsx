@@ -473,6 +473,12 @@ export function AppProvider({ children }) {
 
   const ensureMaltaPostShipment = useCallback(async (order, source = 'order') => {
     if (!order?.id) return { success: false, error: 'Order is required.' }
+    console.info('[shipping] legacy MaltaPost shipment creation skipped', {
+      orderId: order.id,
+      source,
+    })
+    return { success: false, skipped: true, error: 'legacy_maltapost_disabled' }
+
     const accessToken = authSession?.access_token
     if (!accessToken) {
       console.warn('[maltapost] shipment create skipped: missing auth session', {
@@ -633,7 +639,7 @@ export function AppProvider({ children }) {
       actionTarget: `/orders/${savedOrder.id}`,
       type: 'new_sale',
       title: 'New sale — ship within 3 days',
-      message: `You have a new order (${orderRef}) — ${deliveryLabel}. Please ship via MaltaPost within 3 business days.`,
+      message: `You have a new order (${orderRef}) — ${deliveryLabel}. Please prepare it for fulfilment within 3 business days.`,
     })
 
     if (!sellerPayoutReady) {
@@ -1380,8 +1386,8 @@ export function AppProvider({ children }) {
     await addNotification({
         userId: offer.sellerId,
         type: 'seller_prepare_package',
-        title: 'Prepare your package for MaltaPost pickup',
-        message: 'Your offer has been accepted. Package the item securely and keep it ready for MaltaPost pickup.',
+        title: 'Prepare your package for pickup',
+        message: 'Your offer has been accepted. Package the item securely and keep it ready for pickup.',
         offerId: offer.id,
         listingId: offer.listingId,
         conversationId: conversation.id,
@@ -2016,7 +2022,7 @@ export function AppProvider({ children }) {
       actionTarget: `/orders/${savedOrder.id}`,
       type: 'bundle_sold',
       title: `${items.length}-item bundle sold — ship within 3 days`,
-      message: `@${currentUser.username} purchased ${items.length} items for €${fees.total.toFixed(2)} — ${deliveryLabel}. Ship via MaltaPost within 3 business days.`,
+      message: `@${currentUser.username} purchased ${items.length} items for €${fees.total.toFixed(2)} — ${deliveryLabel}. Please prepare them for fulfilment within 3 business days.`,
     })
 
     if (!sellerPayoutReady) {
@@ -2356,7 +2362,7 @@ export function AppProvider({ children }) {
       actionTarget: `/orders/${savedOrder.id}`,
       type: 'bundle_sold',
       title: `${items.length}-item bundle sold — ship within 3 days`,
-      message: `@${users.find(u => u.id === offer.buyerId)?.username || 'buyer'} purchased ${items.length} items for €${fees.total.toFixed(2)} — ${deliveryLabel}. Ship via MaltaPost within 3 business days.`,
+      message: `@${users.find(u => u.id === offer.buyerId)?.username || 'buyer'} purchased ${items.length} items for €${fees.total.toFixed(2)} — ${deliveryLabel}. Please prepare them for fulfilment within 3 business days.`,
     })
 
     if (!sellerPayoutReady) {
@@ -2879,7 +2885,7 @@ export function AppProvider({ children }) {
         postcode: shipmentPayload.postcode || null,
         country: shipmentPayload.country || 'Malta',
       },
-      notes: `Admin MaltaPost shipment shortcut generated for ${shipmentPayload.orderReference}`,
+      notes: `Admin shipment shortcut generated for ${shipmentPayload.orderReference}`,
       updatedAt: now,
     }
 

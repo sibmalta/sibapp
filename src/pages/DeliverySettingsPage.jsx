@@ -17,7 +17,7 @@ export default function DeliverySettingsPage() {
     city: '',
     postcode: '',
     notes: '',
-    deliveryMethod: 'home_delivery',
+    deliveryMethod: 'locker_collection',
   })
   const [saving, setSaving] = useState(false)
   const [prefilled, setPrefilled] = useState(false)
@@ -31,7 +31,9 @@ export default function DeliverySettingsPage() {
         city: savedAddress.city || '',
         postcode: savedAddress.postcode || '',
         notes: savedAddress.notes || '',
-        deliveryMethod: savedAddress.deliveryMethod || 'home_delivery',
+        deliveryMethod: savedAddress.deliveryMethod && savedAddress.deliveryMethod !== 'home_delivery'
+          ? savedAddress.deliveryMethod
+          : 'locker_collection',
       })
       setPrefilled(true)
     }
@@ -75,7 +77,7 @@ export default function DeliverySettingsPage() {
       city: '',
       postcode: '',
       notes: '',
-      deliveryMethod: 'home_delivery',
+      deliveryMethod: 'locker_collection',
     })
     showToast('Saved address removed.')
   }

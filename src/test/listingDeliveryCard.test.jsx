@@ -7,15 +7,13 @@ describe('ListingDeliveryCard', () => {
   it('shows locker price for locker eligible listings', () => {
     render(<ListingDeliveryCard listing={{ lockerEligible: true }} />)
 
-    expect(screen.getByText('Delivery €4.50')).toBeInTheDocument()
     expect(screen.getByText('Locker €3.25')).toBeInTheDocument()
-    expect(screen.getByText('Tracked delivery handled via MaltaPost.')).toBeInTheDocument()
+    expect(screen.getByText('Home delivery is currently unavailable for new orders.')).toBeInTheDocument()
   })
 
-  it('hides locker price for non-locker eligible listings and keeps delivery visible', () => {
+  it('hides locker price for non-locker eligible listings', () => {
     render(<ListingDeliveryCard listing={{ category: 'sports', subcategory: 'cycling', lockerEligible: false }} />)
 
-    expect(screen.getByText('Delivery €4.50')).toBeInTheDocument()
     expect(screen.getByText('Locker not available for this item')).toBeInTheDocument()
     expect(screen.queryByText('Locker €3.25')).not.toBeInTheDocument()
   })
@@ -54,6 +52,8 @@ describe('ListingDeliveryCard', () => {
     const { container } = render(<ListingDeliveryCard listing={{ lockerEligible: true }} />)
 
     expect(container).not.toHaveTextContent('API integration will be added later')
+    expect(container).not.toHaveTextContent('MaltaPost fulfilment')
+    expect(container).not.toHaveTextContent('Tracked delivery handled via MaltaPost')
   })
 })
 
@@ -82,7 +82,7 @@ describe('ListingSellerBadges', () => {
     expect(screen.getByText('Verified')).toBeInTheDocument()
   })
 
-  it('shows Ships with MaltaPost for delivery-eligible listings', () => {
+  it('does not promote MaltaPost as an active seller badge', () => {
     render(
       <ListingSellerBadges
         seller={{ reviewCount: 5, createdAt: '2024-01-01T00:00:00.000Z' }}
@@ -91,6 +91,6 @@ describe('ListingSellerBadges', () => {
       />
     )
 
-    expect(screen.getByText('Ships with MaltaPost')).toBeInTheDocument()
+    expect(screen.queryByText('Ships with MaltaPost')).not.toBeInTheDocument()
   })
 })

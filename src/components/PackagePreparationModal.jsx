@@ -5,9 +5,9 @@ import { useApp } from '../context/AppContext'
 const CHECKLIST = [
   'Package the item securely',
   'Remove old shipping labels/barcodes',
-  'Attach the Sib/MaltaPost label when provided',
+  'Attach the Sib delivery label when provided',
   'Keep the package ready at the pickup address',
-  'Hand it only to MaltaPost or an approved courier',
+  'Hand it only to an approved drop-off partner or courier',
 ]
 
 export default function PackagePreparationModal() {
@@ -35,7 +35,7 @@ export default function PackagePreparationModal() {
       return
     }
 
-    showToast?.('Package marked ready for MaltaPost pickup.')
+    showToast?.('Package marked ready for pickup.')
   }
 
   return (
@@ -59,7 +59,7 @@ export default function PackagePreparationModal() {
             Action required
           </p>
           <h2 className="pr-8 text-2xl font-black leading-tight text-sib-text dark:text-[#f4efe7]">
-            Prepare your package for MaltaPost pickup
+            Prepare your package for pickup
           </h2>
           {listing?.title && (
             <p className="mt-2 text-sm font-semibold text-sib-muted dark:text-[#aeb8b4]">
@@ -67,7 +67,7 @@ export default function PackagePreparationModal() {
             </p>
           )}
           <p className="mt-4 text-sm leading-6 text-sib-muted dark:text-[#aeb8b4]">
-            Your offer has been accepted. Please package the item securely and keep it ready for MaltaPost pickup.
+            Your offer has been accepted. Please package the item securely and keep it ready for pickup.
             Delays in preparing the package may delay delivery and payment.
           </p>
         </div>

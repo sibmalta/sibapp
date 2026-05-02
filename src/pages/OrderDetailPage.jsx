@@ -392,7 +392,7 @@ export default function OrderDetailPage() {
               <div className="flex items-start gap-2 p-2.5 rounded-xl bg-white/70 dark:bg-[#26322f]/80 border border-blue-100 dark:border-blue-500/20 mb-3 transition-colors">
                 <ShieldCheck size={14} className="text-blue-600 flex-shrink-0 mt-0.5" />
                 <p className="text-[11px] text-blue-700 dark:text-[#aeb8b4] leading-relaxed">
-                  Fulfilment method: {fulfilmentShortLabel}. Tracked delivery handled via MaltaPost.
+                  Fulfilment method: {fulfilmentShortLabel}. Delivery partner details will be shown when available.
                 </p>
               </div>
               {shipment.shipByDeadline && (
@@ -458,7 +458,7 @@ export default function OrderDetailPage() {
         {/* ── Shipment Tracker ── */}
         {shipment && (
           <div>
-            <p className="text-xs font-semibold text-sib-text dark:text-[#f4efe7] uppercase tracking-wide mb-4">MaltaPost fulfilment</p>
+            <p className="text-xs font-semibold text-sib-text dark:text-[#f4efe7] uppercase tracking-wide mb-4">Fulfilment</p>
             <ShipmentTracker shipment={shipment} />
             {trackingUrl && (
               <a
@@ -467,12 +467,12 @@ export default function OrderDetailPage() {
                 rel="noopener noreferrer"
                 className="mt-3 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] text-sib-primary text-sm font-semibold"
               >
-                <ExternalLink size={14} /> Track on MaltaPost
+                <ExternalLink size={14} /> Track delivery
               </a>
             )}
             {estDelivery && shipment.status !== 'delivered' && shipment.status !== 'failed_delivery' && shipment.status !== 'returned' && (
               <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mt-2 text-center">
-                Estimated MaltaPost delivery: {estDelivery.toLocaleDateString('en-MT', { weekday: 'short', day: 'numeric', month: 'short' })}
+                Estimated delivery: {estDelivery.toLocaleDateString('en-MT', { weekday: 'short', day: 'numeric', month: 'short' })}
               </p>
             )}
           </div>
@@ -496,7 +496,7 @@ export default function OrderDetailPage() {
               <div>
                 <p className="text-xs text-sib-muted dark:text-[#aeb8b4]">Fulfilment provider</p>
                 <p className="text-sm font-medium text-sib-text dark:text-[#f4efe7]">
-                  {order.fulfilmentProvider || shipment?.fulfilmentProvider || FULFILMENT_PROVIDER}
+                  {fulfilmentMethodLabel === 'Legacy delivery method' ? 'Legacy delivery provider' : (order.fulfilmentProvider || shipment?.fulfilmentProvider || FULFILMENT_PROVIDER)}
                 </p>
               </div>
               <div>
@@ -518,7 +518,7 @@ export default function OrderDetailPage() {
                 </p>
               </div>
               <p className="text-xs text-sib-muted dark:text-[#aeb8b4] leading-relaxed">
-                Seller next step: Prepare this order for MaltaPost fulfilment. Tracked delivery handled via MaltaPost.
+                Seller next step: Prepare this order for fulfilment. Delivery partner details will be shown when available.
               </p>
             </div>
           </div>
@@ -535,7 +535,7 @@ export default function OrderDetailPage() {
               buyerProtectionFee={(order.bundledFee ?? (order.platformFee + fulfilmentPrice)) - fulfilmentPrice}
             />
             <div className="flex justify-between text-sib-muted dark:text-[#aeb8b4]">
-              <span>MaltaPost fulfilment</span><span>€{fulfilmentPrice.toFixed(2)}</span>
+              <span>Fulfilment</span><span>€{fulfilmentPrice.toFixed(2)}</span>
             </div>
             <div className="flex justify-between font-bold text-sib-text dark:text-[#f4efe7] pt-2 border-t border-sib-stone dark:border-[rgba(242,238,231,0.10)]">
               <span>Total paid</span><span className="text-sib-primary">€{order.totalPrice?.toFixed(2)}</span>

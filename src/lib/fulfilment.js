@@ -20,12 +20,12 @@ export function getFulfilmentPrice(method) {
 
 export function getFulfilmentMethodLabel(method) {
   return normalizeFulfilmentMethod(method) === FULFILMENT_METHODS.LOCKER
-    ? 'MaltaPost locker'
-    : 'MaltaPost delivery'
+    ? 'Locker collection'
+    : 'Legacy delivery method'
 }
 
 export function getFulfilmentMethodShortLabel(method) {
-  return normalizeFulfilmentMethod(method) === FULFILMENT_METHODS.LOCKER ? 'Locker' : 'Delivery'
+  return normalizeFulfilmentMethod(method) === FULFILMENT_METHODS.LOCKER ? 'Locker' : 'Legacy delivery'
 }
 
 export function getDropoffPendingConfirmationCopy({ order = {}, shipment = {}, fulfilmentMethod } = {}) {
@@ -45,12 +45,6 @@ export function getDropoffPendingConfirmationCopy({ order = {}, shipment = {}, f
   const joined = rawValues.join(' ')
   if (joined.includes('myconvenience') || joined.includes('my convenience') || /\bmy\s/.test(joined)) {
     return 'We’re waiting for the MYconvenience store to scan and confirm it.'
-  }
-
-  const rawMethod = String(fulfilmentMethod || order.fulfilmentMethod || order.deliveryMethod || shipment.fulfilmentMethod || shipment.deliveryType || '').toLowerCase()
-  const provider = String(order.fulfilmentProvider || shipment.fulfilmentProvider || '').toLowerCase()
-  if ((rawMethod === FULFILMENT_METHODS.DELIVERY || rawMethod === 'home_delivery') && provider.includes('maltapost')) {
-    return 'We’re waiting for the drop-off point to confirm receipt.'
   }
 
   return 'We’re waiting for confirmation that the item was received.'

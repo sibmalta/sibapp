@@ -1201,7 +1201,7 @@ useEffect(() => {
           {deliveryEligible && (
             <div className="mb-5">
               <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">
-                MaltaPost locker fit
+                Locker fit
               </label>
               <p className="text-[11px] text-sib-muted mb-2 leading-relaxed">
                 Does this item fit within 40 x 40 x 60 cm (locker size)?
@@ -1229,7 +1229,7 @@ useEffect(() => {
               {errors.lockerEligible && <p className="text-red-500 text-xs mt-1">{errors.lockerEligible}</p>}
               {form.lockerEligible === false && (
                 <p className="text-[11px] text-sib-muted mt-2">
-                  Locker delivery will not be offered for this item. Buyers can still choose MaltaPost delivery.
+                  Locker delivery will not be offered for this item.
                 </p>
               )}
             </div>
@@ -1286,7 +1286,7 @@ useEffect(() => {
                 {/* Guidance text */}
                 <p className="text-[11px] text-sib-muted mb-2 leading-relaxed">
                   {onlyBulky
-                    ? 'This item will use MaltaPost fulfilment. Choose the closest size for handling.'
+                    ? 'This item needs special handling. Choose the closest size for handling.'
                     : 'Choose the size that best fits your item. The buyer pays delivery.'}
                 </p>
 

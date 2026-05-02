@@ -9,10 +9,10 @@ describe('drop-off confirmation copy', () => {
     })).toBe('We’re waiting for the MYconvenience store to scan and confirm it.')
   })
 
-  it('uses MaltaPost delivery wording for MaltaPost home delivery orders', () => {
+  it('uses generic wording for legacy MaltaPost home delivery orders', () => {
     expect(getDropoffPendingConfirmationCopy({
       order: { fulfilmentProvider: 'MaltaPost', fulfilmentMethod: 'delivery' },
-    })).toBe('We’re waiting for the drop-off point to confirm receipt.')
+    })).toBe('We’re waiting for confirmation that the item was received.')
   })
 
   it('uses generic wording when the fulfilment method is unknown', () => {

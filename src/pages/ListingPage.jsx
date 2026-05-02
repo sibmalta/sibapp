@@ -36,7 +36,6 @@ export function ListingSellerBadges({ seller, listing, now }) {
   const badges = []
   const reviewCount = Number(seller.reviewCount ?? seller.review_count ?? 0)
   const isVerified = seller.verified === true || seller.isVerified === true || seller.is_verified === true
-  const shipsWithMaltaPost = isDeliveryEligible(resolveCategory(listing.category))
 
   if (reviewCount === 0 || isRecentlyJoined(seller, now)) {
     badges.push({
@@ -53,15 +52,6 @@ export function ListingSellerBadges({ seller, listing, now }) {
       label: 'Verified',
       icon: ShieldCheck,
       className: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-[rgba(242,238,231,0.10)] dark:bg-[#26322f] dark:text-[#e8751a]',
-    })
-  }
-
-  if (shipsWithMaltaPost) {
-    badges.push({
-      id: 'maltapost',
-      label: 'Ships with MaltaPost',
-      icon: Truck,
-      className: 'border-sib-primary/15 bg-sib-primary/5 text-sib-primary dark:border-[rgba(242,238,231,0.10)] dark:bg-[#26322f]',
     })
   }
 
@@ -90,12 +80,9 @@ export function ListingDeliveryCard({ listing }) {
       <Truck size={16} className="text-sib-primary flex-shrink-0" />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7]">
-          MaltaPost fulfilment
+          Delivery options
         </p>
         <div className="mt-1 flex flex-wrap gap-2 text-xs font-semibold">
-          <span className="rounded-full bg-white/70 dark:bg-[#26322f] px-2.5 py-1 text-sib-primary">
-            Delivery €{FULFILMENT_PRICES.delivery.toFixed(2)}
-          </span>
           {lockerEligible ? (
             <span className="rounded-full bg-white/70 dark:bg-[#26322f] px-2.5 py-1 text-sib-primary">
               Locker €{FULFILMENT_PRICES.locker.toFixed(2)}
@@ -107,7 +94,7 @@ export function ListingDeliveryCard({ listing }) {
           )}
         </div>
         <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mt-1.5">
-          Tracked delivery handled via MaltaPost.
+          Home delivery is currently unavailable for new orders.
         </p>
       </div>
     </div>

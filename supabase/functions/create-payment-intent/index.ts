@@ -574,14 +574,24 @@ Deno.serve(async (req) => {
       ? requestBody.listingIds.filter((id: unknown) => typeof id === 'string' && id.trim()).map((id: string) => id.trim())
       : []
     const requestedListingIds = [...new Set(listingIds.length > 0 ? listingIds : listingId ? [listingId] : [])]
-    const deliveryMethod = requestBody.deliveryMethod === 'locker_collection' ? 'locker_collection' : 'home_delivery'
+    const rawDeliveryMethod = typeof requestBody.deliveryMethod === 'string' ? requestBody.deliveryMethod : ''
+    if (rawDeliveryMethod !== 'locker_collection') {
+      throw new CheckoutError(
+        'This delivery method is no longer available.',
+        400,
+        'delivery_method_unavailable',
+        'request_body_validation',
+        { requestedDeliveryMethod: rawDeliveryMethod || null },
+      )
+    }
+    const deliveryMethod = 'locker_collection'
     logStep('request_body_validation', 'payload_received', {
       listingId: listingId || null,
       orderId: orderId || null,
       listingIds,
       offerId: offerId || null,
       deliveryMethod,
-      rawDeliveryMethod: typeof requestBody.deliveryMethod === 'string' ? requestBody.deliveryMethod : null,
+      rawDeliveryMethod: rawDeliveryMethod || null,
       buyerId: user.id,
     })
 

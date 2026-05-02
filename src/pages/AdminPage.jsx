@@ -1267,7 +1267,7 @@ export default function AdminPage() {
                 <p className="text-[10px] font-mono text-sib-muted dark:text-[#aeb8b4]">
                   Order #{shipmentModal.payload.orderReference}
                 </p>
-                <h2 className="text-sm font-bold text-sib-text dark:text-[#f4efe7]">MaltaPost shipment data</h2>
+                <h2 className="text-sm font-bold text-sib-text dark:text-[#f4efe7]">Shipment data</h2>
               </div>
               <button onClick={() => setShipmentModal(null)} className="p-2 rounded-xl bg-sib-sand dark:bg-[#26322f] text-sib-muted dark:text-[#aeb8b4]">
                 <X size={14} />
@@ -1280,7 +1280,7 @@ export default function AdminPage() {
                   {shipmentModal.duplicate ? 'Shipment already created for this order.' : 'Shipment shortcut saved.'}
                 </p>
                 <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] mt-0.5">
-                  Copy these fields into MaltaPost eSeller. This does not call the MaltaPost API.
+                  Copy these fields into the current delivery workflow. This does not call a courier API.
                 </p>
               </div>
 

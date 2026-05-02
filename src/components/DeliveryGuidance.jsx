@@ -55,10 +55,10 @@ function GuidanceBody() {
       <div className="flex gap-2.5">
         <Package size={14} className="text-sib-primary flex-shrink-0 mt-0.5" />
         <div>
-          <p className="text-xs font-bold text-sib-text dark:text-[#f4efe7] mb-0.5">MaltaPost delivery</p>
+          <p className="text-xs font-bold text-sib-text dark:text-[#f4efe7] mb-0.5">Delivery options</p>
           <ul className="text-[11px] text-sib-muted dark:text-[#aeb8b4] leading-relaxed space-y-0.5">
-            <li>Delivery to buyer address: €4.50</li>
             <li>Locker collection: €3.25</li>
+            <li>Home delivery is currently unavailable for new orders</li>
           </ul>
         </div>
       </div>
@@ -67,9 +67,9 @@ function GuidanceBody() {
       <div className="flex gap-2.5">
         <Truck size={14} className="text-amber-600 flex-shrink-0 mt-0.5" />
         <div>
-          <p className="text-xs font-bold text-sib-text dark:text-[#f4efe7] mb-0.5">MaltaPost fulfilment</p>
+          <p className="text-xs font-bold text-sib-text dark:text-[#f4efe7] mb-0.5">Fulfilment</p>
           <ul className="text-[11px] text-sib-muted dark:text-[#aeb8b4] leading-relaxed space-y-0.5">
-            <li>Tracked delivery handled via MaltaPost</li>
+            <li>Delivery partner details will be shown when available</li>
           </ul>
         </div>
       </div>

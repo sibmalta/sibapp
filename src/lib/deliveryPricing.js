@@ -2,11 +2,11 @@
  * Delivery size tiers and pricing for the Sib marketplace.
  *
  * 4 tiers:
- *   locker   → €3.25 via MaltaPost
- *   delivery → €4.50 via MaltaPost
+ *   locker   → €3.25
+ *   delivery → €4.50 legacy home delivery
  *
  * Seller input: "Can this item be safely carried by 1 person?"
- *   No  → flag as bulky handling, still fulfilled via MaltaPost for now
+ *   No  → flag as bulky handling
  *   Yes → small / medium / heavy based on weight/category
  */
 
@@ -43,7 +43,7 @@ export const DELIVERY_TIERS = [
     label: 'Bulky',
     price: 4.50,
     priceLabel: '€4.50',
-    description: 'Prepare securely for MaltaPost fulfilment',
+    description: 'Prepare securely for fulfilment',
     examples: 'Sofas, fridges, large appliances',
     weight: 'Any weight — too large for 1 person',
   },

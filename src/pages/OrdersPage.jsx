@@ -136,7 +136,7 @@ function getSellerOrderState(order, shipment) {
       filter: 'active',
       label: 'Awaiting collection',
       style: 'bg-blue-50 text-blue-700 dark:bg-[#26322f] dark:text-blue-300',
-      nextStep: 'Waiting for MaltaPost collection/drop-off processing.',
+      nextStep: 'Waiting for collection/drop-off processing.',
     }
   }
 
@@ -152,7 +152,7 @@ function getSellerOrderState(order, shipment) {
 
   return {
     filter: 'active',
-    label: 'Preparing for MaltaPost',
+    label: 'Preparing for fulfilment',
     style: 'bg-yellow-50 text-yellow-700 dark:bg-[#332d20] dark:text-amber-300',
     nextStep: 'Package this item and drop it at a MYconvenience store.',
     canClaimDropoff: Boolean(shipment?.id),

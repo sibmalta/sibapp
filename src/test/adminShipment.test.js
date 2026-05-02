@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { buildAdminShipmentPayload, formatAdminShipmentPayload } from '../lib/adminShipment'
 
 describe('admin shipment shortcut payload', () => {
-  it('prefills MaltaPost home delivery fields from order and buyer', () => {
+  it('prefills legacy home delivery fields from order and buyer', () => {
     const payload = buildAdminShipmentPayload({
       id: 'order-1',
       orderRef: 'SIB-123',
@@ -52,6 +52,6 @@ describe('admin shipment shortcut payload', () => {
     })
 
     expect(formatAdminShipmentPayload(payload)).toContain('Shipment reference: MP-SIB-COPY')
-    expect(formatAdminShipmentPayload(payload)).toContain('Delivery type: MaltaPost delivery')
+    expect(formatAdminShipmentPayload(payload)).toContain('Delivery type: Legacy delivery method')
   })
 })

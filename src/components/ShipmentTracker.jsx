@@ -119,7 +119,7 @@ export default function ShipmentTracker({ shipment }) {
             </div>
             <div className="text-right">
               <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4]">Courier</p>
-              <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7]">{shipment.courier || 'MaltaPost'}</p>
+              <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7]">{shipment.courier || 'Delivery partner'}</p>
             </div>
           </div>
         )}
@@ -127,7 +127,7 @@ export default function ShipmentTracker({ shipment }) {
         {!shipment.trackingNumber && shipment.status === 'awaiting_shipment' && (
           <div className="p-3 rounded-xl bg-yellow-50 dark:bg-[#332d20] border border-yellow-100 dark:border-amber-500/20 transition-colors">
             <p className="text-xs text-yellow-700 dark:text-amber-300">
-              Tracking number will appear once the seller ships the item via MaltaPost.
+              Tracking number will appear once the shipment is confirmed.
             </p>
           </div>
         )}

@@ -1,13 +1,13 @@
 import React, { useState, useMemo } from 'react'
-import { Home, Box, ChevronDown, MapPin, Info } from 'lucide-react'
+import { Box, ChevronDown, MapPin, Info } from 'lucide-react'
 import { getActiveLockers } from '../data/deliveryConfig'
 import { getFulfilmentPrice } from '../lib/fulfilment'
 
 /**
- * MaltaPost fulfilment selector.
+ * Fulfilment selector.
  *
  * Props:
- *  - selected: 'home_delivery' | 'locker_collection'
+ *  - selected: 'locker_collection' | legacy saved values
  *  - onSelect: (methodId) => void
  *  - selectedLockerId: string | null
  *  - onLockerSelect: (lockerId) => void
@@ -42,22 +42,14 @@ export default function DeliveryMethodSelector({
   }, [lockers, selectedLockerId])
 
   const methods = [
-    {
-      id: 'home_delivery',
-      name: 'MaltaPost Delivery',
-      description: 'Delivered to your address via MaltaPost',
-      price: getFulfilmentPrice('delivery'),
-      estimatedDays: '2-3 working days',
-      icon: Home,
-    },
     ...(lockerEligible ? [{
       id: 'locker_collection',
-      name: 'MaltaPost Locker',
-      description: 'Collect from a MaltaPost locker near you',
+      name: 'Locker collection',
+      description: 'Collect from an available locker near you',
       price: getFulfilmentPrice('locker'),
       estimatedDays: '2-4 working days',
       icon: Box,
-      helpText: 'Once your parcel arrives, MaltaPost will notify you with a collection code.',
+      helpText: 'Once your parcel arrives, you will be notified with collection instructions.',
     }] : []),
   ]
 
@@ -67,7 +59,14 @@ export default function DeliveryMethodSelector({
       {!lockerEligible && (
         <div className="mb-2 rounded-xl border border-amber-200 dark:border-amber-400/20 bg-amber-50 dark:bg-[#26322f] px-3 py-2">
           <p className="text-xs font-medium text-amber-800 dark:text-amber-200">
-            Locker delivery not available for this item
+            Locker delivery not available for this item.
+          </p>
+        </div>
+      )}
+      {methods.length === 0 && (
+        <div className="mb-2 rounded-xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-white dark:bg-[#202b28] px-3 py-3">
+          <p className="text-xs font-medium text-sib-muted dark:text-[#aeb8b4]">
+            No active delivery method is available for this item right now.
           </p>
         </div>
       )}
@@ -104,7 +103,7 @@ export default function DeliveryMethodSelector({
 
               {method.id === 'locker_collection' && isSelected && (
                 <div className="mt-2 ml-8">
-                  <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mb-1.5">Choose a MaltaPost locker location</p>
+                  <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mb-1.5">Choose a locker location</p>
                   <div className="relative">
                     <button
                       type="button"

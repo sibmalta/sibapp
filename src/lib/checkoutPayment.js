@@ -1,6 +1,8 @@
+export const LEGACY_HOME_DELIVERY_UNAVAILABLE_MESSAGE = 'This delivery method is no longer available.'
+
 export function resolveCheckoutDeliveryMethod(requestedMethod, lockerEligible) {
   if (requestedMethod === 'locker_collection' && lockerEligible) return 'locker_collection'
-  return 'home_delivery'
+  return requestedMethod || ''
 }
 
 export function buildPaymentIntentPayload({
@@ -32,6 +34,7 @@ export function getPaymentInitializationBlocker({
   feesTotal = 0,
   isLocker = false,
   lockerEligible = true,
+  deliveryMethod = '',
   selectedLockerId = '',
   address = '',
   city = '',
@@ -47,6 +50,7 @@ export function getPaymentInitializationBlocker({
   if (!Number.isFinite(Number(feesTotal)) || Number(feesTotal) < 0.5) {
     return 'Order total must be at least €0.50 to proceed.'
   }
+  if (deliveryMethod === 'home_delivery') return LEGACY_HOME_DELIVERY_UNAVAILABLE_MESSAGE
   if (isLocker) {
     if (!lockerEligible) return 'Locker delivery not available for this item.'
     if (!selectedLockerId) return 'Please select a locker location before continuing to payment.'
