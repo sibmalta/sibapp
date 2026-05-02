@@ -8,6 +8,8 @@ import UserRating from '../components/UserRating'
 import ListingCard from '../components/ListingCard'
 import { SELLER_BADGE_DEFS, getSellerBadgeDef } from '../components/SellerTrustBadges'
 import TrustedSellerBadge from '../components/TrustedSellerBadge'
+import PendingPayoutsWidget from '../components/PendingPayoutsWidget'
+import { getSellerPendingPayoutSummary } from '../lib/pendingPayouts'
 
 function AdminProfileCard({ profileUser, isOwnProfile, navigate, currentUser }) {
   return (
@@ -143,7 +145,9 @@ export default function ProfilePage() {
 
   const userListings = getUserListings(profileUser.id)
 const activeListings = userListings.filter(l => l.status === 'active')
-  const blockedPayoutSales = isOwnProfile ? getUserSales(profileUser.id).filter(o => o.payoutStatus === 'blocked_seller_setup') : []
+  const pendingPayoutSummary = isOwnProfile
+    ? getSellerPendingPayoutSummary(getUserSales(profileUser.id), profileUser.id)
+    : null
 
   const likedItems = isOwnProfile
       ? likedListings.map(id => getListingById(id)).filter(Boolean)
@@ -265,18 +269,8 @@ const activeListings = userListings.filter(l => l.status === 'active')
               </div>
             )}
 
-            {blockedPayoutSales.length > 0 && (
-              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-3.5 dark:border-amber-500/30 dark:bg-[#332d20]">
-                <p className="text-sm font-bold text-amber-900 dark:text-amber-200">
-                  You have funds waiting. Complete payout setup to receive money from your sales.
-                </p>
-                <button
-                  onClick={() => navigate('/seller/payout-settings')}
-                  className="mt-2 rounded-full bg-sib-secondary px-4 py-2 text-xs font-bold text-white"
-                >
-                  Set up payouts
-                </button>
-              </div>
+            {pendingPayoutSummary?.count > 0 && (
+              <PendingPayoutsWidget summary={pendingPayoutSummary} className="mt-4" />
             )}
 
             {/* Stats row */}

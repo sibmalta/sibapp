@@ -19,6 +19,7 @@ type EmailType =
   | 'dispute_admin_alert'
   | 'item_sold'
   | 'shipping_reminder'
+  | 'payout_setup_required'
   | 'payout_released'
   | 'suspicious_activity'
   | 'moderation_notice'
@@ -573,12 +574,12 @@ case 'item_sold': {
       const { sellerName, orderRef, payoutAmount, itemTitle } = data
       const ph = `Your payout of EUR ${payoutAmount} for order ${orderRef} has been released.`
       return {
-        subject: `Payout released — EUR ${payoutAmount}`,
+        subject: 'Your Sib payout has been sent',
         preheader: ph,
         html: wrap(ph, `
-          <h2 style="font-size:18px;color:#1F2937;text-align:center;margin:14px 0 8px;">Payout Released</h2>
+          <h2 style="font-size:18px;color:#1F2937;text-align:center;margin:14px 0 8px;">Your Sib payout has been sent</h2>
           <p style="font-size:14px;color:#4B5563;text-align:center;margin:0 0 14px;">
-            Hi ${sellerName || 'there'}, your payout has been released.
+            Hi ${sellerName || 'there'}, your payout of EUR ${payoutAmount} for order #${orderRef} has been released.
           </p>
           ${infoBox('#ECFDF5', `
             <p style="font-size:14px;color:#4B5563;margin:0 0 4px;"><strong>Item:</strong> ${itemTitle || 'N/A'}</p>
@@ -586,9 +587,36 @@ case 'item_sold': {
             ${priceTag(payoutAmount, '#059669')}
           `)}
           <p style="font-size:13px;color:#6B7280;text-align:center;">
-            The payout will arrive via your configured payout method on the next payout day.
+            It may take a short time to appear in your bank account depending on Stripe and bank processing times.
           </p>
           ${btn('View Payout', buildAppUrl('/seller'))}
+        `),
+      }
+    }
+
+    case 'payout_setup_required': {
+      const { sellerName, orderRef, payoutAmount, itemTitle } = data
+      const ph = `You have EUR ${payoutAmount} waiting from a sale on Sib, but your payout setup is not complete.`
+      return {
+        subject: 'Action needed: receive your Sib payout',
+        preheader: ph,
+        html: wrap(ph, `
+          <h2 style="font-size:18px;color:#1F2937;text-align:center;margin:14px 0 8px;">Action needed: receive your Sib payout</h2>
+          <p style="font-size:14px;color:#4B5563;text-align:center;margin:0 0 14px;">
+            Hi ${sellerName || 'there'},
+          </p>
+          <p style="font-size:14px;color:#4B5563;text-align:center;margin:0 0 14px;">
+            You have EUR ${payoutAmount} waiting from a sale on Sib, but your payout setup is not complete.
+          </p>
+          ${infoBox('#FFF7ED', `
+            <p style="font-size:14px;color:#4B5563;margin:0 0 4px;"><strong>Item:</strong> ${itemTitle || 'Sold item'}</p>
+            <p style="font-size:14px;color:#4B5563;margin:0 0 4px;"><strong>Order:</strong> ${orderRef}</p>
+            ${priceTag(payoutAmount, '#C75B2A')}
+          `)}
+          <p style="font-size:13px;color:#6B7280;text-align:center;">
+            Please complete your payout setup so we can send your money. Once your setup is complete, Sib will automatically retry your payout.
+          </p>
+          ${btn('Complete payout setup', buildAppUrl('/seller/payout-settings'))}
         `),
       }
     }

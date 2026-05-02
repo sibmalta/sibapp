@@ -7,6 +7,8 @@ import {
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { ShipmentStatusBadge } from '../components/ShipmentTracker'
+import PendingPayoutsWidget from '../components/PendingPayoutsWidget'
+import { getSellerPendingPayoutSummary } from '../lib/pendingPayouts'
 
 const PAYOUT_STATUS_MAP = {
   held: { label: 'Pending', desc: 'Held until buyer confirms (48h window)', color: 'bg-amber-50 text-amber-700 dark:bg-[#332d20] dark:text-amber-300', dot: 'bg-amber-400', icon: Clock },
@@ -73,7 +75,10 @@ export default function SellerDashboardPage() {
   const heldAmount = sales
     .filter(o => o.payoutStatus === 'held' || o.payoutStatus === 'buyer_protection_hold' || o.payoutStatus === 'blocked_seller_setup')
     .reduce((sum, o) => sum + (o.sellerPayout || o.itemPrice || 0), 0)
-  const blockedPayoutSales = sales.filter(o => o.payoutStatus === 'blocked_seller_setup')
+  const pendingPayoutSummary = useMemo(
+    () => getSellerPendingPayoutSummary(sales, currentUser.id),
+    [sales, currentUser.id],
+  )
   const availableAmount = sales
     .filter(o => o.payoutStatus === 'available')
     .reduce((sum, o) => sum + (o.sellerPayout || o.itemPrice || 0), 0)
@@ -164,25 +169,9 @@ export default function SellerDashboardPage() {
       </div>
 
       {/* Secondary: Payout setup CTA — only when not configured */}
-      {blockedPayoutSales.length > 0 ? (
+      {pendingPayoutSummary.count > 0 ? (
         <div className="px-4 mt-3">
-          <button
-            onClick={() => navigate('/seller/payout-settings')}
-            className="w-full flex items-center gap-3 p-3.5 rounded-2xl border border-amber-200 bg-amber-50 hover:bg-amber-100 dark:border-amber-500/30 dark:bg-[#332d20] transition-colors group"
-          >
-            <div className="w-9 h-9 rounded-xl bg-sib-secondary/10 flex items-center justify-center flex-shrink-0">
-              <Banknote size={16} className="text-sib-secondary" />
-            </div>
-            <div className="flex-1 text-left">
-              <p className="text-sm font-bold text-amber-900 dark:text-amber-200">
-                You have funds waiting. Complete payout setup to receive money from your sales.
-              </p>
-              <p className="text-[11px] text-amber-800/80 dark:text-amber-200/80 mt-0.5">
-                {blockedPayoutSales.length} payout{blockedPayoutSales.length === 1 ? '' : 's'} waiting.
-              </p>
-            </div>
-            <span className="rounded-full bg-sib-secondary px-3 py-1.5 text-[11px] font-bold text-white">Set up payouts</span>
-          </button>
+          <PendingPayoutsWidget summary={pendingPayoutSummary} />
         </div>
       ) : !stripeReady && (
         <div className="px-4 mt-3">

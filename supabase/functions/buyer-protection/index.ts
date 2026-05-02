@@ -328,7 +328,7 @@ async function sendTransactionalEmail(type: string, to: string | null | undefine
     return { success: false, emailSent: false, error: 'missing_function_auth' }
   }
 
-  console.info('[buyer-protection] sending dispute email', { type, to, orderId: meta.orderId, disputeId: meta.disputeId })
+  console.info('[buyer-protection] sending transactional email', { type, to, orderId: meta.orderId, disputeId: meta.disputeId })
   const response = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
     method: 'POST',
     headers: {
@@ -339,11 +339,66 @@ async function sendTransactionalEmail(type: string, to: string | null | undefine
   })
   const body = await response.json().catch(() => ({}))
   if (!response.ok || body?.emailSent === false) {
-    console.error('[buyer-protection] dispute email failed', { type, to, status: response.status, body })
+    console.error('[buyer-protection] transactional email failed', { type, to, status: response.status, body })
   } else {
-    console.info('[buyer-protection] dispute email sent', { type, to, response: body })
+    console.info('[buyer-protection] transactional email sent', { type, to, response: body })
   }
   return { ok: response.ok, status: response.status, body }
+}
+
+async function sendTransactionalEmailOnce(
+  supabase: ReturnType<typeof createClient>,
+  type: string,
+  to: string | null | undefined,
+  data: Record<string, any>,
+  meta: Record<string, any>,
+) {
+  const relatedEntityType = meta.related_entity_type || meta.relatedEntityType || null
+  const relatedEntityId = meta.related_entity_id || meta.relatedEntityId || null
+
+  if (relatedEntityType && relatedEntityId) {
+    try {
+      const { data: existing, error } = await supabase
+        .from('email_logs')
+        .select('id,status')
+        .eq('email_type', type)
+        .eq('related_entity_type', relatedEntityType)
+        .eq('related_entity_id', relatedEntityId)
+        .eq('status', 'success')
+        .limit(1)
+        .maybeSingle()
+
+      if (error) {
+        console.warn('[buyer-protection] email dedupe lookup failed; sending anyway', {
+          type,
+          relatedEntityType,
+          relatedEntityId,
+          error: error.message,
+        })
+      } else if (existing) {
+        console.info('[buyer-protection] email already sent; skipping duplicate', {
+          type,
+          relatedEntityType,
+          relatedEntityId,
+        })
+        return { ok: true, status: 200, body: { skipped: true, reason: 'email_already_sent' } }
+      }
+    } catch (error) {
+      console.warn('[buyer-protection] email dedupe lookup threw; sending anyway', {
+        type,
+        relatedEntityType,
+        relatedEntityId,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+
+  return sendTransactionalEmail(type, to, data, meta)
+}
+
+function formatPayoutAmount(order: Record<string, any>) {
+  const amount = Number(order.seller_payout ?? order.item_price ?? order.total_price ?? 0)
+  return Number.isFinite(amount) ? amount.toFixed(2) : '0.00'
 }
 
 async function insertDisputeWithFallback(supabase: ReturnType<typeof createClient>, row: Record<string, any>) {
@@ -595,6 +650,7 @@ Deno.serve(async (req) => {
         }
         if (!sellerReadiness.ready) {
           await updateAutoReleaseBlockedStatus(supabase, order.id, SELLER_SETUP_BLOCKED_STATUS, now)
+          const sellerProfile = await profileById(supabase, order.seller_id)
           await notifyOnce(supabase, {
             user_id: order.seller_id,
             order_id: order.id,
@@ -605,6 +661,17 @@ Deno.serve(async (req) => {
             target_path: '/seller/payout-settings',
             action_target: '/seller/payout-settings',
             metadata: { source: 'auto_release_due', payoutStatus: SELLER_SETUP_BLOCKED_STATUS },
+          })
+          await sendTransactionalEmailOnce(supabase, 'payout_setup_required', sellerProfile?.email, {
+            sellerName: displayName(sellerProfile, 'there'),
+            orderRef: order.order_ref || order.id,
+            payoutAmount: formatPayoutAmount(order),
+            itemTitle: order.listing_title || 'Sold item',
+          }, {
+            related_entity_type: 'order',
+            related_entity_id: order.id,
+            orderId: order.id,
+            sellerId: order.seller_id,
           })
           const failure = autoReleaseFailure(
             { ...order, payout_status: SELLER_SETUP_BLOCKED_STATUS },
@@ -727,6 +794,31 @@ Deno.serve(async (req) => {
                 error: statusError.message,
               })
             }
+            if (payoutStatus === SELLER_SETUP_BLOCKED_STATUS) {
+              const sellerProfile = await profileById(supabase, order.seller_id)
+              await notifyOnce(supabase, {
+                user_id: order.seller_id,
+                order_id: order.id,
+                listing_id: order.listing_id || null,
+                type: 'seller_payout_setup_required',
+                title: 'Funds waiting for payout',
+                message: 'You have a sale waiting for payout. Complete payout setup to receive your funds.',
+                target_path: '/seller/payout-settings',
+                action_target: '/seller/payout-settings',
+                metadata: { source: 'auto_release_due', payoutStatus: SELLER_SETUP_BLOCKED_STATUS },
+              })
+              await sendTransactionalEmailOnce(supabase, 'payout_setup_required', sellerProfile?.email, {
+                sellerName: displayName(sellerProfile, 'there'),
+                orderRef: order.order_ref || order.id,
+                payoutAmount: formatPayoutAmount(orderForTransfer),
+                itemTitle: order.listing_title || 'Sold item',
+              }, {
+                related_entity_type: 'order',
+                related_entity_id: order.id,
+                orderId: order.id,
+                sellerId: order.seller_id,
+              })
+            }
             const failure = autoReleaseFailure(
               { ...orderForTransfer, payout_status: payoutStatus },
               sellerReadiness,
@@ -762,6 +854,18 @@ Deno.serve(async (req) => {
               transfer: transferResult.body,
             },
             auto_release_error: null,
+          })
+          const sellerProfile = await profileById(supabase, order.seller_id)
+          await sendTransactionalEmailOnce(supabase, 'payout_released', sellerProfile?.email, {
+            sellerName: displayName(sellerProfile, 'there'),
+            orderRef: order.order_ref || order.id,
+            payoutAmount: formatPayoutAmount(orderForTransfer),
+            itemTitle: order.listing_title || 'Sold item',
+          }, {
+            related_entity_type: 'order',
+            related_entity_id: order.id,
+            orderId: order.id,
+            sellerId: order.seller_id,
           })
           processed.push({ orderId: order.id, transfer: transferResult.body })
         } catch (releaseError) {

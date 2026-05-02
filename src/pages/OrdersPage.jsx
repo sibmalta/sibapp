@@ -6,7 +6,9 @@ import { useAuth } from '../lib/auth-context'
 import useAuthNav from '../hooks/useAuthNav'
 import PageHeader from '../components/PageHeader'
 import { ShipmentStatusBadge } from '../components/ShipmentTracker'
+import PendingPayoutsWidget from '../components/PendingPayoutsWidget'
 import { getFulfilmentMethodLabel } from '../lib/fulfilment'
+import { getSellerPendingPayoutSummary } from '../lib/pendingPayouts'
 
 const SELLER_FILTERS = [
   { id: 'active', label: 'Active' },
@@ -198,7 +200,7 @@ export default function OrdersPage() {
 
   const buyingOrders = getUserOrders(currentUser.id)
   const sellingOrders = getUserSales(currentUser.id)
-  const blockedPayoutSales = sellingOrders.filter(order => order.payoutStatus === 'blocked_seller_setup')
+  const pendingPayoutSummary = getSellerPendingPayoutSummary(sellingOrders, currentUser.id)
   const displayed = (tab === 'buying' ? buyingOrders : sellingOrders)
     .filter(order => {
       if (!shipmentFilter) return true
@@ -254,18 +256,8 @@ export default function OrdersPage() {
 
       {tab === 'selling' && (
         <div className="px-4 py-3 border-b border-sib-stone dark:border-[rgba(242,238,231,0.10)]">
-          {blockedPayoutSales.length > 0 && (
-            <div className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 p-3.5 dark:border-amber-500/30 dark:bg-[#332d20]">
-              <p className="text-sm font-bold text-amber-900 dark:text-amber-200">
-                You have funds waiting. Complete payout setup to receive money from your sales.
-              </p>
-              <button
-                onClick={() => navigate('/seller/payout-settings')}
-                className="mt-2 rounded-full bg-sib-secondary px-4 py-2 text-xs font-bold text-white"
-              >
-                Set up payouts
-              </button>
-            </div>
+          {pendingPayoutSummary.count > 0 && (
+            <PendingPayoutsWidget summary={pendingPayoutSummary} className="mb-3" />
           )}
           <div className="overflow-x-auto">
           <div className="flex gap-2 min-w-max">

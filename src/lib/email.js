@@ -120,6 +120,10 @@ export function sendPayoutReleasedEmail(sellerEmail, sellerName, orderRef, payou
   return sendEmail('payout_released', sellerEmail, { sellerName, orderRef, payoutAmount, itemTitle }, meta)
 }
 
+export function sendPayoutSetupRequiredEmail(sellerEmail, sellerName, orderRef, payoutAmount, itemTitle, meta = {}) {
+  return sendEmail('payout_setup_required', sellerEmail, { sellerName, orderRef, payoutAmount, itemTitle }, meta)
+}
+
 export function sendOfferReceivedEmail(sellerEmail, itemTitle, offerPrice, buyerName, meta = {}) {
   return sendEmail('offer_received', sellerEmail, { itemTitle, offerPrice, buyerName }, meta)
 }
