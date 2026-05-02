@@ -30,7 +30,7 @@ export default function OrderDetailPage() {
   const {
     orders, getListingById, getUserById, currentUser,
     confirmDelivery, openDispute, showToast, PROTECTION_WINDOW_MS,
-    getShipmentByOrderId, markShipmentShipped, DISPUTE_REASONS,
+    getShipmentByOrderId, markShipmentShipped, sellerClaimShipmentDropoff, DISPUTE_REASONS,
     refreshOrders, refreshShipments, ordersLoading, shipmentsLoading,
   } = useApp()
 
@@ -43,6 +43,7 @@ export default function OrderDetailPage() {
   const [showShipForm, setShowShipForm] = useState(false)
   const [trackingInput, setTrackingInput] = useState('')
   const [shipLoading, setShipLoading] = useState(false)
+  const [claimDropoffLoading, setClaimDropoffLoading] = useState(false)
   const loadedOrderRef = useRef(false)
 
   const routeOrderIdentifier = normalizeOrderIdentifier(id)
@@ -137,6 +138,15 @@ export default function OrderDetailPage() {
       showToast('Failed to mark as shipped.', 'error')
     }
     setShipLoading(false)
+  }
+
+  const handleSellerClaimDropoff = async () => {
+    setClaimDropoffLoading(true)
+    try {
+      await sellerClaimShipmentDropoff(order.id)
+    } finally {
+      setClaimDropoffLoading(false)
+    }
   }
 
   const handleConfirm = async () => {
@@ -371,10 +381,10 @@ export default function OrderDetailPage() {
             <div className="p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Truck size={18} className="text-blue-600" />
-                <h2 className="text-sm font-bold text-blue-800">New sale: prepare for shipment</h2>
+                <h2 className="text-sm font-bold text-blue-800">New sale: prepare for MYconvenience drop-off</h2>
               </div>
               <p className="text-xs text-blue-700 leading-relaxed mb-3">
-                Prepare this order for MaltaPost fulfilment. Enter a tracking number once it is available.
+                Package this order and drop it at a MYconvenience store. The parcel is officially dropped off only after the store scans the QR or admin confirms it.
               </p>
               <div className="flex items-start gap-2 p-2.5 rounded-xl bg-white/70 dark:bg-[#26322f]/80 border border-blue-100 dark:border-blue-500/20 mb-3 transition-colors">
                 <ShieldCheck size={14} className="text-blue-600 flex-shrink-0 mt-0.5" />
@@ -386,6 +396,19 @@ export default function OrderDetailPage() {
                 <div className="mb-3">
                   <ShipByDeadline deadline={shipment.shipByDeadline} />
                 </div>
+              )}
+              {shipment.sellerClaimedDropoff ? (
+                <div className="mb-3 rounded-xl border border-blue-100 bg-white/70 p-3 text-xs font-semibold text-blue-700 dark:border-blue-500/20 dark:bg-[#26322f]/80 dark:text-blue-300">
+                  You marked this as dropped off. We are waiting for MYconvenience store confirmation.
+                </div>
+              ) : (
+                <button
+                  onClick={handleSellerClaimDropoff}
+                  disabled={claimDropoffLoading}
+                  className="mb-3 w-full py-3 rounded-2xl bg-sib-primary text-white font-bold text-sm flex items-center justify-center gap-2 active:opacity-90 disabled:opacity-60"
+                >
+                  <CheckCircle size={15} /> {claimDropoffLoading ? 'Saving...' : "I\u2019ve dropped it off"}
+                </button>
               )}
               {!showShipForm ? (
                 <button

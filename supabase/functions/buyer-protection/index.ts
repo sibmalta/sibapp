@@ -353,41 +353,35 @@ async function sendTransactionalEmailOnce(
   data: Record<string, any>,
   meta: Record<string, any>,
 ) {
-  const relatedEntityType = meta.related_entity_type || meta.relatedEntityType || null
-  const relatedEntityId = meta.related_entity_id || meta.relatedEntityId || null
+  const dedupeKey = meta.dedupe_key || meta.dedupeKey || null
 
-  if (relatedEntityType && relatedEntityId) {
+  if (dedupeKey) {
     try {
       const { data: existing, error } = await supabase
         .from('email_logs')
         .select('id,status')
-        .eq('email_type', type)
-        .eq('related_entity_type', relatedEntityType)
-        .eq('related_entity_id', relatedEntityId)
-        .eq('status', 'success')
+        .eq('dedupe_key', dedupeKey)
         .limit(1)
         .maybeSingle()
 
       if (error) {
         console.warn('[buyer-protection] email dedupe lookup failed; sending anyway', {
           type,
-          relatedEntityType,
-          relatedEntityId,
+          dedupeKey,
           error: error.message,
         })
       } else if (existing) {
         console.info('[buyer-protection] email already sent; skipping duplicate', {
           type,
-          relatedEntityType,
-          relatedEntityId,
+          dedupeKey,
+          existingStatus: existing.status,
         })
         return { ok: true, status: 200, body: { skipped: true, reason: 'email_already_sent' } }
       }
     } catch (error) {
       console.warn('[buyer-protection] email dedupe lookup threw; sending anyway', {
         type,
-        relatedEntityType,
-        relatedEntityId,
+        dedupeKey,
         error: error instanceof Error ? error.message : String(error),
       })
     }
@@ -399,6 +393,100 @@ async function sendTransactionalEmailOnce(
 function formatPayoutAmount(order: Record<string, any>) {
   const amount = Number(order.seller_payout ?? order.item_price ?? order.total_price ?? 0)
   return Number.isFinite(amount) ? amount.toFixed(2) : '0.00'
+}
+
+function payoutEmailDedupeKey(type: 'payout_setup_required' | 'payout_sent', order: Record<string, any>) {
+  return `${type}:${order.id}:${order.seller_id}`
+}
+
+function dropoffReminderDedupeKey(shipment: Record<string, any>, order: Record<string, any>) {
+  return `dropoff_reminder_24h:${shipment.order_id}:${shipment.seller_id || order.seller_id}`
+}
+
+async function sendDropoffReminders(supabase: ReturnType<typeof createClient>, nowIso: string) {
+  const cutoff = new Date(new Date(nowIso).getTime() - 24 * 60 * 60 * 1000).toISOString()
+  const { data: shipments, error } = await supabase
+    .from('shipments')
+    .select('id,order_id,order_ref,seller_id,buyer_id,status,created_at,reminder_sent_at,reminder_count,seller_claimed_dropoff')
+    .eq('status', 'awaiting_shipment')
+    .lte('created_at', cutoff)
+    .is('reminder_sent_at', null)
+
+  if (error) {
+    console.error('[buyer-protection] drop-off reminder shipment query failed', { error: error.message })
+    return { processed: [], failed: [{ reason: 'shipment_query_failed', message: error.message }] }
+  }
+
+  const processed: Array<Record<string, unknown>> = []
+  const failed: Array<Record<string, unknown>> = []
+
+  for (const shipment of shipments || []) {
+    try {
+      if (shipment.seller_claimed_dropoff || shipment.status === 'dropped_off') {
+        continue
+      }
+
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .select('id,order_ref,seller_id,buyer_id,listing_id,listing_title')
+        .eq('id', shipment.order_id)
+        .maybeSingle()
+
+      if (orderError || !order) {
+        failed.push({ shipmentId: shipment.id, orderId: shipment.order_id, reason: 'order_lookup_failed', message: orderError?.message || 'Order not found.' })
+        continue
+      }
+
+      const seller = await profileById(supabase, order.seller_id || shipment.seller_id)
+      const emailResult = await sendTransactionalEmailOnce(supabase, 'dropoff_reminder_24h', seller?.email, {
+        sellerName: displayName(seller, 'there'),
+        itemTitle: order.listing_title || 'Sold item',
+        orderRef: order.order_ref || shipment.order_ref || order.id,
+      }, {
+        dedupe_key: dropoffReminderDedupeKey(shipment, order),
+        related_entity_type: 'order',
+        related_entity_id: order.id,
+        orderId: order.id,
+        listingId: order.listing_id,
+        sellerId: order.seller_id,
+        buyerId: order.buyer_id,
+      })
+
+      const { error: updateError } = await supabase
+        .from('shipments')
+        .update({
+          reminder_sent_at: nowIso,
+          reminder_count: Number(shipment.reminder_count || 0) + 1,
+          updated_at: nowIso,
+        })
+        .eq('id', shipment.id)
+        .is('reminder_sent_at', null)
+
+      if (updateError) {
+        failed.push({ shipmentId: shipment.id, orderId: order.id, reason: 'shipment_reminder_update_failed', message: updateError.message })
+        continue
+      }
+
+      processed.push({
+        shipmentId: shipment.id,
+        orderId: order.id,
+        sellerId: order.seller_id,
+        emailStatus: emailResult.body?.skipped ? 'skipped_duplicate' : 'sent',
+      })
+    } catch (error) {
+      failed.push({
+        shipmentId: shipment.id,
+        orderId: shipment.order_id,
+        reason: 'dropoff_reminder_exception',
+        message: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+
+  if (processed.length || failed.length) {
+    console.info('[buyer-protection] drop-off reminders processed', { processed, failed })
+  }
+  return { processed, failed }
 }
 
 async function insertDisputeWithFallback(supabase: ReturnType<typeof createClient>, row: Record<string, any>) {
@@ -617,6 +705,7 @@ Deno.serve(async (req) => {
       const nowMs = Date.now()
       const nowIso = new Date(nowMs).toISOString()
       console.info('[buyer-protection] auto_release_due started', { now: nowIso })
+      const dropoffReminders = await sendDropoffReminders(supabase, nowIso)
       const { data: dueOrders, error } = await supabase
         .from('orders')
         .select('*')
@@ -668,10 +757,10 @@ Deno.serve(async (req) => {
             payoutAmount: formatPayoutAmount(order),
             itemTitle: order.listing_title || 'Sold item',
           }, {
-            related_entity_type: 'order',
-            related_entity_id: order.id,
+            dedupe_key: payoutEmailDedupeKey('payout_setup_required', order),
             orderId: order.id,
             sellerId: order.seller_id,
+            payoutStatus: SELLER_SETUP_BLOCKED_STATUS,
           })
           const failure = autoReleaseFailure(
             { ...order, payout_status: SELLER_SETUP_BLOCKED_STATUS },
@@ -813,10 +902,10 @@ Deno.serve(async (req) => {
                 payoutAmount: formatPayoutAmount(orderForTransfer),
                 itemTitle: order.listing_title || 'Sold item',
               }, {
-                related_entity_type: 'order',
-                related_entity_id: order.id,
+                dedupe_key: payoutEmailDedupeKey('payout_setup_required', order),
                 orderId: order.id,
                 sellerId: order.seller_id,
+                payoutStatus: SELLER_SETUP_BLOCKED_STATUS,
               })
             }
             const failure = autoReleaseFailure(
@@ -856,16 +945,16 @@ Deno.serve(async (req) => {
             auto_release_error: null,
           })
           const sellerProfile = await profileById(supabase, order.seller_id)
-          await sendTransactionalEmailOnce(supabase, 'payout_released', sellerProfile?.email, {
+          await sendTransactionalEmailOnce(supabase, 'payout_sent', sellerProfile?.email, {
             sellerName: displayName(sellerProfile, 'there'),
             orderRef: order.order_ref || order.id,
             payoutAmount: formatPayoutAmount(orderForTransfer),
             itemTitle: order.listing_title || 'Sold item',
           }, {
-            related_entity_type: 'order',
-            related_entity_id: order.id,
+            dedupe_key: payoutEmailDedupeKey('payout_sent', order),
             orderId: order.id,
             sellerId: order.seller_id,
+            payoutStatus: 'released',
           })
           processed.push({ orderId: order.id, transfer: transferResult.body })
         } catch (releaseError) {
@@ -893,7 +982,7 @@ Deno.serve(async (req) => {
         failed,
         skippedCount: skipped.length,
       })
-      return jsonResponse({ success: true, processed, failed, skipped })
+      return jsonResponse({ success: true, processed, failed, skipped, dropoffReminders })
     }
 
     return jsonResponse({ error: 'Unknown action.' }, 400)

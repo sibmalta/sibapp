@@ -19,7 +19,10 @@ type EmailType =
   | 'dispute_admin_alert'
   | 'item_sold'
   | 'shipping_reminder'
+  | 'sale_dropoff_instructions'
+  | 'dropoff_reminder_24h'
   | 'payout_setup_required'
+  | 'payout_sent'
   | 'payout_released'
   | 'suspicious_activity'
   | 'moderation_notice'
@@ -48,7 +51,7 @@ interface EmailPayload {
   related_entity_id?: string
 }
 
-type EmailLogStatus = 'success' | 'failed'
+type EmailLogStatus = 'sent' | 'failed'
 
 const PRODUCTION_APP_URL = 'https://sibmalta.com'
 const LOGO_URL = 'https://sibmalta.com/assets/sib-3.png'
@@ -110,7 +113,14 @@ async function resolveRecipientIfNeeded(payload: EmailPayload) {
   if (payload.to) return payload.to
 
   const sellerId = payload.meta?.sellerId
-  const sellerRecipientTypes = new Set(['item_sold', 'offer_received', 'bundle_offer_received', 'seller_prepare_package'])
+  const sellerRecipientTypes = new Set([
+    'item_sold',
+    'offer_received',
+    'bundle_offer_received',
+    'seller_prepare_package',
+    'sale_dropoff_instructions',
+    'dropoff_reminder_24h',
+  ])
   if (sellerRecipientTypes.has(payload.type) && sellerId) {
     const supabase = getServiceRoleClient()
     if (!supabase) {
@@ -148,6 +158,7 @@ async function logEmail(payload: { type: string; to?: string | null; data?: Reco
   try {
     const supabase = getServiceRoleClient()
     if (!supabase) return
+    const meta = payload.meta || {}
 
     const row = {
       email_type: payload.type,
@@ -155,24 +166,23 @@ async function logEmail(payload: { type: string; to?: string | null; data?: Reco
       subject,
       resend_id: resendId || null,
       status,
-      error_message: errorMessage || null,
-      related_entity_type: payload.related_entity_type || payload.meta?.related_entity_type || payload.meta?.relatedEntityType || null,
-      related_entity_id: payload.related_entity_id || payload.meta?.related_entity_id || payload.meta?.relatedEntityId || null,
-      payload: {
+      error: errorMessage || null,
+      metadata: {
         data: payload.data || {},
-        meta: payload.meta || {},
+        meta,
       },
+      dedupe_key: meta.dedupe_key || meta.dedupeKey || null,
       sent_at: new Date().toISOString(),
     }
 
     const { error } = await supabase.from('email_logs').insert(row)
     if (error) {
-      // Older DBs may not have sent_at yet; retry without it so logging still works.
-      if (error.message?.includes('sent_at') || error.message?.includes('related_entity_')) {
+      // Older DBs may not have metadata/dedupe_key/sent_at yet; retry with only known production columns.
+      if (error.message?.includes('sent_at') || error.message?.includes('metadata') || error.message?.includes('dedupe_key')) {
         const fallbackRow = { ...row }
         delete fallbackRow.sent_at
-        delete fallbackRow.related_entity_type
-        delete fallbackRow.related_entity_id
+        delete fallbackRow.metadata
+        delete fallbackRow.dedupe_key
         const { error: fallbackError } = await supabase.from('email_logs').insert(fallbackRow)
         if (fallbackError) throw fallbackError
         return
@@ -570,6 +580,55 @@ case 'item_sold': {
       }
     }
 
+    case 'sale_dropoff_instructions': {
+      const { sellerName, itemTitle, orderRef } = data
+      const orderId = payload.meta?.orderId || payload.related_entity_id || payload.meta?.related_entity_id
+      const ph = `You sold ${itemTitle || 'an item'} on Sib. Package it and drop it at a MYconvenience store.`
+      return {
+        subject: 'You sold an item on Sib',
+        preheader: ph,
+        html: wrap(ph, `
+          <h2 style="font-size:18px;color:#1F2937;text-align:center;margin:14px 0 8px;">You sold an item on Sib</h2>
+          <p style="font-size:14px;color:#4B5563;text-align:center;margin:0 0 14px;">
+            Hi ${sellerName || 'there'}, your item has sold. Please package it securely and drop it at a MYconvenience store.
+          </p>
+          ${infoBox('#FFF7ED', `
+            <p style="font-size:14px;color:#4B5563;margin:0 0 4px;"><strong>Item:</strong> ${itemTitle || 'Sold item'}</p>
+            <p style="font-size:14px;color:#4B5563;margin:0;"><strong>Order:</strong> ${orderRef || orderId || 'Sib order'}</p>
+          `)}
+          <p style="font-size:13px;color:#6B7280;text-align:center;">
+            Open the order to view the drop-off QR and instructions. Official drop-off is confirmed only when the MYconvenience store scans the parcel QR.
+          </p>
+          ${btn('View drop-off QR / instructions', orderUrl(orderId))}
+        `),
+      }
+    }
+
+    case 'dropoff_reminder_24h': {
+      const { sellerName, itemTitle, orderRef } = data
+      const orderId = payload.meta?.orderId || payload.related_entity_id || payload.meta?.related_entity_id
+      const ph = `Reminder: please drop off ${itemTitle || 'your Sib parcel'} at a MYconvenience store.`
+      return {
+        subject: 'Reminder: drop off your Sib parcel',
+        preheader: ph,
+        html: wrap(ph, `
+          <h2 style="font-size:18px;color:#1F2937;text-align:center;margin:14px 0 8px;">Reminder: drop off your Sib parcel</h2>
+          <p style="font-size:14px;color:#4B5563;text-align:center;margin:0 0 14px;">
+            Hi ${sellerName || 'there'}, this parcel is still waiting for confirmed MYconvenience drop-off.
+          </p>
+          ${infoBox('#FEF3C7', `
+            <p style="font-size:14px;color:#4B5563;margin:0 0 4px;"><strong>Item:</strong> ${itemTitle || 'Sold item'}</p>
+            <p style="font-size:14px;color:#4B5563;margin:0;"><strong>Order:</strong> ${orderRef || orderId || 'Sib order'}</p>
+          `)}
+          <p style="font-size:13px;color:#6B7280;text-align:center;">
+            Please package the item and drop it at a MYconvenience store as soon as you can. Sib will mark it officially dropped off after the store scan or admin confirmation.
+          </p>
+          ${btn('View drop-off instructions', orderUrl(orderId))}
+        `),
+      }
+    }
+
+    case 'payout_sent':
     case 'payout_released': {
       const { sellerName, orderRef, payoutAmount, itemTitle } = data
       const ph = `Your payout of EUR ${payoutAmount} for order ${orderRef} has been released.`
@@ -1099,6 +1158,44 @@ Deno.serve(async (req) => {
       )
     }
 
+    const dedupeKey = payload.meta?.dedupe_key || payload.meta?.dedupeKey || null
+    if (dedupeKey) {
+      const supabase = getServiceRoleClient()
+      const { data: existingLog, error: dedupeError } = supabase
+        ? await supabase
+          .from('email_logs')
+          .select('id,status')
+          .eq('dedupe_key', dedupeKey)
+          .limit(1)
+          .maybeSingle()
+        : { data: null, error: null }
+
+      if (dedupeError) {
+        console.warn('[send-email] Dedupe lookup failed; continuing with send', {
+          type: payload.type,
+          dedupeKey,
+          error: dedupeError.message,
+        })
+      } else if (existingLog) {
+        console.info('[send-email] Duplicate dedupe_key found; skipping send', {
+          type: payload.type,
+          dedupeKey,
+          existingStatus: existingLog.status,
+        })
+        return new Response(
+          JSON.stringify({
+            success: true,
+            emailSent: false,
+            skipped: true,
+            reason: 'duplicate_dedupe_key',
+            type: payload.type,
+            to: payload.to,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+    }
+
     const builtEmail = buildEmail(payload)
     subject = builtEmail.subject
     const { html, preheader } = builtEmail
@@ -1180,7 +1277,7 @@ Deno.serve(async (req) => {
       subject,
       response: resendData,
     })
-    await logEmail(payload, subject, 'success', resendData.id)
+    await logEmail(payload, subject, 'sent', resendData.id)
 
     return new Response(
       JSON.stringify({

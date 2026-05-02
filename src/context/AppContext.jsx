@@ -12,7 +12,7 @@ import {
   sendOrderConfirmedEmail, sendOrderCancelledEmail, sendOrderCancelledSellerEmail,
   sendItemShippedEmail, sendItemDeliveredEmail,
   sendRefundConfirmedEmail, sendDisputeOpenedEmail, sendDisputeResolvedEmail, sendDisputeMessageEmail,
-  sendItemSoldEmail, sendShippingReminderEmail, sendPayoutReleasedEmail,
+  sendItemSoldEmail, sendSaleDropoffInstructionsEmail, sendDropoffReminder24hEmail, sendPayoutReleasedEmail,
   sendSuspiciousActivityEmail,
   sendMessageReceivedEmail,
   sendBundleOfferReceivedEmail, sendBundleOfferAcceptedEmail, sendBundleOfferDeclinedEmail, sendBundleOfferCounteredEmail,
@@ -35,7 +35,7 @@ const AppContext = createContext(null)
 
 const PROTECTION_WINDOW_MS = 48 * 60 * 60 * 1000 // 48 hours
 const SHIPPING_DEADLINE_MS = 3 * 24 * 60 * 60 * 1000 // 3 business days
-const SHIPPING_REMINDER_MS = 2 * 24 * 60 * 60 * 1000 // Remind after 2 days
+const SHIPPING_REMINDER_MS = 24 * 60 * 60 * 1000 // Remind after 24 hours
 const COUNTER_OFFER_DEDUPE_MS = 30 * 1000
 const SELLER_PAYOUT_PENDING_STATUS = 'payment_received_seller_payout_pending'
 const SOLD_ORDER_STATUSES = new Set(['paid', SELLER_PAYOUT_PENDING_STATUS, 'shipped', 'delivered', 'confirmed', 'completed'])
@@ -97,6 +97,8 @@ function createShipmentRecord(order) {
     maltapostRawStatus: null,
     reminderSentAt: null,
     reminderCount: 0,
+    sellerClaimedDropoff: false,
+    sellerDropoffClaimedAt: null,
     notes: null,
   }
 }
@@ -268,6 +270,64 @@ export function AppProvider({ children }) {
     refreshNotifications,
   } = useNotificationsHook(currentUser)
 
+  const sendSellerDropoffInstructions = useCallback(async ({ seller, order, itemTitle, orderRef, listingId }) => {
+    const sellerId = order?.sellerId || seller?.id
+    const orderId = order?.id
+    const dedupeKey = orderId && sellerId ? `sale_dropoff_instructions:${orderId}:${sellerId}` : null
+    const result = await sendSaleDropoffInstructionsEmail(
+      seller?.email || null,
+      seller?.name || seller?.username || 'seller',
+      itemTitle || order?.listingTitle || 'Sold item',
+      orderRef || order?.orderRef || orderId,
+      {
+        related_entity_type: 'order',
+        related_entity_id: orderId,
+        orderId,
+        listingId: listingId || order?.listingId,
+        sellerId,
+        buyerId: order?.buyerId,
+        dedupe_key: dedupeKey,
+      }
+    )
+    if (!result?.success && !result?.skipped) {
+      console.warn('[dropoff-email] sale drop-off instructions email failed', {
+        orderId,
+        sellerId,
+        error: result?.error || result,
+      })
+    }
+    return result
+  }, [])
+
+  const sendSellerDropoffReminder = useCallback(async ({ seller, shipment, order, itemTitle }) => {
+    const sellerId = shipment?.sellerId || order?.sellerId || seller?.id
+    const orderId = shipment?.orderId || order?.id
+    const dedupeKey = orderId && sellerId ? `dropoff_reminder_24h:${orderId}:${sellerId}` : null
+    const result = await sendDropoffReminder24hEmail(
+      seller?.email || null,
+      seller?.name || seller?.username || 'seller',
+      itemTitle || order?.listingTitle || 'Sold item',
+      shipment?.orderRef || order?.orderRef || orderId,
+      {
+        related_entity_type: 'order',
+        related_entity_id: orderId,
+        orderId,
+        listingId: order?.listingId,
+        sellerId,
+        buyerId: order?.buyerId || shipment?.buyerId,
+        dedupe_key: dedupeKey,
+      }
+    )
+    if (!result?.success && !result?.skipped) {
+      console.warn('[dropoff-email] 24h drop-off reminder email failed', {
+        orderId,
+        sellerId,
+        error: result?.error || result,
+      })
+    }
+    return result
+  }, [])
+
   const {
     offers,
     setOffers,
@@ -282,10 +342,15 @@ export function AppProvider({ children }) {
       const now = Date.now()
       for (const s of shipments) {
         if (s.status !== 'awaiting_shipment') continue
+        if (s.sellerClaimedDropoff) continue
         if (s.reminderSentAt || !s.createdAt) continue
         const elapsed = now - new Date(s.createdAt).getTime()
         if (elapsed >= SHIPPING_REMINDER_MS) {
           const ts = new Date().toISOString()
+          const order = orders.find(o => o.id === s.orderId)
+          const listing = order ? listings.find(l => l.id === order.listingId) : null
+          const seller = users.find(u => u.id === s.sellerId)
+          await sendSellerDropoffReminder({ seller, shipment: s, order, itemTitle: listing?.title })
           await dbPatchShipmentByOrderId(s.orderId, { reminderSentAt: ts, reminderCount: (s.reminderCount || 0) + 1 })
           addNotification({
             userId: s.sellerId,
@@ -293,25 +358,16 @@ export function AppProvider({ children }) {
             status: 'awaiting_shipment',
             actionTarget: `/orders/${s.orderId}`,
             type: 'ship_reminder',
-            title: 'Collection deadline approaching',
-            message: `Order ${s.orderRef || s.orderId} must be collected within 24 hours to avoid cancellation.`,
+            title: 'Reminder: drop off your Sib parcel',
+            message: `Please drop off order ${s.orderRef || s.orderId} at a MYconvenience store.`,
           })
-          const seller = users.find(u => u.id === s.sellerId)
-          if (seller?.email) {
-            sendShippingReminderEmail(seller.email, seller.name, 'item', s.orderRef || s.orderId, Math.round((Date.now() - new Date(s.createdAt).getTime()) / 86400000), {
-              related_entity_type: 'order',
-              related_entity_id: s.orderId,
-              orderId: s.orderId,
-              sellerId: s.sellerId,
-            })
-          }
         }
       }
     }
     checkReminders()
     const interval = setInterval(checkReminders, 60000)
     return () => clearInterval(interval)
-  }, [users, shipments, dbPatchShipmentByOrderId, addNotification])
+  }, [users, listings, orders, shipments, dbPatchShipmentByOrderId, addNotification, sendSellerDropoffReminder])
 
   // No longer persist currentUser to localStorage — derived from Supabase auth
   // Only persist users/likes to localStorage when DB is NOT available (fallback mode).
@@ -616,9 +672,16 @@ export function AppProvider({ children }) {
       sellerId: listing.sellerId,
       buyerId: currentUser.id,
     })
+    await sendSellerDropoffInstructions({
+      seller,
+      order: savedOrder,
+      itemTitle: listing.title,
+      orderRef,
+      listingId: listing.id,
+    })
 
     return savedOrder
-  }, [currentUser, listings, users, orders, offers, addNotification, dbCreateOrder, dbCreateShipment, dbMarkSold, ensureMaltaPostShipment, showToast])
+  }, [currentUser, listings, users, orders, offers, addNotification, dbCreateOrder, dbCreateShipment, dbMarkSold, ensureMaltaPostShipment, sendSellerDropoffInstructions, showToast])
 
   const getOrCreateConversation = useCallback((otherUserId, listingId) => {
     return createConversation(otherUserId, listingId)
@@ -1994,11 +2057,18 @@ export function AppProvider({ children }) {
       buyerId: currentUser.id,
       bundle: true,
     })
+    await sendSellerDropoffInstructions({
+      seller,
+      order: savedOrder,
+      itemTitle: `${items.length}-item bundle`,
+      orderRef,
+      listingId: savedOrder.listingId,
+    })
 
     // Clear bundle after order
     setBundle(null)
     return savedOrder
-  }, [currentUser, bundle, listings, users, orders, calculateBundleFees, addNotification, dbCreateOrder, dbCreateShipment, ensureMaltaPostShipment, showToast])
+  }, [currentUser, bundle, listings, users, orders, calculateBundleFees, addNotification, dbCreateOrder, dbCreateShipment, ensureMaltaPostShipment, sendSellerDropoffInstructions, showToast])
 
   // ── Bundle Offer system ──────────────────────────────────────────
   const BUNDLE_OFFER_EXPIRY_MS = 24 * 60 * 60 * 1000
@@ -2330,6 +2400,13 @@ export function AppProvider({ children }) {
       bundle: true,
       bundleOfferId: offerId,
     })
+    await sendSellerDropoffInstructions({
+      seller: sellerUser,
+      order: savedOrder,
+      itemTitle: `${items.length}-item bundle`,
+      orderRef,
+      listingId: savedOrder.listingId,
+    })
 
     // Clear buyer's bundle if it matches
     setBundle(prev => {
@@ -2338,7 +2415,7 @@ export function AppProvider({ children }) {
     })
 
     return savedOrder
-  }, [bundleOffers, listings, users, orders, calculateBundleFees, addNotification, dbCreateOrder, dbCreateShipment, ensureMaltaPostShipment, showToast])
+  }, [bundleOffers, listings, users, orders, calculateBundleFees, addNotification, dbCreateOrder, dbCreateShipment, ensureMaltaPostShipment, sendSellerDropoffInstructions, showToast])
 
   // ── Admin actions — delegate to DB-backed profile hook ────────────
   const suspendUser = dbSuspendUser
@@ -2703,6 +2780,40 @@ export function AppProvider({ children }) {
     return { data: updatedShipment, deliverySheetRow, error: null }
   }, [orders, shipments, users, listings, dbPatchShipment, upsertDeliverySheetRow, refreshShipments, refreshLogisticsDeliverySheet, showToast])
 
+  const sellerClaimShipmentDropoff = useCallback(async (orderId) => {
+    const order = orders.find(o => o.id === orderId)
+    const shipment = shipments.find(s => s.orderId === orderId)
+    if (!order || !shipment) {
+      const error = { message: !order ? 'Order not found.' : 'Shipment not found for this order.' }
+      showToast(error.message, 'error')
+      return { data: null, error }
+    }
+    if (shipment.status === 'dropped_off') {
+      showToast('This parcel has already been confirmed at a MYconvenience store.')
+      return { data: shipment, error: null }
+    }
+    if (shipment.sellerClaimedDropoff) {
+      showToast('You already marked this parcel as dropped off. We are waiting for store confirmation.')
+      return { data: shipment, error: null }
+    }
+
+    const now = new Date().toISOString()
+    const { data, error } = await dbPatchShipment(shipment.id, {
+      sellerClaimedDropoff: true,
+      sellerDropoffClaimedAt: now,
+      updatedAt: now,
+    })
+    if (error) {
+      console.error('[sellerClaimShipmentDropoff] DB write failed:', error.message)
+      showToast('Failed to save your drop-off confirmation: ' + error.message, 'error')
+      return { data: null, error }
+    }
+
+    await refreshShipments()
+    showToast('Thanks. We will confirm official drop-off after the MYconvenience store scan.')
+    return { data, error: null }
+  }, [orders, shipments, dbPatchShipment, refreshShipments, showToast])
+
   // Admin: force update any shipment field
   const adminUpdateShipment = useCallback(async (shipmentId, updates) => {
     const now = new Date().toISOString()
@@ -2807,7 +2918,7 @@ export function AppProvider({ children }) {
       suspendUser, banUser, restoreUser, updateSellerBadges, updateTrustTags, updateAdminRole, holdPayout, releasePayout, refundOrder, resolveDispute, cancelOrder, addDisputeMessage,
       savePayoutProfile, getPayoutProfile,
       refreshCurrentProfile, ensureUserById,
-      getShipmentByOrderId, getSellerShipments, getBuyerShipments, markShipmentShipped, updateShipmentStatus, markShipmentDroppedOff, adminUpdateShipment, adminCreateShipmentShortcut,
+      getShipmentByOrderId, getSellerShipments, getBuyerShipments, markShipmentShipped, updateShipmentStatus, markShipmentDroppedOff, sellerClaimShipmentDropoff, adminUpdateShipment, adminCreateShipmentShortcut,
       getUserById, getUserByUsername, getListingById, getUserListings,
       getUserOrders, getUserSales,
       getUserConversations, getConversationById, getConversation, refreshConversations,

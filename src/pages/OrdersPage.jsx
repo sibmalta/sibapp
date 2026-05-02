@@ -113,9 +113,20 @@ function getSellerOrderState(order, shipment) {
   if (shipmentStatus === 'dropped_off') {
     return {
       filter: 'active',
-      label: 'Dropped off',
-      style: 'bg-amber-50 text-amber-700 dark:bg-[#332d20] dark:text-amber-300',
-      nextStep: 'Parcel is at the MYconvenience store and ready for logistics processing.',
+      label: 'Confirmed dropped off at MY store',
+      style: 'bg-green-50 text-green-700 dark:bg-[#20322b] dark:text-green-300',
+      nextStep: 'Parcel is confirmed at the MYconvenience store and ready for logistics processing.',
+      canClaimDropoff: false,
+    }
+  }
+
+  if (shipment?.sellerClaimedDropoff) {
+    return {
+      filter: 'active',
+      label: 'Seller says dropped off',
+      style: 'bg-blue-50 text-blue-700 dark:bg-[#26322f] dark:text-blue-300',
+      nextStep: 'Waiting for MYconvenience store scan or admin confirmation.',
+      canClaimDropoff: false,
     }
   }
 
@@ -131,9 +142,10 @@ function getSellerOrderState(order, shipment) {
   if (shipmentStatus === 'awaiting_shipment' || orderStatus === 'paid' || orderStatus === 'pending') {
     return {
       filter: 'active',
-      label: 'New order',
+      label: 'Awaiting seller drop-off',
       style: 'bg-yellow-50 text-yellow-700 dark:bg-[#332d20] dark:text-amber-300',
-      nextStep: 'Prepare this item for MaltaPost fulfilment.',
+      nextStep: 'Package this item and drop it at a MYconvenience store.',
+      canClaimDropoff: Boolean(shipment?.id),
     }
   }
 
@@ -141,14 +153,15 @@ function getSellerOrderState(order, shipment) {
     filter: 'active',
     label: 'Preparing for MaltaPost',
     style: 'bg-yellow-50 text-yellow-700 dark:bg-[#332d20] dark:text-amber-300',
-    nextStep: 'Prepare this item for MaltaPost fulfilment.',
+    nextStep: 'Package this item and drop it at a MYconvenience store.',
+    canClaimDropoff: Boolean(shipment?.id),
   }
 }
 
 export default function OrdersPage() {
   const {
     currentUser, getUserOrders, getUserSales, getListingById, getUserById, getShipmentByOrderId,
-    refreshOrders, refreshShipments, ordersLoading, shipmentsLoading,
+    refreshOrders, refreshShipments, ordersLoading, shipmentsLoading, sellerClaimShipmentDropoff,
   } = useApp()
   const { loading: authLoading } = useAuth()
   const navigate = useNavigate()
@@ -157,6 +170,7 @@ export default function OrdersPage() {
   const loadedOrdersRef = useRef(false)
   const initialTab = searchParams.get('tab') === 'selling' ? 'selling' : 'buying'
   const [tab, setTab] = useState(initialTab)
+  const [claimingDropoffId, setClaimingDropoffId] = useState(null)
   const shipmentFilter = searchParams.get('shipment')
   const sellerFilter = tab === 'selling' ? (searchParams.get('status') || 'active') : null
 
@@ -231,6 +245,16 @@ export default function OrdersPage() {
     next.set('status', nextFilter)
     next.delete('shipment')
     setSearchParams(next, { replace: true })
+  }
+
+  const handleSellerClaimDropoff = async (event, orderId) => {
+    event.stopPropagation()
+    setClaimingDropoffId(orderId)
+    try {
+      await sellerClaimShipmentDropoff(orderId)
+    } finally {
+      setClaimingDropoffId(null)
+    }
   }
 
   return (
@@ -379,6 +403,17 @@ export default function OrdersPage() {
                       </span>
                     )}
                   </div>
+
+                  {tab === 'selling' && sellerState.canClaimDropoff && (
+                    <button
+                      type="button"
+                      onClick={(event) => handleSellerClaimDropoff(event, order.id)}
+                      disabled={claimingDropoffId === order.id}
+                      className="mt-3 rounded-full bg-sib-primary px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-sib-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {claimingDropoffId === order.id ? 'Saving...' : "I\u2019ve dropped it off"}
+                    </button>
+                  )}
                 </div>
               </div>
             )

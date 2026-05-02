@@ -36,8 +36,36 @@ function StatusBadge({ statusId }) {
   )
 }
 
+function getDropoffState(shipment) {
+  if (shipment?.status === 'dropped_off') {
+    return {
+      label: 'Confirmed dropped off at MY store',
+      className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    }
+  }
+  if (shipment?.sellerClaimedDropoff) {
+    return {
+      label: 'Seller says dropped off',
+      className: 'border-blue-200 bg-blue-50 text-blue-700',
+    }
+  }
+  return {
+    label: 'Awaiting seller drop-off',
+    className: 'border-amber-200 bg-amber-50 text-amber-700',
+  }
+}
+
+function DropoffStateBadge({ shipment }) {
+  const state = getDropoffState(shipment)
+  return (
+    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${state.className}`}>
+      {state.label}
+    </span>
+  )
+}
+
 /* ── Order detail drawer ───────────────────────────────────── */
-function OrderDrawer({ order, listing, buyer, seller, logistics, onUpdate, onClose }) {
+function OrderDrawer({ order, listing, buyer, seller, shipment, logistics, onUpdate, onClose }) {
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({
     pickupDay: logistics.pickupDay || '',
@@ -149,9 +177,15 @@ function OrderDrawer({ order, listing, buyer, seller, logistics, onUpdate, onClo
                   <span className="text-[10px] text-gray-400 font-medium">Status:</span>
                   <StatusBadge statusId={logistics.logisticsStatus} />
                 </div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-[10px] text-gray-400 font-medium">Drop-off:</span>
+                  <DropoffStateBadge shipment={shipment} />
+                </div>
                 <Row label="Pickup Day" value={logistics.pickupDay ? fmtShort(logistics.pickupDay) : '—'} />
                 <Row label="Delivery Day" value={logistics.deliveryDay ? fmtShort(logistics.deliveryDay) : '—'} />
                 <Row label="Assigned Driver" value={logistics.assignedDriver || '—'} />
+                <Row label="Seller claimed at" value={shipment?.sellerDropoffClaimedAt ? fmtDate(shipment.sellerDropoffClaimedAt) : '-'} />
+                <Row label="MY store confirmed" value={shipment?.droppedOffAt ? fmtDate(shipment.droppedOffAt) : '-'} />
               </>
             )}
           </Section>
@@ -667,12 +701,16 @@ export default function LogisticsTab({ orders, getUserById, getListingById, getS
                   const buyer = getUserById(order.buyerId)
                   const seller = getUserById(order.sellerId)
                   const lg = getLogistics(order.id)
+                  const shipment = getShipmentByOrderId?.(order.id)
                   return (
                     <button key={order.id} onClick={() => setDrawerOrder(order)}
                       className="w-full text-left rounded-2xl border border-gray-200 p-3 hover:border-blue-200 transition-colors bg-white active:scale-[0.99]">
                       <div className="flex items-center justify-between mb-1.5">
                         <span className="text-[10px] font-mono text-gray-400">#{order.id?.slice(-8)}</span>
                         <StatusBadge statusId={lg.logisticsStatus} />
+                      </div>
+                      <div className="mb-1.5">
+                        <DropoffStateBadge shipment={shipment} />
                       </div>
                       <p className="text-sm font-medium text-gray-900 line-clamp-1">{listing?.title || 'Unknown'}</p>
                       <div className="flex items-center justify-between mt-1.5 text-[11px] text-gray-500">
@@ -713,6 +751,7 @@ export default function LogisticsTab({ orders, getUserById, getListingById, getS
                       const buyer = getUserById(order.buyerId)
                       const seller = getUserById(order.sellerId)
                       const lg = getLogistics(order.id)
+                      const shipment = getShipmentByOrderId?.(order.id)
                       return (
                         <tr key={order.id} className="hover:bg-gray-50/50 transition-colors">
                           <td className="px-3 py-2.5 font-mono text-gray-400 whitespace-nowrap">#{order.id?.slice(-8)}</td>
@@ -729,7 +768,12 @@ export default function LogisticsTab({ orders, getUserById, getListingById, getS
                           <td className="px-3 py-2.5 text-gray-500 whitespace-nowrap">{lg.pickupDay ? fmtShort(lg.pickupDay) : '—'}</td>
                           <td className="px-3 py-2.5 text-gray-500 whitespace-nowrap">{lg.deliveryDay ? fmtShort(lg.deliveryDay) : '—'}</td>
                           <td className="px-3 py-2.5 text-gray-600 whitespace-nowrap">{lg.assignedDriver || '—'}</td>
-                          <td className="px-3 py-2.5"><StatusBadge statusId={lg.logisticsStatus} /></td>
+                          <td className="px-3 py-2.5">
+                            <div className="flex flex-col items-start gap-1">
+                              <StatusBadge statusId={lg.logisticsStatus} />
+                              <DropoffStateBadge shipment={shipment} />
+                            </div>
+                          </td>
                           <td className="px-3 py-2.5 text-gray-400 max-w-[120px] truncate">{lg.internalNotes || '—'}</td>
                           <td className="px-3 py-2.5">
                             <button onClick={() => setDrawerOrder(order)}
@@ -755,6 +799,7 @@ export default function LogisticsTab({ orders, getUserById, getListingById, getS
           listing={getListingById(drawerOrder.listingId)}
           buyer={getUserById(drawerOrder.buyerId)}
           seller={getUserById(drawerOrder.sellerId)}
+          shipment={getShipmentByOrderId?.(drawerOrder.id)}
           logistics={getLogistics(drawerOrder.id)}
           onUpdate={handleUpdate}
           onClose={() => setDrawerOrder(null)}

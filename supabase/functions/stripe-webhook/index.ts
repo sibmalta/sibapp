@@ -8,6 +8,10 @@ function getServiceRoleClient() {
   )
 }
 
+function getServiceRoleKey() {
+  return Deno.env.get('SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+}
+
 function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -60,6 +64,91 @@ async function markListingsSold(supabase: ReturnType<typeof createClient>, listi
       error,
     })
   }
+}
+
+async function sendSaleDropoffInstructions(supabase: ReturnType<typeof createClient>, orderId: string) {
+  if (!orderId) return
+
+  const { data: order, error: orderError } = await supabase
+    .from('orders')
+    .select('id,order_ref,seller_id,buyer_id,listing_id,listing_title')
+    .eq('id', orderId)
+    .maybeSingle()
+
+  if (orderError || !order) {
+    console.error('[stripe-webhook] Drop-off email skipped; order lookup failed:', {
+      orderId,
+      error: orderError?.message || null,
+    })
+    return
+  }
+
+  const { data: seller, error: sellerError } = await supabase
+    .from('profiles')
+    .select('id,email,name,username,full_name')
+    .eq('id', order.seller_id)
+    .maybeSingle()
+
+  if (sellerError || !seller?.email) {
+    console.error('[stripe-webhook] Drop-off email skipped; seller email missing:', {
+      orderId,
+      sellerId: order.seller_id,
+      error: sellerError?.message || null,
+    })
+    return
+  }
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
+  const serviceRoleKey = getServiceRoleKey()
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.error('[stripe-webhook] Drop-off email skipped; Supabase function auth missing:', { orderId })
+    return
+  }
+
+  const dedupeKey = `sale_dropoff_instructions:${order.id}:${order.seller_id}`
+  const response = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+    },
+    body: JSON.stringify({
+      type: 'sale_dropoff_instructions',
+      to: seller.email,
+      data: {
+        sellerName: seller.name || seller.full_name || seller.username || 'seller',
+        itemTitle: order.listing_title || 'Sold item',
+        orderRef: order.order_ref || order.id,
+      },
+      meta: {
+        related_entity_type: 'order',
+        related_entity_id: order.id,
+        orderId: order.id,
+        listingId: order.listing_id,
+        sellerId: order.seller_id,
+        buyerId: order.buyer_id,
+        dedupe_key: dedupeKey,
+      },
+    }),
+  })
+
+  const body = await response.text()
+  if (!response.ok) {
+    console.error('[stripe-webhook] Drop-off email failed:', {
+      orderId,
+      sellerId: order.seller_id,
+      status: response.status,
+      body,
+    })
+    return
+  }
+  console.info('[stripe-webhook] Drop-off email processed:', {
+    orderId,
+    sellerId: order.seller_id,
+    status: response.status,
+    body,
+  })
 }
 
 async function confirmPaidOrder(
@@ -309,16 +398,19 @@ Deno.serve(async (req) => {
           sellerId: paymentIntent.metadata?.seller_id || null,
           orderId: paymentIntent.metadata?.order_id || null,
         })
-        await recoverPaidOrderFromPaymentIntent(supabase, paymentIntent, now)
+        const recovered = await recoverPaidOrderFromPaymentIntent(supabase, paymentIntent, now)
+        if (recovered?.id) await sendSaleDropoffInstructions(supabase, recovered.id)
       } else if (order.payment_status !== 'paid') {
         try {
           await confirmPaidOrder(supabase, order, paymentIntent, now)
+          await sendSaleDropoffInstructions(supabase, order.id)
         } catch (error) {
           console.error('[stripe-webhook] Failed to confirm paid order:', error)
           return jsonResponse({ error: 'Failed to confirm paid order.' }, 500)
         }
       } else {
         await markListingsSold(supabase, getPaymentIntentListingIds(paymentIntent))
+        await sendSaleDropoffInstructions(supabase, order.id)
       }
     }
 

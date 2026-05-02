@@ -636,6 +636,8 @@ export function rowToShipment(row) {
     dropoffStoreAddress: row.dropoff_store_address || null,
     droppedOffAt: row.dropped_off_at || null,
     currentLocation: row.current_location || null,
+    sellerClaimedDropoff: Boolean(row.seller_claimed_dropoff),
+    sellerDropoffClaimedAt: row.seller_dropoff_claimed_at || null,
     fallbackStoreName: row.fallback_store_name || null,
     failedAt: row.failed_at || null,
     returnedAt: row.returned_at || null,
@@ -688,6 +690,8 @@ export function shipmentToRow(shipment) {
   if (shipment.dropoffStoreAddress !== undefined) row.dropoff_store_address = shipment.dropoffStoreAddress
   if (shipment.droppedOffAt !== undefined) row.dropped_off_at = shipment.droppedOffAt
   if (shipment.currentLocation !== undefined) row.current_location = shipment.currentLocation
+  if (shipment.sellerClaimedDropoff !== undefined) row.seller_claimed_dropoff = shipment.sellerClaimedDropoff
+  if (shipment.sellerDropoffClaimedAt !== undefined) row.seller_dropoff_claimed_at = shipment.sellerDropoffClaimedAt
   if (shipment.fallbackStoreName !== undefined) row.fallback_store_name = shipment.fallbackStoreName
   if (shipment.failedAt !== undefined) row.failed_at = shipment.failedAt
   if (shipment.returnedAt !== undefined) row.returned_at = shipment.returnedAt
