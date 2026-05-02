@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   filterActiveInventoryListings,
+  isActiveInventoryStatus,
   markListingSold,
 } from '../lib/db/listings'
 
@@ -58,6 +59,16 @@ describe('listing inventory availability', () => {
       'approved',
       'live',
     ])
+  })
+
+  it('uses the same active inventory definition for marketplace queries and purchase guards', () => {
+    for (const status of ['active', 'available', 'published', 'approved', 'live']) {
+      expect(isActiveInventoryStatus(status)).toBe(true)
+    }
+
+    for (const status of ['sold', 'reserved', 'pending_payment', 'inactive', 'deleted']) {
+      expect(isActiveInventoryStatus(status)).toBe(false)
+    }
   })
 
   it('marks a paid order listing sold with sold timestamp and buyer id', async () => {

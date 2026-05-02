@@ -381,12 +381,12 @@ function validateListingsForCheckout(listings: ListingRow[], buyerId: string, ac
     }
 
     const isReservedForAcceptedOffer =
-      listing.status === 'reserved' &&
+      isReservedListingStatus(listing.status) &&
       acceptedOffer?.listing_id === listing.id &&
       acceptedOffer?.buyer_id === buyerId &&
       acceptedOffer?.status === 'accepted'
 
-    if (listing.status !== 'active' && !isReservedForAcceptedOffer) {
+    if (!isActiveListingStatus(listing.status) && !isReservedForAcceptedOffer) {
       throw new CheckoutError(
         'Item already sold',
         409,
@@ -432,6 +432,16 @@ function validateLockerEligibility(listings: ListingRow[], deliveryMethod: strin
 }
 
 const SOLD_ORDER_STATUSES = ['paid', 'payment_received_seller_payout_pending', 'shipped', 'delivered', 'confirmed', 'completed']
+const ACTIVE_LISTING_STATUSES = ['active', 'available', 'published', 'approved', 'live']
+const RESERVED_LISTING_STATUSES = ['reserved']
+
+function isActiveListingStatus(status: string | null | undefined) {
+  return ACTIVE_LISTING_STATUSES.includes(String(status || '').toLowerCase())
+}
+
+function isReservedListingStatus(status: string | null | undefined) {
+  return RESERVED_LISTING_STATUSES.includes(String(status || '').toLowerCase())
+}
 
 async function validateNoExistingSoldOrders(supabase: ReturnType<typeof createClient>, listingIds: string[]) {
   logStep('duplicate_order_check', 'started', { listingCount: listingIds.length })

@@ -6,6 +6,7 @@
  */
 
 import { FULFILMENT_PROVIDER, getFulfilmentPrice, normalizeFulfilmentMethod } from '../fulfilment'
+import { isActiveInventoryStatus } from './listings'
 
 // Shape helpers
 
@@ -279,7 +280,10 @@ async function assertListingCanBeOrdered(supabase, listingId) {
     .single()
 
   if (listingError) return { error: listingError }
-  if (!listing || !['active', 'reserved'].includes(listing.status)) return { error: { message: 'Item already sold' } }
+  const canOrderListing =
+    isActiveInventoryStatus(listing?.status) ||
+    String(listing?.status || '').toLowerCase() === 'reserved'
+  if (!listing || !canOrderListing) return { error: { message: 'Item already sold' } }
 
   const { data: existingOrders, error: orderError } = await supabase
     .from('orders')

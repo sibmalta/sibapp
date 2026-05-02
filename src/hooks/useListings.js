@@ -12,6 +12,7 @@ import { useAuth } from '../lib/auth-context'
 import { createAuthenticatedClient } from '../lib/supabase'
 import {
   fetchActiveListings,
+  filterActiveInventoryListings,
   fetchUserListings as dbFetchUserListings,
   fetchListingById as dbFetchListingById,
   createListing as dbCreateListing,
@@ -447,7 +448,7 @@ export function useListings(localListings, localLikes, currentUser) {
   // ── Lookup helpers (sync, no DB call — work on in-memory state) ───────────
   const getListingById = useCallback((id) => listings.find(l => l.id === id), [listings])
   const getUserListings = useCallback((userId) =>
-    listings.filter(l => l.sellerId === userId && l.status !== 'deleted'),
+    filterActiveInventoryListings(listings.filter(l => l.sellerId === userId)),
     [listings]
   )
 
