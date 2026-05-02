@@ -320,10 +320,11 @@ export function useListings(localListings, localLikes, currentUser) {
   }, [supabase, dbAvailable, isAuthenticated])
 
   // ── Mark sold ──────────────────────────────────────────────────────────────
-  const markSold = useCallback(async (listingId) => {
-    setListings(prev => prev.map(l => l.id === listingId ? { ...l, status: 'sold' } : l))
+  const markSold = useCallback(async (listingId, buyerId = null) => {
+    const soldAt = new Date().toISOString()
+    setListings(prev => prev.map(l => l.id === listingId ? { ...l, status: 'sold', soldAt, buyerId } : l))
     if (dbAvailable && isAuthenticated) {
-      const { error } = await markListingSold(supabase, listingId)
+      const { error } = await markListingSold(supabase, listingId, buyerId, soldAt)
       if (error) console.error('[useListings] markSold DB error:', error.message)
     }
   }, [supabase, dbAvailable, isAuthenticated])

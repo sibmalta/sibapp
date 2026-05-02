@@ -5,6 +5,7 @@ import TopBar from './TopBar'
 import DesktopNav from './DesktopNav'
 import BundleFloater from './BundleFloater'
 import Footer from './Footer'
+import SellerDropoffPrompt from './SellerDropoffPrompt'
 
 export default function Layout() {
   const { pathname } = useLocation()
@@ -20,6 +21,7 @@ export default function Layout() {
         </div>
 
         <main className={isMessagesRoot ? '' : 'pb-24 lg:pb-12'}>
+          {!isMessagesRoot && <SellerDropoffPrompt />}
           <Outlet />
           {!isMessagesRoot && <Footer />}
         </main>

@@ -49,18 +49,51 @@ function buildRecoveredOrderRef(paymentIntentId: string) {
   return `SIB-${paymentIntentId.replace(/^pi_/, '').slice(-8).toUpperCase()}`
 }
 
-async function markListingsSold(supabase: ReturnType<typeof createClient>, listingIds: string[]) {
+function isMissingOptionalSoldColumnError(error: unknown) {
+  const typed = error as { code?: string; message?: string; details?: string; hint?: string } | null
+  const message = `${typed?.message || ''} ${typed?.details || ''} ${typed?.hint || ''}`.toLowerCase()
+  return (
+    typed?.code === '42703' ||
+    typed?.code === 'PGRST204' ||
+    message.includes('sold_at') ||
+    message.includes('buyer_id') ||
+    message.includes('schema cache')
+  )
+}
+
+async function markListingsSold(
+  supabase: ReturnType<typeof createClient>,
+  listingIds: string[],
+  buyerId: string | null = null,
+) {
   if (!listingIds.length) return
 
-  const { error } = await supabase
+  const now = new Date().toISOString()
+  const updates: Record<string, unknown> = {
+    status: 'sold',
+    sold_at: now,
+    updated_at: now,
+  }
+  if (buyerId) updates.buyer_id = buyerId
+
+  let { error } = await supabase
     .from('listings')
-    .update({ status: 'sold', updated_at: new Date().toISOString() })
+    .update(updates)
     .in('id', listingIds)
-    .in('status', ['active', 'reserved'])
+    .neq('status', 'sold')
+
+  if (error && isMissingOptionalSoldColumnError(error)) {
+    ;({ error } = await supabase
+      .from('listings')
+      .update({ status: 'sold', updated_at: now })
+      .in('id', listingIds)
+      .neq('status', 'sold'))
+  }
 
   if (error) {
     console.error('[stripe-webhook] Failed to mark paid listing(s) sold:', {
       listingIds,
+      buyerId,
       error,
     })
   }
@@ -172,7 +205,7 @@ async function confirmPaidOrder(
     .eq('id', order.id)
 
   if (error) throw error
-  await markListingsSold(supabase, getPaymentIntentListingIds(paymentIntent))
+  await markListingsSold(supabase, getPaymentIntentListingIds(paymentIntent), paymentIntent.metadata?.buyer_id || null)
 }
 
 async function recoverPaidOrderFromPaymentIntent(
@@ -282,6 +315,7 @@ async function recoverPaidOrderFromPaymentIntent(
         paymentIntentId: paymentIntent.id,
         orderId: existing.id,
       })
+      await markListingsSold(supabase, listingIds, buyerId)
       return existing
     }
 
@@ -293,7 +327,7 @@ async function recoverPaidOrderFromPaymentIntent(
     return null
   }
 
-  await markListingsSold(supabase, listingIds)
+  await markListingsSold(supabase, listingIds, buyerId)
   console.info('[stripe-webhook] Recovered missing paid order from PaymentIntent metadata:', {
     paymentIntentId: paymentIntent.id,
     orderId: inserted.id,
@@ -409,7 +443,7 @@ Deno.serve(async (req) => {
           return jsonResponse({ error: 'Failed to confirm paid order.' }, 500)
         }
       } else {
-        await markListingsSold(supabase, getPaymentIntentListingIds(paymentIntent))
+        await markListingsSold(supabase, getPaymentIntentListingIds(paymentIntent), paymentIntent.metadata?.buyer_id || null)
         await sendSaleDropoffInstructions(supabase, order.id)
       }
     }

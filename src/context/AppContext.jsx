@@ -614,7 +614,7 @@ export function AppProvider({ children }) {
       showToast('Failed to place order: ' + orderErr.message, 'error')
       return null
     }
-    await dbMarkSold(listingId)
+    await dbMarkSold(listingId, currentUser.id)
     incrementUserSales(listing.sellerId, 1)
 
     // Auto-create shipment record for this paid order
@@ -1997,7 +1997,7 @@ export function AppProvider({ children }) {
     }
 
     // Mark all bundled listings as sold via DB hook
-    await Promise.all(bundle.items.map(id => dbMarkSold(id)))
+    await Promise.all(bundle.items.map(id => dbMarkSold(id, currentUser.id)))
     incrementUserSales(bundle.sellerId, items.length)
 
     // Auto-create shipment record for this paid bundle order
@@ -2338,7 +2338,7 @@ export function AppProvider({ children }) {
     }
 
     // Mark all bundled listings as sold via DB hook
-    await Promise.all(offer.listingIds.map(id => dbMarkSold(id)))
+    await Promise.all(offer.listingIds.map(id => dbMarkSold(id, offer.buyerId)))
     incrementUserSales(offer.sellerId, items.length)
 
     // Auto-create shipment record for this paid bundle offer order

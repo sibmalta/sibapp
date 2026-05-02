@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { orderToRow, rowToOrder, rowToShipment, shipmentToRow } from '../lib/db/orders'
+import { buildSellerDropoffClaimPatch, getPendingSellerDropoffOrders } from '../lib/sellerDropoffPrompt'
 
 const root = resolve(__dirname, '..', '..')
 
@@ -74,5 +75,63 @@ describe('seller drop-off flow', () => {
     expect(appContext).toContain('dropoff_reminder_24h:${orderId}:${sellerId}')
     expect(buyerProtection).toContain('dropoff_reminder_24h')
     expect(stripeWebhook).toContain('sendSaleDropoffInstructions')
+  })
+
+  it('shows the seller prompt only for seller-owned paid orders pending drop-off', () => {
+    const orders = [
+      {
+        id: 'order_seller',
+        sellerId: 'seller_1',
+        buyerId: 'buyer_1',
+        status: 'paid',
+        paymentStatus: 'paid',
+        sellerClaimedDropoff: false,
+      },
+      {
+        id: 'order_buyer',
+        sellerId: 'seller_2',
+        buyerId: 'seller_1',
+        status: 'paid',
+        paymentStatus: 'paid',
+        sellerClaimedDropoff: false,
+      },
+    ]
+
+    expect(getPendingSellerDropoffOrders({ orders, shipments: [], currentUserId: 'seller_1' }).map(order => order.id)).toEqual(['order_seller'])
+    expect(getPendingSellerDropoffOrders({ orders, shipments: [], currentUserId: 'buyer_1' })).toEqual([])
+  })
+
+  it('hides the seller prompt after seller claim or official store drop-off', () => {
+    const order = {
+      id: 'order_1',
+      sellerId: 'seller_1',
+      buyerId: 'buyer_1',
+      status: 'paid',
+      paymentStatus: 'paid',
+      sellerClaimedDropoff: false,
+    }
+
+    expect(getPendingSellerDropoffOrders({ orders: [order], shipments: [], currentUserId: 'seller_1' })).toHaveLength(1)
+    expect(getPendingSellerDropoffOrders({
+      orders: [{ ...order, sellerClaimedDropoff: true }],
+      shipments: [],
+      currentUserId: 'seller_1',
+    })).toHaveLength(0)
+    expect(getPendingSellerDropoffOrders({
+      orders: [order],
+      shipments: [{ orderId: 'order_1', status: 'dropped_off' }],
+      currentUserId: 'seller_1',
+    })).toHaveLength(0)
+  })
+
+  it('claim patch updates seller claim fields only and does not set official dropped_off', () => {
+    const patch = buildSellerDropoffClaimPatch('2026-05-02T12:00:00.000Z')
+
+    expect(patch).toEqual({
+      sellerClaimedDropoff: true,
+      sellerDropoffClaimedAt: '2026-05-02T12:00:00.000Z',
+    })
+    expect(patch.status).toBeUndefined()
+    expect(patch.fulfilmentStatus).toBeUndefined()
   })
 })

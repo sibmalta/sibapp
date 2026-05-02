@@ -7,13 +7,25 @@
 
 import { normalizeSubcategoryValue } from '../../data/categories'
 
+export const ACTIVE_INVENTORY_STATUSES = ['active', 'available', 'published', 'approved', 'live']
+export const UNAVAILABLE_INVENTORY_STATUSES = ['sold', 'reserved', 'pending_payment', 'inactive', 'deleted', 'removed', 'hidden']
+
 function normalizeListingStatus(status) {
   const value = String(status || 'active').toLowerCase()
-  if (['active', 'available', 'published', 'approved', 'live'].includes(value)) return 'active'
+  if (ACTIVE_INVENTORY_STATUSES.includes(value)) return 'active'
   if (['sold', 'purchased', 'completed'].includes(value)) return 'sold'
   if (['deleted', 'removed'].includes(value)) return 'deleted'
-  if (['reserved', 'pending_sale', 'pending-sale'].includes(value)) return 'reserved'
+  if (['reserved', 'pending_sale', 'pending-sale', 'pending_payment'].includes(value)) return 'reserved'
   return value || 'active'
+}
+
+export function isActiveInventoryStatus(status) {
+  const normalized = normalizeListingStatus(status)
+  return normalized === 'active' && !UNAVAILABLE_INVENTORY_STATUSES.includes(String(status || '').toLowerCase())
+}
+
+export function filterActiveInventoryListings(listings = []) {
+  return listings.filter(listing => isActiveInventoryStatus(listing.status))
 }
 
 // ── Shape helpers ────────────────────────────────────────────────────────────
@@ -51,6 +63,8 @@ export function rowToListing(row) {
     colors: row.colors || (row.color ? [row.color] : []),
     images: row.images || [],
     status: normalizeListingStatus(row.status),
+    soldAt: row.sold_at || null,
+    buyerId: row.buyer_id || null,
     likes: row.likes_count ?? 0,
     views: row.views_count ?? 0,
     boosted: row.boosted || false,
@@ -95,6 +109,8 @@ export function listingToRow(listing) {
   if (listing.colors !== undefined) row.colors = listing.colors
   if (listing.images !== undefined) row.images = listing.images
   if (listing.status !== undefined) row.status = listing.status
+  if (listing.soldAt !== undefined) row.sold_at = listing.soldAt
+  if (listing.buyerId !== undefined) row.buyer_id = listing.buyerId
   if (listing.boosted !== undefined) row.boosted = listing.boosted
   if (listing.flagged !== undefined) row.flagged = listing.flagged
   if (listing.styleTags !== undefined) row.style_tags = listing.styleTags
@@ -165,7 +181,8 @@ const MINIMAL_BROWSE_SELECT = `
   title,
   description,
   price,
-  category
+  category,
+  status
 `
 
 function isMissingListingColumnError(error) {
@@ -184,7 +201,7 @@ async function runBrowseQuery(supabase, select, { limit, offset, useStatusFilter
     .from('listings')
     .select(select)
 
-  if (useStatusFilter) query = query.eq('status', 'active')
+  if (useStatusFilter) query = query.in('status', ACTIVE_INVENTORY_STATUSES)
   if (useOrdering) {
     query = query
       .order('boosted', { ascending: false })
@@ -206,24 +223,12 @@ export async function fetchActiveListings(supabase, { limit = 100, offset = 0 } 
     ;({ data, error } = await runBrowseQuery(supabase, MINIMAL_BROWSE_SELECT, {
       limit,
       offset,
-      useStatusFilter: false,
+      useStatusFilter: true,
       useOrdering: false,
     }))
-  } else if (!error && offset === 0 && (data || []).length === 0) {
-    console.warn('[listings] Browse active query returned 0 rows; retrying without status filter to diagnose status mismatch.')
-    const retry = await runBrowseQuery(supabase, BROWSE_SELECT, {
-      limit,
-      offset,
-      useStatusFilter: false,
-      useOrdering: true,
-    })
-    if (!retry.error && retry.data?.length) {
-      data = retry.data
-      error = null
-    }
   }
 
-  const mapped = (data || []).map(rowToListing)
+  const mapped = filterActiveInventoryListings((data || []).map(rowToListing))
   return { data: mapped, error }
 }
 
@@ -394,14 +399,43 @@ export async function deleteListing(supabase, id) {
   return { data: rowToListing(data), error }
 }
 
-/** Mark a listing as sold. */
-export async function markListingSold(supabase, id) {
-  const { data, error } = await supabase
+function isMissingOptionalSoldColumnError(error) {
+  const message = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase()
+  return (
+    error?.code === '42703' ||
+    error?.code === 'PGRST204' ||
+    message.includes('sold_at') ||
+    message.includes('buyer_id') ||
+    message.includes('schema cache')
+  )
+}
+
+/** Mark a listing as sold after a paid order is created or confirmed. */
+export async function markListingSold(supabase, id, buyerId = null, soldAt = new Date().toISOString()) {
+  const updates = {
+    status: 'sold',
+    sold_at: soldAt,
+    updated_at: soldAt,
+  }
+  if (buyerId) updates.buyer_id = buyerId
+
+  let { data, error } = await supabase
     .from('listings')
-    .update({ status: 'sold', updated_at: new Date().toISOString() })
+    .update(updates)
     .eq('id', id)
     .select()
     .single()
+
+  if (error && isMissingOptionalSoldColumnError(error)) {
+    const fallbackUpdates = { status: 'sold', updated_at: soldAt }
+    ;({ data, error } = await supabase
+      .from('listings')
+      .update(fallbackUpdates)
+      .eq('id', id)
+      .select()
+      .single())
+  }
+
   return { data: rowToListing(data), error }
 }
 
