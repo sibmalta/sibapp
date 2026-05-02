@@ -45,7 +45,7 @@ function getDropoffState(shipment, order) {
   }
   if (order?.sellerClaimedDropoff || shipment?.sellerClaimedDropoff) {
     return {
-      label: 'Seller says dropped off',
+      label: 'Drop-off pending confirmation',
       className: 'border-blue-200 bg-blue-50 text-blue-700',
     }
   }

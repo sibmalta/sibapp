@@ -7,7 +7,7 @@ import useAuthNav from '../hooks/useAuthNav'
 import PageHeader from '../components/PageHeader'
 import { ShipmentStatusBadge } from '../components/ShipmentTracker'
 import PendingPayoutsWidget from '../components/PendingPayoutsWidget'
-import { getFulfilmentMethodLabel } from '../lib/fulfilment'
+import { getDropoffPendingConfirmationCopy, getFulfilmentMethodLabel } from '../lib/fulfilment'
 import { getSellerPendingPayoutSummary } from '../lib/pendingPayouts'
 
 const SELLER_FILTERS = [
@@ -123,9 +123,10 @@ function getSellerOrderState(order, shipment) {
   if (order?.sellerClaimedDropoff || shipment?.sellerClaimedDropoff) {
     return {
       filter: 'active',
-      label: 'Seller says dropped off',
+      label: 'Drop-off pending confirmation',
       style: 'bg-blue-50 text-blue-700 dark:bg-[#26322f] dark:text-blue-300',
       nextStep: 'Waiting for MYconvenience store scan or admin confirmation.',
+      nextStepVariant: 'dropoff_claimed',
       canClaimDropoff: false,
     }
   }
@@ -332,6 +333,7 @@ export default function OrdersPage() {
             const fulfilmentMethod = order.fulfilmentMethod || shipment?.fulfilmentMethod || order.deliveryMethod
             const fulfilmentFee = order.fulfilmentPrice ?? shipment?.fulfilmentPrice ?? order.deliveryFee ?? 4.50
             const buyerReference = other?.username || other?.name || order.buyerId?.slice(0, 8) || 'buyer'
+            const pendingDropoffConfirmationCopy = getDropoffPendingConfirmationCopy({ order, shipment, fulfilmentMethod })
 
             return (
               <div
@@ -370,7 +372,18 @@ export default function OrdersPage() {
                       <p className="text-sib-text dark:text-[#f4efe7] font-semibold">Sale price: €{formatMoney(order.itemPrice)}</p>
                       <p className="text-sib-text dark:text-[#f4efe7] font-semibold">Fulfilment method: {titleCaseFulfilment(fulfilmentMethod)}</p>
                       <p className="text-sib-muted dark:text-[#aeb8b4]">Fulfilment fee: €{formatMoney(fulfilmentFee)}</p>
-                      <p className="text-sib-muted dark:text-[#aeb8b4] leading-snug">Seller next step: {sellerState.nextStep}</p>
+                      {sellerState.nextStepVariant === 'dropoff_claimed' ? (
+                        <div className="mt-2 rounded-2xl border border-blue-100 bg-blue-50/80 p-3 text-blue-800 dark:border-blue-500/20 dark:bg-[#21303a] dark:text-blue-100">
+                          <p className="text-xs font-bold">Next step</p>
+                          <div className="mt-1.5 space-y-1 text-[11px] leading-snug">
+                            <p>✅ You’ve marked this item as dropped off.</p>
+                            <p>⏳ {pendingDropoffConfirmationCopy}</p>
+                            <p>No further action is needed from you right now.</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sib-muted dark:text-[#aeb8b4] leading-snug">Seller next step: {sellerState.nextStep}</p>
+                      )}
                     </div>
                   )}
 

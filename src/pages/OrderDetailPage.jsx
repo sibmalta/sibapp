@@ -10,7 +10,7 @@ import FeeBreakdown from '../components/FeeBreakdown'
 import PageHeader from '../components/PageHeader'
 import ShipmentTracker, { ShipByDeadline } from '../components/ShipmentTracker'
 import { getTrackingUrl, estimateDeliveryDate } from '../lib/maltapost'
-import { FULFILMENT_PROVIDER, getFulfilmentMethodLabel, getFulfilmentMethodShortLabel } from '../lib/fulfilment'
+import { FULFILMENT_PROVIDER, getDropoffPendingConfirmationCopy, getFulfilmentMethodLabel, getFulfilmentMethodShortLabel } from '../lib/fulfilment'
 
 function formatCountdown(ms) {
   if (ms <= 0) return '00:00:00'
@@ -118,6 +118,7 @@ export default function OrderDetailPage() {
   const fulfilmentMethod = order.fulfilmentMethod || order.deliveryMethod
   const fulfilmentMethodLabel = getFulfilmentMethodLabel(fulfilmentMethod)
   const fulfilmentShortLabel = getFulfilmentMethodShortLabel(fulfilmentMethod)
+  const pendingDropoffConfirmationCopy = getDropoffPendingConfirmationCopy({ order, shipment, fulfilmentMethod })
   const fulfilmentStatusLabel = (order.fulfilmentStatus || shipment?.fulfilmentStatus || shipment?.status || order.trackingStatus || order.status || 'pending').replace(/_/g, ' ')
   const fulfilmentPrice = order.fulfilmentPrice ?? shipment?.fulfilmentPrice ?? order.deliveryFee ?? 4.50
 
@@ -400,8 +401,13 @@ export default function OrderDetailPage() {
                 </div>
               )}
               {sellerClaimedDropoff ? (
-                <div className="mb-3 rounded-xl border border-blue-100 bg-white/70 p-3 text-xs font-semibold text-blue-700 dark:border-blue-500/20 dark:bg-[#26322f]/80 dark:text-blue-300">
-                  You marked this as dropped off. We are waiting for MYconvenience store confirmation.
+                <div className="mb-3 rounded-2xl border border-blue-100 bg-blue-50/80 p-3 text-blue-800 dark:border-blue-500/20 dark:bg-[#21303a] dark:text-blue-100">
+                  <p className="text-xs font-bold">Next step</p>
+                  <div className="mt-1.5 space-y-1 text-xs leading-snug">
+                    <p>✅ You’ve marked this item as dropped off.</p>
+                    <p>⏳ {pendingDropoffConfirmationCopy}</p>
+                    <p>No further action is needed from you right now.</p>
+                  </div>
                 </div>
               ) : (
                 <button
