@@ -36,14 +36,14 @@ function StatusBadge({ statusId }) {
   )
 }
 
-function getDropoffState(shipment) {
+function getDropoffState(shipment, order) {
   if (shipment?.status === 'dropped_off') {
     return {
       label: 'Confirmed dropped off at MY store',
       className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
     }
   }
-  if (shipment?.sellerClaimedDropoff) {
+  if (order?.sellerClaimedDropoff || shipment?.sellerClaimedDropoff) {
     return {
       label: 'Seller says dropped off',
       className: 'border-blue-200 bg-blue-50 text-blue-700',
@@ -55,8 +55,8 @@ function getDropoffState(shipment) {
   }
 }
 
-function DropoffStateBadge({ shipment }) {
-  const state = getDropoffState(shipment)
+function DropoffStateBadge({ shipment, order }) {
+  const state = getDropoffState(shipment, order)
   return (
     <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${state.className}`}>
       {state.label}
@@ -179,12 +179,12 @@ function OrderDrawer({ order, listing, buyer, seller, shipment, logistics, onUpd
                 </div>
                 <div className="flex items-center gap-2 mb-1.5">
                   <span className="text-[10px] text-gray-400 font-medium">Drop-off:</span>
-                  <DropoffStateBadge shipment={shipment} />
+                  <DropoffStateBadge shipment={shipment} order={order} />
                 </div>
                 <Row label="Pickup Day" value={logistics.pickupDay ? fmtShort(logistics.pickupDay) : '—'} />
                 <Row label="Delivery Day" value={logistics.deliveryDay ? fmtShort(logistics.deliveryDay) : '—'} />
                 <Row label="Assigned Driver" value={logistics.assignedDriver || '—'} />
-                <Row label="Seller claimed at" value={shipment?.sellerDropoffClaimedAt ? fmtDate(shipment.sellerDropoffClaimedAt) : '-'} />
+                <Row label="Seller claimed at" value={order?.sellerDropoffClaimedAt || shipment?.sellerDropoffClaimedAt ? fmtDate(order?.sellerDropoffClaimedAt || shipment?.sellerDropoffClaimedAt) : '-'} />
                 <Row label="MY store confirmed" value={shipment?.droppedOffAt ? fmtDate(shipment.droppedOffAt) : '-'} />
               </>
             )}
@@ -710,7 +710,7 @@ export default function LogisticsTab({ orders, getUserById, getListingById, getS
                         <StatusBadge statusId={lg.logisticsStatus} />
                       </div>
                       <div className="mb-1.5">
-                        <DropoffStateBadge shipment={shipment} />
+                        <DropoffStateBadge shipment={shipment} order={order} />
                       </div>
                       <p className="text-sm font-medium text-gray-900 line-clamp-1">{listing?.title || 'Unknown'}</p>
                       <div className="flex items-center justify-between mt-1.5 text-[11px] text-gray-500">
@@ -771,7 +771,7 @@ export default function LogisticsTab({ orders, getUserById, getListingById, getS
                           <td className="px-3 py-2.5">
                             <div className="flex flex-col items-start gap-1">
                               <StatusBadge statusId={lg.logisticsStatus} />
-                              <DropoffStateBadge shipment={shipment} />
+                              <DropoffStateBadge shipment={shipment} order={order} />
                             </div>
                           </td>
                           <td className="px-3 py-2.5 text-gray-400 max-w-[120px] truncate">{lg.internalNotes || '—'}</td>

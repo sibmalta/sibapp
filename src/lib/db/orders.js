@@ -51,6 +51,8 @@ export function rowToOrder(row) {
     address,
     overdueFlag: row.overdue_flag || false,
     overdueFlaggedAt: row.overdue_flagged_at || null,
+    sellerClaimedDropoff: Boolean(row.seller_claimed_dropoff),
+    sellerDropoffClaimedAt: row.seller_dropoff_claimed_at || null,
     autoConfirmed: row.auto_confirmed || false,
     createdAt: row.created_at || new Date().toISOString(),
     updatedAt: row.updated_at || new Date().toISOString(),
@@ -136,6 +138,8 @@ export function orderToRow(order) {
   if (order.bundleOfferId !== undefined) row.bundle_offer_id = order.bundleOfferId
   if (order.overdueFlag !== undefined) row.overdue_flag = order.overdueFlag
   if (order.overdueFlaggedAt !== undefined) row.overdue_flagged_at = order.overdueFlaggedAt
+  if (order.sellerClaimedDropoff !== undefined) row.seller_claimed_dropoff = order.sellerClaimedDropoff
+  if (order.sellerDropoffClaimedAt !== undefined) row.seller_dropoff_claimed_at = order.sellerDropoffClaimedAt
   if (order.autoConfirmed !== undefined) row.auto_confirmed = order.autoConfirmed
   if (order.paidAt !== undefined) row.paid_at = order.paidAt
   if (order.shippedAt !== undefined) row.shipped_at = order.shippedAt

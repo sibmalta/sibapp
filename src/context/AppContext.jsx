@@ -97,8 +97,6 @@ function createShipmentRecord(order) {
     maltapostRawStatus: null,
     reminderSentAt: null,
     reminderCount: 0,
-    sellerClaimedDropoff: false,
-    sellerDropoffClaimedAt: null,
     notes: null,
   }
 }
@@ -2781,38 +2779,67 @@ export function AppProvider({ children }) {
   }, [orders, shipments, users, listings, dbPatchShipment, upsertDeliverySheetRow, refreshShipments, refreshLogisticsDeliverySheet, showToast])
 
   const sellerClaimShipmentDropoff = useCallback(async (orderId) => {
+    console.log('[sellerClaimShipmentDropoff] start', { orderId, currentUserId: currentUser?.id })
     const order = orders.find(o => o.id === orderId)
     const shipment = shipments.find(s => s.orderId === orderId)
-    if (!order || !shipment) {
-      const error = { message: !order ? 'Order not found.' : 'Shipment not found for this order.' }
+    if (!order) {
+      const error = { message: 'Order not found.' }
+      console.error('[sellerClaimShipmentDropoff] missing order', { orderId })
       showToast(error.message, 'error')
       return { data: null, error }
     }
-    if (shipment.status === 'dropped_off') {
-      showToast('This parcel has already been confirmed at a MYconvenience store.')
-      return { data: shipment, error: null }
+    if (order.sellerId !== currentUser?.id) {
+      const error = { message: 'Only the seller can mark this order as dropped off.' }
+      console.error('[sellerClaimShipmentDropoff] forbidden', { orderId, sellerId: order.sellerId, currentUserId: currentUser?.id })
+      showToast(error.message, 'error')
+      return { data: null, error }
     }
-    if (shipment.sellerClaimedDropoff) {
+    if (shipment?.status === 'dropped_off') {
+      showToast('This parcel has already been confirmed at a MYconvenience store.')
+      return { data: order, error: null }
+    }
+    if (order.sellerClaimedDropoff || shipment?.sellerClaimedDropoff) {
       showToast('You already marked this parcel as dropped off. We are waiting for store confirmation.')
-      return { data: shipment, error: null }
+      return { data: order, error: null }
     }
 
     const now = new Date().toISOString()
-    const { data, error } = await dbPatchShipment(shipment.id, {
+    console.log('[sellerClaimShipmentDropoff] updating order', { orderId, seller_claimed_dropoff: true, seller_dropoff_claimed_at: now })
+    const { data, error } = await dbPatchOrder(orderId, {
       sellerClaimedDropoff: true,
       sellerDropoffClaimedAt: now,
       updatedAt: now,
     })
     if (error) {
-      console.error('[sellerClaimShipmentDropoff] DB write failed:', error.message)
+      console.error('[sellerClaimShipmentDropoff] order update failed:', {
+        orderId,
+        error,
+      })
       showToast('Failed to save your drop-off confirmation: ' + error.message, 'error')
       return { data: null, error }
     }
 
+    if (shipment?.id) {
+      const { error: shipmentError } = await dbPatchShipment(shipment.id, {
+        sellerClaimedDropoff: true,
+        sellerDropoffClaimedAt: now,
+        updatedAt: now,
+      })
+      if (shipmentError) {
+        console.warn('[sellerClaimShipmentDropoff] order updated but shipment mirror failed:', {
+          orderId,
+          shipmentId: shipment.id,
+          error: shipmentError,
+        })
+      }
+    }
+
+    console.log('[sellerClaimShipmentDropoff] saved', { orderId, sellerDropoffClaimedAt: now })
+    await refreshOrders()
     await refreshShipments()
     showToast('Thanks. We will confirm official drop-off after the MYconvenience store scan.')
     return { data, error: null }
-  }, [orders, shipments, dbPatchShipment, refreshShipments, showToast])
+  }, [currentUser?.id, orders, shipments, dbPatchOrder, dbPatchShipment, refreshOrders, refreshShipments, showToast])
 
   // Admin: force update any shipment field
   const adminUpdateShipment = useCallback(async (shipmentId, updates) => {

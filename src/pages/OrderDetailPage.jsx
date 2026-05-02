@@ -114,6 +114,7 @@ export default function OrderDetailPage() {
   const isConfirmed = order.trackingStatus === 'confirmed' || order.trackingStatus === 'completed' || order.status === 'completed'
   const isDisputed = order.trackingStatus === 'disputed' || order.trackingStatus === 'under_review'
   const isAwaitingShipment = shipment?.status === 'awaiting_shipment'
+  const sellerClaimedDropoff = Boolean(order.sellerClaimedDropoff || shipment?.sellerClaimedDropoff)
   const fulfilmentMethod = order.fulfilmentMethod || order.deliveryMethod
   const fulfilmentMethodLabel = getFulfilmentMethodLabel(fulfilmentMethod)
   const fulfilmentShortLabel = getFulfilmentMethodShortLabel(fulfilmentMethod)
@@ -141,6 +142,7 @@ export default function OrderDetailPage() {
   }
 
   const handleSellerClaimDropoff = async () => {
+    console.log('[OrderDetailPage] seller drop-off claim clicked', { orderId: order.id })
     setClaimDropoffLoading(true)
     try {
       await sellerClaimShipmentDropoff(order.id)
@@ -397,7 +399,7 @@ export default function OrderDetailPage() {
                   <ShipByDeadline deadline={shipment.shipByDeadline} />
                 </div>
               )}
-              {shipment.sellerClaimedDropoff ? (
+              {sellerClaimedDropoff ? (
                 <div className="mb-3 rounded-xl border border-blue-100 bg-white/70 p-3 text-xs font-semibold text-blue-700 dark:border-blue-500/20 dark:bg-[#26322f]/80 dark:text-blue-300">
                   You marked this as dropped off. We are waiting for MYconvenience store confirmation.
                 </div>

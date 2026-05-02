@@ -1,11 +1,32 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { rowToShipment, shipmentToRow } from '../lib/db/orders'
+import { orderToRow, rowToOrder, rowToShipment, shipmentToRow } from '../lib/db/orders'
 
 const root = resolve(__dirname, '..', '..')
 
 describe('seller drop-off flow', () => {
+  it('maps seller self-confirmation on orders as the source of truth', () => {
+    const order = rowToOrder({
+      id: 'order_1',
+      seller_id: 'seller_1',
+      buyer_id: 'buyer_1',
+      listing_id: 'listing_1',
+      seller_claimed_dropoff: true,
+      seller_dropoff_claimed_at: '2026-05-02T11:00:00.000Z',
+    })
+
+    expect(order.sellerClaimedDropoff).toBe(true)
+    expect(order.sellerDropoffClaimedAt).toBe('2026-05-02T11:00:00.000Z')
+    expect(orderToRow({
+      sellerClaimedDropoff: true,
+      sellerDropoffClaimedAt: order.sellerDropoffClaimedAt,
+    })).toMatchObject({
+      seller_claimed_dropoff: true,
+      seller_dropoff_claimed_at: '2026-05-02T11:00:00.000Z',
+    })
+  })
+
   it('maps seller self-confirmation separately from official dropped_off status', () => {
     const shipment = rowToShipment({
       id: 'ship_1',
@@ -29,10 +50,14 @@ describe('seller drop-off flow', () => {
 
   it('adds shipment columns for seller claimed drop-off', () => {
     const migration = readFileSync(resolve(root, 'supabase/migrations/20260502103000_seller_dropoff_claim.sql'), 'utf8')
+    const orderMigration = readFileSync(resolve(root, 'supabase/migrations/20260502110000_order_seller_dropoff_claim.sql'), 'utf8')
 
     expect(migration).toContain('seller_claimed_dropoff boolean')
     expect(migration).toContain('seller_dropoff_claimed_at timestamptz')
     expect(migration).toContain('shipments_seller_claimed_dropoff_idx')
+    expect(orderMigration).toContain('alter table if exists public.orders')
+    expect(orderMigration).toContain('orders_seller_claimed_dropoff_idx')
+    expect(orderMigration).toContain('orders_seller_dropoff_claim_update')
   })
 
   it('supports drop-off instruction and 24h reminder emails with dedupe keys', () => {

@@ -120,7 +120,7 @@ function getSellerOrderState(order, shipment) {
     }
   }
 
-  if (shipment?.sellerClaimedDropoff) {
+  if (order?.sellerClaimedDropoff || shipment?.sellerClaimedDropoff) {
     return {
       filter: 'active',
       label: 'Seller says dropped off',
@@ -249,6 +249,7 @@ export default function OrdersPage() {
 
   const handleSellerClaimDropoff = async (event, orderId) => {
     event.stopPropagation()
+    console.log('[OrdersPage] seller drop-off claim clicked', { orderId })
     setClaimingDropoffId(orderId)
     try {
       await sellerClaimShipmentDropoff(orderId)
