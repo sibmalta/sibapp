@@ -23,6 +23,7 @@ import EditProfilePage from './pages/EditProfilePage'
 import ReviewsPage from './pages/ReviewsPage'
 import AuthPage from './pages/AuthPage'
 import AdminPage from './pages/AdminPage'
+import AdminScanDropoffPage from './pages/AdminScanDropoffPage'
 import SellerDashboardPage from './pages/SellerDashboardPage'
 import PayoutSettingsPage from './pages/PayoutSettingsPage'
 import TermsPage from './pages/TermsPage'
@@ -91,6 +92,7 @@ function AppRoutes() {
           <Route path="seller" element={<SellerDashboardPage />} />
           <Route path="seller/payout-settings" element={<PayoutSettingsPage />} />
           <Route path="admin" element={<AdminPage />} />
+          <Route path="admin/scan-dropoff" element={<AdminScanDropoffPage />} />
           <Route path="terms" element={<TermsPage />} />
           <Route path="privacy" element={<PrivacyPolicyPage />} />
           <Route path="buyer-protection" element={<BuyerProtectionPage />} />

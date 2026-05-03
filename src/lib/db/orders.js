@@ -71,6 +71,9 @@ export function rowToOrder(row) {
     overdueFlaggedAt: row.overdue_flagged_at || null,
     sellerClaimedDropoff: Boolean(row.seller_claimed_dropoff),
     sellerDropoffClaimedAt: row.seller_dropoff_claimed_at || null,
+    dropoffConfirmedAt: row.dropoff_confirmed_at || null,
+    dropoffConfirmedBy: row.dropoff_confirmed_by || null,
+    dropoffLocation: row.dropoff_location || null,
     autoConfirmed: row.auto_confirmed || false,
     createdAt: row.created_at || new Date().toISOString(),
     updatedAt: row.updated_at || new Date().toISOString(),
@@ -158,6 +161,9 @@ export function orderToRow(order) {
   if (order.overdueFlaggedAt !== undefined) row.overdue_flagged_at = order.overdueFlaggedAt
   if (order.sellerClaimedDropoff !== undefined) row.seller_claimed_dropoff = order.sellerClaimedDropoff
   if (order.sellerDropoffClaimedAt !== undefined) row.seller_dropoff_claimed_at = order.sellerDropoffClaimedAt
+  if (order.dropoffConfirmedAt !== undefined) row.dropoff_confirmed_at = order.dropoffConfirmedAt
+  if (order.dropoffConfirmedBy !== undefined) row.dropoff_confirmed_by = order.dropoffConfirmedBy
+  if (order.dropoffLocation !== undefined) row.dropoff_location = order.dropoffLocation
   if (order.autoConfirmed !== undefined) row.auto_confirmed = order.autoConfirmed
   if (order.paidAt !== undefined) row.paid_at = order.paidAt
   if (order.shippedAt !== undefined) row.shipped_at = order.shippedAt
@@ -683,6 +689,9 @@ export function rowToShipment(row) {
     dropoffStoreName: row.dropoff_store_name || null,
     dropoffStoreAddress: row.dropoff_store_address || null,
     droppedOffAt: row.dropped_off_at || null,
+    dropoffConfirmedAt: row.dropoff_confirmed_at || row.dropped_off_at || null,
+    dropoffConfirmedBy: row.dropoff_confirmed_by || null,
+    dropoffLocation: row.dropoff_location || row.current_location || null,
     currentLocation: row.current_location || null,
     sellerClaimedDropoff: Boolean(row.seller_claimed_dropoff),
     sellerDropoffClaimedAt: row.seller_dropoff_claimed_at || null,
@@ -737,6 +746,9 @@ export function shipmentToRow(shipment) {
   if (shipment.dropoffStoreName !== undefined) row.dropoff_store_name = shipment.dropoffStoreName
   if (shipment.dropoffStoreAddress !== undefined) row.dropoff_store_address = shipment.dropoffStoreAddress
   if (shipment.droppedOffAt !== undefined) row.dropped_off_at = shipment.droppedOffAt
+  if (shipment.dropoffConfirmedAt !== undefined) row.dropoff_confirmed_at = shipment.dropoffConfirmedAt
+  if (shipment.dropoffConfirmedBy !== undefined) row.dropoff_confirmed_by = shipment.dropoffConfirmedBy
+  if (shipment.dropoffLocation !== undefined) row.dropoff_location = shipment.dropoffLocation
   if (shipment.currentLocation !== undefined) row.current_location = shipment.currentLocation
   if (shipment.sellerClaimedDropoff !== undefined) row.seller_claimed_dropoff = shipment.sellerClaimedDropoff
   if (shipment.sellerDropoffClaimedAt !== undefined) row.seller_dropoff_claimed_at = shipment.sellerDropoffClaimedAt
@@ -816,6 +828,7 @@ export function rowToLogisticsDeliverySheetRow(row) {
     sellerName: row.seller_name || '',
     buyerName: row.buyer_name || '',
     itemTitle: row.item_title || '',
+    orderCode: row.order_code || '',
     dropoffStoreName: row.dropoff_store_name || '',
     dropoffStoreAddress: row.dropoff_store_address || '',
     droppedOffAt: row.dropped_off_at || null,
@@ -852,6 +865,30 @@ export async function upsertLogisticsDeliverySheetRow(supabase, row) {
       .single()
     if (error) return { data: null, error }
     return { data: rowToLogisticsDeliverySheetRow(data), error: null }
+  } catch (e) {
+    return { data: null, error: { message: e.message } }
+  }
+}
+
+export async function insertDropoffScanLog(supabase, scan) {
+  try {
+    const row = {
+      order_id: scan.orderId,
+      shipment_id: scan.shipmentId || null,
+      order_code: scan.orderCode || null,
+      scanned_by: scan.scannedBy || null,
+      scan_status: scan.scanStatus || 'confirmed',
+      message: scan.message || null,
+      dropoff_location: scan.dropoffLocation || null,
+      created_at: scan.createdAt || new Date().toISOString(),
+    }
+    const { data, error } = await supabase
+      .from('dropoff_scan_logs')
+      .insert(row)
+      .select()
+      .single()
+    if (error) return { data: null, error }
+    return { data, error: null }
   } catch (e) {
     return { data: null, error: { message: e.message } }
   }

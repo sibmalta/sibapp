@@ -13,6 +13,7 @@ import {
   fetchAllPayouts, insertPayout, updatePayout,
   fetchAllShipments, insertShipment, updateShipment,
   fetchLogisticsDeliverySheet, upsertLogisticsDeliverySheetRow,
+  insertDropoffScanLog,
 } from '../lib/db/orders'
 
 export function useOrders() {
@@ -179,6 +180,19 @@ export function useOrders() {
     return { data, error: null }
   }, [withAuthRetry, requireDb, markDbOk])
 
+  const createDropoffScanLog = useCallback(async (scan) => {
+    const check = requireDb()
+    if (!check.ok) return { data: null, error: { message: check.reason } }
+
+    const { data, error } = await withAuthRetry((client) => insertDropoffScanLog(client, scan))
+    if (error) {
+      console.error('[useOrders] insertDropoffScanLog failed:', error.message)
+      return { data: null, error }
+    }
+    markDbOk()
+    return { data, error: null }
+  }, [withAuthRetry, requireDb, markDbOk])
+
   const refreshOrders = useCallback(async () => {
     if (dbAvailable === false) return
     setOrdersLoading(true)
@@ -272,6 +286,7 @@ export function useOrders() {
     patchShipment,
     patchShipmentByOrderId,
     upsertDeliverySheetRow,
+    createDropoffScanLog,
     refreshOrders,
     refreshDisputes,
     refreshPayouts,

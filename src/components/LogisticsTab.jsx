@@ -9,6 +9,7 @@ import {
   AlertTriangle, ArrowRight, StickyNote, Filter, Eye, Clipboard,
 } from 'lucide-react'
 import { useLogistics, LOGISTICS_STATUSES, LOGISTICS_FILTER_PRESETS } from '../hooks/useLogistics'
+import { isDropoffConfirmed } from '../lib/dropoffQr'
 
 const TEST_DROPOFF_STORE = {
   id: 'my-sliema-dingli',
@@ -37,9 +38,9 @@ function StatusBadge({ statusId }) {
 }
 
 function getDropoffState(shipment, order) {
-  if (shipment?.status === 'dropped_off') {
+  if (isDropoffConfirmed({ order, shipment })) {
     return {
-      label: 'Confirmed dropped off at MY store',
+      label: 'Drop-off confirmed',
       className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
     }
   }
@@ -625,7 +626,7 @@ export default function LogisticsTab({ orders, getUserById, getListingById, getS
               <table className="w-full min-w-[980px] text-left">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    {['Order', 'Shipment', 'Seller', 'Buyer', 'Item', 'Drop-off store', 'Dropped off', 'Buyer address', 'Buyer contact', 'Status', 'Fallback', 'Notes'].map(header => (
+                    {['Order code', 'Order', 'Shipment', 'Seller', 'Buyer', 'Item', 'Drop-off store', 'Confirmed at', 'Buyer address', 'Buyer contact', 'Status', 'Fallback', 'Notes'].map(header => (
                       <th key={header} className="px-3 py-2.5 font-semibold text-gray-500 text-[10px] uppercase tracking-wider">{header}</th>
                     ))}
                   </tr>
@@ -633,6 +634,7 @@ export default function LogisticsTab({ orders, getUserById, getListingById, getS
                 <tbody className="divide-y divide-gray-100">
                   {deliverySheetRows.map(row => (
                     <tr key={row.shipmentId || row.id} className="hover:bg-gray-50">
+                      <td className="px-3 py-2.5 text-[11px] font-mono font-semibold text-gray-700">{row.orderCode || '—'}</td>
                       <td className="px-3 py-2.5 text-[11px] font-mono text-gray-500">{row.orderId?.slice(-8) || '—'}</td>
                       <td className="px-3 py-2.5 text-[11px] font-mono text-gray-500">{row.shipmentId?.slice(-8) || '—'}</td>
                       <td className="px-3 py-2.5 text-xs text-gray-700">{row.sellerName || '—'}</td>

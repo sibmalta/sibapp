@@ -1,6 +1,7 @@
 export const DELIVERY_SHEET_FIELDS = [
   'order_id',
   'shipment_id',
+  'order_code',
   'seller_name',
   'buyer_name',
   'item_title',
@@ -42,6 +43,7 @@ export function buildDeliverySheetRow({ order = {}, shipment = {}, seller = {}, 
   return {
     order_id: order.id || shipment.orderId || '',
     shipment_id: shipment.id || '',
+    order_code: order.orderRef || shipment.orderRef || '',
     seller_name: order.sellerName || seller.name || seller.username || '',
     buyer_name: order.buyerFullName || buyer.name || buyer.username || '',
     item_title: order.listingTitle || listing.title || '',

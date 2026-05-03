@@ -9,6 +9,7 @@ import { ShipmentStatusBadge } from '../components/ShipmentTracker'
 import PendingPayoutsWidget from '../components/PendingPayoutsWidget'
 import { getDropoffPendingConfirmationCopy, getFulfilmentMethodLabel } from '../lib/fulfilment'
 import { getSellerPendingPayoutSummary } from '../lib/pendingPayouts'
+import { isDropoffConfirmed } from '../lib/dropoffQr'
 
 const SELLER_FILTERS = [
   { id: 'active', label: 'Active' },
@@ -112,12 +113,13 @@ export function getSellerOrderState(order = {}, shipment = null) {
     }
   }
 
-  if (shipmentStatus === 'dropped_off') {
+  if (isDropoffConfirmed({ order: safeOrder, shipment: safeShipment }) || shipmentStatus === 'dropped_off') {
     return {
       filter: 'active',
-      label: 'Confirmed dropped off at MY store',
+      label: 'Drop-off confirmed',
       style: 'bg-green-50 text-green-700 dark:bg-[#20322b] dark:text-green-300',
-      nextStep: 'Parcel is confirmed at the MYconvenience store and ready for logistics processing.',
+      nextStep: 'Your parcel has been confirmed as received. We will handle the next step from here.',
+      nextStepVariant: 'dropoff_confirmed',
       canClaimDropoff: false,
     }
   }
@@ -376,7 +378,15 @@ export default function OrdersPage() {
                       <p className="text-sib-text dark:text-[#f4efe7] font-semibold">Sale price: €{formatMoney(order.itemPrice)}</p>
                       <p className="text-sib-text dark:text-[#f4efe7] font-semibold">Fulfilment method: {titleCaseFulfilment(fulfilmentMethod)}</p>
                       <p className="text-sib-muted dark:text-[#aeb8b4]">Fulfilment fee: €{formatMoney(fulfilmentFee)}</p>
-                      {sellerState.nextStepVariant === 'dropoff_claimed' ? (
+                      {sellerState.nextStepVariant === 'dropoff_confirmed' ? (
+                        <div className="mt-2 rounded-2xl border border-green-100 bg-green-50/80 p-3 text-green-800 dark:border-green-500/20 dark:bg-[#20322b] dark:text-green-100">
+                          <p className="text-xs font-bold">Next step</p>
+                          <div className="mt-1.5 space-y-1 text-[11px] leading-snug">
+                            <p>Your parcel has been confirmed as received.</p>
+                            <p>We&apos;ll handle the next step from here.</p>
+                          </div>
+                        </div>
+                      ) : sellerState.nextStepVariant === 'dropoff_claimed' ? (
                         <div className="mt-2 rounded-2xl border border-blue-100 bg-blue-50/80 p-3 text-blue-800 dark:border-blue-500/20 dark:bg-[#21303a] dark:text-blue-100">
                           <p className="text-xs font-bold">Next step</p>
                           <div className="mt-1.5 space-y-1 text-[11px] leading-snug">

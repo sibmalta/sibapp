@@ -30,6 +30,7 @@ import { isLockerEligible } from '../lib/lockerEligibility'
 import { buildAdminShipmentPayload } from '../lib/adminShipment'
 import { isActiveDisputeStatus } from '../lib/disputes'
 import { buildDeliverySheetRow } from '../lib/logisticsDeliverySheet'
+import { getOrderCode, isDropoffConfirmed } from '../lib/dropoffQr'
 
 const AppContext = createContext(null)
 
@@ -247,6 +248,7 @@ export function AppProvider({ children }) {
     refreshPayouts,
     refreshShipments,
     upsertDeliverySheetRow,
+    createDropoffScanLog,
     refreshLogisticsDeliverySheet,
   } = useOrdersHook()
 
@@ -2746,6 +2748,23 @@ export function AppProvider({ children }) {
     const now = extraData.droppedOffAt || new Date().toISOString()
     const dropoffStoreName = store.name || store.storeName || extraData.dropoffStoreName || ''
     const dropoffStoreAddress = store.address || store.storeAddress || extraData.dropoffStoreAddress || ''
+    const dropoffLocation = extraData.dropoffLocation || [dropoffStoreName, dropoffStoreAddress].filter(Boolean).join(' - ') || null
+    const confirmedBy = extraData.confirmedBy || currentUser?.id || null
+
+    if (isDropoffConfirmed({ order, shipment })) {
+      await createDropoffScanLog?.({
+        orderId: order.id,
+        shipmentId: shipment.id,
+        orderCode: getOrderCode(order),
+        scannedBy: confirmedBy,
+        scanStatus: 'already_confirmed',
+        message: 'Parcel already confirmed',
+        dropoffLocation,
+      })
+      showToast('Parcel already confirmed.')
+      return { data: shipment, deliverySheetRow: null, alreadyConfirmed: true, error: null }
+    }
+
     const updates = {
       status: 'dropped_off',
       fulfilmentStatus: 'dropped_off',
@@ -2753,7 +2772,10 @@ export function AppProvider({ children }) {
       dropoffStoreName,
       dropoffStoreAddress,
       droppedOffAt: now,
-      currentLocation: extraData.currentLocation || [dropoffStoreName, dropoffStoreAddress].filter(Boolean).join(' - '),
+      dropoffConfirmedAt: now,
+      dropoffConfirmedBy: confirmedBy,
+      dropoffLocation,
+      currentLocation: extraData.currentLocation || dropoffLocation || '',
       fallbackStoreName: extraData.fallbackStoreName || shipment.fallbackStoreName || '',
       notes: extraData.notes || shipment.notes || '',
       updatedAt: now,
@@ -2766,11 +2788,25 @@ export function AppProvider({ children }) {
       return { data: null, error }
     }
 
+    const orderPatch = {
+      fulfilmentStatus: 'dropped_off',
+      dropoffConfirmedAt: now,
+      dropoffConfirmedBy: confirmedBy,
+      dropoffLocation,
+      updatedAt: now,
+    }
+    const { error: orderError } = await dbPatchOrder(order.id, orderPatch)
+    if (orderError) {
+      console.error('[markShipmentDroppedOff] order mirror update failed:', orderError.message)
+      showToast('Drop-off saved, but order status update failed: ' + orderError.message, 'error')
+    }
+
     const mergedShipment = { ...shipment, ...updatedShipment, ...updates }
     const seller = users.find(u => u.id === order.sellerId)
     const buyer = users.find(u => u.id === order.buyerId)
     const listing = listings.find(l => l.id === order.listingId)
     const sheetRow = buildDeliverySheetRow({ order, shipment: mergedShipment, seller, buyer, listing })
+    sheetRow.order_code = getOrderCode(order)
     const { data: deliverySheetRow, error: sheetError } = await upsertDeliverySheetRow(sheetRow)
     if (sheetError) {
       console.error('[markShipmentDroppedOff] delivery sheet upsert failed:', sheetError.message)
@@ -2778,11 +2814,26 @@ export function AppProvider({ children }) {
       return { data: updatedShipment, deliverySheetRow: null, error: sheetError }
     }
 
+    const scanLogResult = await createDropoffScanLog?.({
+      orderId: order.id,
+      shipmentId: shipment.id,
+      orderCode: getOrderCode(order),
+      scannedBy: confirmedBy,
+      scanStatus: 'confirmed',
+      message: 'Parcel received from seller',
+      dropoffLocation,
+    })
+    const { error: scanLogError } = scanLogResult || {}
+    if (scanLogError) {
+      console.warn('[markShipmentDroppedOff] scan log insert failed:', scanLogError.message)
+    }
+
+    await refreshOrders()
     await refreshShipments()
     await refreshLogisticsDeliverySheet()
     showToast('Parcel drop-off recorded.')
     return { data: updatedShipment, deliverySheetRow, error: null }
-  }, [orders, shipments, users, listings, dbPatchShipment, upsertDeliverySheetRow, refreshShipments, refreshLogisticsDeliverySheet, showToast])
+  }, [currentUser?.id, orders, shipments, users, listings, dbPatchOrder, dbPatchShipment, upsertDeliverySheetRow, createDropoffScanLog, refreshOrders, refreshShipments, refreshLogisticsDeliverySheet, showToast])
 
   const sellerClaimShipmentDropoff = useCallback(async (orderId) => {
     console.log('[sellerClaimShipmentDropoff] start', { orderId, currentUserId: currentUser?.id })
