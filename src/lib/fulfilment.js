@@ -34,6 +34,28 @@ export function getFulfilmentMethodShortLabel(method) {
   return 'Drop-off pending'
 }
 
+const HISTORICAL_LEGACY_STATUSES = new Set(['completed', 'confirmed', 'cancelled', 'refunded'])
+
+export function isHistoricalLegacyOrder(order = {}) {
+  return HISTORICAL_LEGACY_STATUSES.has(order?.status) || HISTORICAL_LEGACY_STATUSES.has(order?.trackingStatus)
+}
+
+export function getOrderFulfilmentProviderLabel(order = {}, shipment = null) {
+  const method = order?.fulfilmentMethod || shipment?.fulfilmentMethod || order?.deliveryMethod
+  if (normalizeFulfilmentMethod(method) === FULFILMENT_METHODS.DELIVERY && isHistoricalLegacyOrder(order)) {
+    return 'Legacy delivery provider'
+  }
+  return 'MYConvenience drop-off'
+}
+
+export function getOrderFulfilmentMethodLabel(order = {}, shipment = null) {
+  const method = order?.fulfilmentMethod || shipment?.fulfilmentMethod || order?.deliveryMethod
+  if (normalizeFulfilmentMethod(method) === FULFILMENT_METHODS.DELIVERY && isHistoricalLegacyOrder(order)) {
+    return 'Legacy delivery method'
+  }
+  return 'Store drop-off'
+}
+
 export function getDropoffPendingConfirmationCopy(input = {}) {
   const safeInput = input && typeof input === 'object' ? input : {}
   const order = safeInput.order && typeof safeInput.order === 'object' ? safeInput.order : {}

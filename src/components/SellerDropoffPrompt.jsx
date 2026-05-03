@@ -60,7 +60,7 @@ export default function SellerDropoffPrompt() {
 
   const handleViewQr = () => {
     console.log('[SellerDropoffPrompt] view drop-off QR clicked', { orderId: order.id })
-    navigate(`/orders/${order.id}`)
+    navigate(`/orders/${order.id}#dropoff-qr`)
   }
 
   const handleClaim = async () => {

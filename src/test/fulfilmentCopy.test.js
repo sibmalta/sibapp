@@ -3,6 +3,8 @@ import {
   getDropoffPendingConfirmationCopy,
   getFulfilmentMethodLabel,
   getFulfilmentMethodShortLabel,
+  getOrderFulfilmentMethodLabel,
+  getOrderFulfilmentProviderLabel,
   normalizeFulfilmentMethod,
 } from '../lib/fulfilment'
 
@@ -55,6 +57,28 @@ describe('fulfilment method labels', () => {
   it('keeps legacy MaltaPost orders renderable as legacy delivery', () => {
     expect(normalizeFulfilmentMethod('home_delivery')).toBe('delivery')
     expect(getFulfilmentMethodLabel('home_delivery')).toBe('Legacy delivery method')
+  })
+
+  it('uses MYConvenience drop-off wording for active paid legacy orders', () => {
+    const order = {
+      status: 'paid',
+      trackingStatus: 'awaiting_delivery',
+      fulfilmentMethod: 'delivery',
+    }
+
+    expect(getOrderFulfilmentProviderLabel(order)).toBe('MYConvenience drop-off')
+    expect(getOrderFulfilmentMethodLabel(order)).toBe('Store drop-off')
+  })
+
+  it('keeps legacy wording only for historical completed legacy orders', () => {
+    const order = {
+      status: 'completed',
+      trackingStatus: 'completed',
+      fulfilmentMethod: 'delivery',
+    }
+
+    expect(getOrderFulfilmentProviderLabel(order)).toBe('Legacy delivery provider')
+    expect(getOrderFulfilmentMethodLabel(order)).toBe('Legacy delivery method')
   })
 
   it('keeps MYconvenience/store drop-off wording when store data exists', () => {

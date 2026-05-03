@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import {
   CheckCircle, Clock, Truck, Package, ShieldCheck,
   AlertTriangle, Timer, ThumbsUp, MessageCircle, ExternalLink, Send, QrCode,
@@ -10,9 +10,9 @@ import FeeBreakdown from '../components/FeeBreakdown'
 import PageHeader from '../components/PageHeader'
 import ShipmentTracker, { ShipByDeadline } from '../components/ShipmentTracker'
 import { getTrackingUrl, estimateDeliveryDate } from '../lib/maltapost'
-import { FULFILMENT_PROVIDER, getDropoffPendingConfirmationCopy, getFulfilmentMethodLabel, getFulfilmentMethodShortLabel } from '../lib/fulfilment'
+import { getDropoffPendingConfirmationCopy, getOrderFulfilmentMethodLabel, getOrderFulfilmentProviderLabel } from '../lib/fulfilment'
 import { buildDropoffScanUrl, getOrderCode, getQrCodeImageUrl, isDropoffConfirmed } from '../lib/dropoffQr'
-import { isOrderPaidForDropoff } from '../lib/sellerDropoffPrompt'
+import { isOrderPaidForDropoff, shouldShowSellerDropoffQr } from '../lib/sellerDropoffPrompt'
 
 function formatCountdown(ms) {
   if (ms <= 0) return '00:00:00'
@@ -29,6 +29,7 @@ function normalizeOrderIdentifier(value) {
 export default function OrderDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const {
     orders, getListingById, getUserById, currentUser,
     confirmDelivery, openDispute, showToast, PROTECTION_WINDOW_MS,
@@ -66,6 +67,7 @@ export default function OrderDetailPage() {
     ].some((value) => normalizeOrderIdentifier(value) === routeOrderIdentifier)
   ))
   const shipment = order ? getShipmentByOrderId(order.id) : null
+  const showSellerDropoffQr = shouldShowSellerDropoffQr({ order, shipment, currentUserId: currentUser?.id })
 
   // Countdown timer for 48h protection window
   useEffect(() => {
@@ -87,6 +89,13 @@ export default function OrderDetailPage() {
     }, 1000)
     return () => clearInterval(interval)
   }, [order?.deliveredAt, order?.buyerConfirmationDeadline, order?.trackingStatus, PROTECTION_WINDOW_MS])
+
+  useEffect(() => {
+    if (location.hash !== '#dropoff-qr' || !showSellerDropoffQr) return
+    requestAnimationFrame(() => {
+      document.getElementById('dropoff-qr')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }, [location.hash, showSellerDropoffQr])
 
   if (!order && (ordersLoading || shipmentsLoading)) {
     return (
@@ -119,8 +128,8 @@ export default function OrderDetailPage() {
   const dropoffConfirmed = isDropoffConfirmed({ order, shipment })
   const sellerClaimedDropoff = Boolean(order.sellerClaimedDropoff || shipment?.sellerClaimedDropoff)
   const fulfilmentMethod = order?.fulfilmentMethod || shipment?.fulfilmentMethod || order?.deliveryMethod || ''
-  const fulfilmentMethodLabel = getFulfilmentMethodLabel(fulfilmentMethod)
-  const fulfilmentShortLabel = getFulfilmentMethodShortLabel(fulfilmentMethod)
+  const fulfilmentProviderLabel = getOrderFulfilmentProviderLabel(order, shipment)
+  const fulfilmentMethodLabel = getOrderFulfilmentMethodLabel(order, shipment)
   const pendingDropoffConfirmationCopy = getDropoffPendingConfirmationCopy({ order, shipment, fulfilmentMethod })
   const fulfilmentStatusLabel = (order.fulfilmentStatus || shipment?.fulfilmentStatus || shipment?.status || order.trackingStatus || order.status || 'pending').replace(/_/g, ' ')
   const fulfilmentPrice = order.fulfilmentPrice ?? shipment?.fulfilmentPrice ?? order.deliveryFee ?? 4.50
@@ -401,8 +410,8 @@ export default function OrderDetailPage() {
         )}
 
         {/* ── Seller ship action (awaiting shipment) ── */}
-        {isSeller && isPaid && (isAwaitingShipment || dropoffConfirmed) && (
-          <div className="rounded-2xl border-2 border-blue-200 dark:border-[rgba(242,238,231,0.10)] bg-blue-50 dark:bg-[#26322f] overflow-hidden transition-colors">
+        {showSellerDropoffQr && (
+          <div id="dropoff-qr" className="scroll-mt-24 rounded-2xl border-2 border-blue-200 dark:border-[rgba(242,238,231,0.10)] bg-blue-50 dark:bg-[#26322f] overflow-hidden transition-colors">
             <div className="p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Truck size={18} className="text-blue-600" />
@@ -432,10 +441,10 @@ export default function OrderDetailPage() {
               <div className="flex items-start gap-2 p-2.5 rounded-xl bg-white/70 dark:bg-[#26322f]/80 border border-blue-100 dark:border-blue-500/20 mb-3 transition-colors">
                 <ShieldCheck size={14} className="text-blue-600 flex-shrink-0 mt-0.5" />
                 <p className="text-[11px] text-blue-700 dark:text-[#aeb8b4] leading-relaxed">
-                  Fulfilment method: {fulfilmentShortLabel}. Delivery partner details will be shown when available.
+                  Fulfilment method: Store drop-off. Delivery partner details will be shown when available.
                 </p>
               </div>
-              {shipment.shipByDeadline && (
+              {shipment?.shipByDeadline && (
                 <div className="mb-3">
                   <ShipByDeadline deadline={shipment.shipByDeadline} />
                 </div>
@@ -463,13 +472,19 @@ export default function OrderDetailPage() {
                   </div>
                 </div>
               ) : (
-                <button
-                  onClick={handleSellerClaimDropoff}
-                  disabled={claimDropoffLoading}
-                  className="mb-3 w-full py-3 rounded-2xl bg-sib-primary text-white font-bold text-sm flex items-center justify-center gap-2 active:opacity-90 disabled:opacity-60"
-                >
-                  <CheckCircle size={15} /> {claimDropoffLoading ? 'Saving...' : "I\u2019ve dropped it off"}
-                </button>
+                shipment ? (
+                  <button
+                    onClick={handleSellerClaimDropoff}
+                    disabled={claimDropoffLoading}
+                    className="mb-3 w-full py-3 rounded-2xl bg-sib-primary text-white font-bold text-sm flex items-center justify-center gap-2 active:opacity-90 disabled:opacity-60"
+                  >
+                    <CheckCircle size={15} /> {claimDropoffLoading ? 'Saving...' : "I\u2019ve dropped it off"}
+                  </button>
+                ) : (
+                  <div className="mb-3 rounded-2xl border border-amber-100 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-500/20 dark:bg-[#332d20] dark:text-amber-200">
+                    Drop-off QR is ready. Official confirmation will be available once the shipment record is created.
+                  </div>
+                )
               )}
               {!showShipForm ? (
                 <button
@@ -549,7 +564,7 @@ export default function OrderDetailPage() {
               <div>
                 <p className="text-xs text-sib-muted dark:text-[#aeb8b4]">Fulfilment provider</p>
                 <p className="text-sm font-medium text-sib-text dark:text-[#f4efe7]">
-                  {fulfilmentMethodLabel === 'Legacy delivery method' ? 'Legacy delivery provider' : (order.fulfilmentProvider || shipment?.fulfilmentProvider || FULFILMENT_PROVIDER)}
+                  {fulfilmentProviderLabel}
                 </p>
               </div>
               <div>
@@ -571,7 +586,7 @@ export default function OrderDetailPage() {
                 </p>
               </div>
               <p className="text-xs text-sib-muted dark:text-[#aeb8b4] leading-relaxed">
-                Seller next step: {fulfilmentMethod ? 'Prepare this order for fulfilment. Delivery partner details will be shown when available.' : pendingDropoffConfirmationCopy}
+                Seller next step: {showSellerDropoffQr ? 'Show the QR at MYConvenience and write the order code clearly on the parcel.' : pendingDropoffConfirmationCopy}
               </p>
             </div>
           </div>

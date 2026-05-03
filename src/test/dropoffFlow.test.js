@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { orderToRow, rowToOrder, rowToShipment, shipmentToRow } from '../lib/db/orders'
-import { buildSellerDropoffClaimPatch, getPendingSellerDropoffOrders, isOrderPaidForDropoff } from '../lib/sellerDropoffPrompt'
+import { buildSellerDropoffClaimPatch, getPendingSellerDropoffOrders, isOrderPaidForDropoff, shouldShowSellerDropoffQr } from '../lib/sellerDropoffPrompt'
 
 const root = resolve(__dirname, '..', '..')
 
@@ -205,6 +205,70 @@ describe('seller drop-off flow', () => {
       shipments: [{ orderId: 'paid_order', status: 'awaiting_shipment' }],
       currentUserId: 'seller_1',
     }).map(order => order.id)).toEqual(['paid_order'])
+  })
+
+  it('shows QR for paid seller orders with missing fulfilment method', () => {
+    expect(shouldShowSellerDropoffQr({
+      order: {
+        id: 'paid_missing_fulfilment',
+        sellerId: 'seller_1',
+        buyerId: 'buyer_1',
+        paymentStatus: 'paid',
+        trackingStatus: 'awaiting_delivery',
+        fulfilmentMethod: null,
+      },
+      shipment: { orderId: 'paid_missing_fulfilment', status: 'awaiting_fulfilment' },
+      currentUserId: 'seller_1',
+    })).toBe(true)
+  })
+
+  it('shows QR for active paid seller orders with legacy fulfilment method', () => {
+    expect(shouldShowSellerDropoffQr({
+      order: {
+        id: 'paid_legacy_fulfilment',
+        sellerId: 'seller_1',
+        buyerId: 'buyer_1',
+        paymentStatus: 'paid',
+        trackingStatus: 'awaiting_delivery',
+        fulfilmentMethod: 'delivery',
+      },
+      shipment: { orderId: 'paid_legacy_fulfilment', status: 'label_created' },
+      currentUserId: 'seller_1',
+    })).toBe(true)
+  })
+
+  it('does not show seller QR for buyer view or unpaid orders', () => {
+    expect(shouldShowSellerDropoffQr({
+      order: {
+        id: 'paid_order',
+        sellerId: 'seller_1',
+        buyerId: 'buyer_1',
+        paymentStatus: 'paid',
+        trackingStatus: 'awaiting_delivery',
+      },
+      shipment: { orderId: 'paid_order', status: 'awaiting_shipment' },
+      currentUserId: 'buyer_1',
+    })).toBe(false)
+
+    expect(shouldShowSellerDropoffQr({
+      order: {
+        id: 'unpaid_order',
+        sellerId: 'seller_1',
+        buyerId: 'buyer_1',
+        paymentStatus: 'pending',
+        trackingStatus: 'pending',
+      },
+      shipment: { orderId: 'unpaid_order', status: 'awaiting_shipment' },
+      currentUserId: 'seller_1',
+    })).toBe(false)
+  })
+
+  it('keeps the View drop-off QR button linked to an existing order detail target', () => {
+    const prompt = readFileSync(resolve(root, 'src/components/SellerDropoffPrompt.jsx'), 'utf8')
+    const detail = readFileSync(resolve(root, 'src/pages/OrderDetailPage.jsx'), 'utf8')
+
+    expect(prompt).toContain('#dropoff-qr')
+    expect(detail).toContain('id="dropoff-qr"')
   })
 
   it('keeps QR/drop-off instructions out of unsold listing pages', () => {
