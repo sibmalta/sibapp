@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { orderToRow, rowToOrder, rowToShipment, shipmentToRow } from '../lib/db/orders'
-import { buildSellerDropoffClaimPatch, getPendingSellerDropoffOrders } from '../lib/sellerDropoffPrompt'
+import { buildSellerDropoffClaimPatch, getPendingSellerDropoffOrders, isOrderPaidForDropoff } from '../lib/sellerDropoffPrompt'
 
 const root = resolve(__dirname, '..', '..')
 
@@ -159,6 +159,61 @@ describe('seller drop-off flow', () => {
 
     expect(getPendingSellerDropoffOrders({ orders, shipments: [], currentUserId: 'seller_1' }).map(order => order.id)).toEqual(['order_seller'])
     expect(getPendingSellerDropoffOrders({ orders, shipments: [], currentUserId: 'buyer_1' })).toEqual([])
+  })
+
+  it('does not treat unpaid or pending checkout orders as eligible for seller drop-off QR flow', () => {
+    expect(isOrderPaidForDropoff({
+      id: 'pending_order',
+      sellerId: 'seller_1',
+      buyerId: 'buyer_1',
+      status: 'pending',
+      trackingStatus: 'pending',
+      paymentStatus: 'pending',
+    })).toBe(false)
+
+    expect(getPendingSellerDropoffOrders({
+      orders: [{
+        id: 'pending_order',
+        sellerId: 'seller_1',
+        buyerId: 'buyer_1',
+        status: 'pending',
+        trackingStatus: 'pending',
+        paymentStatus: 'pending',
+      }],
+      shipments: [{ orderId: 'pending_order', status: 'awaiting_shipment' }],
+      currentUserId: 'seller_1',
+    })).toEqual([])
+  })
+
+  it('treats paid seller orders as eligible for QR/drop-off instructions', () => {
+    expect(isOrderPaidForDropoff({
+      id: 'paid_order',
+      sellerId: 'seller_1',
+      buyerId: 'buyer_1',
+      trackingStatus: 'awaiting_delivery',
+      paidAt: '2026-05-03T10:00:00.000Z',
+    })).toBe(true)
+
+    expect(getPendingSellerDropoffOrders({
+      orders: [{
+        id: 'paid_order',
+        sellerId: 'seller_1',
+        buyerId: 'buyer_1',
+        trackingStatus: 'awaiting_delivery',
+        paidAt: '2026-05-03T10:00:00.000Z',
+      }],
+      shipments: [{ orderId: 'paid_order', status: 'awaiting_shipment' }],
+      currentUserId: 'seller_1',
+    }).map(order => order.id)).toEqual(['paid_order'])
+  })
+
+  it('keeps QR/drop-off instructions out of unsold listing pages', () => {
+    const listingPage = readFileSync(resolve(root, 'src/pages/ListingPage.jsx'), 'utf8')
+
+    expect(listingPage).not.toContain('Drop-off QR')
+    expect(listingPage).not.toContain('Show this QR code at MYConvenience')
+    expect(listingPage).not.toContain('Write this order code clearly on your parcel')
+    expect(listingPage).not.toContain('admin/scan-dropoff')
   })
 
   it('hides the seller prompt after seller claim or official store drop-off', () => {

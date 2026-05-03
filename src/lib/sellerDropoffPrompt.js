@@ -2,10 +2,19 @@ const PAID_ORDER_STATUSES = new Set([
   'paid',
   'payment_received_seller_payout_pending',
   'awaiting_delivery',
+  'shipped',
+  'delivered',
+  'confirmed',
+  'completed',
+  'disputed',
+  'under_review',
+  'cancelled',
+  'refunded',
 ])
 
 export function isOrderPaidForDropoff(order) {
   return Boolean(
+    order?.paidAt ||
     order?.paymentStatus === 'paid' ||
     PAID_ORDER_STATUSES.has(order?.status) ||
     PAID_ORDER_STATUSES.has(order?.trackingStatus)

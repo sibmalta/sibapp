@@ -10,6 +10,7 @@ import PendingPayoutsWidget from '../components/PendingPayoutsWidget'
 import { getDropoffPendingConfirmationCopy, getFulfilmentMethodLabel } from '../lib/fulfilment'
 import { getSellerPendingPayoutSummary } from '../lib/pendingPayouts'
 import { isDropoffConfirmed } from '../lib/dropoffQr'
+import { isOrderPaidForDropoff } from '../lib/sellerDropoffPrompt'
 
 const SELLER_FILTERS = [
   { id: 'active', label: 'Active' },
@@ -218,7 +219,7 @@ export default function OrdersPage() {
   }
 
   const buyingOrders = getUserOrders(currentUser.id)
-  const sellingOrders = getUserSales(currentUser.id)
+  const sellingOrders = getUserSales(currentUser.id).filter(isOrderPaidForDropoff)
   const pendingPayoutSummary = getSellerPendingPayoutSummary(sellingOrders, currentUser.id)
   const displayed = (tab === 'buying' ? buyingOrders : sellingOrders)
     .filter(Boolean)

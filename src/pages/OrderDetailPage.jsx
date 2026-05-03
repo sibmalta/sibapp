@@ -12,6 +12,7 @@ import ShipmentTracker, { ShipByDeadline } from '../components/ShipmentTracker'
 import { getTrackingUrl, estimateDeliveryDate } from '../lib/maltapost'
 import { FULFILMENT_PROVIDER, getDropoffPendingConfirmationCopy, getFulfilmentMethodLabel, getFulfilmentMethodShortLabel } from '../lib/fulfilment'
 import { buildDropoffScanUrl, getOrderCode, getQrCodeImageUrl, isDropoffConfirmed } from '../lib/dropoffQr'
+import { isOrderPaidForDropoff } from '../lib/sellerDropoffPrompt'
 
 function formatCountdown(ms) {
   if (ms <= 0) return '00:00:00'
@@ -110,7 +111,7 @@ export default function OrderDetailPage() {
   const isSeller = currentUser?.id === order.sellerId
   const other = isBuyer ? seller : buyer
 
-  const isPaid = ['paid', 'pending', 'awaiting_delivery'].includes(order.trackingStatus)
+  const isPaid = isOrderPaidForDropoff(order)
   const isDelivered = order.trackingStatus === 'delivered'
   const isConfirmed = order.trackingStatus === 'confirmed' || order.trackingStatus === 'completed' || order.status === 'completed'
   const isDisputed = order.trackingStatus === 'disputed' || order.trackingStatus === 'under_review'
