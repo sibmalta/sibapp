@@ -55,15 +55,17 @@ function formatMoney(value, fallback = 0) {
   return Number(value ?? fallback).toFixed(2)
 }
 
-function titleCaseFulfilment(method) {
+export function titleCaseFulfilment(method) {
   return getFulfilmentMethodLabel(method)
     .replace('locker', 'Locker')
     .replace('delivery', 'Delivery')
 }
 
-function getSellerOrderState(order, shipment) {
-  const orderStatus = order.trackingStatus || order.status
-  const shipmentStatus = shipment?.status
+export function getSellerOrderState(order = {}, shipment = null) {
+  const safeOrder = order && typeof order === 'object' ? order : {}
+  const safeShipment = shipment && typeof shipment === 'object' ? shipment : null
+  const orderStatus = safeOrder?.trackingStatus || safeOrder?.status
+  const shipmentStatus = safeShipment?.status
 
   if (orderStatus === 'cancelled' || orderStatus === 'refunded' || shipmentStatus === 'cancelled') {
     return {
@@ -74,7 +76,7 @@ function getSellerOrderState(order, shipment) {
     }
   }
 
-  if (order.payoutStatus === 'blocked_seller_setup') {
+  if (safeOrder?.payoutStatus === 'blocked_seller_setup') {
     return {
       filter: 'blocked_payouts',
       label: 'Payout setup needed',
@@ -120,7 +122,7 @@ function getSellerOrderState(order, shipment) {
     }
   }
 
-  if (order?.sellerClaimedDropoff || shipment?.sellerClaimedDropoff) {
+  if (safeOrder?.sellerClaimedDropoff || safeShipment?.sellerClaimedDropoff) {
     return {
       filter: 'active',
       label: 'Drop-off pending confirmation',
@@ -146,7 +148,7 @@ function getSellerOrderState(order, shipment) {
       label: 'Awaiting seller drop-off',
       style: 'bg-yellow-50 text-yellow-700 dark:bg-[#332d20] dark:text-amber-300',
       nextStep: 'Package this item and drop it at a MYconvenience store.',
-      canClaimDropoff: Boolean(shipment?.id),
+      canClaimDropoff: Boolean(safeShipment?.id),
     }
   }
 
@@ -155,7 +157,7 @@ function getSellerOrderState(order, shipment) {
     label: 'Preparing for fulfilment',
     style: 'bg-yellow-50 text-yellow-700 dark:bg-[#332d20] dark:text-amber-300',
     nextStep: 'Package this item and drop it at a MYconvenience store.',
-    canClaimDropoff: Boolean(shipment?.id),
+    canClaimDropoff: Boolean(safeShipment?.id),
   }
 }
 
@@ -217,13 +219,14 @@ export default function OrdersPage() {
   const sellingOrders = getUserSales(currentUser.id)
   const pendingPayoutSummary = getSellerPendingPayoutSummary(sellingOrders, currentUser.id)
   const displayed = (tab === 'buying' ? buyingOrders : sellingOrders)
+    .filter(Boolean)
     .filter(order => {
       if (!shipmentFilter) return true
-      return getShipmentByOrderId(order.id)?.status === shipmentFilter
+      return getShipmentByOrderId(order?.id)?.status === shipmentFilter
     })
     .filter(order => {
       if (tab !== 'selling') return true
-      const shipment = getShipmentByOrderId(order.id)
+      const shipment = getShipmentByOrderId(order?.id)
       return getSellerOrderState(order, shipment).filter === sellerFilter
     })
 
@@ -323,17 +326,18 @@ export default function OrdersPage() {
       ) : (
         <div className="divide-y divide-sib-stone dark:divide-[rgba(242,238,231,0.10)]">
           {displayed.map(order => {
-            const listing = getListingById(order.listingId)
-            const other = getUserById(tab === 'buying' ? order.sellerId : order.buyerId)
-            const shipment = getShipmentByOrderId(order.id)
+            const listing = getListingById(order?.listingId)
+            const other = getUserById(tab === 'buying' ? order?.sellerId : order?.buyerId)
+            const shipment = getShipmentByOrderId(order?.id)
             const sellerState = getSellerOrderState(order, shipment)
-            const itemTitle = listing?.title || order.listingTitle || (order.isBundle ? 'Bundle order' : 'Sold item')
-            const itemImage = listing?.images?.[0] || order.listingImage
-            const orderRef = order.orderRef || order.id?.slice(-8)
-            const fulfilmentMethod = order.fulfilmentMethod || shipment?.fulfilmentMethod || order.deliveryMethod
-            const fulfilmentFee = order.fulfilmentPrice ?? shipment?.fulfilmentPrice ?? order.deliveryFee ?? 4.50
-            const buyerReference = other?.username || other?.name || order.buyerId?.slice(0, 8) || 'buyer'
+            const itemTitle = listing?.title || order?.listingTitle || (order?.isBundle ? 'Bundle order' : 'Sold item')
+            const itemImage = listing?.images?.[0] || order?.listingImage
+            const orderRef = order?.orderRef || order?.id?.slice(-8)
+            const fulfilmentMethod = order?.fulfilmentMethod || shipment?.fulfilmentMethod || order?.deliveryMethod || ''
+            const fulfilmentFee = order?.fulfilmentPrice ?? shipment?.fulfilmentPrice ?? order?.deliveryFee ?? 4.50
+            const buyerReference = other?.username || other?.name || order?.buyerId?.slice(0, 8) || 'buyer'
             const pendingDropoffConfirmationCopy = getDropoffPendingConfirmationCopy({ order, shipment, fulfilmentMethod })
+            const sellerNextStep = fulfilmentMethod ? sellerState.nextStep : pendingDropoffConfirmationCopy
 
             return (
               <div
@@ -382,7 +386,7 @@ export default function OrdersPage() {
                           </div>
                         </div>
                       ) : (
-                        <p className="text-sib-muted dark:text-[#aeb8b4] leading-snug">Seller next step: {sellerState.nextStep}</p>
+                        <p className="text-sib-muted dark:text-[#aeb8b4] leading-snug">Seller next step: {sellerNextStep}</p>
                       )}
                     </div>
                   )}

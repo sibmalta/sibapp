@@ -10,8 +10,20 @@ import { isActiveInventoryStatus } from './listings'
 
 // Shape helpers
 
+function normalizeListingImages(value) {
+  if (Array.isArray(value)) return value.filter(Boolean)
+  if (typeof value === 'string' && value.trim()) return [value.trim()]
+  return []
+}
+
+function getFirstListingImage(value) {
+  return normalizeListingImages(value)[0] || ''
+}
+
 export function rowToOrder(row) {
   if (!row) return null
+  const listingRow = row.listing || row.listings || null
+  const listingImages = normalizeListingImages(listingRow?.images)
   const shippingAddress = row.shipping_address || null
   const shippingAddressObject = shippingAddress && typeof shippingAddress === 'object' && !Array.isArray(shippingAddress)
     ? shippingAddress
@@ -28,8 +40,13 @@ export function rowToOrder(row) {
     listingId: row.listing_id || '',
     buyerId: row.buyer_id || '',
     sellerId: row.seller_id || '',
-    listingTitle: row.listing_title || '',
-    listingImage: row.listing_image || '',
+    listing: listingRow ? {
+      id: listingRow.id || row.listing_id || '',
+      title: listingRow.title || row.listing_title || '',
+      images: listingImages,
+    } : null,
+    listingTitle: row.listing_title || listingRow?.title || '',
+    listingImage: row.listing_image || getFirstListingImage(listingRow?.images),
     itemPrice: Number(row.item_price || 0),
     bundledFee: Number(row.bundled_fee || row.platform_fee || shippingAddressObject.bundledFee || 0),
     totalPrice: Number(row.total_price || 0),
@@ -224,7 +241,30 @@ export async function fetchAllOrders(supabase) {
       .order('created_at', { ascending: false })
       .limit(500)
     if (error) return { data: null, error }
-    return { data: (data || []).map(rowToOrder), error: null }
+    const rows = data || []
+    const listingIds = [...new Set(rows.map(row => row?.listing_id).filter(Boolean))]
+    let listingsById = new Map()
+
+    if (listingIds.length > 0) {
+      const { data: listingsData, error: listingsError } = await supabase
+        .from('listings')
+        .select('id,title,images')
+        .in('id', listingIds)
+
+      if (listingsError) {
+        console.warn('[orders] Unable to enrich orders with listing images:', listingsError.message)
+      } else {
+        listingsById = new Map((listingsData || []).map(listing => [listing.id, listing]))
+      }
+    }
+
+    return {
+      data: rows.map(row => rowToOrder({
+        ...row,
+        listing: row.listing || row.listings || listingsById.get(row.listing_id) || null,
+      })),
+      error: null,
+    }
   } catch (e) {
     return { data: null, error: { message: e.message } }
   }

@@ -115,7 +115,7 @@ export default function OrderDetailPage() {
   const isDisputed = order.trackingStatus === 'disputed' || order.trackingStatus === 'under_review'
   const isAwaitingShipment = shipment?.status === 'awaiting_shipment'
   const sellerClaimedDropoff = Boolean(order.sellerClaimedDropoff || shipment?.sellerClaimedDropoff)
-  const fulfilmentMethod = order.fulfilmentMethod || order.deliveryMethod
+  const fulfilmentMethod = order?.fulfilmentMethod || shipment?.fulfilmentMethod || order?.deliveryMethod || ''
   const fulfilmentMethodLabel = getFulfilmentMethodLabel(fulfilmentMethod)
   const fulfilmentShortLabel = getFulfilmentMethodShortLabel(fulfilmentMethod)
   const pendingDropoffConfirmationCopy = getDropoffPendingConfirmationCopy({ order, shipment, fulfilmentMethod })
@@ -518,7 +518,7 @@ export default function OrderDetailPage() {
                 </p>
               </div>
               <p className="text-xs text-sib-muted dark:text-[#aeb8b4] leading-relaxed">
-                Seller next step: Prepare this order for fulfilment. Delivery partner details will be shown when available.
+                Seller next step: {fulfilmentMethod ? 'Prepare this order for fulfilment. Delivery partner details will be shown when available.' : pendingDropoffConfirmationCopy}
               </p>
             </div>
           </div>

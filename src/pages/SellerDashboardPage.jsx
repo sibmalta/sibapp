@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Wallet, Package, Clock, CheckCircle, AlertCircle,
   ChevronRight, ShieldCheck, Banknote, Calendar, Truck, Send,
-  ChevronDown, ChevronUp, ArrowUpRight, TrendingUp,
+  ChevronDown, ChevronUp, ArrowUpRight, TrendingUp, ImageIcon,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { ShipmentStatusBadge } from '../components/ShipmentTracker'
@@ -24,6 +24,15 @@ const PAYOUT_STATUS_MAP = {
 // Payout days: Tuesday (2) and Friday (5)
 const PAYOUT_DAYS = [2, 5]
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+export function getSaleListingSnapshot(order, listing) {
+  const listingImages = Array.isArray(listing?.images) ? listing.images : []
+  const orderListingImages = Array.isArray(order?.listing?.images) ? order.listing.images : []
+  return {
+    title: listing?.title || order?.listing?.title || order?.listingTitle || 'Item',
+    imageUrl: listingImages[0] || orderListingImages[0] || order?.listingImage || null,
+  }
+}
 
 function getNextPayoutDay() {
   const now = new Date()
@@ -295,6 +304,7 @@ export default function SellerDashboardPage() {
 
         {filteredSales.map(order => {
           const listing = getListingById(order.listingId)
+          const saleListing = getSaleListingSnapshot(order, listing)
           const ps = PAYOUT_STATUS_MAP[order.payoutStatus] || PAYOUT_STATUS_MAP.held
           const StatusIcon = ps.icon
           const shipment = getShipmentByOrderId(order.id)
@@ -309,13 +319,22 @@ export default function SellerDashboardPage() {
               }`}
             >
               <div className="flex items-center gap-3" onClick={() => navigate(`/orders/${order.id}`)}>
-                <img
-                  src={listing?.images?.[0] || ''}
-                  alt={listing?.title}
-                  className="w-12 h-12 rounded-lg object-cover flex-shrink-0 bg-sib-sand dark:bg-[#26322f]"
-                />
+                <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-sib-sand dark:bg-[#26322f] border border-sib-stone/40 dark:border-[rgba(242,238,231,0.10)]">
+                  {saleListing.imageUrl ? (
+                    <img
+                      src={saleListing.imageUrl}
+                      alt={saleListing.title}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-sib-muted dark:text-[#aeb8b4]">
+                      <ImageIcon size={17} />
+                    </div>
+                  )}
+                </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold text-sib-text dark:text-[#f4efe7] line-clamp-1">{listing?.title || 'Item'}</p>
+                  <p className="text-[13px] font-semibold text-sib-text dark:text-[#f4efe7] line-clamp-1">{saleListing.title}</p>
                   <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                     <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5 ${ps.color}`}>
                       <StatusIcon size={9} />

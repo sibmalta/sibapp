@@ -10,34 +10,44 @@ export const FULFILMENT_PRICES = {
 }
 
 export function normalizeFulfilmentMethod(value) {
+  if (value == null || value === '') return null
   if (value === FULFILMENT_METHODS.LOCKER || value === 'locker_collection') return FULFILMENT_METHODS.LOCKER
-  return FULFILMENT_METHODS.DELIVERY
+  if (value === FULFILMENT_METHODS.DELIVERY || value === 'home_delivery') return FULFILMENT_METHODS.DELIVERY
+  return null
 }
 
 export function getFulfilmentPrice(method) {
-  return FULFILMENT_PRICES[normalizeFulfilmentMethod(method)]
+  return FULFILMENT_PRICES[normalizeFulfilmentMethod(method)] ?? FULFILMENT_PRICES[FULFILMENT_METHODS.DELIVERY]
 }
 
 export function getFulfilmentMethodLabel(method) {
-  return normalizeFulfilmentMethod(method) === FULFILMENT_METHODS.LOCKER
-    ? 'Locker collection'
-    : 'Legacy delivery method'
+  const normalized = normalizeFulfilmentMethod(method)
+  if (normalized === FULFILMENT_METHODS.LOCKER) return 'Locker collection'
+  if (normalized === FULFILMENT_METHODS.DELIVERY) return 'Legacy delivery method'
+  return 'Drop-off pending'
 }
 
 export function getFulfilmentMethodShortLabel(method) {
-  return normalizeFulfilmentMethod(method) === FULFILMENT_METHODS.LOCKER ? 'Locker' : 'Legacy delivery'
+  const normalized = normalizeFulfilmentMethod(method)
+  if (normalized === FULFILMENT_METHODS.LOCKER) return 'Locker'
+  if (normalized === FULFILMENT_METHODS.DELIVERY) return 'Legacy delivery'
+  return 'Drop-off pending'
 }
 
-export function getDropoffPendingConfirmationCopy({ order = {}, shipment = {}, fulfilmentMethod } = {}) {
+export function getDropoffPendingConfirmationCopy(input = {}) {
+  const safeInput = input && typeof input === 'object' ? input : {}
+  const order = safeInput.order && typeof safeInput.order === 'object' ? safeInput.order : {}
+  const shipment = safeInput.shipment && typeof safeInput.shipment === 'object' ? safeInput.shipment : {}
+  const fulfilmentMethod = safeInput.fulfilmentMethod
   const rawValues = [
     fulfilmentMethod,
-    order.fulfilmentMethod,
-    order.deliveryMethod,
-    order.fulfilmentProvider,
-    shipment.fulfilmentMethod,
-    shipment.deliveryType,
-    shipment.fulfilmentProvider,
-    shipment.dropoffStoreName,
+    order?.fulfilmentMethod,
+    order?.deliveryMethod,
+    order?.fulfilmentProvider,
+    shipment?.fulfilmentMethod,
+    shipment?.deliveryType,
+    shipment?.fulfilmentProvider,
+    shipment?.dropoffStoreName,
   ]
     .filter(Boolean)
     .map(value => String(value).toLowerCase())
