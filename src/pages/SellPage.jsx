@@ -656,7 +656,7 @@ useEffect(() => {
   const validateStep1 = () => {
     const e = {}
     if (!form.price || isNaN(form.price) || Number(form.price) < 1) e.price = 'Enter a valid price'
-    if (deliveryEligible && form.lockerEligible === null) e.lockerEligible = 'Choose whether this item fits in a locker'
+    if (deliveryEligible && form.lockerEligible === null) e.lockerEligible = 'Choose whether this item can be safely carried by one person'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -1200,12 +1200,12 @@ useEffect(() => {
 
           {deliveryEligible && (
             <div className="mb-5">
-              <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">
-                Locker fit
-              </label>
-              <p className="text-[11px] text-sib-muted mb-2 leading-relaxed">
-                Does this item fit within 40 x 40 x 60 cm (locker size)?
-              </p>
+                <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">
+                  Parcel size
+                </label>
+                <p className="text-[11px] text-sib-muted mb-2 leading-relaxed">
+                  Can this item be safely carried by one person?
+                </p>
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -1226,13 +1226,13 @@ useEffect(() => {
                   No
                 </button>
               </div>
-              {errors.lockerEligible && <p className="text-red-500 text-xs mt-1">{errors.lockerEligible}</p>}
-              {form.lockerEligible === false && (
-                <p className="text-[11px] text-sib-muted mt-2">
-                  Locker delivery will not be offered for this item.
-                </p>
-              )}
-            </div>
+                {errors.lockerEligible && <p className="text-red-500 text-xs mt-1">{errors.lockerEligible}</p>}
+                {form.lockerEligible === false && (
+                  <p className="text-[11px] text-sib-muted mt-2">
+                    Parcel drop-off may need extra review for this item.
+                  </p>
+                )}
+              </div>
           )}
 
           {/* ── Delivery Size Picker — with 1-person-carry toggle ── */}
