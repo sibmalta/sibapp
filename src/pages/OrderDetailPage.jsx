@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import {
   CheckCircle, Clock, Truck, Package, ShieldCheck,
-  AlertTriangle, Timer, ThumbsUp, MessageCircle, ExternalLink, Send, QrCode,
+  AlertTriangle, Timer, ThumbsUp, MessageCircle, ExternalLink, QrCode,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import UserAvatar from '../components/UserAvatar'
@@ -33,7 +33,7 @@ export default function OrderDetailPage() {
   const {
     orders, getListingById, getUserById, currentUser,
     confirmDelivery, openDispute, showToast, PROTECTION_WINDOW_MS,
-    getShipmentByOrderId, markShipmentShipped, sellerClaimShipmentDropoff, DISPUTE_REASONS,
+    getShipmentByOrderId, DISPUTE_REASONS,
     refreshOrders, refreshShipments, ordersLoading, shipmentsLoading,
   } = useApp()
 
@@ -43,10 +43,6 @@ export default function OrderDetailPage() {
   const [disputeReason, setDisputeReason] = useState('')
   const [disputeType, setDisputeType] = useState('')
   const [countdown, setCountdown] = useState(null)
-  const [showShipForm, setShowShipForm] = useState(false)
-  const [trackingInput, setTrackingInput] = useState('')
-  const [shipLoading, setShipLoading] = useState(false)
-  const [claimDropoffLoading, setClaimDropoffLoading] = useState(false)
   const loadedOrderRef = useRef(false)
 
   const routeOrderIdentifier = normalizeOrderIdentifier(id)
@@ -124,9 +120,7 @@ export default function OrderDetailPage() {
   const isDelivered = order.trackingStatus === 'delivered'
   const isConfirmed = order.trackingStatus === 'confirmed' || order.trackingStatus === 'completed' || order.status === 'completed'
   const isDisputed = order.trackingStatus === 'disputed' || order.trackingStatus === 'under_review'
-  const isAwaitingShipment = shipment?.status === 'awaiting_shipment'
   const dropoffConfirmed = isDropoffConfirmed({ order, shipment })
-  const sellerClaimedDropoff = Boolean(order.sellerClaimedDropoff || shipment?.sellerClaimedDropoff)
   const fulfilmentMethod = order?.fulfilmentMethod || shipment?.fulfilmentMethod || order?.deliveryMethod || ''
   const fulfilmentProviderLabel = getOrderFulfilmentProviderLabel(order, shipment)
   const fulfilmentMethodLabel = getOrderFulfilmentMethodLabel(order, shipment)
@@ -139,33 +133,6 @@ export default function OrderDetailPage() {
 
   const trackingUrl = shipment?.trackingNumber ? getTrackingUrl(shipment.trackingNumber) : null
   const estDelivery = shipment?.shippedAt ? estimateDeliveryDate(shipment.shippedAt) : null
-
-  const handleShip = async () => {
-    if (!trackingInput.trim()) {
-      showToast('Please enter a tracking number.', 'error')
-      return
-    }
-    setShipLoading(true)
-    try {
-      markShipmentShipped(order.id, trackingInput.trim())
-      showToast('Marked as shipped. Buyer will be notified.')
-      setShowShipForm(false)
-      setTrackingInput('')
-    } catch (err) {
-      showToast('Failed to mark as shipped.', 'error')
-    }
-    setShipLoading(false)
-  }
-
-  const handleSellerClaimDropoff = async () => {
-    console.log('[OrderDetailPage] seller drop-off claim clicked', { orderId: order.id })
-    setClaimDropoffLoading(true)
-    try {
-      await sellerClaimShipmentDropoff(order.id)
-    } finally {
-      setClaimDropoffLoading(false)
-    }
-  }
 
   const handleConfirm = async () => {
     const ok = await confirmDelivery(order.id)
@@ -409,41 +376,45 @@ export default function OrderDetailPage() {
           </div>
         )}
 
-        {/* ── Seller ship action (awaiting shipment) ── */}
+        {/* ── Seller drop-off QR ── */}
         {showSellerDropoffQr && (
           <div id="dropoff-qr" className="scroll-mt-24 rounded-2xl border-2 border-blue-200 dark:border-[rgba(242,238,231,0.10)] bg-blue-50 dark:bg-[#26322f] overflow-hidden transition-colors">
-            <div className="p-4">
+            <div className="p-4 sm:p-5">
               <div className="flex items-center gap-2 mb-2">
-                <Truck size={18} className="text-blue-600" />
-                <h2 className="text-sm font-bold text-blue-800">New sale: prepare for MYconvenience drop-off</h2>
+                <QrCode size={18} className="text-blue-600" />
+                <h2 className="text-base font-black text-blue-900 dark:text-blue-100">Drop-off QR</h2>
               </div>
-              <p className="text-xs text-blue-700 leading-relaxed mb-3">
-                Package this order and drop it at a MYconvenience store. The parcel is officially dropped off only after the store scans the QR or admin confirms it.
+              <p className="mb-4 text-sm font-semibold text-blue-800 dark:text-blue-100">
+                Show this QR code at MYConvenience.
               </p>
-              <div className="mb-3 rounded-2xl border border-blue-100 bg-white/80 p-3 dark:border-blue-500/20 dark:bg-[#202b28]">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <div className="mx-auto flex h-44 w-44 items-center justify-center rounded-2xl bg-white p-2 shadow-sm sm:mx-0">
-                    <img src={dropoffQrUrl} alt={`Drop-off QR for order ${orderCode}`} className="h-full w-full" />
+              <div className="mb-3 rounded-2xl border border-blue-100 bg-white/85 p-4 dark:border-blue-500/20 dark:bg-[#202b28]">
+                <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center">
+                  <div className="flex h-64 w-64 max-w-full shrink-0 items-center justify-center rounded-2xl bg-white p-3 shadow-sm ring-1 ring-blue-100 dark:ring-blue-500/20">
+                    <img src={dropoffQrUrl} alt={`Drop-off QR for order ${orderCode}`} className="h-full w-full object-contain" />
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 text-blue-800 dark:text-blue-100">
-                      <QrCode size={16} />
-                      <p className="text-sm font-black">Drop-off QR</p>
-                    </div>
-                    <p className="mt-2 text-xs font-semibold text-blue-800 dark:text-blue-100">Show this QR code at MYConvenience.</p>
-                    <p className="mt-1 text-xs text-blue-700 dark:text-blue-100/80">Write this order code clearly on your parcel.</p>
-                    <p className="mt-3 inline-flex rounded-xl bg-blue-100 px-3 py-2 font-mono text-sm font-black text-blue-900 dark:bg-blue-500/20 dark:text-blue-100">
-                      {orderCode}
+                  <div className="w-full min-w-0 flex-1 text-center sm:text-left">
+                    <p className="text-sm font-semibold text-blue-800 dark:text-blue-100">
+                      Write this order code on your parcel.
                     </p>
+                    <div className="mt-3 rounded-2xl bg-blue-100 px-4 py-3 dark:bg-blue-500/20">
+                      <p className="text-[11px] font-bold uppercase text-blue-700 dark:text-blue-100/80">
+                        Order code (write on parcel)
+                      </p>
+                      <p className="mt-1 break-all font-mono text-2xl font-black text-blue-950 dark:text-blue-50 sm:text-3xl">
+                        {orderCode}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
-              <div className="flex items-start gap-2 p-2.5 rounded-xl bg-white/70 dark:bg-[#26322f]/80 border border-blue-100 dark:border-blue-500/20 mb-3 transition-colors">
-                <ShieldCheck size={14} className="text-blue-600 flex-shrink-0 mt-0.5" />
-                <p className="text-[11px] text-blue-700 dark:text-[#aeb8b4] leading-relaxed">
-                  Fulfilment method: Store drop-off. Delivery partner details will be shown when available.
-                </p>
-              </div>
+              {!dropoffConfirmed && (
+                <div className="mb-3 flex items-start gap-2 rounded-xl border border-blue-100 bg-white/70 p-2.5 transition-colors dark:border-blue-500/20 dark:bg-[#26322f]/80">
+                  <ShieldCheck size={14} className="mt-0.5 flex-shrink-0 text-blue-600" />
+                  <p className="text-[11px] leading-relaxed text-blue-700 dark:text-[#aeb8b4]">
+                    Your parcel will be confirmed once the store scans your QR code.
+                  </p>
+                </div>
+              )}
               {shipment?.shipByDeadline && (
                 <div className="mb-3">
                   <ShipByDeadline deadline={shipment.shipByDeadline} />
@@ -462,63 +433,7 @@ export default function OrderDetailPage() {
                     )}
                   </div>
                 </div>
-              ) : sellerClaimedDropoff ? (
-                <div className="mb-3 rounded-2xl border border-blue-100 bg-blue-50/80 p-3 text-blue-800 dark:border-blue-500/20 dark:bg-[#21303a] dark:text-blue-100">
-                  <p className="text-xs font-bold">Next step</p>
-                  <div className="mt-1.5 space-y-1 text-xs leading-snug">
-                    <p>✅ You’ve marked this item as dropped off.</p>
-                    <p>⏳ {pendingDropoffConfirmationCopy}</p>
-                    <p>No further action is needed from you right now.</p>
-                  </div>
-                </div>
-              ) : (
-                shipment ? (
-                  <button
-                    onClick={handleSellerClaimDropoff}
-                    disabled={claimDropoffLoading}
-                    className="mb-3 w-full py-3 rounded-2xl bg-sib-primary text-white font-bold text-sm flex items-center justify-center gap-2 active:opacity-90 disabled:opacity-60"
-                  >
-                    <CheckCircle size={15} /> {claimDropoffLoading ? 'Saving...' : "I\u2019ve dropped it off"}
-                  </button>
-                ) : (
-                  <div className="mb-3 rounded-2xl border border-amber-100 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-500/20 dark:bg-[#332d20] dark:text-amber-200">
-                    Drop-off QR is ready. Official confirmation will be available once the shipment record is created.
-                  </div>
-                )
-              )}
-              {!showShipForm ? (
-                <button
-                  onClick={() => setShowShipForm(true)}
-                  className="w-full py-3 rounded-2xl bg-blue-600 text-white font-bold text-sm flex items-center justify-center gap-2 active:opacity-90"
-                >
-                  <Send size={15} /> Enter tracking number
-                </button>
-              ) : (
-                <div className="space-y-2">
-                  <input
-                    type="text"
-                    value={trackingInput}
-                    onChange={e => setTrackingInput(e.target.value)}
-                    placeholder="e.g. RR123456789MT"
-                    className="w-full p-3 rounded-xl border border-blue-200 dark:border-blue-500/20 bg-white dark:bg-[#26322f] text-sm text-sib-text dark:text-[#f4efe7] placeholder:text-sib-muted/50 dark:placeholder:text-[#aeb8b4] focus:outline-none focus:border-blue-400 font-mono"
-                  />
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => { setShowShipForm(false); setTrackingInput('') }}
-                      className="flex-1 py-2.5 rounded-xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] text-sib-text dark:text-[#f4efe7] text-sm font-semibold"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleShip}
-                      disabled={shipLoading}
-                      className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold disabled:opacity-50"
-                    >
-                      {shipLoading ? 'Processing...' : 'Confirm shipment details'}
-                    </button>
-                  </div>
-                </div>
-              )}
+              ) : null}
             </div>
           </div>
         )}
@@ -585,9 +500,11 @@ export default function OrderDetailPage() {
                   {fulfilmentStatusLabel}
                 </p>
               </div>
-              <p className="text-xs text-sib-muted dark:text-[#aeb8b4] leading-relaxed">
-                Seller next step: {showSellerDropoffQr ? 'Show the QR at MYConvenience and write the order code clearly on the parcel.' : pendingDropoffConfirmationCopy}
-              </p>
+              {!showSellerDropoffQr && (
+                <p className="text-xs text-sib-muted dark:text-[#aeb8b4] leading-relaxed">
+                  Seller next step: {pendingDropoffConfirmationCopy}
+                </p>
+              )}
             </div>
           </div>
         </div>

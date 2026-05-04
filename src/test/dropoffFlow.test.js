@@ -271,6 +271,19 @@ describe('seller drop-off flow', () => {
     expect(detail).toContain('id="dropoff-qr"')
   })
 
+  it('keeps the seller drop-off detail screen focused on QR-only store scan instructions', () => {
+    const detail = readFileSync(resolve(root, 'src/pages/OrderDetailPage.jsx'), 'utf8')
+
+    expect(detail).toContain('Show this QR code at MYConvenience.')
+    expect(detail).toContain('Write this order code on your parcel.')
+    expect(detail).toContain('Order code (write on parcel)')
+    expect(detail).toContain('Your parcel will be confirmed once the store scans your QR code.')
+    expect(detail).not.toContain('Enter tracking number')
+    expect(detail).not.toContain('Official confirmation will be available once the shipment record is created')
+    expect(detail).not.toContain('Fulfilment method: Store drop-off')
+    expect(detail).not.toContain('Seller next step: {showSellerDropoffQr')
+  })
+
   it('keeps QR/drop-off instructions out of unsold listing pages', () => {
     const listingPage = readFileSync(resolve(root, 'src/pages/ListingPage.jsx'), 'utf8')
 
