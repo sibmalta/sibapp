@@ -1,4 +1,4 @@
-const DEFAULT_SCAN_PATH = '/admin/scan-dropoff'
+const DEFAULT_SCAN_PATH = '/scan-dropoff'
 
 export function normalizeOrderCode(value) {
   return String(value || '')
@@ -17,6 +17,10 @@ export function getOrderCode(order = {}) {
   return shortId ? `SIB-${shortId}` : 'SIB-UNKNOWN'
 }
 
+export function getDropoffScanToken(order = {}) {
+  return String(order?.dropoffScanToken || order?.dropoff_scan_token || '').trim()
+}
+
 export function orderCodeMatches(order, code) {
   return normalizeOrderCode(code) === getOrderCode(order)
 }
@@ -24,7 +28,9 @@ export function orderCodeMatches(order, code) {
 export function buildDropoffScanPath(order, basePath = DEFAULT_SCAN_PATH) {
   const orderId = order?.id || order?.orderId || order?.order_id || ''
   const code = getOrderCode(order)
+  const token = getDropoffScanToken(order)
   const params = new URLSearchParams({ orderId, code })
+  if (token) params.set('token', token)
   return `${basePath}?${params.toString()}`
 }
 

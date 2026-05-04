@@ -93,6 +93,7 @@ function AppRoutes() {
           <Route path="seller/payout-settings" element={<PayoutSettingsPage />} />
           <Route path="admin" element={<AdminPage />} />
           <Route path="admin/scan-dropoff" element={<AdminScanDropoffPage />} />
+          <Route path="scan-dropoff" element={<AdminScanDropoffPage />} />
           <Route path="terms" element={<TermsPage />} />
           <Route path="privacy" element={<PrivacyPolicyPage />} />
           <Route path="buyer-protection" element={<BuyerProtectionPage />} />

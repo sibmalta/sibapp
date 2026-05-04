@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildDropoffScanPath,
   buildDropoffScanUrl,
+  getDropoffScanToken,
   getOrderCode,
   getQrCodeImageUrl,
   isDropoffConfirmed,
@@ -9,12 +10,17 @@ import {
 } from '../lib/dropoffQr'
 
 describe('drop-off QR helpers', () => {
-  it('builds a scan URL with order id and human-readable order code', () => {
-    const order = { id: '11111111-2222-3333-4444-555555555555', orderRef: 'SIB-M009QOG9' }
+  it('builds a tokenized public scan URL with order id and human-readable order code', () => {
+    const order = {
+      id: '11111111-2222-3333-4444-555555555555',
+      orderRef: 'SIB-M009QOG9',
+      dropoffScanToken: 'scan_token_1234567890abcdef1234567890abcdef',
+    }
 
     expect(getOrderCode(order)).toBe('SIB-M009QOG9')
-    expect(buildDropoffScanPath(order)).toBe('/admin/scan-dropoff?orderId=11111111-2222-3333-4444-555555555555&code=SIB-M009QOG9')
-    expect(buildDropoffScanUrl(order, 'https://sibmalta.com')).toBe('https://sibmalta.com/admin/scan-dropoff?orderId=11111111-2222-3333-4444-555555555555&code=SIB-M009QOG9')
+    expect(getDropoffScanToken(order)).toBe('scan_token_1234567890abcdef1234567890abcdef')
+    expect(buildDropoffScanPath(order)).toBe('/scan-dropoff?orderId=11111111-2222-3333-4444-555555555555&code=SIB-M009QOG9&token=scan_token_1234567890abcdef1234567890abcdef')
+    expect(buildDropoffScanUrl(order, 'https://sibmalta.com')).toBe('https://sibmalta.com/scan-dropoff?orderId=11111111-2222-3333-4444-555555555555&code=SIB-M009QOG9&token=scan_token_1234567890abcdef1234567890abcdef')
   })
 
   it('generates a fallback short order code when order_ref is missing', () => {
@@ -29,8 +35,8 @@ describe('drop-off QR helpers', () => {
   })
 
   it('builds a QR image URL from the scan URL', () => {
-    expect(getQrCodeImageUrl('https://sibmalta.com/admin/scan-dropoff?orderId=1&code=SIB-1')).toContain('api.qrserver.com')
-    expect(getQrCodeImageUrl('https://sibmalta.com/admin/scan-dropoff?orderId=1&code=SIB-1')).toContain('data=https%3A%2F%2Fsibmalta.com')
+    expect(getQrCodeImageUrl('https://sibmalta.com/scan-dropoff?orderId=1&code=SIB-1&token=abc')).toContain('api.qrserver.com')
+    expect(getQrCodeImageUrl('https://sibmalta.com/scan-dropoff?orderId=1&code=SIB-1&token=abc')).toContain('data=https%3A%2F%2Fsibmalta.com')
   })
 
   it('detects pending vs confirmed drop-off states safely', () => {

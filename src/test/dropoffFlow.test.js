@@ -36,6 +36,7 @@ describe('seller drop-off flow', () => {
       buyer_id: 'buyer_1',
       listing_id: 'listing_1',
       fulfilment_status: 'dropped_off',
+      dropoff_scan_token: 'scan_token_1234567890abcdef1234567890abcdef',
       dropoff_confirmed_at: '2026-05-03T10:00:00.000Z',
       dropoff_confirmed_by: 'admin_1',
       dropoff_location: 'MY Sliema - Dingli Street',
@@ -52,13 +53,16 @@ describe('seller drop-off flow', () => {
     expect(order.dropoffConfirmedAt).toBe('2026-05-03T10:00:00.000Z')
     expect(order.dropoffConfirmedBy).toBe('admin_1')
     expect(order.dropoffLocation).toBe('MY Sliema - Dingli Street')
+    expect(order.dropoffScanToken).toBe('scan_token_1234567890abcdef1234567890abcdef')
     expect(orderToRow({
       fulfilmentStatus: 'dropped_off',
+      dropoffScanToken: order.dropoffScanToken,
       dropoffConfirmedAt: order.dropoffConfirmedAt,
       dropoffConfirmedBy: order.dropoffConfirmedBy,
       dropoffLocation: order.dropoffLocation,
     })).toMatchObject({
       fulfilment_status: 'dropped_off',
+      dropoff_scan_token: 'scan_token_1234567890abcdef1234567890abcdef',
       dropoff_confirmed_at: '2026-05-03T10:00:00.000Z',
       dropoff_confirmed_by: 'admin_1',
       dropoff_location: 'MY Sliema - Dingli Street',
@@ -112,13 +116,26 @@ describe('seller drop-off flow', () => {
 
   it('includes the QR drop-off confirmation migration and admin scan route', () => {
     const migration = readFileSync(resolve(root, 'supabase/migrations/20260503120000_qr_dropoff_confirmation.sql'), 'utf8')
+    const publicMigration = readFileSync(resolve(root, 'supabase/migrations/20260504110000_public_dropoff_scan_tokens.sql'), 'utf8')
     const app = readFileSync(resolve(root, 'src/App.jsx'), 'utf8')
+    const scanPage = readFileSync(resolve(root, 'src/pages/AdminScanDropoffPage.jsx'), 'utf8')
 
     expect(migration).toContain('dropoff_confirmed_at')
     expect(migration).toContain('dropoff_scan_logs')
     expect(migration).toContain('orders_admin_dropoff_update')
     expect(migration).toContain('shipments_admin_dropoff_update')
+    expect(publicMigration).toContain('dropoff_scan_token')
+    expect(publicMigration).toContain('get_public_dropoff_scan')
+    expect(publicMigration).toContain('confirm_public_dropoff_scan')
+    expect(publicMigration).toContain('GRANT EXECUTE ON FUNCTION public.confirm_public_dropoff_scan(TEXT, TEXT, TEXT) TO anon, authenticated')
     expect(app).toContain('admin/scan-dropoff')
+    expect(app).toContain('scan-dropoff')
+    expect(scanPage).toContain('getPublicDropoffScan')
+    expect(scanPage).toContain('confirmPublicDropoffScan')
+    expect(scanPage).not.toContain('useApp(')
+    expect(scanPage).not.toContain('currentUser')
+    expect(scanPage).not.toContain('markShipmentDroppedOff')
+    expect(scanPage).not.toContain("navigate('/auth'")
   })
 
   it('supports drop-off instruction and 24h reminder emails with dedupe keys', () => {

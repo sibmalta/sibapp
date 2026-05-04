@@ -71,6 +71,7 @@ export function rowToOrder(row) {
     overdueFlaggedAt: row.overdue_flagged_at || null,
     sellerClaimedDropoff: Boolean(row.seller_claimed_dropoff),
     sellerDropoffClaimedAt: row.seller_dropoff_claimed_at || null,
+    dropoffScanToken: row.dropoff_scan_token || '',
     dropoffConfirmedAt: row.dropoff_confirmed_at || null,
     dropoffConfirmedBy: row.dropoff_confirmed_by || null,
     dropoffLocation: row.dropoff_location || null,
@@ -161,6 +162,7 @@ export function orderToRow(order) {
   if (order.overdueFlaggedAt !== undefined) row.overdue_flagged_at = order.overdueFlaggedAt
   if (order.sellerClaimedDropoff !== undefined) row.seller_claimed_dropoff = order.sellerClaimedDropoff
   if (order.sellerDropoffClaimedAt !== undefined) row.seller_dropoff_claimed_at = order.sellerDropoffClaimedAt
+  if (order.dropoffScanToken !== undefined) row.dropoff_scan_token = order.dropoffScanToken
   if (order.dropoffConfirmedAt !== undefined) row.dropoff_confirmed_at = order.dropoffConfirmedAt
   if (order.dropoffConfirmedBy !== undefined) row.dropoff_confirmed_by = order.dropoffConfirmedBy
   if (order.dropoffLocation !== undefined) row.dropoff_location = order.dropoffLocation
