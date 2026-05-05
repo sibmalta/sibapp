@@ -5,17 +5,15 @@ const INVALID_MESSAGE = 'Invalid or expired QR code.'
 const READY_MESSAGE = 'Ready to confirm this parcel.'
 const CONFIRMED_MESSAGE = 'Parcel already confirmed.'
 
-export const PUBLIC_DROPOFF_STORES = [
-  { id: 'myc-sliema', name: 'MYConvenience Sliema' },
-  { id: 'myc-st-julians', name: 'MYConvenience St Julian’s' },
-  { id: 'myc-valletta', name: 'MYConvenience Valletta' },
-  { id: 'myc-gzira', name: 'MYConvenience Gzira' },
-  { id: 'myc-swieqi', name: 'MYConvenience Swieqi' },
-  { id: 'other-admin-confirmed', name: 'Other / Admin confirmed' },
-]
-
-export function getPublicDropoffStoreById(storeId) {
-  return PUBLIC_DROPOFF_STORES.find(store => store.id === storeId) || null
+export function sanitizePublicStore(row = {}) {
+  return {
+    id: row.id,
+    name: row.name || '',
+    address: row.address || '',
+    locality: row.locality || '',
+    pickupZone: row.pickup_zone || row.pickupZone || null,
+    active: row.active !== false,
+  }
 }
 
 function normalizeScanPayload({ orderId, token, code } = {}) {
@@ -28,12 +26,15 @@ function normalizeScanPayload({ orderId, token, code } = {}) {
 
 function normalizeConfirmPayload(payload = {}) {
   const base = normalizeScanPayload(payload)
-  const configuredStore = getPublicDropoffStoreById(payload.storeId)
-  const storeName = String(payload.storeName || configuredStore?.name || '').trim()
   return {
     ...base,
-    p_store_id: String(payload.storeId || configuredStore?.id || '').trim() || null,
-    p_store_name: storeName || null,
+    p_store_pin: String(payload.storePin || '').trim() || null,
+  }
+}
+
+function normalizeStorePinPayload({ storePin } = {}) {
+  return {
+    p_store_pin: String(storePin || '').trim(),
   }
 }
 
@@ -86,12 +87,23 @@ export async function getPublicDropoffScan(payload) {
   return { data, error }
 }
 
+export async function identifyPublicDropoffStoreByPin(payload) {
+  const { data, error } = await supabase.rpc('identify_public_dropoff_store_by_pin', normalizeStorePinPayload(payload))
+  return {
+    data: data?.valid ? sanitizePublicStore(data.store || {}) : null,
+    error: error || (data?.valid === false ? { message: data.message || 'Invalid store PIN' } : null),
+  }
+}
+
 export async function confirmPublicDropoffScan(payload) {
   const { data, error } = await supabase.rpc('confirm_public_dropoff_scan', normalizeConfirmPayload(payload))
+  if (!error && data?.error === 'invalid_store_pin') {
+    return { data: null, error: { message: data.message || 'Invalid store PIN' } }
+  }
   if (!error && data?.confirmedNow && !data?.logisticsRowCreated) {
     console.warn('[dropoff-scan] confirmation succeeded but logistics delivery sheet row was not created', {
       orderId: payload?.orderId || data?.orderId,
-      storeId: payload?.storeId || data?.storeId,
+      storeId: data?.storeId,
     })
   }
   return { data, error }

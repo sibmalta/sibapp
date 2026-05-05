@@ -860,6 +860,7 @@ export function rowToLogisticsDeliverySheetRow(row) {
     dropoffLocationName: row.dropoff_location_name || row.dropoff_store_name || '',
     dropoffStoreName: row.dropoff_store_name || '',
     dropoffStoreAddress: row.dropoff_store_address || '',
+    pickupZone: row.pickup_zone || '',
     droppedOffAt: row.dropped_off_at || null,
     buyerDeliveryAddress: row.buyer_delivery_address || '',
     buyerContact: row.buyer_contact || '',
@@ -912,6 +913,7 @@ export async function insertDropoffScanLog(supabase, scan) {
       dropoff_location: scan.dropoffLocation || null,
       dropoff_store_id: scan.dropoffStoreId || null,
       dropoff_location_name: scan.dropoffLocationName || scan.dropoffStoreName || scan.dropoffLocation || null,
+      confirmation_source: scan.confirmationSource || null,
       created_at: scan.createdAt || new Date().toISOString(),
     }
     const { data, error } = await supabase

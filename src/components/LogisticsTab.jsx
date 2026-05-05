@@ -13,7 +13,7 @@ import { isDropoffConfirmed } from '../lib/dropoffQr'
 import { getCourierDeliveryTimingLabel } from '../lib/courierDeliveryTiming'
 
 const TEST_DROPOFF_STORE = {
-  id: 'my-sliema-dingli',
+  id: '00000000-0000-4000-8000-000000000101',
   name: 'MY Sliema - Dingli Street',
   address: 'Dingli Street, Sliema',
 }
@@ -620,7 +620,7 @@ export default function LogisticsTab({ orders, getUserById, getListingById, getS
               <table className="w-full min-w-[980px] text-left">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    {['Order ID', 'Buyer surname', 'Buyer locality', 'Store', 'Confirmed at', 'Delivery timing', 'Status', 'Item', 'Seller', 'Buyer address', 'Notes'].map(header => (
+                    {["Order ID", "Buyer surname", "Buyer locality", "Store name", "Pickup zone", "Confirmed at", "Delivery timing", "Status", "Item", "Seller", "Buyer address", "Notes"].map(header => (
                       <th key={header} className="px-3 py-2.5 font-semibold text-gray-500 text-[10px] uppercase tracking-wider">{header}</th>
                     ))}
                   </tr>
@@ -628,23 +628,21 @@ export default function LogisticsTab({ orders, getUserById, getListingById, getS
                 <tbody className="divide-y divide-gray-100">
                   {deliverySheetRows.map(row => (
                     <tr key={row.shipmentId || row.id} className="hover:bg-gray-50">
-                      <td className="px-3 py-2.5 text-[11px] font-mono font-semibold text-gray-700">{row.orderCode || '—'}</td>
-                      <td className="px-3 py-2.5 text-[11px] font-mono text-gray-500">{row.orderId?.slice(-8) || '—'}</td>
-                      <td className="px-3 py-2.5 text-[11px] font-mono text-gray-500">{row.shipmentId?.slice(-8) || '—'}</td>
-                      <td className="px-3 py-2.5 text-xs text-gray-700">{row.sellerName || '—'}</td>
-                      <td className="px-3 py-2.5 text-xs text-gray-700">{row.buyerName || '—'}</td>
-                      <td className="px-3 py-2.5 text-xs text-gray-900 font-medium">{row.itemTitle || '—'}</td>
+                      <td className="px-3 py-2.5 text-[11px] font-mono font-semibold text-gray-700">{row.orderCode || "-"}</td>
+                      <td className="px-3 py-2.5 text-xs font-semibold text-gray-700">{row.buyerSurname || "-"}</td>
+                      <td className="px-3 py-2.5 text-xs text-gray-700">{row.buyerLocality || "-"}</td>
                       <td className="px-3 py-2.5 text-xs text-gray-700">
-                        <p className="font-medium">{row.dropoffStoreName || '—'}</p>
-                        <p className="text-[10px] text-gray-400">{row.dropoffStoreAddress || '—'}</p>
+                        <p className="font-medium">{row.dropoffLocationName || row.dropoffStoreName || "-"}</p>
+                        <p className="text-[10px] text-gray-400">{row.dropoffStoreAddress || "-"}</p>
                       </td>
+                      <td className="px-3 py-2.5 text-xs text-gray-700">{row.pickupZone || "-"}</td>
                       <td className="px-3 py-2.5 text-xs text-gray-600 whitespace-nowrap">{fmtDate(row.droppedOffAt)}</td>
-                      <td className="px-3 py-2.5 text-xs text-gray-600 max-w-[180px] truncate">{row.buyerDeliveryAddress || '—'}</td>
-                      <td className="px-3 py-2.5 text-xs text-gray-600">{row.buyerContact || '—'}</td>
-                      <td className="px-3 py-2.5 text-xs font-semibold text-gray-700">{row.deliveryTiming ? getCourierDeliveryTimingLabel(row.deliveryTiming) : '—'}</td>
-                      <td className="px-3 py-2.5"><StatusBadge statusId={row.deliveryStatus || 'dropped_off'} /></td>
-                      <td className="px-3 py-2.5 text-xs text-gray-600">{row.fallbackStoreName || '—'}</td>
-                      <td className="px-3 py-2.5 text-xs text-gray-600 max-w-[160px] truncate">{row.notes || '—'}</td>
+                      <td className="px-3 py-2.5 text-xs font-semibold text-gray-700">{row.deliveryTiming ? getCourierDeliveryTimingLabel(row.deliveryTiming) : "-"}</td>
+                      <td className="px-3 py-2.5"><StatusBadge statusId={row.deliveryStatus || "dropped_off"} /></td>
+                      <td className="px-3 py-2.5 text-xs text-gray-900 font-medium">{row.itemTitle || "-"}</td>
+                      <td className="px-3 py-2.5 text-xs text-gray-700">{row.sellerName || "-"}</td>
+                      <td className="px-3 py-2.5 text-xs text-gray-600 max-w-[180px] truncate">{row.buyerDeliveryAddress || "-"}</td>
+                      <td className="px-3 py-2.5 text-xs text-gray-600 max-w-[160px] truncate">{row.notes || "-"}</td>
                     </tr>
                   ))}
                 </tbody>

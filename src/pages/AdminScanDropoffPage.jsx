@@ -3,11 +3,10 @@ import { useSearchParams } from 'react-router-dom'
 import { CheckCircle, Loader2, Package, ShieldCheck, XCircle } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import {
-  PUBLIC_DROPOFF_STORES,
   confirmPublicDropoffScan,
   getPublicDropoffScan,
   getPublicDropoffScanState,
-  getPublicDropoffStoreById,
+  identifyPublicDropoffStoreByPin,
 } from '../lib/publicDropoffScan'
 
 function formatDate(value) {
@@ -55,7 +54,10 @@ export default function AdminScanDropoffPage() {
   const [loading, setLoading] = useState(true)
   const [confirming, setConfirming] = useState(false)
   const [result, setResult] = useState(null)
-  const [selectedStoreId, setSelectedStoreId] = useState('')
+  const [storePin, setStorePin] = useState('')
+  const [verifiedStore, setVerifiedStore] = useState(null)
+  const [verifyingPin, setVerifyingPin] = useState(false)
+  const [pinError, setPinError] = useState('')
 
   const scanPayload = useMemo(() => ({
     orderId: searchParams.get('orderId') || '',
@@ -69,18 +71,18 @@ export default function AdminScanDropoffPage() {
     async function loadScan() {
       setLoading(true)
       setResult(null)
-      const { data, error } = await getPublicDropoffScan(scanPayload)
+      const scanResult = await getPublicDropoffScan(scanPayload)
       if (cancelled) return
 
-      if (error) {
+      if (scanResult.error) {
         setScan({
           ok: false,
           valid: false,
           canConfirm: false,
-          message: error.message || 'Could not load this scan.',
+          message: scanResult.error.message || 'Could not load this scan.',
         })
       } else {
-        setScan(data)
+        setScan(scanResult.data)
       }
       setLoading(false)
     }
@@ -91,19 +93,36 @@ export default function AdminScanDropoffPage() {
     }
   }, [scanPayload])
 
+  const handleVerifyPin = async () => {
+    if (!storePin.trim() || verifyingPin || getPublicDropoffScanState(scan).confirmed) return
+    setVerifyingPin(true)
+    setPinError('')
+    setVerifiedStore(null)
+    try {
+      const { data, error } = await identifyPublicDropoffStoreByPin({ storePin })
+      if (error || !data) {
+        setPinError('Invalid store PIN')
+        return
+      }
+      setVerifiedStore(data)
+    } finally {
+      setVerifyingPin(false)
+    }
+  }
+
   const handleConfirm = async () => {
-    const store = getPublicDropoffStoreById(selectedStoreId)
-    if (!getPublicDropoffScanState(scan).canConfirm || confirming || !store) return
+    if (!getPublicDropoffScanState(scan).canConfirm || confirming || !verifiedStore || !storePin.trim()) return
     setConfirming(true)
     setResult(null)
     try {
       const { data, error } = await confirmPublicDropoffScan({
         ...scanPayload,
-        storeId: store.id,
-        storeName: store.name,
+        storePin,
       })
       if (error) {
-        setResult({ type: 'error', message: error.message || 'Could not confirm parcel.' })
+        const message = error.message === 'Invalid store PIN' ? 'Invalid store PIN' : (error.message || 'Could not confirm parcel.')
+        setPinError(message)
+        setResult({ type: 'error', message })
         return
       }
 
@@ -111,9 +130,9 @@ export default function AdminScanDropoffPage() {
         ...data,
         confirmed: true,
         confirmedNow: data?.confirmedNow ?? true,
-        storeId: data?.storeId || store.id,
-        storeName: data?.storeName || store.name,
-        dropoffStoreName: data?.dropoffStoreName || store.name,
+        storeId: data?.storeId || verifiedStore.id,
+        storeName: data?.storeName || verifiedStore.name,
+        dropoffStoreName: data?.dropoffStoreName || verifiedStore.name,
       }
       setScan(confirmedScan)
       const nextState = getPublicDropoffScanState(confirmedScan)
@@ -127,7 +146,7 @@ export default function AdminScanDropoffPage() {
   }
 
   const scanState = getPublicDropoffScanState(scan)
-  const canConfirm = Boolean(scanState.canConfirm && selectedStoreId)
+  const canConfirm = Boolean(scanState.canConfirm && verifiedStore && storePin.trim())
   const confirmed = Boolean(scanState.confirmed)
   const storeName = scanState.storeName || scan?.storeName || scan?.dropoffStoreName || scan?.dropoffLocationName || scan?.dropoffLocation || ''
   const pageTitle = confirmed
@@ -185,20 +204,42 @@ export default function AdminScanDropoffPage() {
 
               {!confirmed && (
                 <div className="space-y-2 rounded-2xl border border-sib-stone bg-sib-sand p-3 dark:border-[rgba(242,238,231,0.10)] dark:bg-[#26322f]">
-                  <label htmlFor="dropoff-store" className="text-xs font-black uppercase tracking-wide text-sib-text dark:text-[#f4efe7]">
-                    MYConvenience store
+                  <label htmlFor="dropoff-store-pin" className="text-xs font-black uppercase tracking-wide text-sib-text dark:text-[#f4efe7]">
+                    MYConvenience store PIN
                   </label>
-                  <select
-                    id="dropoff-store"
-                    value={selectedStoreId}
-                    onChange={event => setSelectedStoreId(event.target.value)}
+                  <input
+                    id="dropoff-store-pin"
+                    type="password"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={storePin}
+                    onChange={event => {
+                      setStorePin(event.target.value)
+                      setVerifiedStore(null)
+                      setPinError("")
+                    }}
+                    onBlur={handleVerifyPin}
+                    placeholder="Enter store PIN"
                     className="w-full rounded-xl border border-sib-stone bg-white px-3 py-2.5 text-sm font-semibold text-sib-text outline-none focus:border-sib-primary dark:border-[rgba(242,238,231,0.10)] dark:bg-[#202b28] dark:text-[#f4efe7]"
+                  />
+                  <p className="text-xs font-semibold text-sib-muted dark:text-[#aeb8b4]">Ask store staff to enter their store PIN.</p>
+                  <button
+                    type="button"
+                    onClick={handleVerifyPin}
+                    disabled={!storePin.trim() || verifyingPin}
+                    className="w-full rounded-xl border border-sib-primary/20 bg-white px-3 py-2 text-xs font-black text-sib-primary transition disabled:cursor-not-allowed disabled:opacity-50 dark:bg-[#202b28]"
                   >
-                    <option value="">Select store...</option>
-                    {PUBLIC_DROPOFF_STORES.map(store => (
-                      <option key={store.id} value={store.id}>{store.name}</option>
-                    ))}
-                  </select>
+                    {verifyingPin ? 'Checking PIN...' : 'Verify store PIN'}
+                  </button>
+                  {pinError && (
+                    <p className="text-xs font-semibold text-red-600 dark:text-red-300">{pinError}</p>
+                  )}
+                  {verifiedStore && (
+                    <div className="rounded-xl border border-green-100 bg-green-50 p-3 text-sm text-green-800 dark:border-green-500/20 dark:bg-[#20322b] dark:text-green-100">
+                      <p className="font-black">{verifiedStore.name}</p>
+                      <p className="mt-0.5 text-xs font-semibold">{verifiedStore.locality} - {verifiedStore.address}</p>
+                    </div>
+                  )}
                 </div>
               )}
 

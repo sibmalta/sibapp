@@ -8,7 +8,7 @@ import {
   isDropoffConfirmed,
   orderCodeMatches,
 } from '../lib/dropoffQr'
-import { PUBLIC_DROPOFF_STORES, getPublicDropoffScanState } from '../lib/publicDropoffScan'
+import { getPublicDropoffScanState, sanitizePublicStore } from '../lib/publicDropoffScan'
 import { getCourierDeliveryTiming, getCourierDeliveryTimingLabel, getCourierDeliveryTimingPublicLabel } from '../lib/courierDeliveryTiming'
 
 describe('drop-off QR helpers', () => {
@@ -121,15 +121,31 @@ describe('drop-off QR helpers', () => {
     expect(state.deliveryTimingLabel).toBe('Today')
   })
 
-  it('exposes configured MYConvenience stores for public scan confirmation', () => {
-    expect(PUBLIC_DROPOFF_STORES.map(store => store.name)).toEqual([
-      'MYConvenience Sliema',
-      'MYConvenience St Julian’s',
-      'MYConvenience Valletta',
-      'MYConvenience Gzira',
-      'MYConvenience Swieqi',
-      'Other / Admin confirmed',
-    ])
+  it('sanitizes PIN-identified MYConvenience store data without exposing PIN hashes', () => {
+    const store = sanitizePublicStore({
+      id: 'store-2',
+      store_code: 'MYC-GZR-01',
+      name: 'MYConvenience Gzira',
+      address: 'Triq Test',
+      locality: 'Gzira',
+      pickup_zone: 'Central',
+      active: true,
+      store_pin_hash: 'secret-hash',
+      store_pin: '4821',
+    })
+
+    expect(store).toEqual({
+      id: 'store-2',
+      name: 'MYConvenience Gzira',
+      address: 'Triq Test',
+      locality: 'Gzira',
+      pickupZone: 'Central',
+      active: true,
+    })
+    expect(JSON.stringify(store)).not.toContain('store_pin_hash')
+    expect(JSON.stringify(store)).not.toContain('store_pin')
+    expect(JSON.stringify(store)).not.toContain('secret-hash')
+    expect(JSON.stringify(store)).not.toContain('4821')
   })
 
   it('keeps successful public confirmation visibly confirmed with store location', () => {
