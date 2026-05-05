@@ -620,7 +620,7 @@ export default function LogisticsTab({ orders, getUserById, getListingById, getS
               <table className="w-full min-w-[980px] text-left">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    {["Order ID", "Buyer surname", "Buyer locality", "Store name", "Pickup zone", "Confirmed at", "Delivery timing", "Status", "Item", "Seller", "Buyer address", "Notes"].map(header => (
+                    {["Order ID", "Buyer surname", "Buyer locality", "Store name", "Store address", "Pickup zone", "Confirmed at", "Delivery timing", "Status", "Item", "Seller", "Buyer address", "Notes"].map(header => (
                       <th key={header} className="px-3 py-2.5 font-semibold text-gray-500 text-[10px] uppercase tracking-wider">{header}</th>
                     ))}
                   </tr>
@@ -633,8 +633,8 @@ export default function LogisticsTab({ orders, getUserById, getListingById, getS
                       <td className="px-3 py-2.5 text-xs text-gray-700">{row.buyerLocality || "-"}</td>
                       <td className="px-3 py-2.5 text-xs text-gray-700">
                         <p className="font-medium">{row.dropoffLocationName || row.dropoffStoreName || "-"}</p>
-                        <p className="text-[10px] text-gray-400">{row.dropoffStoreAddress || "-"}</p>
                       </td>
+                      <td className="px-3 py-2.5 text-xs text-gray-700">{row.dropoffStoreAddress || "-"}</td>
                       <td className="px-3 py-2.5 text-xs text-gray-700">{row.pickupZone || "-"}</td>
                       <td className="px-3 py-2.5 text-xs text-gray-600 whitespace-nowrap">{fmtDate(row.droppedOffAt)}</td>
                       <td className="px-3 py-2.5 text-xs font-semibold text-gray-700">{row.deliveryTiming ? getCourierDeliveryTimingLabel(row.deliveryTiming) : "-"}</td>

@@ -149,6 +149,8 @@ export default function AdminScanDropoffPage() {
   const canConfirm = Boolean(scanState.canConfirm && verifiedStore && storePin.trim())
   const confirmed = Boolean(scanState.confirmed)
   const storeName = scanState.storeName || scan?.storeName || scan?.dropoffStoreName || scan?.dropoffLocationName || scan?.dropoffLocation || ''
+  const storeAddress = scanState.storeAddress || scan?.storeAddress || scan?.dropoffStoreAddress || ''
+  const storeLocality = scanState.storeLocality || scan?.storeLocality || scan?.dropoffStoreLocality || ''
   const pageTitle = confirmed
     ? (scan?.confirmedNow ? 'Parcel confirmed' : 'Parcel already confirmed')
     : 'MYConvenience parcel scan'
@@ -196,6 +198,12 @@ export default function AdminScanDropoffPage() {
               {confirmed && (
                 <SummaryRow label="Store" value={storeName || 'Not provided'} />
               )}
+              {confirmed && storeAddress && (
+                <SummaryRow label="Store address" value={storeAddress} />
+              )}
+              {confirmed && storeLocality && (
+                <SummaryRow label="Store locality" value={storeLocality} />
+              )}
               {scanState.deliveryTimingLabel && (
                 <SummaryRow label="Delivery timing" value={scanState.deliveryTimingLabel} />
               )}
@@ -237,7 +245,8 @@ export default function AdminScanDropoffPage() {
                   {verifiedStore && (
                     <div className="rounded-xl border border-green-100 bg-green-50 p-3 text-sm text-green-800 dark:border-green-500/20 dark:bg-[#20322b] dark:text-green-100">
                       <p className="font-black">{verifiedStore.name}</p>
-                      <p className="mt-0.5 text-xs font-semibold">{verifiedStore.locality} - {verifiedStore.address}</p>
+                      <p className="mt-0.5 text-xs font-semibold">{verifiedStore.address}</p>
+                      <p className="mt-0.5 text-xs font-semibold">{verifiedStore.locality}</p>
                     </div>
                   )}
                 </div>

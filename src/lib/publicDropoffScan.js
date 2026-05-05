@@ -12,7 +12,6 @@ export function sanitizePublicStore(row = {}) {
     address: row.address || '',
     locality: row.locality || '',
     pickupZone: row.pickup_zone || row.pickupZone || null,
-    active: row.active !== false,
   }
 }
 
@@ -61,6 +60,8 @@ export function getPublicDropoffScanState(scan = {}) {
   if (confirmed) {
     const deliveryTiming = scan.deliveryTiming || scan.delivery_timing || null
     const storeName = scan.storeName || scan.dropoffStoreName || scan.dropoff_location_name || scan.dropoffLocationName || scan.dropoff_location || scan.dropoffLocation || null
+    const storeAddress = scan.storeAddress || scan.dropoffStoreAddress || scan.dropoff_store_address || null
+    const storeLocality = scan.storeLocality || scan.dropoffStoreLocality || scan.dropoff_store_locality || null
     return {
       invalid: false,
       confirmed: true,
@@ -68,6 +69,8 @@ export function getPublicDropoffScanState(scan = {}) {
       statusLabel: scan.confirmedNow ? 'Parcel confirmed' : 'Parcel already confirmed',
       message: scan.confirmedNow ? 'Parcel confirmed.' : CONFIRMED_MESSAGE,
       storeName,
+      storeAddress,
+      storeLocality,
       confirmedAt: scan.confirmedAt || scan.dropoffConfirmedAt || scan.dropoff_confirmed_at || null,
       deliveryTimingLabel: deliveryTiming ? getCourierDeliveryTimingPublicLabel(deliveryTiming) : null,
     }

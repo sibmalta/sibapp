@@ -9,12 +9,19 @@ CREATE TABLE IF NOT EXISTS public.myconvenience_stores (
   locality TEXT NOT NULL,
   pickup_zone TEXT,
   active BOOLEAN DEFAULT true,
+  phone TEXT,
+  opening_hours TEXT,
+  notes TEXT,
   store_pin_hash TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
 ALTER TABLE IF EXISTS public.orders
+  ADD COLUMN IF NOT EXISTS dropoff_store_name TEXT,
+  ADD COLUMN IF NOT EXISTS dropoff_store_address TEXT,
+  ADD COLUMN IF NOT EXISTS dropoff_store_locality TEXT,
+  ADD COLUMN IF NOT EXISTS pickup_zone TEXT,
   ALTER COLUMN dropoff_store_id TYPE UUID USING (
     CASE
       WHEN dropoff_store_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
@@ -24,6 +31,9 @@ ALTER TABLE IF EXISTS public.orders
   );
 
 ALTER TABLE IF EXISTS public.shipments
+  ADD COLUMN IF NOT EXISTS dropoff_store_address TEXT,
+  ADD COLUMN IF NOT EXISTS dropoff_store_locality TEXT,
+  ADD COLUMN IF NOT EXISTS pickup_zone TEXT,
   ALTER COLUMN dropoff_store_id TYPE UUID USING (
     CASE
       WHEN dropoff_store_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
@@ -33,7 +43,9 @@ ALTER TABLE IF EXISTS public.shipments
   );
 
 ALTER TABLE IF EXISTS public.logistics_delivery_sheet
+  ADD COLUMN IF NOT EXISTS dropoff_store_address TEXT,
   ADD COLUMN IF NOT EXISTS pickup_zone TEXT,
+  ADD COLUMN IF NOT EXISTS dropoff_store_locality TEXT,
   ALTER COLUMN dropoff_store_id TYPE UUID USING (
     CASE
       WHEN dropoff_store_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
@@ -44,6 +56,10 @@ ALTER TABLE IF EXISTS public.logistics_delivery_sheet
 
 ALTER TABLE IF EXISTS public.dropoff_scan_logs
   ADD COLUMN IF NOT EXISTS confirmation_source TEXT,
+  ADD COLUMN IF NOT EXISTS dropoff_store_name TEXT,
+  ADD COLUMN IF NOT EXISTS dropoff_store_address TEXT,
+  ADD COLUMN IF NOT EXISTS dropoff_store_locality TEXT,
+  ADD COLUMN IF NOT EXISTS pickup_zone TEXT,
   ALTER COLUMN dropoff_store_id TYPE UUID USING (
     CASE
       WHEN dropoff_store_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
@@ -72,6 +88,8 @@ CREATE POLICY "myconvenience_stores_admin_all" ON public.myconvenience_stores
 
 REVOKE ALL ON TABLE public.myconvenience_stores FROM anon, authenticated;
 
+DROP FUNCTION IF EXISTS public.upsert_myconvenience_store(TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN, TEXT);
+
 CREATE OR REPLACE FUNCTION public.upsert_myconvenience_store(
   p_store_code TEXT,
   p_name TEXT,
@@ -79,6 +97,9 @@ CREATE OR REPLACE FUNCTION public.upsert_myconvenience_store(
   p_locality TEXT,
   p_pickup_zone TEXT DEFAULT NULL,
   p_active BOOLEAN DEFAULT true,
+  p_phone TEXT DEFAULT NULL,
+  p_opening_hours TEXT DEFAULT NULL,
+  p_notes TEXT DEFAULT NULL,
   p_store_pin TEXT DEFAULT NULL
 )
 RETURNS public.myconvenience_stores
@@ -114,6 +135,9 @@ BEGIN
     locality,
     pickup_zone,
     active,
+    phone,
+    opening_hours,
+    notes,
     store_pin_hash
   )
   VALUES (
@@ -123,6 +147,9 @@ BEGIN
     btrim(p_locality),
     nullif(btrim(coalesce(p_pickup_zone, '')), ''),
     coalesce(p_active, true),
+    nullif(btrim(coalesce(p_phone, '')), ''),
+    nullif(btrim(coalesce(p_opening_hours, '')), ''),
+    nullif(btrim(coalesce(p_notes, '')), ''),
     v_pin_hash
   )
   ON CONFLICT (store_code) DO UPDATE
@@ -132,6 +159,9 @@ BEGIN
     locality = excluded.locality,
     pickup_zone = excluded.pickup_zone,
     active = excluded.active,
+    phone = excluded.phone,
+    opening_hours = excluded.opening_hours,
+    notes = excluded.notes,
     store_pin_hash = coalesce(v_pin_hash, public.myconvenience_stores.store_pin_hash),
     updated_at = now()
   RETURNING * INTO v_store;
@@ -140,8 +170,8 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.upsert_myconvenience_store(TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN, TEXT) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.upsert_myconvenience_store(TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN, TEXT) TO service_role;
+REVOKE ALL ON FUNCTION public.upsert_myconvenience_store(TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN, TEXT, TEXT, TEXT, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.upsert_myconvenience_store(TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN, TEXT, TEXT, TEXT, TEXT) TO service_role;
 
 CREATE OR REPLACE FUNCTION public.identify_public_dropoff_store_by_pin(
   p_store_pin TEXT
@@ -178,8 +208,7 @@ BEGIN
       'name', v_store.name,
       'address', v_store.address,
       'locality', v_store.locality,
-      'pickup_zone', v_store.pickup_zone,
-      'active', v_store.active
+      'pickup_zone', v_store.pickup_zone
     )
   );
 END;
@@ -210,6 +239,8 @@ DECLARE
   v_confirmed_at TIMESTAMPTZ;
   v_confirmed BOOLEAN;
   v_store_name TEXT;
+  v_store_address TEXT;
+  v_store_locality TEXT;
   v_store_id UUID;
   v_pickup_zone TEXT;
 BEGIN
@@ -257,7 +288,10 @@ BEGIN
   v_confirmed := v_confirmed_at IS NOT NULL
     OR coalesce(v_shipment.status, '') = 'dropped_off'
     OR coalesce(v_order.fulfilment_status, '') = 'dropped_off';
-  v_store_name := coalesce(nullif(v_order.dropoff_location_name, ''), nullif(v_shipment.dropoff_location_name, ''), nullif(v_shipment.dropoff_store_name, ''), nullif(v_store.name, ''), nullif(v_order.dropoff_location, ''), nullif(v_shipment.dropoff_location, ''));
+  v_store_name := coalesce(nullif(v_order.dropoff_store_name, ''), nullif(v_order.dropoff_location_name, ''), nullif(v_shipment.dropoff_location_name, ''), nullif(v_shipment.dropoff_store_name, ''), nullif(v_store.name, ''), nullif(v_order.dropoff_location, ''), nullif(v_shipment.dropoff_location, ''));
+  v_store_address := coalesce(nullif(v_order.dropoff_store_address, ''), nullif(v_shipment.dropoff_store_address, ''), nullif(v_store.address, ''));
+  v_store_locality := coalesce(nullif(v_order.dropoff_store_locality, ''), nullif(v_shipment.dropoff_store_locality, ''), nullif(v_store.locality, ''));
+  v_pickup_zone := coalesce(nullif(v_order.pickup_zone, ''), nullif(v_shipment.pickup_zone, ''), v_pickup_zone);
 
   RETURN jsonb_build_object(
     'ok', true,
@@ -272,6 +306,8 @@ BEGIN
     'confirmedAt', v_confirmed_at,
     'storeId', v_store_id,
     'storeName', v_store_name,
+    'storeAddress', v_store_address,
+    'storeLocality', v_store_locality,
     'pickupZone', v_pickup_zone,
     'dropoffLocationName', v_store_name,
     'deliveryTiming', CASE
@@ -372,8 +408,8 @@ BEGIN
   v_buyer_locality := coalesce(nullif(v_order.buyer_city, ''), nullif(v_order.buyer_postcode, ''));
 
   IF v_scanned_code <> '' AND v_scanned_code <> v_expected_code THEN
-    INSERT INTO public.dropoff_scan_logs (order_id, order_code, scan_status, message, dropoff_location, dropoff_store_id, dropoff_location_name, confirmation_source)
-    VALUES (v_order.id, v_expected_code, 'rejected', 'Public QR scan rejected: code mismatch', v_store.name, v_store.id, v_store.name, 'public_store_pin_scan');
+    INSERT INTO public.dropoff_scan_logs (order_id, order_code, scan_status, message, dropoff_location, dropoff_store_id, dropoff_location_name, dropoff_store_name, dropoff_store_address, dropoff_store_locality, pickup_zone, confirmation_source)
+    VALUES (v_order.id, v_expected_code, 'rejected', 'Public QR scan rejected: code mismatch', v_store.name, v_store.id, v_store.name, v_store.name, v_store.address, v_store.locality, v_store.pickup_zone, 'public_store_pin_scan');
 
     RETURN public.get_public_dropoff_scan(p_order_id, p_token, p_code);
   END IF;
@@ -392,8 +428,8 @@ BEGIN
     OR coalesce(v_order.fulfilment_status, '') = 'dropped_off';
 
   IF v_confirmed THEN
-    INSERT INTO public.dropoff_scan_logs (order_id, shipment_id, order_code, scan_status, message, dropoff_location, dropoff_store_id, dropoff_location_name, confirmation_source)
-    VALUES (v_order.id, v_shipment.id, v_expected_code, 'already_confirmed', 'Public QR scan found parcel already confirmed', coalesce(v_order.dropoff_location_name, v_store.name), coalesce(v_order.dropoff_store_id, v_store.id), coalesce(v_order.dropoff_location_name, v_store.name), 'public_store_pin_scan');
+    INSERT INTO public.dropoff_scan_logs (order_id, shipment_id, order_code, scan_status, message, dropoff_location, dropoff_store_id, dropoff_location_name, dropoff_store_name, dropoff_store_address, dropoff_store_locality, pickup_zone, confirmation_source)
+    VALUES (v_order.id, v_shipment.id, v_expected_code, 'already_confirmed', 'Public QR scan found parcel already confirmed', coalesce(v_order.dropoff_location_name, v_store.name), coalesce(v_order.dropoff_store_id, v_store.id), coalesce(v_order.dropoff_location_name, v_store.name), coalesce(v_order.dropoff_store_name, v_store.name), coalesce(v_order.dropoff_store_address, v_store.address), coalesce(v_order.dropoff_store_locality, v_store.locality), coalesce(v_order.pickup_zone, v_store.pickup_zone), 'public_store_pin_scan');
 
     RETURN public.get_public_dropoff_scan(p_order_id, p_token, p_code)
       || jsonb_build_object('alreadyConfirmed', true);
@@ -406,7 +442,10 @@ BEGIN
       fulfilment_status = 'dropped_off',
       dropoff_store_id = v_store.id,
       dropoff_store_name = v_store.name,
+      dropoff_store_address = v_store.address,
+      dropoff_store_locality = v_store.locality,
       dropoff_location_name = v_store.name,
+      pickup_zone = v_store.pickup_zone,
       dropped_off_at = v_now,
       dropoff_confirmed_at = v_now,
       dropoff_confirmed_by = NULL,
@@ -425,7 +464,11 @@ BEGIN
     dropoff_confirmed_by = NULL,
     dropoff_location = v_store.name,
     dropoff_store_id = v_store.id,
+    dropoff_store_name = v_store.name,
+    dropoff_store_address = v_store.address,
+    dropoff_store_locality = v_store.locality,
     dropoff_location_name = v_store.name,
+    pickup_zone = v_store.pickup_zone,
     delivery_timing = v_delivery_timing,
     updated_at = v_now
   WHERE id = v_order.id;
@@ -441,6 +484,8 @@ BEGIN
     dropoff_store_id,
     dropoff_location_name,
     dropoff_store_name,
+    dropoff_store_address,
+    dropoff_store_locality,
     pickup_zone,
     dropped_off_at,
     buyer_delivery_address,
@@ -462,6 +507,8 @@ BEGIN
     v_store.id,
     v_store.name,
     v_store.name,
+    v_store.address,
+    v_store.locality,
     v_store.pickup_zone,
     v_now,
     array_to_string(array_remove(ARRAY[
@@ -484,6 +531,8 @@ BEGIN
     dropoff_store_id = excluded.dropoff_store_id,
     dropoff_location_name = excluded.dropoff_location_name,
     dropoff_store_name = excluded.dropoff_store_name,
+    dropoff_store_address = excluded.dropoff_store_address,
+    dropoff_store_locality = excluded.dropoff_store_locality,
     pickup_zone = excluded.pickup_zone,
     dropped_off_at = excluded.dropped_off_at,
     delivery_status = excluded.delivery_status,
@@ -492,14 +541,16 @@ BEGIN
     updated_at = excluded.updated_at;
   v_logistics_row_created := true;
 
-  INSERT INTO public.dropoff_scan_logs (order_id, shipment_id, order_code, scan_status, message, dropoff_location, dropoff_store_id, dropoff_location_name, confirmation_source)
-  VALUES (v_order.id, v_shipment.id, v_expected_code, 'confirmed', 'Parcel received from seller by public QR scan', v_store.name, v_store.id, v_store.name, 'public_store_pin_scan');
+  INSERT INTO public.dropoff_scan_logs (order_id, shipment_id, order_code, scan_status, message, dropoff_location, dropoff_store_id, dropoff_location_name, dropoff_store_name, dropoff_store_address, dropoff_store_locality, pickup_zone, confirmation_source)
+  VALUES (v_order.id, v_shipment.id, v_expected_code, 'confirmed', 'Parcel received from seller by public QR scan', v_store.name, v_store.id, v_store.name, v_store.name, v_store.address, v_store.locality, v_store.pickup_zone, 'public_store_pin_scan');
 
   RETURN public.get_public_dropoff_scan(p_order_id, p_token, p_code)
     || jsonb_build_object(
       'confirmedNow', true,
       'storeId', v_store.id,
       'storeName', v_store.name,
+      'storeAddress', v_store.address,
+      'storeLocality', v_store.locality,
       'pickupZone', v_store.pickup_zone,
       'dropoffLocationName', v_store.name,
       'deliveryTiming', v_delivery_timing,

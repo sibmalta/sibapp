@@ -6,6 +6,43 @@ import { getConfirmedSellerDropoffOrders, getPendingSellerDropoffOrders, isOrder
 
 const root = resolve(__dirname, '..', '..')
 
+function parseCsv(text) {
+  const rows = []
+  let cell = ''
+  let row = []
+  let quoted = false
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index]
+    const next = text[index + 1]
+    if (quoted && char === '"' && next === '"') {
+      cell += '"'
+      index += 1
+    } else if (char === '"') {
+      quoted = !quoted
+    } else if (!quoted && char === ',') {
+      row.push(cell)
+      cell = ''
+    } else if (!quoted && (char === '\n' || char === '\r')) {
+      if (char === '\r' && next === '\n') index += 1
+      row.push(cell)
+      if (row.some(value => value !== '')) rows.push(row)
+      row = []
+      cell = ''
+    } else {
+      cell += char
+    }
+  }
+
+  if (cell || row.length) {
+    row.push(cell)
+    rows.push(row)
+  }
+
+  const [headers, ...records] = rows
+  return records.map(record => Object.fromEntries(headers.map((header, index) => [header, record[index] || ''])))
+}
+
 describe('seller drop-off flow', () => {
   it('maps official QR/admin drop-off confirmation metadata on orders and shipments', () => {
     const order = rowToOrder({
@@ -104,6 +141,7 @@ describe('seller drop-off flow', () => {
     const logisticsTab = readFileSync(resolve(root, 'src/components/LogisticsTab.jsx'), 'utf8')
     const useLogistics = readFileSync(resolve(root, 'src/hooks/useLogistics.js'), 'utf8')
     const storesCsv = readFileSync(resolve(root, 'supabase/seed/myconvenience_stores_import.csv'), 'utf8')
+    const importScript = readFileSync(resolve(root, 'scripts/import-myconvenience-stores.mjs'), 'utf8')
 
     expect(migration).toContain('dropoff_confirmed_at')
     expect(migration).toContain('dropoff_scan_logs')
@@ -126,9 +164,15 @@ describe('seller drop-off flow', () => {
     expect(storeTableMigration).toContain('CREATE TABLE IF NOT EXISTS public.myconvenience_stores')
     expect(storeTableMigration).toContain('store_code TEXT UNIQUE NOT NULL')
     expect(storeTableMigration).toContain('store_pin_hash TEXT')
+    expect(storeTableMigration).toContain('phone TEXT')
+    expect(storeTableMigration).toContain('opening_hours TEXT')
+    expect(storeTableMigration).toContain('notes TEXT')
     expect(storeTableMigration).toContain('upsert_myconvenience_store')
     expect(storeTableMigration).toContain('extensions.crypt')
     expect(storeTableMigration).toContain('p_store_pin TEXT DEFAULT NULL')
+    expect(storeTableMigration).toContain('p_phone TEXT DEFAULT NULL')
+    expect(storeTableMigration).toContain('p_opening_hours TEXT DEFAULT NULL')
+    expect(storeTableMigration).toContain('p_notes TEXT DEFAULT NULL')
     expect(storeTableMigration).toContain('identify_public_dropoff_store_by_pin')
     expect(storeTableMigration).toContain('store_pin_must_be_unique')
     expect(storeTableMigration).not.toContain('latitude')
@@ -139,15 +183,21 @@ describe('seller drop-off flow', () => {
     expect(storeTableMigration).toContain('buyer_surname')
     expect(storeTableMigration).toContain('buyer_locality')
     expect(storeTableMigration).toContain('pickup_zone')
+    expect(storeTableMigration).toContain('dropoff_store_address')
+    expect(storeTableMigration).toContain('dropoff_store_locality')
     expect(storeTableMigration).toContain('logisticsRowCreated')
     expect(storeTableMigration).toContain('Europe/Malta')
     expect(storeTableMigration).toContain('REVOKE ALL ON TABLE public.myconvenience_stores FROM anon, authenticated')
     expect(storeTableMigration).toContain("confirmation_source TEXT")
     expect(storeTableMigration).toContain("'public_store_pin_scan'")
+    expect(storeTableMigration).toContain('GRANT EXECUTE ON FUNCTION public.upsert_myconvenience_store(TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN, TEXT, TEXT, TEXT, TEXT) TO service_role')
     expect(storeTableMigration).toContain('GRANT EXECUTE ON FUNCTION public.identify_public_dropoff_store_by_pin(TEXT) TO anon, authenticated')
     expect(storeTableMigration).toContain('GRANT EXECUTE ON FUNCTION public.confirm_public_dropoff_scan(TEXT, TEXT, TEXT, TEXT) TO anon, authenticated')
-    expect(storesCsv.split('\n')[0]).toBe('store_code,name,address,locality,pickup_zone,active,store_pin')
-    expect(storesCsv).toContain('MYC-SLIEMA-01,MYConvenience Sliema,123 Tower Road,Sliema,Sliema,true,4821')
+    expect(storesCsv.split('\n')[0].trim()).toBe('store_code,name,address,locality,pickup_zone,active,phone,opening_hours,notes')
+    expect(storesCsv).not.toContain('store_pin')
+    expect(importScript).toContain('private/myconvenience_stores_import_private.csv')
+    expect(importScript).toContain('SUPABASE_SERVICE_ROLE_KEY')
+    expect(importScript).toContain('upsert_myconvenience_store')
     expect(app).toContain('admin/scan-dropoff')
     expect(app).toContain('scan-dropoff')
     expect(scanPage).toContain('getPublicDropoffScan')
@@ -169,11 +219,36 @@ describe('seller drop-off flow', () => {
     expect(scanPage).toContain('Delivery timing')
     expect(logisticsTab).toContain('Buyer surname')
     expect(logisticsTab).toContain('Buyer locality')
+    expect(logisticsTab).toContain('Store name')
+    expect(logisticsTab).toContain('Store address')
+    expect(logisticsTab).toContain('Pickup zone')
     expect(useLogistics).toContain('Awaiting courier pickup')
     expect(scanPage).not.toContain('useApp(')
     expect(scanPage).not.toContain('currentUser')
     expect(scanPage).not.toContain('markShipmentDroppedOff')
     expect(scanPage).not.toContain("navigate('/auth'")
+  })
+
+  it('generates import files with unique store codes and private unique active PINs', () => {
+    const publicCsv = readFileSync(resolve(root, 'supabase/seed/myconvenience_stores_import.csv'), 'utf8')
+    const privateCsv = readFileSync(resolve(root, 'private/myconvenience_stores_import_private.csv'), 'utf8')
+    const gitignore = readFileSync(resolve(root, '.gitignore'), 'utf8')
+    const publicRows = parseCsv(publicCsv)
+    const privateRows = parseCsv(privateCsv)
+
+    expect(publicRows).toHaveLength(98)
+    expect(privateRows).toHaveLength(98)
+    expect(new Set(publicRows.map(row => row.store_code)).size).toBe(publicRows.length)
+    expect(new Set(privateRows.map(row => row.store_code)).size).toBe(privateRows.length)
+    expect(publicCsv.split('\n')[0]).not.toContain('store_pin')
+    expect(publicCsv).not.toContain('store_pin_hash')
+    expect(gitignore).toContain('private/')
+
+    const activePins = privateRows
+      .filter(row => row.active !== 'false')
+      .map(row => row.store_pin)
+    expect(activePins.every(pin => /^\d{4,6}$/.test(pin))).toBe(true)
+    expect(new Set(activePins).size).toBe(activePins.length)
   })
 
   it('supports drop-off instruction and 24h reminder emails with dedupe keys', () => {

@@ -140,10 +140,10 @@ describe('drop-off QR helpers', () => {
       address: 'Triq Test',
       locality: 'Gzira',
       pickupZone: 'Central',
-      active: true,
     })
     expect(JSON.stringify(store)).not.toContain('store_pin_hash')
     expect(JSON.stringify(store)).not.toContain('store_pin')
+    expect(JSON.stringify(store)).not.toContain('active')
     expect(JSON.stringify(store)).not.toContain('secret-hash')
     expect(JSON.stringify(store)).not.toContain('4821')
   })

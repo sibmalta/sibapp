@@ -78,7 +78,11 @@ export function rowToOrder(row) {
     dropoffConfirmedBy: row.dropoff_confirmed_by || null,
     dropoffLocation: row.dropoff_location || null,
     dropoffStoreId: row.dropoff_store_id || null,
+    dropoffStoreName: row.dropoff_store_name || null,
+    dropoffStoreAddress: row.dropoff_store_address || null,
+    dropoffStoreLocality: row.dropoff_store_locality || null,
     dropoffLocationName: row.dropoff_location_name || row.dropoff_location || null,
+    pickupZone: row.pickup_zone || null,
     deliveryTiming: row.delivery_timing || null,
     autoConfirmed: row.auto_confirmed || false,
     createdAt: row.created_at || new Date().toISOString(),
@@ -177,7 +181,11 @@ export function orderToRow(order) {
   if (order.dropoffConfirmedBy !== undefined) row.dropoff_confirmed_by = order.dropoffConfirmedBy
   if (order.dropoffLocation !== undefined) row.dropoff_location = order.dropoffLocation
   if (order.dropoffStoreId !== undefined) row.dropoff_store_id = order.dropoffStoreId
+  if (order.dropoffStoreName !== undefined) row.dropoff_store_name = order.dropoffStoreName
+  if (order.dropoffStoreAddress !== undefined) row.dropoff_store_address = order.dropoffStoreAddress
+  if (order.dropoffStoreLocality !== undefined) row.dropoff_store_locality = order.dropoffStoreLocality
   if (order.dropoffLocationName !== undefined) row.dropoff_location_name = order.dropoffLocationName
+  if (order.pickupZone !== undefined) row.pickup_zone = order.pickupZone
   if (order.deliveryTiming !== undefined) row.delivery_timing = order.deliveryTiming
   if (order.autoConfirmed !== undefined) row.auto_confirmed = order.autoConfirmed
   if (order.paidAt !== undefined) row.paid_at = order.paidAt
@@ -713,6 +721,8 @@ export function rowToShipment(row) {
     dropoffStoreId: row.dropoff_store_id || null,
     dropoffStoreName: row.dropoff_store_name || null,
     dropoffStoreAddress: row.dropoff_store_address || null,
+    dropoffStoreLocality: row.dropoff_store_locality || null,
+    pickupZone: row.pickup_zone || null,
     droppedOffAt: row.dropped_off_at || null,
     dropoffConfirmedAt: row.dropoff_confirmed_at || row.dropped_off_at || null,
     dropoffConfirmedBy: row.dropoff_confirmed_by || null,
@@ -770,6 +780,8 @@ export function shipmentToRow(shipment) {
   if (shipment.dropoffStoreId !== undefined) row.dropoff_store_id = shipment.dropoffStoreId
   if (shipment.dropoffStoreName !== undefined) row.dropoff_store_name = shipment.dropoffStoreName
   if (shipment.dropoffStoreAddress !== undefined) row.dropoff_store_address = shipment.dropoffStoreAddress
+  if (shipment.dropoffStoreLocality !== undefined) row.dropoff_store_locality = shipment.dropoffStoreLocality
+  if (shipment.pickupZone !== undefined) row.pickup_zone = shipment.pickupZone
   if (shipment.droppedOffAt !== undefined) row.dropped_off_at = shipment.droppedOffAt
   if (shipment.dropoffConfirmedAt !== undefined) row.dropoff_confirmed_at = shipment.dropoffConfirmedAt
   if (shipment.dropoffConfirmedBy !== undefined) row.dropoff_confirmed_by = shipment.dropoffConfirmedBy
@@ -860,6 +872,7 @@ export function rowToLogisticsDeliverySheetRow(row) {
     dropoffLocationName: row.dropoff_location_name || row.dropoff_store_name || '',
     dropoffStoreName: row.dropoff_store_name || '',
     dropoffStoreAddress: row.dropoff_store_address || '',
+    dropoffStoreLocality: row.dropoff_store_locality || '',
     pickupZone: row.pickup_zone || '',
     droppedOffAt: row.dropped_off_at || null,
     buyerDeliveryAddress: row.buyer_delivery_address || '',
@@ -913,6 +926,10 @@ export async function insertDropoffScanLog(supabase, scan) {
       dropoff_location: scan.dropoffLocation || null,
       dropoff_store_id: scan.dropoffStoreId || null,
       dropoff_location_name: scan.dropoffLocationName || scan.dropoffStoreName || scan.dropoffLocation || null,
+      dropoff_store_name: scan.dropoffStoreName || scan.dropoffLocationName || null,
+      dropoff_store_address: scan.dropoffStoreAddress || null,
+      dropoff_store_locality: scan.dropoffStoreLocality || null,
+      pickup_zone: scan.pickupZone || null,
       confirmation_source: scan.confirmationSource || null,
       created_at: scan.createdAt || new Date().toISOString(),
     }
