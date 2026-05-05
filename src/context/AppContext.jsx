@@ -32,6 +32,13 @@ import { isActiveDisputeStatus } from '../lib/disputes'
 import { buildDeliverySheetRow } from '../lib/logisticsDeliverySheet'
 import { getOrderCode, isDropoffConfirmed } from '../lib/dropoffQr'
 import { calculateMarketplacePaymentSplit } from '../lib/marketplacePayments'
+import { getCourierDeliveryTiming } from '../lib/courierDeliveryTiming'
+import {
+  buildCourierCollectedSystemMessage,
+  buildDeliveredSystemMessage,
+  buildDropoffConfirmedSystemMessage,
+  buildOrderCompletedSystemMessage,
+} from '../lib/orderSystemMessages'
 
 const AppContext = createContext(null)
 
@@ -260,6 +267,7 @@ export function AppProvider({ children }) {
   const [toast, setToast] = useState(null)
   const counterOfferRequestsRef = useRef(new Map())
   const [packagePrepDismissedOfferIds, setPackagePrepDismissedOfferIds] = useState(() => new Set())
+  const addOrderSystemMessageRef = useRef(null)
 
   // ── Notification helpers (must be before effects that depend on it) ──
   const {
@@ -436,13 +444,18 @@ export function AppProvider({ children }) {
             title: 'Delivery confirmed',
             message: 'The buyer\'s 48-hour window has expired. Your payout is now available.',
           })
+          addOrderSystemMessageRef.current?.(o, buildOrderCompletedSystemMessage({
+            order: o,
+            timestamp: ts,
+            seller: users.find(u => u.id === o.sellerId),
+          }))
         }
       }
     }
     checkAutoConfirm()
     const interval = setInterval(checkAutoConfirm, 30000)
     return () => clearInterval(interval)
-  }, [orders, addNotification, refreshOrders, refreshDisputes])
+  }, [orders, users, addNotification, refreshOrders, refreshDisputes])
 
   const showToast = useCallback((message, type = 'success') => {
     setToast({ message, type })
@@ -744,6 +757,37 @@ export function AppProvider({ children }) {
     return { data: result?.data || newMsg, error: null }
   }, [dbAddMessage])
 
+  const addOrderSystemMessage = useCallback(async (order, event) => {
+    if (!order?.buyerId || !order?.sellerId) return { data: null, error: null, skipped: true }
+    const conversation = getOrCreateConversationForUsers(order.buyerId, order.sellerId, order.listingId)
+    if (!conversation?.id) return { data: null, error: { message: 'Conversation missing for order system message.' } }
+
+    const eventKey = event.eventKey || `${event.eventType}:${order.id}`
+    const alreadyExists = (conversation.messages || []).some(msg => (
+      msg.eventKey === eventKey ||
+      msg.metadata?.eventKey === eventKey ||
+      (msg.type === 'system' && msg.eventType === event.eventType && msg.orderId === order.id)
+    ))
+    if (alreadyExists) return { data: null, error: null, skipped: true }
+
+    return addConversationEvent(conversation, {
+      ...event,
+      type: 'system',
+      senderId: 'system',
+      recipientId: null,
+      read: true,
+      notUserGenerated: true,
+      replyable: false,
+      editable: false,
+      deletable: false,
+      eventKey,
+    })
+  }, [addConversationEvent, getOrCreateConversationForUsers])
+
+  useEffect(() => {
+    addOrderSystemMessageRef.current = addOrderSystemMessage
+  }, [addOrderSystemMessage])
+
   // sendMessage(convId, senderId, text, flagged?)
   const sendMessage = useCallback(async (conversationId, senderIdOrText, textArg, flagged = false) => {
     const text = textArg !== undefined ? textArg : senderIdOrText
@@ -946,16 +990,7 @@ export function AppProvider({ children }) {
 
     if (status === 'delivered' && order) {
       const listing = listings.find(l => l.id === order.listingId)
-      const conversation = getOrCreateConversationForUsers(order.buyerId, order.sellerId, order.listingId)
-      addConversationEvent(conversation.id, {
-        type: 'order_event',
-        eventType: 'awaiting_buyer_confirmation',
-        senderId: 'system',
-        orderId: order.id,
-        listingId: order.listingId,
-        title: 'Awaiting buyer confirmation',
-        text: 'Delivered. The buyer has 48 hours to confirm everything is okay.',
-      })
+      addOrderSystemMessage(order, buildDeliveredSystemMessage({ order, timestamp: now }))
       addNotification({
         userId: order.buyerId,
         orderId: order.id,
@@ -982,7 +1017,7 @@ export function AppProvider({ children }) {
         })
       }
     }
-  }, [addNotification, orders, users, listings, dbPatchOrder, showToast, getOrCreateConversationForUsers, addConversationEvent])
+  }, [addNotification, orders, users, listings, dbPatchOrder, showToast, getOrCreateConversationForUsers, addConversationEvent, addOrderSystemMessage])
 
   // ── Buyer confirms delivery → release payout ──────────────────────
   const confirmDelivery = useCallback(async (orderId) => {
@@ -997,19 +1032,8 @@ export function AppProvider({ children }) {
       return false
     }
     if (order) {
-      const listing = listings.find(l => l.id === order.listingId)
       const seller = users.find(u => u.id === order.sellerId)
-      const conversation = getOrCreateConversationForUsers(order.buyerId, order.sellerId, order.listingId)
-      addConversationEvent(conversation.id, {
-        type: 'order_event',
-        eventType: 'completed',
-        senderId: order.buyerId,
-        orderId,
-        listingId: order.listingId,
-        title: 'Completed',
-        text: 'Order completed. Feedback requested.',
-        feedbackUrl: seller?.username ? `/reviews/${seller.username}` : null,
-      })
+      addOrderSystemMessage(order, buildOrderCompletedSystemMessage({ order, seller }))
       addNotification({
         userId: order.sellerId,
         orderId,
@@ -1026,7 +1050,7 @@ export function AppProvider({ children }) {
       })
     }
     return true
-  }, [orders, users, listings, addNotification, showToast, getOrCreateConversationForUsers, addConversationEvent, refreshOrders, refreshDisputes])
+  }, [orders, users, listings, addNotification, showToast, addOrderSystemMessage, refreshOrders, refreshDisputes])
 
   // ── Dispute reason types ──────────────────────────────────────────
   const DISPUTE_REASONS = {
@@ -2701,6 +2725,7 @@ export function AppProvider({ children }) {
     const updates = { status, fulfilmentStatus: status, updatedAt: now, ...extraData }
     if (status === 'dropped_off' && (!shipment || !shipment.droppedOffAt)) {
       updates.droppedOffAt = extraData.droppedOffAt || now
+      updates.deliveryTiming = extraData.deliveryTiming || shipment?.deliveryTiming || getCourierDeliveryTiming(updates.droppedOffAt)
       updates.dropoffStoreId = extraData.dropoffStoreId || extraData.storeId || shipment?.dropoffStoreId || null
       updates.dropoffStoreName = extraData.dropoffStoreName || extraData.storeName || shipment?.dropoffStoreName || ''
       updates.dropoffStoreAddress = extraData.dropoffStoreAddress || extraData.storeAddress || shipment?.dropoffStoreAddress || ''
@@ -2744,13 +2769,27 @@ export function AppProvider({ children }) {
           console.error('[updateShipmentStatus] delivery sheet upsert failed:', sheetError.message)
           showToast('Shipment updated, but delivery sheet update failed: ' + sheetError.message, 'error')
         }
+        await addOrderSystemMessage(order, buildDropoffConfirmedSystemMessage({
+          order,
+          timestamp: updates.droppedOffAt || now,
+          deliveryTiming: updates.deliveryTiming,
+        }))
+      }
+    }
+    if (status === 'in_transit') {
+      const order = orders.find(o => o.id === orderId)
+      if (order) {
+        await addOrderSystemMessage(order, buildCourierCollectedSystemMessage({
+          order,
+          timestamp: updates.inTransitAt || now,
+        }))
       }
     }
     // Sync order tracking status for delivered/failed
     if (status === 'delivered') {
       await updateOrderStatus(orderId, 'delivered')
     }
-  }, [updateOrderStatus, orders, shipments, users, listings, dbPatchShipmentByOrderId, upsertDeliverySheetRow, showToast])
+  }, [updateOrderStatus, orders, shipments, users, listings, dbPatchShipmentByOrderId, upsertDeliverySheetRow, showToast, addOrderSystemMessage])
 
   const markShipmentDroppedOff = useCallback(async (orderId, store = {}, extraData = {}) => {
     const order = orders.find(o => o.id === orderId)
@@ -2762,6 +2801,7 @@ export function AppProvider({ children }) {
     }
 
     const now = extraData.droppedOffAt || new Date().toISOString()
+    const deliveryTiming = extraData.deliveryTiming || getCourierDeliveryTiming(now)
     const dropoffStoreName = store.name || store.storeName || extraData.dropoffStoreName || ''
     const dropoffStoreAddress = store.address || store.storeAddress || extraData.dropoffStoreAddress || ''
     const dropoffLocation = extraData.dropoffLocation || [dropoffStoreName, dropoffStoreAddress].filter(Boolean).join(' - ') || null
@@ -2791,6 +2831,7 @@ export function AppProvider({ children }) {
       dropoffConfirmedAt: now,
       dropoffConfirmedBy: confirmedBy,
       dropoffLocation,
+      deliveryTiming,
       currentLocation: extraData.currentLocation || dropoffLocation || '',
       fallbackStoreName: extraData.fallbackStoreName || shipment.fallbackStoreName || '',
       notes: extraData.notes || shipment.notes || '',
@@ -2809,6 +2850,7 @@ export function AppProvider({ children }) {
       dropoffConfirmedAt: now,
       dropoffConfirmedBy: confirmedBy,
       dropoffLocation,
+      deliveryTiming,
       updatedAt: now,
     }
     const { error: orderError } = await dbPatchOrder(order.id, orderPatch)
@@ -2844,12 +2886,18 @@ export function AppProvider({ children }) {
       console.warn('[markShipmentDroppedOff] scan log insert failed:', scanLogError.message)
     }
 
+    await addOrderSystemMessage(order, buildDropoffConfirmedSystemMessage({
+      order,
+      timestamp: now,
+      deliveryTiming,
+    }))
+
     await refreshOrders()
     await refreshShipments()
     await refreshLogisticsDeliverySheet()
     showToast('Parcel drop-off recorded.')
     return { data: updatedShipment, deliverySheetRow, error: null }
-  }, [currentUser?.id, orders, shipments, users, listings, dbPatchOrder, dbPatchShipment, upsertDeliverySheetRow, createDropoffScanLog, refreshOrders, refreshShipments, refreshLogisticsDeliverySheet, showToast])
+  }, [currentUser?.id, orders, shipments, users, listings, dbPatchOrder, dbPatchShipment, upsertDeliverySheetRow, createDropoffScanLog, refreshOrders, refreshShipments, refreshLogisticsDeliverySheet, showToast, addOrderSystemMessage])
 
   // Admin: force update any shipment field
   const adminUpdateShipment = useCallback(async (shipmentId, updates) => {

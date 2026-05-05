@@ -9,6 +9,14 @@ import CounterOfferModal from '../components/CounterOfferModal'
 import { analyseMessage, recordViolation, getRestriction, getViolationCount } from '../utils/circumventionDetector'
 import { moderateContent } from '../lib/moderation'
 
+function isSystemMessage(msg) {
+  return msg?.type === 'system' || msg?.type === 'system_event' || msg?.type === 'order_event'
+}
+
+function formatMessageTime(ts) {
+  return new Date(ts).toLocaleTimeString('en-MT', { hour: '2-digit', minute: '2-digit' })
+}
+
 // ─── Blocked message bubble (no reveal, no blurred content — hard block) ────
 function BlockedMessage({ msg, isMe, other }) {
   return (
@@ -26,7 +34,7 @@ function BlockedMessage({ msg, isMe, other }) {
             Addresses, contact details, and off-platform deals are not allowed on Sib
           </p>
           <p className={`text-[10px] mt-2 text-red-400 dark:text-red-300/70`}>
-            {new Date(msg.timestamp).toLocaleTimeString('en-MT', { hour: '2-digit', minute: '2-digit' })}
+            {formatMessageTime(msg.timestamp)}
           </p>
         </div>
       </div>
@@ -459,16 +467,33 @@ export default function ChatPage() {
     )
   }
 
-  const renderSystemEvent = (msg) => (
-    <div key={msg.id} className="flex justify-center">
-      <div className="max-w-[85%] rounded-2xl bg-sib-sand dark:bg-[#26322f] px-3 py-2 text-center transition-colors">
-        <p className="text-xs font-semibold text-sib-text dark:text-[#f4efe7]">{msg.title || msg.text}</p>
-        {msg.text && msg.title && (
-          <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] mt-0.5">{msg.text}</p>
-        )}
+  const renderSystemEvent = (msg) => {
+    const lines = Array.isArray(msg.lines) && msg.lines.length
+      ? msg.lines
+      : msg.text && msg.title && msg.text !== msg.title
+        ? msg.text.split(/\n+/).filter(Boolean)
+        : []
+
+    return (
+      <div key={msg.id} className="flex justify-center">
+        <div className="w-full max-w-[360px] rounded-2xl border border-gray-200 dark:border-[rgba(242,238,231,0.10)] bg-gray-50 dark:bg-[#26322f] px-4 py-3 text-center shadow-sm transition-colors">
+          <p className="text-[13px] font-bold text-sib-text dark:text-[#f4efe7]">{msg.title || msg.text}</p>
+          {lines.length > 0 && (
+            <div className="mt-1.5 space-y-0.5">
+              {lines.map((line, index) => (
+                <p key={`${msg.id}_line_${index}`} className="text-[12px] leading-snug text-sib-muted dark:text-[#aeb8b4]">
+                  {line}
+                </p>
+              ))}
+            </div>
+          )}
+          <p className="mt-2 text-[10px] font-medium text-gray-400 dark:text-[#aeb8b4]">
+            {formatMessageTime(msg.timestamp)}
+          </p>
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   if (!currentUser) return null
   if (!conv) return <div className="text-center py-20 text-sib-muted dark:text-[#aeb8b4]">Conversation not found.</div>
@@ -525,7 +550,7 @@ export default function ChatPage() {
           {conv.messages.map(msg => {
             const isMe = msg.senderId === currentUser.id
             if (msg.type === 'offer') return renderOfferMessage(msg)
-            if (msg.type === 'system_event' || msg.type === 'order_event') return renderSystemEvent(msg)
+            if (isSystemMessage(msg)) return renderSystemEvent(msg)
             if (msg.flagged) {
               return <BlockedMessage key={msg.id} msg={msg} isMe={isMe} other={other} />
             }
@@ -537,7 +562,7 @@ export default function ChatPage() {
                 }`}>
                   <p>{msg.text}</p>
                   <p className={`text-[10px] mt-1 ${isMe ? 'text-white/70' : 'text-sib-muted dark:text-[#aeb8b4]'}`}>
-                    {new Date(msg.timestamp).toLocaleTimeString('en-MT', { hour: '2-digit', minute: '2-digit' })}
+                    {formatMessageTime(msg.timestamp)}
                   </p>
                 </div>
               </div>

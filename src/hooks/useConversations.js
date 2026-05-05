@@ -79,7 +79,10 @@ export function useConversations(currentUser, seedConversations = []) {
         { event: 'INSERT', schema: 'public', table: 'messages' },
         async (payload) => {
           const row = payload.new
-          if (row.sender_id !== currentUser.id && row.recipient_id !== currentUser.id) return
+          const isKnownConversationMessage = conversations.some(c => (
+            c.id === row.conversation_id && c.participants?.includes(currentUser.id)
+          ))
+          if (row.sender_id !== currentUser.id && row.recipient_id !== currentUser.id && !isKnownConversationMessage) return
           await refreshConversations()
         },
       )
@@ -88,7 +91,10 @@ export function useConversations(currentUser, seedConversations = []) {
         { event: 'UPDATE', schema: 'public', table: 'messages' },
         async (payload) => {
           const row = payload.new
-          if (row.sender_id !== currentUser.id && row.recipient_id !== currentUser.id) return
+          const isKnownConversationMessage = conversations.some(c => (
+            c.id === row.conversation_id && c.participants?.includes(currentUser.id)
+          ))
+          if (row.sender_id !== currentUser.id && row.recipient_id !== currentUser.id && !isKnownConversationMessage) return
           await refreshConversations()
         },
       )
@@ -97,7 +103,7 @@ export function useConversations(currentUser, seedConversations = []) {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [currentUser?.id, isAuthenticated, refreshConversations, supabase])
+  }, [conversations, currentUser?.id, isAuthenticated, refreshConversations, supabase])
 
   const createConversation = useCallback((otherUserId, listingId = null, explicitId = null) => {
     if (!currentUser?.id || !otherUserId) return null
@@ -182,7 +188,7 @@ export function useConversations(currentUser, seedConversations = []) {
       type: message.type || undefined,
       eventType: message.eventType || undefined,
       flagged: !!message.flagged,
-      read: message.senderId === currentUser?.id,
+      read: message.read ?? message.senderId === currentUser?.id,
       ...(message.metadata || {}),
     }
 

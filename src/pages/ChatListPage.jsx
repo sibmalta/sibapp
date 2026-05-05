@@ -33,6 +33,10 @@ function formatTimestamp(ts) {
   return date.toLocaleDateString('en-MT', { day: 'numeric', month: 'short' })
 }
 
+function isSystemMessage(msg) {
+  return msg?.type === 'system' || msg?.type === 'system_event' || msg?.type === 'order_event'
+}
+
 export default function ChatListPage() {
   const { currentUser, getUserConversations, getUserById, getListingById, getOrCreateConversation, ensureUserById } = useApp()
   const navigate = useNavigate()
@@ -137,7 +141,7 @@ export default function ChatListPage() {
                       : 'Offer received'
               return amount > 0 ? `${label}: €${amount.toFixed(2)}` : label
             }
-            if (lastMsg.type === 'system_event' || lastMsg.type === 'order_event') return lastMsg.title || lastMsg.text
+            if (isSystemMessage(lastMsg)) return lastMsg.title || lastMsg.text
             return lastMsg.text
           })()
 
