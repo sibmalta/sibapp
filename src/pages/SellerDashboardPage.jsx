@@ -8,6 +8,7 @@ import {
 import { useApp } from '../context/AppContext'
 import { ShipmentStatusBadge } from '../components/ShipmentTracker'
 import PendingPayoutsWidget from '../components/PendingPayoutsWidget'
+import SellerDropoffPrompt from '../components/SellerDropoffPrompt'
 import { getSellerPendingPayoutSummary } from '../lib/pendingPayouts'
 
 const PAYOUT_STATUS_MAP = {
@@ -109,6 +110,7 @@ export default function SellerDashboardPage() {
 
   return (
     <div className="pb-10 bg-white dark:bg-[#18211f] min-h-screen transition-colors">
+      <SellerDropoffPrompt />
       {/* Header — clean, minimal */}
       <div className="px-4 pt-5 pb-1">
         <div className="flex items-center justify-between">

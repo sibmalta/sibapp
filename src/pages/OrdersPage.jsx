@@ -7,6 +7,7 @@ import useAuthNav from '../hooks/useAuthNav'
 import PageHeader from '../components/PageHeader'
 import { ShipmentStatusBadge } from '../components/ShipmentTracker'
 import PendingPayoutsWidget from '../components/PendingPayoutsWidget'
+import SellerDropoffPrompt from '../components/SellerDropoffPrompt'
 import { getDropoffPendingConfirmationCopy, getFulfilmentMethodLabel } from '../lib/fulfilment'
 import { getSellerPendingPayoutSummary } from '../lib/pendingPayouts'
 import { isDropoffConfirmed } from '../lib/dropoffQr'
@@ -242,6 +243,7 @@ export default function OrdersPage() {
   return (
     <div>
       <PageHeader title="Orders" />
+      <SellerDropoffPrompt />
 
       <div className="flex border-b border-sib-stone dark:border-[rgba(242,238,231,0.10)]">
         {[

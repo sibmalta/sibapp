@@ -10,6 +10,7 @@ import PickedForYou from '../components/PickedForYou'
 import useAuthNav from '../hooks/useAuthNav'
 import CategoryBento from '../components/CategoryBento'
 import SearchAutocomplete from '../components/SearchAutocomplete'
+import SellerDropoffPrompt from '../components/SellerDropoffPrompt'
 import { CATEGORY_TREE, resolveCategory } from '../data/categories'
 import { isActiveInventoryStatus } from '../lib/db/listings'
 
@@ -119,6 +120,8 @@ export default function HomePage() {
 
   return (
     <div className="pb-4 lg:max-w-7xl lg:mx-auto bg-[#FAFAF9] dark:bg-[#18211f] transition-colors">
+      <SellerDropoffPrompt />
+
       <section className="lg:hidden bg-white dark:bg-[#202b28] px-4 pt-3 pb-4 border-b border-sib-stone/50 dark:border-[rgba(242,238,231,0.10)] transition-colors">
         <div className="flex items-end justify-between gap-3 mb-3">
           <div>
