@@ -343,12 +343,12 @@ export function AppProvider({ children }) {
       const now = Date.now()
       for (const s of shipments) {
         if (s.status !== 'awaiting_shipment') continue
-        if (s.sellerClaimedDropoff) continue
+        const order = orders.find(o => o.id === s.orderId)
+        if (isDropoffConfirmed({ order, shipment: s })) continue
         if (s.reminderSentAt || !s.createdAt) continue
         const elapsed = now - new Date(s.createdAt).getTime()
         if (elapsed >= SHIPPING_REMINDER_MS) {
           const ts = new Date().toISOString()
-          const order = orders.find(o => o.id === s.orderId)
           const listing = order ? listings.find(l => l.id === order.listingId) : null
           const seller = users.find(u => u.id === s.sellerId)
           await sendSellerDropoffReminder({ seller, shipment: s, order, itemTitle: listing?.title })
@@ -2851,69 +2851,6 @@ export function AppProvider({ children }) {
     return { data: updatedShipment, deliverySheetRow, error: null }
   }, [currentUser?.id, orders, shipments, users, listings, dbPatchOrder, dbPatchShipment, upsertDeliverySheetRow, createDropoffScanLog, refreshOrders, refreshShipments, refreshLogisticsDeliverySheet, showToast])
 
-  const sellerClaimShipmentDropoff = useCallback(async (orderId) => {
-    console.log('[sellerClaimShipmentDropoff] start', { orderId, currentUserId: currentUser?.id })
-    const order = orders.find(o => o.id === orderId)
-    const shipment = shipments.find(s => s.orderId === orderId)
-    if (!order) {
-      const error = { message: 'Order not found.' }
-      console.error('[sellerClaimShipmentDropoff] missing order', { orderId })
-      showToast(error.message, 'error')
-      return { data: null, error }
-    }
-    if (order.sellerId !== currentUser?.id) {
-      const error = { message: 'Only the seller can mark this order as dropped off.' }
-      console.error('[sellerClaimShipmentDropoff] forbidden', { orderId, sellerId: order.sellerId, currentUserId: currentUser?.id })
-      showToast(error.message, 'error')
-      return { data: null, error }
-    }
-    if (shipment?.status === 'dropped_off') {
-      showToast('This parcel has already been confirmed at a MYconvenience store.')
-      return { data: order, error: null }
-    }
-    if (order.sellerClaimedDropoff || shipment?.sellerClaimedDropoff) {
-      showToast('You already marked this parcel as dropped off. We are waiting for store confirmation.')
-      return { data: order, error: null }
-    }
-
-    const now = new Date().toISOString()
-    console.log('[sellerClaimShipmentDropoff] updating order', { orderId, seller_claimed_dropoff: true, seller_dropoff_claimed_at: now })
-    const { data, error } = await dbPatchOrder(orderId, {
-      sellerClaimedDropoff: true,
-      sellerDropoffClaimedAt: now,
-      updatedAt: now,
-    })
-    if (error) {
-      console.error('[sellerClaimShipmentDropoff] order update failed:', {
-        orderId,
-        error,
-      })
-      showToast('Failed to save your drop-off confirmation: ' + error.message, 'error')
-      return { data: null, error }
-    }
-
-    if (shipment?.id) {
-      const { error: shipmentError } = await dbPatchShipment(shipment.id, {
-        sellerClaimedDropoff: true,
-        sellerDropoffClaimedAt: now,
-        updatedAt: now,
-      })
-      if (shipmentError) {
-        console.warn('[sellerClaimShipmentDropoff] order updated but shipment mirror failed:', {
-          orderId,
-          shipmentId: shipment.id,
-          error: shipmentError,
-        })
-      }
-    }
-
-    console.log('[sellerClaimShipmentDropoff] saved', { orderId, sellerDropoffClaimedAt: now })
-    await refreshOrders()
-    await refreshShipments()
-    showToast('Thanks. We will confirm official drop-off after the MYconvenience store scan.')
-    return { data, error: null }
-  }, [currentUser?.id, orders, shipments, dbPatchOrder, dbPatchShipment, refreshOrders, refreshShipments, showToast])
-
   // Admin: force update any shipment field
   const adminUpdateShipment = useCallback(async (shipmentId, updates) => {
     const now = new Date().toISOString()
@@ -3018,7 +2955,7 @@ export function AppProvider({ children }) {
       suspendUser, banUser, restoreUser, updateSellerBadges, updateTrustTags, updateAdminRole, holdPayout, releasePayout, refundOrder, resolveDispute, cancelOrder, addDisputeMessage,
       savePayoutProfile, getPayoutProfile,
       refreshCurrentProfile, ensureUserById,
-      getShipmentByOrderId, getSellerShipments, getBuyerShipments, markShipmentShipped, updateShipmentStatus, markShipmentDroppedOff, sellerClaimShipmentDropoff, adminUpdateShipment, adminCreateShipmentShortcut,
+      getShipmentByOrderId, getSellerShipments, getBuyerShipments, markShipmentShipped, updateShipmentStatus, markShipmentDroppedOff, adminUpdateShipment, adminCreateShipmentShortcut,
       getUserById, getUserByUsername, getListingById, getUserListings,
       getUserOrders, getUserSales,
       getUserConversations, getConversationById, getConversation, refreshConversations,

@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import SellerDropoffPage from '../pages/SellerDropoffPage'
@@ -31,7 +31,7 @@ describe('SellerDropoffPage', () => {
     }
   })
 
-  it('renders one large QR card per eligible seller order', () => {
+  it('renders multiple pending parcels as compact cards', () => {
     mockApp.orders = [
       {
         id: 'order_1',
@@ -57,16 +57,51 @@ describe('SellerDropoffPage', () => {
 
     renderPage()
 
-    expect(screen.getAllByTestId('seller-dropoff-qr-card')).toHaveLength(2)
+    const cards = screen.getAllByTestId('pending-dropoff-card')
+    expect(cards).toHaveLength(2)
     expect(screen.getAllByText('SIB-1001').length).toBeGreaterThan(0)
     expect(screen.getAllByText('SIB-1002').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Maya Buyer').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Leo Buyer').length).toBeGreaterThan(0)
-    expect(screen.getAllByAltText(/Drop-off QR for order/)).toHaveLength(2)
-    expect(screen.getAllByText('Pending')).toHaveLength(2)
+    expect(screen.queryByAltText(/Drop-off QR for order/)).not.toBeInTheDocument()
+    expect(cards.every(card => within(card).getByText('Pending'))).toBe(true)
+    expect(screen.getAllByRole('button', { name: /Show QR/ })).toHaveLength(2)
   })
 
-  it('hides confirmed orders from the pending drop-off list', () => {
+  it('clicking Show QR reveals the QR for that parcel only', () => {
+    mockApp.orders = [
+      {
+        id: 'order_1',
+        orderRef: 'SIB-1001',
+        sellerId: 'seller_1',
+        buyerId: 'buyer_1',
+        listingId: 'listing_1',
+        paymentStatus: 'paid',
+        trackingStatus: 'awaiting_delivery',
+        dropoffScanToken: 'token-order-1',
+      },
+      {
+        id: 'order_2',
+        orderRef: 'SIB-1002',
+        sellerId: 'seller_1',
+        buyerId: 'buyer_2',
+        listingId: 'listing_2',
+        paymentStatus: 'paid',
+        trackingStatus: 'awaiting_delivery',
+        dropoffScanToken: 'token-order-2',
+      },
+    ]
+
+    renderPage()
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Show QR/ })[1])
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByAltText('Drop-off QR for order SIB-1002')).toBeInTheDocument()
+    expect(screen.queryByAltText('Drop-off QR for order SIB-1001')).not.toBeInTheDocument()
+  })
+
+  it('shows confirmed parcels only in the Confirmed tab', () => {
     mockApp.orders = [
       {
         id: 'order_pending',
@@ -93,9 +128,15 @@ describe('SellerDropoffPage', () => {
 
     renderPage()
 
-    expect(screen.getAllByTestId('seller-dropoff-qr-card')).toHaveLength(1)
+    expect(screen.getAllByTestId('pending-dropoff-card')).toHaveLength(1)
     expect(screen.getAllByText('SIB-PENDING').length).toBeGreaterThan(0)
     expect(screen.queryByText('SIB-CONFIRMED')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: /Confirmed/ }))
+
+    expect(screen.getByTestId('confirmed-dropoff-card')).toBeInTheDocument()
+    expect(screen.getAllByText('SIB-CONFIRMED').length).toBeGreaterThan(0)
+    expect(screen.queryByText('SIB-PENDING')).not.toBeInTheDocument()
   })
 
   it('shows only eligible seller-owned paid orders', () => {
@@ -134,15 +175,17 @@ describe('SellerDropoffPage', () => {
 
     renderPage()
 
-    expect(screen.getAllByTestId('seller-dropoff-qr-card')).toHaveLength(1)
+    expect(screen.getAllByTestId('pending-dropoff-card')).toHaveLength(1)
     expect(screen.getAllByText('SIB-PAID').length).toBeGreaterThan(0)
     expect(screen.queryByText('SIB-UNPAID')).not.toBeInTheDocument()
     expect(screen.queryByText('SIB-OTHER')).not.toBeInTheDocument()
   })
 
-  it('shows the empty state when there are no pending drop-offs', () => {
+  it('shows tab-specific empty states', () => {
     renderPage()
 
-    expect(screen.getByText('No parcels ready for drop-off.')).toBeInTheDocument()
+    expect(screen.getByText('No parcels waiting for drop-off.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: /Confirmed/ }))
+    expect(screen.getByText('No confirmed drop-offs yet.')).toBeInTheDocument()
   })
 })

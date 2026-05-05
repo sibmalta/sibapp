@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo } from 'react'
-import { CheckCircle, MapPin, Package, QrCode } from 'lucide-react'
+import React, { useEffect, useMemo, useState } from 'react'
+import { CheckCircle, MapPin, Package, QrCode, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useApp } from '../context/AppContext'
 import { buildDropoffScanUrl, getOrderCode, getQrCodeImageUrl, isDropoffConfirmed } from '../lib/dropoffQr'
-import { getPendingSellerDropoffOrders } from '../lib/sellerDropoffPrompt'
+import { getConfirmedSellerDropoffOrders, getPendingSellerDropoffOrders } from '../lib/sellerDropoffPrompt'
 
 function getBuyerDisplayName(order, buyer) {
   return order?.buyerFullName || order?.buyerName || buyer?.name || buyer?.username || 'Buyer'
@@ -17,6 +17,19 @@ function getDropoffLocation(order, shipment) {
   return order?.dropoffLocation || shipment?.dropoffLocation || shipment?.dropoffStoreName || order?.dropoffStoreName || ''
 }
 
+function getConfirmedTime(order, shipment) {
+  return order?.dropoffConfirmedAt || shipment?.dropoffConfirmedAt || shipment?.droppedOffAt || ''
+}
+
+function formatConfirmedTime(value) {
+  if (!value) return ''
+  try {
+    return new Date(value).toLocaleString('en-MT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+  } catch {
+    return value
+  }
+}
+
 export default function SellerDropoffPage() {
   const {
     currentUser,
@@ -27,6 +40,8 @@ export default function SellerDropoffPage() {
     refreshOrders,
     refreshShipments,
   } = useApp()
+  const [activeTab, setActiveTab] = useState('pending')
+  const [activeQrOrderId, setActiveQrOrderId] = useState(null)
 
   useEffect(() => {
     if (!currentUser?.id) return
@@ -34,13 +49,46 @@ export default function SellerDropoffPage() {
     refreshShipments?.()
   }, [currentUser?.id, refreshOrders, refreshShipments])
 
-  const dropoffOrders = useMemo(() => {
+  const pendingOrders = useMemo(() => {
     return getPendingSellerDropoffOrders({
       orders,
       shipments,
       currentUserId: currentUser?.id,
     })
   }, [orders, shipments, currentUser?.id])
+
+  const confirmedOrders = useMemo(() => {
+    return getConfirmedSellerDropoffOrders({
+      orders,
+      shipments,
+      currentUserId: currentUser?.id,
+    })
+  }, [orders, shipments, currentUser?.id])
+
+  const activeQrOrder = pendingOrders.find(order => order.id === activeQrOrderId)
+
+  useEffect(() => {
+    if (!activeQrOrderId) return
+    if (!activeQrOrder) setActiveQrOrderId(null)
+  }, [activeQrOrderId, activeQrOrder])
+
+  const buildParcel = (order) => {
+    const shipment = shipments.find(item => item.orderId === order.id)
+    const buyer = getUserById?.(order.buyerId)
+    const listing = getListingById?.(order.listingId)
+    return {
+      order,
+      shipment,
+      buyerDisplayName: getBuyerDisplayName(order, buyer),
+      itemTitle: getListingTitle(order, listing),
+      orderCode: getOrderCode(order),
+      confirmed: isDropoffConfirmed({ order, shipment }),
+      confirmedTime: getConfirmedTime(order, shipment),
+      dropoffLocation: getDropoffLocation(order, shipment),
+    }
+  }
+
+  const activeParcel = activeQrOrder ? buildParcel(activeQrOrder) : null
 
   return (
     <div className="min-h-screen bg-sib-bg pb-10 text-sib-text dark:bg-[#1f2926] dark:text-[#f4efe7]">
@@ -53,95 +101,185 @@ export default function SellerDropoffPage() {
               <QrCode size={19} />
             </div>
             <div className="min-w-0">
-              <h1 className="text-base font-black text-blue-950 dark:text-blue-50">Show each QR at MYConvenience</h1>
+              <h1 className="text-base font-black text-blue-950 dark:text-blue-50">Drop off your parcel at MYConvenience.</h1>
               <p className="mt-1 text-sm font-semibold leading-relaxed text-blue-800 dark:text-blue-100">
-                Each parcel has its own QR. Staff should scan them one by one.
+                Your parcel will be confirmed once the store scans your QR code.
               </p>
             </div>
           </div>
         </div>
 
-        {dropoffOrders.length === 0 ? (
-          <div className="rounded-2xl border border-sib-stone bg-white p-6 text-center shadow-sm dark:border-[rgba(242,238,231,0.10)] dark:bg-[#26322f]">
-            <Package size={28} className="mx-auto text-sib-muted dark:text-[#aeb8b4]" />
-            <p className="mt-3 text-sm font-bold text-sib-text dark:text-[#f4efe7]">No parcels ready for drop-off.</p>
-          </div>
+        <div className="mb-4 grid grid-cols-2 gap-2 rounded-2xl bg-sib-stone/70 p-1 dark:bg-[#202b28]" role="tablist" aria-label="Drop-off status">
+          {[
+            { id: 'pending', label: 'Pending', count: pendingOrders.length },
+            { id: 'confirmed', label: 'Confirmed', count: confirmedOrders.length },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`rounded-xl px-3 py-2 text-sm font-black transition ${
+                activeTab === tab.id
+                  ? 'bg-white text-sib-text shadow-sm dark:bg-[#26322f] dark:text-[#f4efe7]'
+                  : 'text-sib-muted dark:text-[#aeb8b4]'
+              }`}
+            >
+              {tab.label} <span className="font-mono text-xs opacity-70">{tab.count}</span>
+            </button>
+          ))}
+        </div>
+
+        {activeTab === 'pending' ? (
+          pendingOrders.length === 0 ? (
+            <EmptyState message="No parcels waiting for drop-off." />
+          ) : (
+            <div className="space-y-3">
+              {pendingOrders.map((order) => {
+                const parcel = buildParcel(order)
+                return (
+                  <ParcelCard
+                    key={order.id}
+                    parcel={parcel}
+                    status="pending"
+                    actionLabel="Show QR"
+                    onAction={() => setActiveQrOrderId(order.id)}
+                  />
+                )
+              })}
+            </div>
+          )
+        ) : confirmedOrders.length === 0 ? (
+          <EmptyState message="No confirmed drop-offs yet." />
         ) : (
-          <div className="space-y-4">
-            {dropoffOrders.map((order) => {
-              const shipment = shipments.find(item => item.orderId === order.id)
-              const buyer = getUserById?.(order.buyerId)
-              const listing = getListingById?.(order.listingId)
-              const orderCode = getOrderCode(order)
-              const buyerDisplayName = getBuyerDisplayName(order, buyer)
-              const itemTitle = getListingTitle(order, listing)
-              const confirmed = isDropoffConfirmed({ order, shipment })
-              const dropoffLocation = getDropoffLocation(order, shipment)
-              const scanUrl = buildDropoffScanUrl(order, typeof window !== 'undefined' ? window.location.origin : 'https://sibmalta.com')
-              const qrUrl = getQrCodeImageUrl(scanUrl, 320)
-
-              return (
-                <article
-                  key={order.id}
-                  className="overflow-hidden rounded-2xl border-2 border-blue-100 bg-white shadow-sm dark:border-blue-500/20 dark:bg-[#26322f]"
-                  data-testid="seller-dropoff-qr-card"
-                >
-                  <div className="border-b border-blue-100 bg-blue-50 px-4 py-3 dark:border-blue-500/20 dark:bg-[#21303a]">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-[11px] font-bold uppercase text-blue-700 dark:text-blue-100/80">Order code</p>
-                        <p className="break-all font-mono text-2xl font-black text-blue-950 dark:text-blue-50">{orderCode}</p>
-                      </div>
-                      <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-black ${
-                        confirmed
-                          ? 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-100'
-                          : 'bg-white text-blue-800 ring-1 ring-blue-100 dark:bg-[#26322f] dark:text-blue-100 dark:ring-blue-500/20'
-                      }`}>
-                        {confirmed ? <CheckCircle size={13} /> : <QrCode size={13} />}
-                        {confirmed ? 'Confirmed' : 'Pending'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="p-4">
-                    <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
-                      <div className="flex h-72 w-72 max-w-full shrink-0 items-center justify-center rounded-2xl bg-white p-3 shadow-sm ring-1 ring-blue-100 dark:ring-blue-500/20">
-                        <img src={qrUrl} alt={`Drop-off QR for order ${orderCode}`} className="h-full w-full object-contain" />
-                      </div>
-
-                      <div className="w-full min-w-0 space-y-3 text-center sm:text-left">
-                        <div>
-                          <p className="text-xs font-bold uppercase text-sib-muted dark:text-[#aeb8b4]">Buyer</p>
-                          <p className="text-xl font-black text-sib-text dark:text-[#f4efe7]">{buyerDisplayName}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold uppercase text-sib-muted dark:text-[#aeb8b4]">Item</p>
-                          <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7]">{itemTitle}</p>
-                        </div>
-                        <div className="rounded-2xl bg-blue-50 p-3 text-blue-900 dark:bg-[#21303a] dark:text-blue-100">
-                          <p className="text-sm font-black">Write on parcel</p>
-                          <p className="mt-1 text-xs font-semibold leading-relaxed">
-                            Order number: <span className="font-mono text-sm font-black">{orderCode}</span>
-                          </p>
-                          <p className="text-xs font-semibold leading-relaxed">
-                            Buyer: <span className="font-black">{buyerDisplayName}</span>
-                          </p>
-                        </div>
-                        {dropoffLocation && (
-                          <div className="flex items-start justify-center gap-2 rounded-2xl bg-sib-stone/60 p-3 text-xs font-semibold text-sib-muted dark:bg-[#202b28] dark:text-[#aeb8b4] sm:justify-start">
-                            <MapPin size={14} className="mt-0.5 shrink-0" />
-                            <span>{dropoffLocation}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </article>
-              )
+          <div className="space-y-3">
+            {confirmedOrders.map((order) => {
+              const parcel = buildParcel(order)
+              return <ParcelCard key={order.id} parcel={parcel} status="confirmed" />
             })}
           </div>
         )}
       </main>
+
+      {activeParcel && (
+        <QrModal parcel={activeParcel} onClose={() => setActiveQrOrderId(null)} />
+      )}
+    </div>
+  )
+}
+
+function EmptyState({ message }) {
+  return (
+    <div className="rounded-2xl border border-sib-stone bg-white p-6 text-center shadow-sm dark:border-[rgba(242,238,231,0.10)] dark:bg-[#26322f]">
+      <Package size={28} className="mx-auto text-sib-muted dark:text-[#aeb8b4]" />
+      <p className="mt-3 text-sm font-bold text-sib-text dark:text-[#f4efe7]">{message}</p>
+    </div>
+  )
+}
+
+function ParcelCard({ parcel, status, actionLabel, onAction }) {
+  const confirmed = status === 'confirmed'
+  return (
+    <article
+      className={`rounded-2xl border p-4 shadow-sm ${
+        confirmed
+          ? 'border-green-100 bg-green-50/80 dark:border-green-500/20 dark:bg-[#20322b]'
+          : 'border-sib-stone bg-white dark:border-[rgba(242,238,231,0.10)] dark:bg-[#26322f]'
+      }`}
+      data-testid={confirmed ? 'confirmed-dropoff-card' : 'pending-dropoff-card'}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold uppercase text-sib-muted dark:text-[#aeb8b4]">Order code</p>
+          <p className="break-all font-mono text-xl font-black text-sib-text dark:text-[#f4efe7]">{parcel.orderCode}</p>
+        </div>
+        <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-black ${
+          confirmed
+            ? 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-100'
+            : 'bg-blue-50 text-blue-800 ring-1 ring-blue-100 dark:bg-[#21303a] dark:text-blue-100 dark:ring-blue-500/20'
+        }`}>
+          {confirmed ? <CheckCircle size={13} /> : <QrCode size={13} />}
+          {confirmed ? 'Confirmed' : 'Pending'}
+        </span>
+      </div>
+
+      <div className="mt-3 grid gap-1 text-sm">
+        <p className="font-black text-sib-text dark:text-[#f4efe7]">{parcel.buyerDisplayName}</p>
+        <p className="font-semibold text-sib-muted dark:text-[#aeb8b4]">{parcel.itemTitle}</p>
+      </div>
+
+      {confirmed && (
+        <div className="mt-3 space-y-1 text-xs font-semibold text-green-800 dark:text-green-100">
+          {parcel.confirmedTime && <p>Confirmed {formatConfirmedTime(parcel.confirmedTime)}</p>}
+          {parcel.dropoffLocation && (
+            <p className="flex items-start gap-1.5">
+              <MapPin size={13} className="mt-0.5 shrink-0" />
+              <span>{parcel.dropoffLocation}</span>
+            </p>
+          )}
+        </div>
+      )}
+
+      {actionLabel && (
+        <button
+          type="button"
+          onClick={onAction}
+          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-sib-primary px-4 py-3 text-sm font-black text-white transition hover:bg-sib-primary/90"
+        >
+          <QrCode size={16} /> {actionLabel}
+        </button>
+      )}
+    </article>
+  )
+}
+
+function QrModal({ parcel, onClose }) {
+  const scanUrl = buildDropoffScanUrl(parcel.order, typeof window !== 'undefined' ? window.location.origin : 'https://sibmalta.com')
+  const qrUrl = getQrCodeImageUrl(scanUrl, 340)
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 px-3 py-4 sm:items-center" role="dialog" aria-modal="true">
+      <div className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-3xl bg-white shadow-2xl dark:bg-[#26322f]">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-sib-stone bg-white px-4 py-3 dark:border-[rgba(242,238,231,0.10)] dark:bg-[#26322f]">
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase text-sib-muted dark:text-[#aeb8b4]">Show QR</p>
+            <p className="break-all font-mono text-lg font-black text-sib-text dark:text-[#f4efe7]">{parcel.orderCode}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="ml-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sib-stone text-sib-text dark:bg-[#202b28] dark:text-[#f4efe7]"
+            aria-label="Close QR"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="p-4">
+          <div className="mx-auto flex h-80 w-80 max-w-full items-center justify-center rounded-2xl bg-white p-3 shadow-sm ring-1 ring-blue-100">
+            <img src={qrUrl} alt={`Drop-off QR for order ${parcel.orderCode}`} className="h-full w-full object-contain" />
+          </div>
+
+          <div className="mt-4 rounded-2xl bg-blue-50 p-4 text-blue-950 dark:bg-[#21303a] dark:text-blue-50">
+            <p className="text-base font-black">Write on parcel</p>
+            <div className="mt-3 grid gap-3">
+              <div>
+                <p className="text-[11px] font-bold uppercase text-blue-700 dark:text-blue-100/80">Order number</p>
+                <p className="break-all font-mono text-2xl font-black">{parcel.orderCode}</p>
+              </div>
+              <div>
+                <p className="text-[11px] font-bold uppercase text-blue-700 dark:text-blue-100/80">Buyer name</p>
+                <p className="text-xl font-black">{parcel.buyerDisplayName}</p>
+              </div>
+              <div>
+                <p className="text-[11px] font-bold uppercase text-blue-700 dark:text-blue-100/80">Item</p>
+                <p className="text-sm font-bold">{parcel.itemTitle}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

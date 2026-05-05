@@ -407,7 +407,7 @@ async function sendDropoffReminders(supabase: ReturnType<typeof createClient>, n
   const cutoff = new Date(new Date(nowIso).getTime() - 24 * 60 * 60 * 1000).toISOString()
   const { data: shipments, error } = await supabase
     .from('shipments')
-    .select('id,order_id,order_ref,seller_id,buyer_id,status,created_at,reminder_sent_at,reminder_count,seller_claimed_dropoff')
+    .select('id,order_id,order_ref,seller_id,buyer_id,status,created_at,reminder_sent_at,reminder_count,dropoff_confirmed_at')
     .eq('status', 'awaiting_shipment')
     .lte('created_at', cutoff)
     .is('reminder_sent_at', null)
@@ -422,7 +422,7 @@ async function sendDropoffReminders(supabase: ReturnType<typeof createClient>, n
 
   for (const shipment of shipments || []) {
     try {
-      if (shipment.seller_claimed_dropoff || shipment.status === 'dropped_off') {
+      if (shipment.dropoff_confirmed_at || shipment.status === 'dropped_off') {
         continue
       }
 

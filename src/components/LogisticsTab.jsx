@@ -45,12 +45,6 @@ function getDropoffState(shipment, order) {
       className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
     }
   }
-  if (order?.sellerClaimedDropoff || shipment?.sellerClaimedDropoff) {
-    return {
-      label: 'Drop-off pending confirmation',
-      className: 'border-blue-200 bg-blue-50 text-blue-700',
-    }
-  }
   return {
     label: 'Awaiting seller drop-off',
     className: 'border-amber-200 bg-amber-50 text-amber-700',
@@ -186,7 +180,6 @@ function OrderDrawer({ order, listing, buyer, seller, shipment, logistics, onUpd
                 <Row label="Pickup Day" value={logistics.pickupDay ? fmtShort(logistics.pickupDay) : '—'} />
                 <Row label="Delivery Day" value={logistics.deliveryDay ? fmtShort(logistics.deliveryDay) : '—'} />
                 <Row label="Assigned Driver" value={logistics.assignedDriver || '—'} />
-                <Row label="Seller claimed at" value={order?.sellerDropoffClaimedAt || shipment?.sellerDropoffClaimedAt ? fmtDate(order?.sellerDropoffClaimedAt || shipment?.sellerDropoffClaimedAt) : '-'} />
                 <Row label="MY store confirmed" value={shipment?.droppedOffAt ? fmtDate(shipment.droppedOffAt) : '-'} />
               </>
             )}

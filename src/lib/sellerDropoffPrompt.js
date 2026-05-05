@@ -53,11 +53,25 @@ export function isOfficiallyDroppedOff(order, shipment) {
 export function getPendingSellerDropoffOrders({ orders = [], shipments = [], currentUserId }) {
   if (!currentUserId) return []
 
-  return orders.filter(order => {
-    if (order.sellerId !== currentUserId) return false
+  return getSellerDropoffOrders({ orders, shipments, currentUserId }).filter(({ confirmed }) => !confirmed).map(({ order }) => order)
+}
+
+export function getConfirmedSellerDropoffOrders({ orders = [], shipments = [], currentUserId }) {
+  if (!currentUserId) return []
+
+  return getSellerDropoffOrders({ orders, shipments, currentUserId }).filter(({ confirmed }) => confirmed).map(({ order }) => order)
+}
+
+export function getSellerDropoffOrders({ orders = [], shipments = [], currentUserId }) {
+  if (!currentUserId) return []
+
+  return orders.map(order => {
     const shipment = shipments.find(item => item.orderId === order.id)
+    const confirmed = isOfficiallyDroppedOff(order, shipment)
+    return { order, shipment, confirmed }
+  }).filter(({ order }) => {
+    if (order.sellerId !== currentUserId) return false
     if (!isActiveSellerDropoffOrder(order)) return false
-    if (isOfficiallyDroppedOff(order, shipment)) return false
     return true
   })
 }
@@ -67,11 +81,4 @@ export function shouldShowSellerDropoffQr({ order, shipment, currentUserId }) {
   if (!isActiveSellerDropoffOrder(order)) return false
   if (shipment?.status === 'delivered') return false
   return true
-}
-
-export function buildSellerDropoffClaimPatch(now = new Date().toISOString()) {
-  return {
-    sellerClaimedDropoff: true,
-    sellerDropoffClaimedAt: now,
-  }
 }

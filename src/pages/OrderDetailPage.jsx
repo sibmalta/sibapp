@@ -386,6 +386,9 @@ export default function OrderDetailPage() {
                 <h2 className="text-base font-black text-blue-900 dark:text-blue-100">Drop-off QR</h2>
               </div>
               <p className="mb-4 text-sm font-semibold text-blue-800 dark:text-blue-100">
+                Drop off your parcel at MYConvenience.
+              </p>
+              <p className="mb-4 text-sm font-semibold text-blue-800 dark:text-blue-100">
                 Show this QR code at MYConvenience.
               </p>
               <div className="mb-3 grid gap-2 text-xs font-semibold text-blue-800 dark:text-blue-100 sm:grid-cols-2">
@@ -437,10 +440,9 @@ export default function OrderDetailPage() {
               )}
               {dropoffConfirmed ? (
                 <div className="mb-3 rounded-2xl border border-green-100 bg-green-50/80 p-3 text-green-800 dark:border-green-500/20 dark:bg-[#20322b] dark:text-green-100">
-                  <p className="text-xs font-bold">Drop-off confirmed</p>
+                  <p className="text-xs font-bold">Parcel confirmed.</p>
                   <div className="mt-1.5 space-y-1 text-xs leading-snug">
-                    <p>Your parcel has been confirmed as received.</p>
-                    <p>We&apos;ll handle the next step from here.</p>
+                    <p>We&apos;ll handle delivery from here.</p>
                     {(order.dropoffConfirmedAt || shipment?.dropoffConfirmedAt || shipment?.droppedOffAt) && (
                       <p className="text-[11px] opacity-80">
                         Confirmed {new Date(order.dropoffConfirmedAt || shipment?.dropoffConfirmedAt || shipment?.droppedOffAt).toLocaleString('en-MT')}

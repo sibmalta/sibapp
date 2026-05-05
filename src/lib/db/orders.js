@@ -73,8 +73,6 @@ export function rowToOrder(row) {
     address,
     overdueFlag: row.overdue_flag || false,
     overdueFlaggedAt: row.overdue_flagged_at || null,
-    sellerClaimedDropoff: Boolean(row.seller_claimed_dropoff),
-    sellerDropoffClaimedAt: row.seller_dropoff_claimed_at || null,
     dropoffScanToken: row.dropoff_scan_token || '',
     dropoffConfirmedAt: row.dropoff_confirmed_at || null,
     dropoffConfirmedBy: row.dropoff_confirmed_by || null,
@@ -171,8 +169,6 @@ export function orderToRow(order) {
   if (order.bundleOfferId !== undefined) row.bundle_offer_id = order.bundleOfferId
   if (order.overdueFlag !== undefined) row.overdue_flag = order.overdueFlag
   if (order.overdueFlaggedAt !== undefined) row.overdue_flagged_at = order.overdueFlaggedAt
-  if (order.sellerClaimedDropoff !== undefined) row.seller_claimed_dropoff = order.sellerClaimedDropoff
-  if (order.sellerDropoffClaimedAt !== undefined) row.seller_dropoff_claimed_at = order.sellerDropoffClaimedAt
   if (order.dropoffScanToken !== undefined) row.dropoff_scan_token = order.dropoffScanToken
   if (order.dropoffConfirmedAt !== undefined) row.dropoff_confirmed_at = order.dropoffConfirmedAt
   if (order.dropoffConfirmedBy !== undefined) row.dropoff_confirmed_by = order.dropoffConfirmedBy
@@ -716,8 +712,6 @@ export function rowToShipment(row) {
     dropoffConfirmedBy: row.dropoff_confirmed_by || null,
     dropoffLocation: row.dropoff_location || row.current_location || null,
     currentLocation: row.current_location || null,
-    sellerClaimedDropoff: Boolean(row.seller_claimed_dropoff),
-    sellerDropoffClaimedAt: row.seller_dropoff_claimed_at || null,
     fallbackStoreName: row.fallback_store_name || null,
     failedAt: row.failed_at || null,
     returnedAt: row.returned_at || null,
@@ -773,8 +767,6 @@ export function shipmentToRow(shipment) {
   if (shipment.dropoffConfirmedBy !== undefined) row.dropoff_confirmed_by = shipment.dropoffConfirmedBy
   if (shipment.dropoffLocation !== undefined) row.dropoff_location = shipment.dropoffLocation
   if (shipment.currentLocation !== undefined) row.current_location = shipment.currentLocation
-  if (shipment.sellerClaimedDropoff !== undefined) row.seller_claimed_dropoff = shipment.sellerClaimedDropoff
-  if (shipment.sellerDropoffClaimedAt !== undefined) row.seller_dropoff_claimed_at = shipment.sellerDropoffClaimedAt
   if (shipment.fallbackStoreName !== undefined) row.fallback_store_name = shipment.fallbackStoreName
   if (shipment.failedAt !== undefined) row.failed_at = shipment.failedAt
   if (shipment.returnedAt !== undefined) row.returned_at = shipment.returnedAt

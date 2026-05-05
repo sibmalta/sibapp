@@ -2,32 +2,11 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { orderToRow, rowToOrder, rowToShipment, shipmentToRow } from '../lib/db/orders'
-import { buildSellerDropoffClaimPatch, getPendingSellerDropoffOrders, isOrderPaidForDropoff, shouldShowSellerDropoffQr } from '../lib/sellerDropoffPrompt'
+import { getConfirmedSellerDropoffOrders, getPendingSellerDropoffOrders, isOrderPaidForDropoff, shouldShowSellerDropoffQr } from '../lib/sellerDropoffPrompt'
 
 const root = resolve(__dirname, '..', '..')
 
 describe('seller drop-off flow', () => {
-  it('maps seller self-confirmation on orders as the source of truth', () => {
-    const order = rowToOrder({
-      id: 'order_1',
-      seller_id: 'seller_1',
-      buyer_id: 'buyer_1',
-      listing_id: 'listing_1',
-      seller_claimed_dropoff: true,
-      seller_dropoff_claimed_at: '2026-05-02T11:00:00.000Z',
-    })
-
-    expect(order.sellerClaimedDropoff).toBe(true)
-    expect(order.sellerDropoffClaimedAt).toBe('2026-05-02T11:00:00.000Z')
-    expect(orderToRow({
-      sellerClaimedDropoff: true,
-      sellerDropoffClaimedAt: order.sellerDropoffClaimedAt,
-    })).toMatchObject({
-      seller_claimed_dropoff: true,
-      seller_dropoff_claimed_at: '2026-05-02T11:00:00.000Z',
-    })
-  })
-
   it('maps official QR/admin drop-off confirmation metadata on orders and shipments', () => {
     const order = rowToOrder({
       id: 'order_1',
@@ -81,7 +60,7 @@ describe('seller drop-off flow', () => {
     })
   })
 
-  it('maps seller self-confirmation separately from official dropped_off status', () => {
+  it('does not map seller self-confirmation as drop-off state', () => {
     const shipment = rowToShipment({
       id: 'ship_1',
       order_id: 'order_1',
@@ -91,27 +70,27 @@ describe('seller drop-off flow', () => {
     })
 
     expect(shipment.status).toBe('awaiting_shipment')
-    expect(shipment.sellerClaimedDropoff).toBe(true)
-    expect(shipment.sellerDropoffClaimedAt).toBe('2026-05-02T10:00:00.000Z')
+    expect(shipment.sellerClaimedDropoff).toBeUndefined()
+    expect(shipment.sellerDropoffClaimedAt).toBeUndefined()
     expect(shipmentToRow({
       sellerClaimedDropoff: true,
       sellerDropoffClaimedAt: shipment.sellerDropoffClaimedAt,
-    })).toMatchObject({
-      seller_claimed_dropoff: true,
-      seller_dropoff_claimed_at: '2026-05-02T10:00:00.000Z',
-    })
+    })).not.toHaveProperty('seller_claimed_dropoff')
   })
 
-  it('adds shipment columns for seller claimed drop-off', () => {
-    const migration = readFileSync(resolve(root, 'supabase/migrations/20260502103000_seller_dropoff_claim.sql'), 'utf8')
-    const orderMigration = readFileSync(resolve(root, 'supabase/migrations/20260502110000_order_seller_dropoff_claim.sql'), 'utf8')
+  it('removes seller self-confirmation columns from the active schema', () => {
+    const migration = readFileSync(resolve(root, 'supabase/migrations/20260505113000_remove_seller_dropoff_self_confirmation.sql'), 'utf8')
+    const ordersDb = readFileSync(resolve(root, 'src/lib/db/orders.js'), 'utf8')
+    const appContext = readFileSync(resolve(root, 'src/context/AppContext.jsx'), 'utf8')
+    const ordersPage = readFileSync(resolve(root, 'src/pages/OrdersPage.jsx'), 'utf8')
 
-    expect(migration).toContain('seller_claimed_dropoff boolean')
-    expect(migration).toContain('seller_dropoff_claimed_at timestamptz')
-    expect(migration).toContain('shipments_seller_claimed_dropoff_idx')
-    expect(orderMigration).toContain('alter table if exists public.orders')
-    expect(orderMigration).toContain('orders_seller_claimed_dropoff_idx')
-    expect(orderMigration).toContain('orders_seller_dropoff_claim_update')
+    expect(migration).toContain('drop column if exists seller_claimed_dropoff')
+    expect(migration).toContain('drop column if exists seller_dropoff_claimed_at')
+    expect(ordersDb).not.toContain('sellerClaimedDropoff')
+    expect(ordersDb).not.toContain('sellerDropoffClaimedAt')
+    expect(appContext).not.toContain('sellerClaimShipmentDropoff')
+    expect(ordersPage).not.toContain('sellerClaimShipmentDropoff')
+    expect(ordersPage).not.toContain("I\\u2019ve dropped it off")
   })
 
   it('includes the QR drop-off confirmation migration and admin scan route', () => {
@@ -175,7 +154,6 @@ describe('seller drop-off flow', () => {
         buyerId: 'buyer_1',
         status: 'paid',
         paymentStatus: 'paid',
-        sellerClaimedDropoff: false,
       },
       {
         id: 'order_buyer',
@@ -183,7 +161,6 @@ describe('seller drop-off flow', () => {
         buyerId: 'seller_1',
         status: 'paid',
         paymentStatus: 'paid',
-        sellerClaimedDropoff: false,
       },
     ]
 
@@ -305,9 +282,10 @@ describe('seller drop-off flow', () => {
     expect(prompt).not.toContain("I've dropped it off")
     expect(app).toContain('path="dropoff"')
     expect(app).toContain('SellerDropoffPage')
-    expect(dropoffPage).toContain('No parcels ready for drop-off.')
+    expect(dropoffPage).toContain('No parcels waiting for drop-off.')
+    expect(dropoffPage).toContain('No confirmed drop-offs yet.')
     expect(dropoffPage).toContain('buildDropoffScanUrl')
-    expect(dropoffPage).toContain('getQrCodeImageUrl(scanUrl, 320)')
+    expect(dropoffPage).toContain('getQrCodeImageUrl(scanUrl, 340)')
     expect(detail).toContain('id="dropoff-qr"')
   })
 
@@ -338,37 +316,26 @@ describe('seller drop-off flow', () => {
     expect(listingPage).not.toContain('admin/scan-dropoff')
   })
 
-  it('hides the seller prompt after official store drop-off while preserving legacy seller claims for QR access', () => {
+  it('moves seller orders from pending to confirmed only after official store drop-off', () => {
     const order = {
       id: 'order_1',
       sellerId: 'seller_1',
       buyerId: 'buyer_1',
       status: 'paid',
       paymentStatus: 'paid',
-      sellerClaimedDropoff: false,
     }
 
     expect(getPendingSellerDropoffOrders({ orders: [order], shipments: [], currentUserId: 'seller_1' })).toHaveLength(1)
-    expect(getPendingSellerDropoffOrders({
-      orders: [{ ...order, sellerClaimedDropoff: true }],
-      shipments: [],
-      currentUserId: 'seller_1',
-    })).toHaveLength(1)
+    expect(getConfirmedSellerDropoffOrders({ orders: [order], shipments: [], currentUserId: 'seller_1' })).toHaveLength(0)
     expect(getPendingSellerDropoffOrders({
       orders: [order],
       shipments: [{ orderId: 'order_1', status: 'dropped_off' }],
       currentUserId: 'seller_1',
     })).toHaveLength(0)
-  })
-
-  it('claim patch updates seller claim fields only and does not set official dropped_off', () => {
-    const patch = buildSellerDropoffClaimPatch('2026-05-02T12:00:00.000Z')
-
-    expect(patch).toEqual({
-      sellerClaimedDropoff: true,
-      sellerDropoffClaimedAt: '2026-05-02T12:00:00.000Z',
-    })
-    expect(patch.status).toBeUndefined()
-    expect(patch.fulfilmentStatus).toBeUndefined()
+    expect(getConfirmedSellerDropoffOrders({
+      orders: [order],
+      shipments: [{ orderId: 'order_1', status: 'dropped_off' }],
+      currentUserId: 'seller_1',
+    })).toHaveLength(1)
   })
 })

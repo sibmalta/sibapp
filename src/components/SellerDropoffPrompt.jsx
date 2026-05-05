@@ -88,7 +88,7 @@ export default function SellerDropoffPrompt() {
             </button>
           </div>
           <p className="mt-2 text-sm leading-relaxed text-sib-text dark:text-[#f4efe7]">
-            Please drop your parcel at your nearest MYconvenience store so we can deliver it to the buyer.
+            Drop off your parcel at MYConvenience.
           </p>
           <p className="mt-1 text-xs text-sib-muted dark:text-[#aeb8b4]">{itemTitle}</p>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -108,7 +108,7 @@ export default function SellerDropoffPrompt() {
             </button>
           </div>
           <p className="mt-2 text-[11px] leading-snug text-sib-muted dark:text-[#aeb8b4]">
-            Store staff scan each QR to confirm each parcel.
+            Your parcel will be confirmed once the store scans your QR code.
           </p>
         </div>
       </div>

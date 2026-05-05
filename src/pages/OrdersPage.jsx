@@ -119,20 +119,8 @@ export function getSellerOrderState(order = {}, shipment = null) {
       filter: 'active',
       label: 'Drop-off confirmed',
       style: 'bg-green-50 text-green-700 dark:bg-[#20322b] dark:text-green-300',
-      nextStep: 'Your parcel has been confirmed as received. We will handle the next step from here.',
+      nextStep: 'Parcel confirmed. We will handle delivery from here.',
       nextStepVariant: 'dropoff_confirmed',
-      canClaimDropoff: false,
-    }
-  }
-
-  if (safeOrder?.sellerClaimedDropoff || safeShipment?.sellerClaimedDropoff) {
-    return {
-      filter: 'active',
-      label: 'Drop-off pending confirmation',
-      style: 'bg-blue-50 text-blue-700 dark:bg-[#26322f] dark:text-blue-300',
-      nextStep: 'Waiting for MYconvenience store scan or admin confirmation.',
-      nextStepVariant: 'dropoff_claimed',
-      canClaimDropoff: false,
     }
   }
 
@@ -150,8 +138,7 @@ export function getSellerOrderState(order = {}, shipment = null) {
       filter: 'active',
       label: 'Awaiting seller drop-off',
       style: 'bg-yellow-50 text-yellow-700 dark:bg-[#332d20] dark:text-amber-300',
-      nextStep: 'Package this item and drop it at a MYconvenience store.',
-      canClaimDropoff: Boolean(safeShipment?.id),
+      nextStep: 'Drop off your parcel at MYConvenience. Your parcel will be confirmed once the store scans your QR code.',
     }
   }
 
@@ -159,15 +146,14 @@ export function getSellerOrderState(order = {}, shipment = null) {
     filter: 'active',
     label: 'Preparing for fulfilment',
     style: 'bg-yellow-50 text-yellow-700 dark:bg-[#332d20] dark:text-amber-300',
-    nextStep: 'Package this item and drop it at a MYconvenience store.',
-    canClaimDropoff: Boolean(safeShipment?.id),
+    nextStep: 'Drop off your parcel at MYConvenience. Your parcel will be confirmed once the store scans your QR code.',
   }
 }
 
 export default function OrdersPage() {
   const {
     currentUser, getUserOrders, getUserSales, getListingById, getUserById, getShipmentByOrderId,
-    refreshOrders, refreshShipments, ordersLoading, shipmentsLoading, sellerClaimShipmentDropoff,
+    refreshOrders, refreshShipments, ordersLoading, shipmentsLoading,
   } = useApp()
   const { loading: authLoading } = useAuth()
   const navigate = useNavigate()
@@ -176,7 +162,6 @@ export default function OrdersPage() {
   const loadedOrdersRef = useRef(false)
   const initialTab = searchParams.get('tab') === 'selling' ? 'selling' : 'buying'
   const [tab, setTab] = useState(initialTab)
-  const [claimingDropoffId, setClaimingDropoffId] = useState(null)
   const shipmentFilter = searchParams.get('shipment')
   const sellerFilter = tab === 'selling' ? (searchParams.get('status') || 'active') : null
 
@@ -252,17 +237,6 @@ export default function OrdersPage() {
     next.set('status', nextFilter)
     next.delete('shipment')
     setSearchParams(next, { replace: true })
-  }
-
-  const handleSellerClaimDropoff = async (event, orderId) => {
-    event.stopPropagation()
-    console.log('[OrdersPage] seller drop-off claim clicked', { orderId })
-    setClaimingDropoffId(orderId)
-    try {
-      await sellerClaimShipmentDropoff(orderId)
-    } finally {
-      setClaimingDropoffId(null)
-    }
   }
 
   return (
@@ -383,17 +357,8 @@ export default function OrdersPage() {
                         <div className="mt-2 rounded-2xl border border-green-100 bg-green-50/80 p-3 text-green-800 dark:border-green-500/20 dark:bg-[#20322b] dark:text-green-100">
                           <p className="text-xs font-bold">Next step</p>
                           <div className="mt-1.5 space-y-1 text-[11px] leading-snug">
-                            <p>Your parcel has been confirmed as received.</p>
-                            <p>We&apos;ll handle the next step from here.</p>
-                          </div>
-                        </div>
-                      ) : sellerState.nextStepVariant === 'dropoff_claimed' ? (
-                        <div className="mt-2 rounded-2xl border border-blue-100 bg-blue-50/80 p-3 text-blue-800 dark:border-blue-500/20 dark:bg-[#21303a] dark:text-blue-100">
-                          <p className="text-xs font-bold">Next step</p>
-                          <div className="mt-1.5 space-y-1 text-[11px] leading-snug">
-                            <p>✅ You’ve marked this item as dropped off.</p>
-                            <p>⏳ {pendingDropoffConfirmationCopy}</p>
-                            <p>No further action is needed from you right now.</p>
+                            <p>Parcel confirmed.</p>
+                            <p>We&apos;ll handle delivery from here.</p>
                           </div>
                         </div>
                       ) : (
@@ -432,17 +397,6 @@ export default function OrdersPage() {
                       </span>
                     )}
                   </div>
-
-                  {tab === 'selling' && sellerState.canClaimDropoff && (
-                    <button
-                      type="button"
-                      onClick={(event) => handleSellerClaimDropoff(event, order.id)}
-                      disabled={claimingDropoffId === order.id}
-                      className="mt-3 rounded-full bg-sib-primary px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-sib-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {claimingDropoffId === order.id ? 'Saving...' : "I\u2019ve dropped it off"}
-                    </button>
-                  )}
                 </div>
               </div>
             )
