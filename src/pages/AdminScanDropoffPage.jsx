@@ -2,7 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { CheckCircle, Loader2, Package, ShieldCheck, XCircle } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
-import { confirmPublicDropoffScan, getPublicDropoffScan, getPublicDropoffScanState } from '../lib/publicDropoffScan'
+import {
+  PUBLIC_DROPOFF_STORES,
+  confirmPublicDropoffScan,
+  getPublicDropoffScan,
+  getPublicDropoffScanState,
+  getPublicDropoffStoreById,
+} from '../lib/publicDropoffScan'
 
 function formatDate(value) {
   if (!value) return 'Not confirmed yet'
@@ -49,6 +55,7 @@ export default function AdminScanDropoffPage() {
   const [loading, setLoading] = useState(true)
   const [confirming, setConfirming] = useState(false)
   const [result, setResult] = useState(null)
+  const [selectedStoreId, setSelectedStoreId] = useState('')
 
   const scanPayload = useMemo(() => ({
     orderId: searchParams.get('orderId') || '',
@@ -85,18 +92,31 @@ export default function AdminScanDropoffPage() {
   }, [scanPayload])
 
   const handleConfirm = async () => {
-    if (!getPublicDropoffScanState(scan).canConfirm || confirming) return
+    const store = getPublicDropoffStoreById(selectedStoreId)
+    if (!getPublicDropoffScanState(scan).canConfirm || confirming || !store) return
     setConfirming(true)
     setResult(null)
     try {
-      const { data, error } = await confirmPublicDropoffScan(scanPayload)
+      const { data, error } = await confirmPublicDropoffScan({
+        ...scanPayload,
+        storeId: store.id,
+        storeName: store.name,
+      })
       if (error) {
         setResult({ type: 'error', message: error.message || 'Could not confirm parcel.' })
         return
       }
 
-      setScan(data)
-      const nextState = getPublicDropoffScanState(data)
+      const confirmedScan = {
+        ...data,
+        confirmed: true,
+        confirmedNow: data?.confirmedNow ?? true,
+        storeId: data?.storeId || store.id,
+        storeName: data?.storeName || store.name,
+        dropoffStoreName: data?.dropoffStoreName || store.name,
+      }
+      setScan(confirmedScan)
+      const nextState = getPublicDropoffScanState(confirmedScan)
       setResult({
         type: data?.confirmedNow ? 'success' : 'info',
         message: data?.confirmedNow ? 'Parcel confirmed.' : nextState.message,
@@ -107,8 +127,12 @@ export default function AdminScanDropoffPage() {
   }
 
   const scanState = getPublicDropoffScanState(scan)
-  const canConfirm = Boolean(scanState.canConfirm)
+  const canConfirm = Boolean(scanState.canConfirm && selectedStoreId)
   const confirmed = Boolean(scanState.confirmed)
+  const storeName = scanState.storeName || scan?.storeName || scan?.dropoffStoreName || scan?.dropoffLocationName || scan?.dropoffLocation || ''
+  const pageTitle = confirmed
+    ? (scan?.confirmedNow ? 'Parcel confirmed' : 'Parcel already confirmed')
+    : 'MYConvenience parcel scan'
 
   return (
     <div className="pb-10">
@@ -121,8 +145,14 @@ export default function AdminScanDropoffPage() {
               <Package size={21} />
             </div>
             <div>
-              <p className="text-lg font-black text-sib-text dark:text-[#f4efe7]">MYConvenience parcel scan</p>
-              <p className="mt-1 text-sm text-sib-muted dark:text-[#aeb8b4]">Confirm the parcel only after receiving it from the seller.</p>
+              <p className="text-lg font-black text-sib-text dark:text-[#f4efe7]">{pageTitle}</p>
+              <p className="mt-1 text-sm text-sib-muted dark:text-[#aeb8b4]">
+                {confirmed
+                  ? storeName
+                    ? `This parcel has been received at ${storeName}.`
+                    : 'This parcel has been received.'
+                  : 'Confirm the parcel only after receiving it from the seller.'}
+              </p>
             </div>
           </div>
 
@@ -144,27 +174,51 @@ export default function AdminScanDropoffPage() {
               <SummaryRow label="Parcel" value={scan?.itemTitle || 'Seller parcel'} />
               <SummaryRow label="Status" value={scanState.statusLabel} />
               <SummaryRow label="Confirmed at" value={formatDate(scan?.confirmedAt)} />
+              {confirmed && (
+                <SummaryRow label="Store" value={storeName || 'Not provided'} />
+              )}
               {scanState.deliveryTimingLabel && (
                 <SummaryRow label="Delivery timing" value={scanState.deliveryTimingLabel} />
               )}
 
               <StatusNotice scanState={scanState} result={result} />
 
-              <div className="rounded-2xl border border-blue-100 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-500/20 dark:bg-[#21303a] dark:text-blue-100">
-                <div className="flex items-start gap-2">
-                  <ShieldCheck size={16} className="mt-0.5 flex-shrink-0" />
-                  <p>Use this page only to confirm that the seller handed over this parcel.</p>
+              {!confirmed && (
+                <div className="space-y-2 rounded-2xl border border-sib-stone bg-sib-sand p-3 dark:border-[rgba(242,238,231,0.10)] dark:bg-[#26322f]">
+                  <label htmlFor="dropoff-store" className="text-xs font-black uppercase tracking-wide text-sib-text dark:text-[#f4efe7]">
+                    MYConvenience store
+                  </label>
+                  <select
+                    id="dropoff-store"
+                    value={selectedStoreId}
+                    onChange={event => setSelectedStoreId(event.target.value)}
+                    className="w-full rounded-xl border border-sib-stone bg-white px-3 py-2.5 text-sm font-semibold text-sib-text outline-none focus:border-sib-primary dark:border-[rgba(242,238,231,0.10)] dark:bg-[#202b28] dark:text-[#f4efe7]"
+                  >
+                    <option value="">Select store...</option>
+                    {PUBLIC_DROPOFF_STORES.map(store => (
+                      <option key={store.id} value={store.id}>{store.name}</option>
+                    ))}
+                  </select>
                 </div>
-              </div>
+              )}
+
+              {!confirmed && (
+                <div className="rounded-2xl border border-blue-100 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-500/20 dark:bg-[#21303a] dark:text-blue-100">
+                  <div className="flex items-start gap-2">
+                    <ShieldCheck size={16} className="mt-0.5 flex-shrink-0" />
+                    <p>Use this page only to confirm that the seller handed over this parcel.</p>
+                  </div>
+                </div>
+              )}
 
               <button
                 type="button"
-                onClick={handleConfirm}
-                disabled={!canConfirm || confirming}
+                onClick={confirmed ? undefined : handleConfirm}
+                disabled={confirmed ? false : (!canConfirm || confirming)}
                 className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-sib-primary px-4 py-3 text-sm font-black text-white transition hover:bg-sib-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {confirming ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-                {confirming ? 'Confirming...' : confirmed ? 'Parcel already confirmed' : 'Confirm parcel received'}
+                {confirming ? 'Confirming...' : confirmed ? 'Done' : 'Confirm parcel received'}
               </button>
             </div>
           )}

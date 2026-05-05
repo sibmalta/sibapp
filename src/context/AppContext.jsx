@@ -2816,6 +2816,8 @@ export function AppProvider({ children }) {
         scanStatus: 'already_confirmed',
         message: 'Parcel already confirmed',
         dropoffLocation,
+        dropoffStoreId: store.id || store.storeId || extraData.dropoffStoreId || null,
+        dropoffLocationName: dropoffStoreName || dropoffLocation,
       })
       showToast('Parcel already confirmed.')
       return { data: shipment, deliverySheetRow: null, alreadyConfirmed: true, error: null }
@@ -2827,6 +2829,7 @@ export function AppProvider({ children }) {
       dropoffStoreId: store.id || store.storeId || extraData.dropoffStoreId || null,
       dropoffStoreName,
       dropoffStoreAddress,
+      dropoffLocationName: dropoffStoreName || dropoffLocation,
       droppedOffAt: now,
       dropoffConfirmedAt: now,
       dropoffConfirmedBy: confirmedBy,
@@ -2880,6 +2883,8 @@ export function AppProvider({ children }) {
       scanStatus: 'confirmed',
       message: 'Parcel received from seller',
       dropoffLocation,
+      dropoffStoreId: store.id || store.storeId || extraData.dropoffStoreId || null,
+      dropoffLocationName: dropoffStoreName || dropoffLocation,
     })
     const { error: scanLogError } = scanLogResult || {}
     if (scanLogError) {

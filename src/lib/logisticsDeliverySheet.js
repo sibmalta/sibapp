@@ -6,7 +6,11 @@ export const DELIVERY_SHEET_FIELDS = [
   'order_code',
   'seller_name',
   'buyer_name',
+  'buyer_surname',
+  'buyer_locality',
   'item_title',
+  'dropoff_store_id',
+  'dropoff_location_name',
   'dropoff_store_name',
   'dropoff_store_address',
   'dropped_off_at',
@@ -36,8 +40,22 @@ function formatAddress(value) {
   return parts.join(', ')
 }
 
+function getSurname(value) {
+  const parts = String(value || '').trim().split(/\s+/).filter(Boolean)
+  return parts.length ? parts[parts.length - 1] : ''
+}
+
+function getLocality(value) {
+  if (!value) return ''
+  if (typeof value === 'string') return value
+  if (typeof value !== 'object') return String(value)
+  return value.locality || value.city || value.town || value.village || value.area || ''
+}
+
 export function buildDeliverySheetRow({ order = {}, shipment = {}, seller = {}, buyer = {}, listing = {} } = {}) {
   const buyerAddress = shipment.deliveryAddressSnapshot || shipment.recipientAddress || order.deliveryAddressSnapshot || order.address
+  const buyerName = order.buyerFullName || buyer.name || buyer.username || ''
+  const storeName = shipment.dropoffStoreName || shipment.dropoffLocationName || shipment.dropoffLocation || order.dropoffLocationName || order.dropoffLocation || ''
   const scanTime = shipment.dropoffConfirmedAt || shipment.droppedOffAt || order.dropoffConfirmedAt
   const deliveryTiming = shipment.deliveryTiming || order.deliveryTiming || getCourierDeliveryTiming(scanTime)
   const buyerContact = [
@@ -50,9 +68,13 @@ export function buildDeliverySheetRow({ order = {}, shipment = {}, seller = {}, 
     shipment_id: shipment.id || '',
     order_code: order.orderRef || shipment.orderRef || '',
     seller_name: order.sellerName || seller.name || seller.username || '',
-    buyer_name: order.buyerFullName || buyer.name || buyer.username || '',
+    buyer_name: buyerName,
+    buyer_surname: order.buyerSurname || buyer.surname || getSurname(buyerName),
+    buyer_locality: order.buyerLocality || getLocality(buyerAddress),
     item_title: order.listingTitle || listing.title || '',
-    dropoff_store_name: shipment.dropoffStoreName || '',
+    dropoff_store_id: shipment.dropoffStoreId || order.dropoffStoreId || '',
+    dropoff_location_name: storeName,
+    dropoff_store_name: shipment.dropoffStoreName || storeName,
     dropoff_store_address: shipment.dropoffStoreAddress || '',
     dropped_off_at: shipment.droppedOffAt || null,
     buyer_delivery_address: formatAddress(buyerAddress),

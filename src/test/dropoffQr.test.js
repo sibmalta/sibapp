@@ -8,8 +8,8 @@ import {
   isDropoffConfirmed,
   orderCodeMatches,
 } from '../lib/dropoffQr'
-import { getPublicDropoffScanState } from '../lib/publicDropoffScan'
-import { getCourierDeliveryTiming, getCourierDeliveryTimingLabel } from '../lib/courierDeliveryTiming'
+import { PUBLIC_DROPOFF_STORES, getPublicDropoffScanState } from '../lib/publicDropoffScan'
+import { getCourierDeliveryTiming, getCourierDeliveryTimingLabel, getCourierDeliveryTimingPublicLabel } from '../lib/courierDeliveryTiming'
 
 describe('drop-off QR helpers', () => {
   it('builds a tokenized public scan URL with order id and human-readable order code', () => {
@@ -103,6 +103,10 @@ describe('drop-off QR helpers', () => {
     expect(getCourierDeliveryTimingLabel(new Date(2026, 4, 5, 11, 59))).toBe('Same-day')
     expect(getCourierDeliveryTiming(new Date(2026, 4, 5, 12, 0))).toBe('next_day')
     expect(getCourierDeliveryTimingLabel(new Date(2026, 4, 5, 12, 0))).toBe('Next-day')
+    expect(getCourierDeliveryTiming('2026-05-05T09:59:00.000Z')).toBe('same_day')
+    expect(getCourierDeliveryTimingPublicLabel('2026-05-05T09:59:00.000Z')).toBe('Today')
+    expect(getCourierDeliveryTiming('2026-05-05T10:00:00.000Z')).toBe('next_day')
+    expect(getCourierDeliveryTimingPublicLabel('2026-05-05T10:00:00.000Z')).toBe('Next working day')
   })
 
   it('shows delivery timing after public scan confirmation', () => {
@@ -114,7 +118,40 @@ describe('drop-off QR helpers', () => {
       deliveryTiming: 'same_day',
     })
 
-    expect(state.deliveryTimingLabel).toBe('Same-day')
+    expect(state.deliveryTimingLabel).toBe('Today')
+  })
+
+  it('exposes configured MYConvenience stores for public scan confirmation', () => {
+    expect(PUBLIC_DROPOFF_STORES.map(store => store.name)).toEqual([
+      'MYConvenience Sliema',
+      'MYConvenience St Julian’s',
+      'MYConvenience Valletta',
+      'MYConvenience Gzira',
+      'MYConvenience Swieqi',
+      'Other / Admin confirmed',
+    ])
+  })
+
+  it('keeps successful public confirmation visibly confirmed with store location', () => {
+    const state = getPublicDropoffScanState({
+      ok: true,
+      valid: true,
+      codeValid: true,
+      confirmedNow: true,
+      storeName: 'MYConvenience Sliema',
+      confirmedAt: '2026-05-05T09:30:00.000Z',
+      deliveryTiming: 'same_day',
+    })
+
+    expect(state).toMatchObject({
+      confirmed: true,
+      canConfirm: false,
+      statusLabel: 'Parcel confirmed',
+      message: 'Parcel confirmed.',
+      storeName: 'MYConvenience Sliema',
+      confirmedAt: '2026-05-05T09:30:00.000Z',
+      deliveryTimingLabel: 'Today',
+    })
   })
 
   it('blocks invalid public scan tokens', () => {

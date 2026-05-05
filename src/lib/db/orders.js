@@ -77,6 +77,9 @@ export function rowToOrder(row) {
     dropoffConfirmedAt: row.dropoff_confirmed_at || null,
     dropoffConfirmedBy: row.dropoff_confirmed_by || null,
     dropoffLocation: row.dropoff_location || null,
+    dropoffStoreId: row.dropoff_store_id || null,
+    dropoffLocationName: row.dropoff_location_name || row.dropoff_location || null,
+    deliveryTiming: row.delivery_timing || null,
     autoConfirmed: row.auto_confirmed || false,
     createdAt: row.created_at || new Date().toISOString(),
     updatedAt: row.updated_at || new Date().toISOString(),
@@ -173,6 +176,9 @@ export function orderToRow(order) {
   if (order.dropoffConfirmedAt !== undefined) row.dropoff_confirmed_at = order.dropoffConfirmedAt
   if (order.dropoffConfirmedBy !== undefined) row.dropoff_confirmed_by = order.dropoffConfirmedBy
   if (order.dropoffLocation !== undefined) row.dropoff_location = order.dropoffLocation
+  if (order.dropoffStoreId !== undefined) row.dropoff_store_id = order.dropoffStoreId
+  if (order.dropoffLocationName !== undefined) row.dropoff_location_name = order.dropoffLocationName
+  if (order.deliveryTiming !== undefined) row.delivery_timing = order.deliveryTiming
   if (order.autoConfirmed !== undefined) row.auto_confirmed = order.autoConfirmed
   if (order.paidAt !== undefined) row.paid_at = order.paidAt
   if (order.shippedAt !== undefined) row.shipped_at = order.shippedAt
@@ -711,6 +717,8 @@ export function rowToShipment(row) {
     dropoffConfirmedAt: row.dropoff_confirmed_at || row.dropped_off_at || null,
     dropoffConfirmedBy: row.dropoff_confirmed_by || null,
     dropoffLocation: row.dropoff_location || row.current_location || null,
+    dropoffLocationName: row.dropoff_location_name || row.dropoff_store_name || row.dropoff_location || null,
+    deliveryTiming: row.delivery_timing || null,
     currentLocation: row.current_location || null,
     fallbackStoreName: row.fallback_store_name || null,
     failedAt: row.failed_at || null,
@@ -766,6 +774,8 @@ export function shipmentToRow(shipment) {
   if (shipment.dropoffConfirmedAt !== undefined) row.dropoff_confirmed_at = shipment.dropoffConfirmedAt
   if (shipment.dropoffConfirmedBy !== undefined) row.dropoff_confirmed_by = shipment.dropoffConfirmedBy
   if (shipment.dropoffLocation !== undefined) row.dropoff_location = shipment.dropoffLocation
+  if (shipment.dropoffLocationName !== undefined) row.dropoff_location_name = shipment.dropoffLocationName
+  if (shipment.deliveryTiming !== undefined) row.delivery_timing = shipment.deliveryTiming
   if (shipment.currentLocation !== undefined) row.current_location = shipment.currentLocation
   if (shipment.fallbackStoreName !== undefined) row.fallback_store_name = shipment.fallbackStoreName
   if (shipment.failedAt !== undefined) row.failed_at = shipment.failedAt
@@ -842,8 +852,12 @@ export function rowToLogisticsDeliverySheetRow(row) {
     shipmentId: row.shipment_id || '',
     sellerName: row.seller_name || '',
     buyerName: row.buyer_name || '',
+    buyerSurname: row.buyer_surname || '',
+    buyerLocality: row.buyer_locality || '',
     itemTitle: row.item_title || '',
     orderCode: row.order_code || '',
+    dropoffStoreId: row.dropoff_store_id || '',
+    dropoffLocationName: row.dropoff_location_name || row.dropoff_store_name || '',
     dropoffStoreName: row.dropoff_store_name || '',
     dropoffStoreAddress: row.dropoff_store_address || '',
     droppedOffAt: row.dropped_off_at || null,
@@ -896,6 +910,8 @@ export async function insertDropoffScanLog(supabase, scan) {
       scan_status: scan.scanStatus || 'confirmed',
       message: scan.message || null,
       dropoff_location: scan.dropoffLocation || null,
+      dropoff_store_id: scan.dropoffStoreId || null,
+      dropoff_location_name: scan.dropoffLocationName || scan.dropoffStoreName || scan.dropoffLocation || null,
       created_at: scan.createdAt || new Date().toISOString(),
     }
     const { data, error } = await supabase

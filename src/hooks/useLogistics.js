@@ -15,7 +15,7 @@ export const LOGISTICS_STATUSES = [
   { id: 'awaiting_pickup',        label: 'Awaiting Pickup Booking', color: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
   { id: 'pickup_booked',          label: 'Pickup Booked',           color: 'bg-blue-50 text-blue-700 border-blue-200' },
   { id: 'collected',              label: 'Collected',               color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-  { id: 'dropped_off',            label: 'Dropped Off',             color: 'bg-amber-50 text-amber-700 border-amber-200' },
+  { id: 'dropped_off',            label: 'Awaiting courier pickup', color: 'bg-amber-50 text-amber-700 border-amber-200' },
   { id: 'at_hub',                 label: 'At Hub',                  color: 'bg-violet-50 text-violet-700 border-violet-200' },
   { id: 'out_for_delivery',       label: 'Out for Delivery',        color: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
   { id: 'delivered',              label: 'Delivered',               color: 'bg-green-50 text-green-700 border-green-200' },

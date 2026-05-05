@@ -620,7 +620,7 @@ export default function LogisticsTab({ orders, getUserById, getListingById, getS
               <table className="w-full min-w-[980px] text-left">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    {['Order number', 'Order', 'Shipment', 'Seller', 'Buyer name', 'Item', 'Store/location', 'Scan time', 'Buyer area/address', 'Buyer contact', 'Delivery timing', 'Status', 'Fallback', 'Notes'].map(header => (
+                    {['Order ID', 'Buyer surname', 'Buyer locality', 'Store', 'Confirmed at', 'Delivery timing', 'Status', 'Item', 'Seller', 'Buyer address', 'Notes'].map(header => (
                       <th key={header} className="px-3 py-2.5 font-semibold text-gray-500 text-[10px] uppercase tracking-wider">{header}</th>
                     ))}
                   </tr>
