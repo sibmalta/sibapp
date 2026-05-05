@@ -24,6 +24,29 @@ function centsToEuros(value: string | number | null | undefined) {
   return Number.isFinite(cents) ? Number((cents / 100).toFixed(2)) : 0
 }
 
+async function getStripeFeeAmount(stripe: Stripe, paymentIntent: Stripe.PaymentIntent) {
+  const chargeId = typeof paymentIntent.latest_charge === 'string'
+    ? paymentIntent.latest_charge
+    : paymentIntent.latest_charge?.id
+  if (!chargeId) return null
+
+  try {
+    const charge = await stripe.charges.retrieve(chargeId, { expand: ['balance_transaction'] })
+    const balanceTransaction = charge.balance_transaction
+    const fee = typeof balanceTransaction === 'object' && balanceTransaction?.fee != null
+      ? centsToEuros(balanceTransaction.fee)
+      : null
+    return fee
+  } catch (error) {
+    console.warn('[stripe-webhook] Could not retrieve Stripe fee amount:', {
+      paymentIntentId: paymentIntent.id,
+      chargeId,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return null
+  }
+}
+
 function normalizeFulfilmentMethod(value: string | null | undefined) {
   return value === 'locker_collection' || value === 'locker' ? 'locker' : 'delivery'
 }
@@ -189,7 +212,13 @@ async function confirmPaidOrder(
   order: { id: string; payout_status: string | null; tracking_status: string | null },
   paymentIntent: Stripe.PaymentIntent,
   now: string,
+  stripeFeeAmount: number | null,
 ) {
+  const itemPrice = centsToEuros(paymentIntent.metadata?.subtotal_cents)
+  const deliveryFee = centsToEuros(paymentIntent.metadata?.delivery_fee_cents)
+  const buyerProtectionFee = centsToEuros(paymentIntent.metadata?.buyer_protection_fee_cents)
+  const sellerPayout = centsToEuros(paymentIntent.metadata?.seller_payout_cents) || itemPrice
+  const platformFee = centsToEuros(paymentIntent.metadata?.platform_fee_cents) || Number((deliveryFee + buyerProtectionFee).toFixed(2))
   const { error } = await supabase
     .from('orders')
     .update({
@@ -199,6 +228,15 @@ async function confirmPaidOrder(
         : 'awaiting_delivery',
       payment_status: 'paid',
       payout_status: order.payout_status || 'held',
+      seller_stripe_account_id: paymentIntent.metadata?.seller_stripe_account_id || null,
+      seller_payout_amount: sellerPayout,
+      seller_payout: sellerPayout,
+      platform_fee_amount: platformFee,
+      platform_fee: platformFee,
+      delivery_fee_amount: deliveryFee,
+      delivery_fee: deliveryFee,
+      stripe_fee_amount: stripeFeeAmount,
+      payment_flow_type: paymentIntent.metadata?.payment_flow_type || 'separate_charge_then_transfer',
       paid_at: now,
       updated_at: now,
     })
@@ -212,6 +250,7 @@ async function recoverPaidOrderFromPaymentIntent(
   supabase: ReturnType<typeof createClient>,
   paymentIntent: Stripe.PaymentIntent,
   now: string,
+  stripeFeeAmount: number | null = null,
 ) {
   const listingIds = getPaymentIntentListingIds(paymentIntent)
   const buyerId = paymentIntent.metadata?.buyer_id || ''
@@ -247,7 +286,8 @@ async function recoverPaidOrderFromPaymentIntent(
   const buyerProtectionFee = centsToEuros(paymentIntent.metadata?.buyer_protection_fee_cents)
   const total = centsToEuros(paymentIntent.metadata?.total_cents) || centsToEuros(paymentIntent.amount_received || paymentIntent.amount)
   const itemPrice = subtotal || Number(listings.reduce((sum, listing) => sum + Number(listing.price || 0), 0).toFixed(2))
-  const platformFee = Number((total - itemPrice).toFixed(2))
+  const sellerPayout = centsToEuros(paymentIntent.metadata?.seller_payout_cents) || itemPrice
+  const platformFee = centsToEuros(paymentIntent.metadata?.platform_fee_cents) || Number((total - itemPrice).toFixed(2))
   const fulfilmentMethod = normalizeFulfilmentMethod(paymentIntent.metadata?.delivery_method)
   const fulfilmentPrice = deliveryFee || getFulfilmentPrice(fulfilmentMethod)
   const firstListing = listings[0]
@@ -265,8 +305,11 @@ async function recoverPaidOrderFromPaymentIntent(
     item_price: itemPrice,
     bundled_fee: platformFee,
     total_price: total,
-    seller_payout: itemPrice,
+    seller_payout: sellerPayout,
+    seller_payout_amount: sellerPayout,
     platform_fee: platformFee,
+    platform_fee_amount: platformFee,
+    delivery_fee_amount: fulfilmentPrice,
     amount: total,
     status: 'paid',
     tracking_status: 'awaiting_delivery',
@@ -290,8 +333,12 @@ async function recoverPaidOrderFromPaymentIntent(
     bundle_listing_ids: listingIds.length > 1 ? listingIds : [],
     paid_at: now,
     stripe_payment_intent_id: paymentIntent.id,
+    seller_stripe_account_id: paymentIntent.metadata?.seller_stripe_account_id || null,
+    stripe_checkout_session_id: null,
+    stripe_transfer_id: null,
+    stripe_fee_amount: stripeFeeAmount,
     payment_status: 'paid',
-    payment_flow_type: paymentIntent.metadata?.payment_flow_type || 'separate_charge',
+    payment_flow_type: paymentIntent.metadata?.payment_flow_type || 'separate_charge_then_transfer',
     seller_payout_status: 'held',
     created_at: now,
     updated_at: now,
@@ -411,6 +458,7 @@ Deno.serve(async (req) => {
       const paymentIntent = event.data.object as Stripe.PaymentIntent
       const supabase = getServiceRoleClient()
       const now = new Date().toISOString()
+      const stripeFeeAmount = await getStripeFeeAmount(stripe, paymentIntent)
 
       const { data: order, error: orderLookupError } = await supabase
         .from('orders')
@@ -432,11 +480,11 @@ Deno.serve(async (req) => {
           sellerId: paymentIntent.metadata?.seller_id || null,
           orderId: paymentIntent.metadata?.order_id || null,
         })
-        const recovered = await recoverPaidOrderFromPaymentIntent(supabase, paymentIntent, now)
+        const recovered = await recoverPaidOrderFromPaymentIntent(supabase, paymentIntent, now, stripeFeeAmount)
         if (recovered?.id) await sendSaleDropoffInstructions(supabase, recovered.id)
       } else if (order.payment_status !== 'paid') {
         try {
-          await confirmPaidOrder(supabase, order, paymentIntent, now)
+          await confirmPaidOrder(supabase, order, paymentIntent, now, stripeFeeAmount)
           await sendSaleDropoffInstructions(supabase, order.id)
         } catch (error) {
           console.error('[stripe-webhook] Failed to confirm paid order:', error)

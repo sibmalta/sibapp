@@ -342,6 +342,7 @@ Deno.serve(async (req) => {
           initiated_by: user?.id || 'system:auto-release',
           initiated_by_internal_cron: String(isInternalCaller),
         },
+        transfer_group: `sib_order_${orderId}`,
       }
 
       if (sourceTransactionId) {
@@ -403,6 +404,7 @@ Deno.serve(async (req) => {
       .update({
         seller_payout_status: 'paid',
         payout_status: 'released',
+        stripe_transfer_id: transferId,
         payout_released_at: new Date().toISOString(),
       })
       .eq('id', orderId)

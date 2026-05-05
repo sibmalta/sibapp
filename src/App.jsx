@@ -24,6 +24,7 @@ import ReviewsPage from './pages/ReviewsPage'
 import AuthPage from './pages/AuthPage'
 import AdminPage from './pages/AdminPage'
 import AdminScanDropoffPage from './pages/AdminScanDropoffPage'
+import SellerDropoffPage from './pages/SellerDropoffPage'
 import SellerDashboardPage from './pages/SellerDashboardPage'
 import PayoutSettingsPage from './pages/PayoutSettingsPage'
 import TermsPage from './pages/TermsPage'
@@ -79,6 +80,7 @@ function AppRoutes() {
           <Route path="checkout/:id" element={<CheckoutPage />} />
           <Route path="orders" element={<OrdersPage />} />
           <Route path="orders/:id" element={<OrderDetailPage />} />
+          <Route path="dropoff" element={<SellerDropoffPage />} />
           <Route path="messages" element={<ChatListPage />} />
           <Route path="messages/:id" element={<ChatPage />} />
           <Route path="profile" element={<ProfilePage />} />

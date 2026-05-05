@@ -1,3 +1,5 @@
+import { isDropoffConfirmed } from './dropoffQr'
+
 const PAID_ORDER_STATUSES = new Set([
   'paid',
   'payment_received_seller_payout_pending',
@@ -40,6 +42,7 @@ export function isActiveSellerDropoffOrder(order) {
 
 export function isOfficiallyDroppedOff(order, shipment) {
   return Boolean(
+    isDropoffConfirmed({ order, shipment }) ||
     shipment?.status === 'dropped_off' ||
     order?.fulfilmentStatus === 'dropped_off' ||
     order?.trackingStatus === 'dropped_off' ||
@@ -55,7 +58,6 @@ export function getPendingSellerDropoffOrders({ orders = [], shipments = [], cur
     const shipment = shipments.find(item => item.orderId === order.id)
     if (!isActiveSellerDropoffOrder(order)) return false
     if (isOfficiallyDroppedOff(order, shipment)) return false
-    if (order.sellerClaimedDropoff || shipment?.sellerClaimedDropoff) return false
     return true
   })
 }

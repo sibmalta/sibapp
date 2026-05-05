@@ -51,7 +51,11 @@ export function rowToOrder(row) {
     bundledFee: Number(row.bundled_fee || row.platform_fee || shippingAddressObject.bundledFee || 0),
     totalPrice: Number(row.total_price || 0),
     sellerPayout: Number(row.seller_payout || 0),
+    sellerPayoutAmount: Number(row.seller_payout_amount ?? row.seller_payout ?? 0),
     platformFee: Number(row.platform_fee || 0),
+    platformFeeAmount: Number(row.platform_fee_amount ?? row.platform_fee ?? 0),
+    deliveryFeeAmount: row.delivery_fee_amount != null ? Number(row.delivery_fee_amount) : null,
+    stripeFeeAmount: row.stripe_fee_amount != null ? Number(row.stripe_fee_amount) : null,
     amount: Number(row.amount || 0),
     status: row.status || 'pending',
     trackingStatus: row.tracking_status || 'pending',
@@ -105,6 +109,9 @@ export function rowToOrder(row) {
     sellerAddress: row.seller_address || shippingAddressObject.sellerAddress || null,
     // Stripe fields (written by Edge Functions / checkout pages)
     stripePaymentIntentId: row.stripe_payment_intent_id || null,
+    stripeCheckoutSessionId: row.stripe_checkout_session_id || null,
+    stripeTransferId: row.stripe_transfer_id || null,
+    sellerStripeAccountId: row.seller_stripe_account_id || null,
     paymentStatus: row.payment_status || null,
     paymentFlowType: row.payment_flow_type || null,
     sellerPayoutStatus: row.seller_payout_status || null,
@@ -127,7 +134,11 @@ export function orderToRow(order) {
   if (order.itemPrice !== undefined) row.item_price = order.itemPrice
   if (order.totalPrice !== undefined) row.total_price = order.totalPrice
   if (order.sellerPayout !== undefined) row.seller_payout = order.sellerPayout
+  if (order.sellerPayoutAmount !== undefined) row.seller_payout_amount = order.sellerPayoutAmount
   if (order.platformFee !== undefined) row.platform_fee = order.platformFee
+  if (order.platformFeeAmount !== undefined) row.platform_fee_amount = order.platformFeeAmount
+  if (order.deliveryFeeAmount !== undefined) row.delivery_fee_amount = order.deliveryFeeAmount
+  if (order.stripeFeeAmount !== undefined) row.stripe_fee_amount = order.stripeFeeAmount
   if (order.amount !== undefined) row.amount = order.amount
   if (order.status !== undefined) row.status = order.status
   if (order.trackingStatus !== undefined) row.tracking_status = order.trackingStatus
@@ -179,6 +190,9 @@ export function orderToRow(order) {
   if (order.cancelledAt !== undefined) row.cancelled_at = order.cancelledAt
 
   if (order.stripePaymentIntentId !== undefined) row.stripe_payment_intent_id = order.stripePaymentIntentId
+  if (order.stripeCheckoutSessionId !== undefined) row.stripe_checkout_session_id = order.stripeCheckoutSessionId
+  if (order.stripeTransferId !== undefined) row.stripe_transfer_id = order.stripeTransferId
+  if (order.sellerStripeAccountId !== undefined) row.seller_stripe_account_id = order.sellerStripeAccountId
   if (order.paymentStatus !== undefined) row.payment_status = order.paymentStatus
   if (order.paymentFlowType !== undefined) row.payment_flow_type = order.paymentFlowType
   if (order.sellerPayoutStatus !== undefined) row.seller_payout_status = order.sellerPayoutStatus
@@ -397,6 +411,13 @@ function isOptionalSchemaDriftColumn(column) {
     'fulfilment_status',
     'locker_location',
     'delivery_address_snapshot',
+    'seller_stripe_account_id',
+    'stripe_checkout_session_id',
+    'stripe_transfer_id',
+    'seller_payout_amount',
+    'platform_fee_amount',
+    'delivery_fee_amount',
+    'stripe_fee_amount',
   ].includes(column)
 }
 

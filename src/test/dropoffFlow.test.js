@@ -293,11 +293,21 @@ describe('seller drop-off flow', () => {
     })).toBe(false)
   })
 
-  it('keeps the View drop-off QR button linked to an existing order detail target', () => {
+  it('routes the seller prompt CTA to the multi-order drop-off QR page', () => {
     const prompt = readFileSync(resolve(root, 'src/components/SellerDropoffPrompt.jsx'), 'utf8')
+    const app = readFileSync(resolve(root, 'src/App.jsx'), 'utf8')
     const detail = readFileSync(resolve(root, 'src/pages/OrderDetailPage.jsx'), 'utf8')
+    const dropoffPage = readFileSync(resolve(root, 'src/pages/SellerDropoffPage.jsx'), 'utf8')
 
-    expect(prompt).toContain('#dropoff-qr')
+    expect(prompt).toContain('View drop-off QRs')
+    expect(prompt).toContain("navigate('/dropoff')")
+    expect(prompt).not.toContain("I\\u2019ve dropped it off")
+    expect(prompt).not.toContain("I've dropped it off")
+    expect(app).toContain('path="dropoff"')
+    expect(app).toContain('SellerDropoffPage')
+    expect(dropoffPage).toContain('No parcels ready for drop-off.')
+    expect(dropoffPage).toContain('buildDropoffScanUrl')
+    expect(dropoffPage).toContain('getQrCodeImageUrl(scanUrl, 320)')
     expect(detail).toContain('id="dropoff-qr"')
   })
 
@@ -328,7 +338,7 @@ describe('seller drop-off flow', () => {
     expect(listingPage).not.toContain('admin/scan-dropoff')
   })
 
-  it('hides the seller prompt after seller claim or official store drop-off', () => {
+  it('hides the seller prompt after official store drop-off while preserving legacy seller claims for QR access', () => {
     const order = {
       id: 'order_1',
       sellerId: 'seller_1',
@@ -343,7 +353,7 @@ describe('seller drop-off flow', () => {
       orders: [{ ...order, sellerClaimedDropoff: true }],
       shipments: [],
       currentUserId: 'seller_1',
-    })).toHaveLength(0)
+    })).toHaveLength(1)
     expect(getPendingSellerDropoffOrders({
       orders: [order],
       shipments: [{ orderId: 'order_1', status: 'dropped_off' }],

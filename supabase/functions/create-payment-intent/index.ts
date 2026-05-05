@@ -115,8 +115,25 @@ function eurosToCents(value: number) {
   return Math.round(value * 100)
 }
 
+function centsToEuros(value: number) {
+  return Number((value / 100).toFixed(2))
+}
+
 function getBuyerProtectionFee(itemSubtotal: number) {
   return Number((0.75 + itemSubtotal * 0.05).toFixed(2))
+}
+
+function getMarketplaceSplit(subtotalCents: number, deliveryFeeCents: number, buyerProtectionFeeCents: number) {
+  const sellerPayoutCents = subtotalCents
+  const platformFeeCents = deliveryFeeCents + buyerProtectionFeeCents
+  const totalCents = subtotalCents + platformFeeCents
+  return {
+    sellerPayoutCents,
+    platformFeeCents,
+    totalCents,
+    sellerPayoutEuros: centsToEuros(sellerPayoutCents),
+    platformFeeEuros: centsToEuros(platformFeeCents),
+  }
 }
 
 function resolveCategory(category: string | null) {
@@ -510,7 +527,7 @@ async function validateSellerProfile(supabase: ReturnType<typeof createClient>, 
 
   const payoutReady = payoutSetupReasons.length === 0
   logStep('seller_lookup', 'succeeded', { sellerId, payoutReady, payoutSetupReasons })
-  return { payoutReady, payoutSetupReasons }
+  return { payoutReady, payoutSetupReasons, stripeAccountId: data.stripe_account_id || null }
 }
 
 Deno.serve(async (req) => {
@@ -633,7 +650,9 @@ Deno.serve(async (req) => {
     const subtotalCents = eurosToCents(subtotalEuros)
     const deliveryFeeCents = eurosToCents(deliveryFeeEuros)
     const buyerProtectionFeeCents = eurosToCents(buyerProtectionFeeEuros)
-    const totalAmountCents = eurosToCents(totalEuros)
+    const split = getMarketplaceSplit(subtotalCents, deliveryFeeCents, buyerProtectionFeeCents)
+    const totalAmountCents = split.totalCents
+    const transferGroup = `sib_order_${crypto.randomUUID()}`
 
     if (totalAmountCents < 50) {
       throw new CheckoutError(
@@ -653,6 +672,9 @@ Deno.serve(async (req) => {
       deliveryFeeEuros,
       buyerProtectionFeeEuros,
       totalEuros,
+      sellerPayoutCents: split.sellerPayoutCents,
+      platformFeeCents: split.platformFeeCents,
+      paymentFlowType: 'separate_charge_then_transfer',
     })
 
     logStep('payment_intent_creation', 'started', {
@@ -680,13 +702,18 @@ Deno.serve(async (req) => {
           offer_id: offerId,
           delivery_method: deliveryMethod,
           seller_payout_ready: sellerPayout.payoutReady ? 'true' : 'false',
+          seller_stripe_account_id: sellerPayout.stripeAccountId || '',
           seller_payout_setup_reasons: sellerPayout.payoutSetupReasons.join(','),
           subtotal_cents: String(subtotalCents),
           delivery_fee_cents: String(deliveryFeeCents),
           buyer_protection_fee_cents: String(buyerProtectionFeeCents),
+          seller_payout_cents: String(split.sellerPayoutCents),
+          platform_fee_cents: String(split.platformFeeCents),
           total_cents: String(totalAmountCents),
-          payment_flow_type: 'separate_charge',
+          payment_flow_type: 'separate_charge_then_transfer',
+          transfer_group: transferGroup,
         },
+        transfer_group: transferGroup,
       })
     } catch (stripeError) {
       const message = stripeError instanceof Error ? stripeError.message : 'Stripe PaymentIntent creation failed.'
@@ -723,6 +750,9 @@ Deno.serve(async (req) => {
       subtotalCents,
       deliveryFeeCents,
       buyerProtectionFeeCents,
+      sellerPayoutCents: split.sellerPayoutCents,
+      platformFeeCents: split.platformFeeCents,
+      transferGroup,
       sellerPayoutReady: sellerPayout.payoutReady,
       sellerPayoutSetupReasons: sellerPayout.payoutSetupReasons,
     }

@@ -416,6 +416,17 @@ export default function AdminPage() {
                         )}
 
                         <div className="p-2 bg-sib-sand rounded-xl text-[10px] text-sib-muted space-y-0.5">
+                          <p className="font-semibold text-sib-text">Accounting</p>
+                          <p>Buyer paid: €{Number(order.totalPrice || 0).toFixed(2)}</p>
+                          <p>Seller amount: €{Number(order.sellerPayoutAmount ?? order.sellerPayout ?? 0).toFixed(2)}</p>
+                          <p>Delivery fee: €{Number(order.deliveryFeeAmount ?? order.deliveryFee ?? 0).toFixed(2)}</p>
+                          <p>Platform fee: €{Number(order.platformFeeAmount ?? order.platformFee ?? 0).toFixed(2)}</p>
+                          {order.stripeFeeAmount != null && <p>Stripe fee: €{Number(order.stripeFeeAmount).toFixed(2)}</p>}
+                          <p>Payout status: {order.payoutStatus || order.sellerPayoutStatus || 'pending'}</p>
+                          {order.stripeTransferId && <p>Stripe transfer: {order.stripeTransferId}</p>}
+                        </div>
+
+                        <div className="p-2 bg-sib-sand rounded-xl text-[10px] text-sib-muted space-y-0.5">
                           <p><Clock size={9} className="inline mr-1" />Created: {formatDate(order.createdAt)}</p>
                           {order.paidAt && <p><DollarSign size={9} className="inline mr-1" />Paid: {formatDate(order.paidAt)}</p>}
                           {order.shippedAt && <p><Truck size={9} className="inline mr-1" />Shipped: {formatDate(order.shippedAt)}</p>}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  calculateMarketplacePaymentSplit,
   canCreateSellerTransfer,
   canRefundFromPlatform,
   eurosToStripeCents,
@@ -29,6 +30,42 @@ describe('marketplace payment safety', () => {
       { payoutStatus: 'releasable' },
       { status: 'releasable' },
     )).toEqual({ ok: true, reason: '' })
+  })
+
+  it('splits a buyer payment so seller proceeds and retained fees are explicit', () => {
+    expect(calculateMarketplacePaymentSplit({
+      itemPrice: 13,
+      buyerProtectionFee: 1.40,
+      deliveryFee: 4.50,
+    })).toMatchObject({
+      buyerTotalAmount: 18.90,
+      sellerPayoutAmount: 13,
+      platformFeeAmount: 5.90,
+      deliveryFeeAmount: 4.50,
+      buyerProtectionFeeAmount: 1.40,
+    })
+  })
+
+  it('uses the current delivery fee in platform retained amount', () => {
+    expect(calculateMarketplacePaymentSplit({
+      itemPrice: 13,
+      buyerProtectionFee: 1.40,
+      deliveryFee: 3.50,
+    })).toMatchObject({
+      buyerTotalAmount: 17.90,
+      sellerPayoutAmount: 13,
+      platformFeeAmount: 4.90,
+    })
+  })
+
+  it('does not mark seller payout paid until a transfer exists', () => {
+    expect(canCreateSellerTransfer(
+      { payoutStatus: 'held', sellerPayoutStatus: 'held' },
+      { status: 'held' },
+    )).toEqual({
+      ok: false,
+      reason: 'Order payout is not releasable yet.',
+    })
   })
 
   it('duplicate release attempt does not create a new transfer', () => {
@@ -66,5 +103,16 @@ describe('marketplace payment safety', () => {
       ok: false,
       reason: 'Seller payout was already released. Refund requires transfer reversal/manual review.',
     })
+  })
+
+  it('failed or refunded orders do not create seller transfers', () => {
+    expect(canCreateSellerTransfer(
+      { payoutStatus: 'refunded', trackingStatus: 'refunded' },
+      { status: 'cancelled' },
+    ).ok).toBe(false)
+    expect(canCreateSellerTransfer(
+      { payoutStatus: 'transfer_failed' },
+      { status: 'transfer_failed' },
+    ).ok).toBe(false)
   })
 })

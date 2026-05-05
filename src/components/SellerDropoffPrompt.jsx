@@ -32,10 +32,8 @@ export default function SellerDropoffPrompt() {
     shipments,
     refreshOrders,
     refreshShipments,
-    sellerClaimShipmentDropoff,
   } = useApp()
   const navigate = useNavigate()
-  const [claiming, setClaiming] = useState(false)
   const [snoozeVersion, setSnoozeVersion] = useState(0)
 
   useEffect(() => {
@@ -59,18 +57,8 @@ export default function SellerDropoffPrompt() {
   const itemTitle = order.listingTitle || (order.isBundle ? 'Bundle order' : 'your sold item')
 
   const handleViewQr = () => {
-    console.log('[SellerDropoffPrompt] view drop-off QR clicked', { orderId: order.id })
-    navigate(`/orders/${order.id}#dropoff-qr`)
-  }
-
-  const handleClaim = async () => {
-    console.log('[SellerDropoffPrompt] seller drop-off claim clicked', { orderId: order.id })
-    setClaiming(true)
-    try {
-      await sellerClaimShipmentDropoff(order.id)
-    } finally {
-      setClaiming(false)
-    }
+    console.log('[SellerDropoffPrompt] view drop-off QRs clicked', { orderCount: pendingOrders.length })
+    navigate('/dropoff')
   }
 
   const handleRemindLater = () => {
@@ -103,21 +91,13 @@ export default function SellerDropoffPrompt() {
             Please drop your parcel at your nearest MYconvenience store so we can deliver it to the buyer.
           </p>
           <p className="mt-1 text-xs text-sib-muted dark:text-[#aeb8b4]">{itemTitle}</p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <button
               type="button"
               onClick={handleViewQr}
               className="flex items-center justify-center gap-2 rounded-2xl bg-sib-primary px-4 py-2.5 text-sm font-bold text-white transition hover:bg-sib-primary/90"
             >
-              <QrCode size={15} /> View drop-off QR
-            </button>
-            <button
-              type="button"
-              onClick={handleClaim}
-              disabled={claiming}
-              className="rounded-2xl border border-sib-primary/30 bg-white px-4 py-2.5 text-sm font-bold text-sib-primary transition hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-[#26322f] dark:hover:bg-[#30403c]"
-            >
-              {claiming ? 'Saving...' : "I\u2019ve dropped it off"}
+              <QrCode size={15} /> View drop-off QRs
             </button>
             <button
               type="button"
@@ -128,7 +108,7 @@ export default function SellerDropoffPrompt() {
             </button>
           </div>
           <p className="mt-2 text-[11px] leading-snug text-sib-muted dark:text-[#aeb8b4]">
-            This does not mark the parcel officially dropped off. Official confirmation still requires MY store QR scan or admin confirmation.
+            Store staff scan each QR to confirm each parcel.
           </p>
         </div>
       </div>

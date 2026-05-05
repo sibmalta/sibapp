@@ -31,6 +31,7 @@ import { buildAdminShipmentPayload } from '../lib/adminShipment'
 import { isActiveDisputeStatus } from '../lib/disputes'
 import { buildDeliverySheetRow } from '../lib/logisticsDeliverySheet'
 import { getOrderCode, isDropoffConfirmed } from '../lib/dropoffQr'
+import { calculateMarketplacePaymentSplit } from '../lib/marketplacePayments'
 
 const AppContext = createContext(null)
 
@@ -547,8 +548,9 @@ export function AppProvider({ children }) {
     }
     const dFee = getFulfilmentPrice(fulfilmentMethod)
     const buyerProtectionFee = parseFloat((0.75 + itemPrice * 0.05).toFixed(2))
-    const bundledFee = parseFloat((buyerProtectionFee + dFee).toFixed(2))
-    const totalPrice = parseFloat((itemPrice + bundledFee).toFixed(2))
+    const split = calculateMarketplacePaymentSplit({ itemPrice, buyerProtectionFee, deliveryFee: dFee })
+    const bundledFee = split.platformFeeAmount
+    const totalPrice = split.buyerTotalAmount
     const orderRef = `SIB-${Date.now().toString(36).toUpperCase()}`
     const now = new Date().toISOString()
     const deliveryLabel = getFulfilmentMethodLabel(fulfilmentMethod)
@@ -596,8 +598,12 @@ export function AppProvider({ children }) {
       itemPrice,
       totalPrice,
       amount: totalPrice,
-      sellerPayout: itemPrice,
-      platformFee: bundledFee,
+      sellerPayout: split.sellerPayoutAmount,
+      sellerPayoutAmount: split.sellerPayoutAmount,
+      platformFee: split.platformFeeAmount,
+      platformFeeAmount: split.platformFeeAmount,
+      deliveryFeeAmount: split.deliveryFeeAmount,
+      sellerStripeAccountId: seller?.stripeAccountId || seller?.stripe_account_id || null,
       paymentFlowType: 'separate_charge',
       status: orderStatus,
       paymentStatus: 'paid',
@@ -1928,6 +1934,7 @@ export function AppProvider({ children }) {
     }
     const dFee = getFulfilmentPrice(fulfilmentMethod)
     const fees = calculateBundleFees(subtotal, dFee)
+    const split = calculateMarketplacePaymentSplit({ itemPrice: subtotal, buyerProtectionFee: fees.buyerProtectionFee, deliveryFee: dFee })
     const deliveryLabel = getFulfilmentMethodLabel(fulfilmentMethod)
     const orderRef = `SIB-B${Date.now().toString(36).toUpperCase()}`
     const now = new Date().toISOString()
@@ -1978,8 +1985,12 @@ export function AppProvider({ children }) {
       itemPrice: subtotal,
       totalPrice: fees.total,
       amount: fees.total,
-      sellerPayout: subtotal,
-      platformFee: fees.bundledFee,
+      sellerPayout: split.sellerPayoutAmount,
+      sellerPayoutAmount: split.sellerPayoutAmount,
+      platformFee: split.platformFeeAmount,
+      platformFeeAmount: split.platformFeeAmount,
+      deliveryFeeAmount: split.deliveryFeeAmount,
+      sellerStripeAccountId: seller?.stripeAccountId || seller?.stripe_account_id || null,
       paymentFlowType: 'separate_charge',
       status: orderStatus,
       deliveryMethod: deliveryType,
@@ -2268,6 +2279,7 @@ export function AppProvider({ children }) {
     }
     const dFee = getFulfilmentPrice(fulfilmentMethod)
     const fees = calculateBundleFees(acceptedPrice, dFee)
+    const split = calculateMarketplacePaymentSplit({ itemPrice: acceptedPrice, buyerProtectionFee: fees.buyerProtectionFee, deliveryFee: dFee })
     const deliveryLabel = getFulfilmentMethodLabel(fulfilmentMethod)
     const orderRef = `SIB-B${Date.now().toString(36).toUpperCase()}`
     const now = new Date().toISOString()
@@ -2318,8 +2330,12 @@ export function AppProvider({ children }) {
       itemPrice: acceptedPrice,
       totalPrice: fees.total,
       amount: fees.total,
-      sellerPayout: acceptedPrice,
-      platformFee: fees.bundledFee,
+      sellerPayout: split.sellerPayoutAmount,
+      sellerPayoutAmount: split.sellerPayoutAmount,
+      platformFee: split.platformFeeAmount,
+      platformFeeAmount: split.platformFeeAmount,
+      deliveryFeeAmount: split.deliveryFeeAmount,
+      sellerStripeAccountId: sellerUser?.stripeAccountId || sellerUser?.stripe_account_id || null,
       paymentFlowType: 'separate_charge',
       status: orderStatus,
       deliveryMethod: deliveryType,

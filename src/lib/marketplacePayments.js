@@ -18,6 +18,35 @@ export function getSellerPaymentReadiness(profile = {}) {
   }
 }
 
+function roundMoney(value) {
+  return Number((Number(value || 0)).toFixed(2))
+}
+
+export function calculateMarketplacePaymentSplit({
+  itemPrice = 0,
+  buyerProtectionFee = 0,
+  deliveryFee = 0,
+  sellerSideFee = 0,
+} = {}) {
+  const item = roundMoney(itemPrice)
+  const buyerProtection = roundMoney(buyerProtectionFee)
+  const delivery = roundMoney(deliveryFee)
+  const sellerFee = roundMoney(sellerSideFee)
+  const sellerPayoutAmount = roundMoney(Math.max(0, item - sellerFee))
+  const platformFeeAmount = roundMoney(buyerProtection + delivery + sellerFee)
+  const buyerTotalAmount = roundMoney(item + buyerProtection + delivery)
+
+  return {
+    buyerTotalAmount,
+    itemPrice: item,
+    sellerPayoutAmount,
+    platformFeeAmount,
+    buyerProtectionFeeAmount: buyerProtection,
+    deliveryFeeAmount: delivery,
+    sellerSideFeeAmount: sellerFee,
+  }
+}
+
 export function canCreateSellerTransfer(order = {}, payout = {}, { hasOpenDispute = false } = {}) {
   if (order.payoutStatus === 'released' || order.payout_status === 'released' || order.payoutReleasedAt || order.payout_released_at) {
     return { ok: false, reason: 'Seller has already been paid for this order.' }
