@@ -405,25 +405,26 @@ export default function OrderDetailPage() {
                     <img src={dropoffQrUrl} alt={`Drop-off QR for order ${orderCode}`} className="h-full w-full object-contain" />
                   </div>
                   <div className="w-full min-w-0 flex-1 text-center sm:text-left">
-                    <div className="rounded-2xl border border-blue-200 bg-blue-100 px-4 py-3 shadow-sm dark:border-blue-500/30 dark:bg-blue-500/20">
-                      <p className="text-base font-black uppercase tracking-wide text-blue-950 dark:text-blue-50">
-                        IMPORTANT: Write clearly on parcel
+                    <div className="rounded-2xl border border-amber-200 bg-[#fff7e6] px-4 py-3 shadow-sm dark:border-amber-500/20 dark:bg-[#332d20]">
+                      <p className="text-base font-black text-sib-text dark:text-[#f4efe7]">
+                        Write on parcel
                       </p>
-                      <div className="mt-3 space-y-3">
+                      <p className="mt-0.5 text-xs font-semibold text-sib-muted dark:text-[#aeb8b4]">Required for delivery sorting</p>
+                      <div className="mt-4 space-y-4">
                         <div>
-                          <p className="text-[11px] font-black uppercase text-blue-700 dark:text-blue-100/80">ORDER ID</p>
-                          <p className="mt-0.5 break-all font-mono text-2xl font-black text-blue-950 dark:text-blue-50 sm:text-3xl">{parcelLabelDetails.orderId}</p>
+                          <p className="text-[11px] font-black uppercase text-sib-muted dark:text-[#aeb8b4]">ORDER ID</p>
+                          <p className="mt-1 break-all font-mono text-2xl font-black leading-tight text-sib-text dark:text-[#f4efe7]">{parcelLabelDetails.orderId}</p>
                         </div>
                         <div>
-                          <p className="text-[11px] font-black uppercase text-blue-700 dark:text-blue-100/80">SURNAME</p>
-                          <p className="mt-0.5 text-2xl font-black text-blue-950 dark:text-blue-50">{parcelLabelDetails.surname}</p>
+                          <p className="text-[11px] font-black uppercase text-sib-muted dark:text-[#aeb8b4]">SURNAME</p>
+                          <p className="mt-0.5 text-xl font-black leading-snug text-sib-text dark:text-[#f4efe7]">{parcelLabelDetails.surname}</p>
                         </div>
                         <div>
-                          <p className="text-[11px] font-black uppercase text-blue-700 dark:text-blue-100/80">LOCALITY</p>
-                          <p className="mt-0.5 text-2xl font-black text-blue-950 dark:text-blue-50">{parcelLabelDetails.locality}</p>
+                          <p className="text-[11px] font-black uppercase text-sib-muted dark:text-[#aeb8b4]">LOCALITY</p>
+                          <p className="mt-0.5 text-xl font-black leading-snug text-sib-text dark:text-[#f4efe7]">{parcelLabelDetails.locality}</p>
                         </div>
                       </div>
-                      <p className="mt-3 text-xs font-semibold leading-relaxed text-blue-800 dark:text-blue-100">
+                      <p className="mt-4 text-xs font-semibold leading-relaxed text-sib-muted dark:text-[#aeb8b4]">
                         Write these clearly on the outside of the parcel before handing it to MYConvenience.
                       </p>
                     </div>
