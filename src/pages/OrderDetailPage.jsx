@@ -13,6 +13,7 @@ import { getTrackingUrl, estimateDeliveryDate } from '../lib/maltapost'
 import { getDropoffPendingConfirmationCopy, getOrderFulfilmentMethodLabel, getOrderFulfilmentProviderLabel } from '../lib/fulfilment'
 import { buildDropoffScanUrl, getOrderCode, getQrCodeImageUrl, isDropoffConfirmed } from '../lib/dropoffQr'
 import { isOrderPaidForDropoff, shouldShowSellerDropoffQr } from '../lib/sellerDropoffPrompt'
+import { getParcelLabelDetails } from '../lib/parcelLabel'
 
 function formatCountdown(ms) {
   if (ms <= 0) return '00:00:00'
@@ -128,7 +129,7 @@ export default function OrderDetailPage() {
   const fulfilmentStatusLabel = (order.fulfilmentStatus || shipment?.fulfilmentStatus || shipment?.status || order.trackingStatus || order.status || 'pending').replace(/_/g, ' ')
   const fulfilmentPrice = order.fulfilmentPrice ?? shipment?.fulfilmentPrice ?? order.deliveryFee ?? 3.00
   const orderCode = getOrderCode(order)
-  const buyerDisplayName = order.buyerFullName || buyer?.name || buyer?.username || 'Buyer'
+  const parcelLabelDetails = getParcelLabelDetails(order, buyer, orderCode)
   const dropoffScanUrl = buildDropoffScanUrl(order, typeof window !== 'undefined' ? window.location.origin : 'https://sibmalta.com')
   const dropoffQrUrl = getQrCodeImageUrl(dropoffScanUrl)
 
@@ -396,7 +397,7 @@ export default function OrderDetailPage() {
                 <p className="rounded-xl bg-white/70 px-3 py-2 dark:bg-[#26322f]/80">Drop-offs after 12:00pm are delivered the next working day.</p>
               </div>
               <p className="mb-3 text-xs font-semibold text-blue-800 dark:text-blue-100">
-                Write the order number and buyer name clearly on the outside of the parcel.
+                Write these clearly on the outside of the parcel before handing it to MYConvenience.
               </p>
               <div className="mb-3 rounded-2xl border border-blue-100 bg-white/85 p-4 dark:border-blue-500/20 dark:bg-[#202b28]">
                 <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center">
@@ -404,22 +405,26 @@ export default function OrderDetailPage() {
                     <img src={dropoffQrUrl} alt={`Drop-off QR for order ${orderCode}`} className="h-full w-full object-contain" />
                   </div>
                   <div className="w-full min-w-0 flex-1 text-center sm:text-left">
-                    <div className="rounded-2xl bg-blue-100 px-4 py-3 dark:bg-blue-500/20">
-                      <p className="text-sm font-black text-blue-950 dark:text-blue-50">
-                        Write on parcel
+                    <div className="rounded-2xl border border-blue-200 bg-blue-100 px-4 py-3 shadow-sm dark:border-blue-500/30 dark:bg-blue-500/20">
+                      <p className="text-base font-black uppercase tracking-wide text-blue-950 dark:text-blue-50">
+                        IMPORTANT: Write clearly on parcel
                       </p>
-                      <div className="mt-3 space-y-2">
+                      <div className="mt-3 space-y-3">
                         <div>
-                          <p className="text-[11px] font-bold uppercase text-blue-700 dark:text-blue-100/80">Order number</p>
-                          <p className="mt-0.5 break-all font-mono text-2xl font-black text-blue-950 dark:text-blue-50 sm:text-3xl">{orderCode}</p>
+                          <p className="text-[11px] font-black uppercase text-blue-700 dark:text-blue-100/80">ORDER ID</p>
+                          <p className="mt-0.5 break-all font-mono text-2xl font-black text-blue-950 dark:text-blue-50 sm:text-3xl">{parcelLabelDetails.orderId}</p>
                         </div>
                         <div>
-                          <p className="text-[11px] font-bold uppercase text-blue-700 dark:text-blue-100/80">Buyer</p>
-                          <p className="mt-0.5 text-xl font-black text-blue-950 dark:text-blue-50">{buyerDisplayName}</p>
+                          <p className="text-[11px] font-black uppercase text-blue-700 dark:text-blue-100/80">SURNAME</p>
+                          <p className="mt-0.5 text-2xl font-black text-blue-950 dark:text-blue-50">{parcelLabelDetails.surname}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-black uppercase text-blue-700 dark:text-blue-100/80">LOCALITY</p>
+                          <p className="mt-0.5 text-2xl font-black text-blue-950 dark:text-blue-50">{parcelLabelDetails.locality}</p>
                         </div>
                       </div>
                       <p className="mt-3 text-xs font-semibold leading-relaxed text-blue-800 dark:text-blue-100">
-                        Write both clearly on the outside of the package before handing it to MYConvenience.
+                        Write these clearly on the outside of the parcel before handing it to MYConvenience.
                       </p>
                     </div>
                   </div>

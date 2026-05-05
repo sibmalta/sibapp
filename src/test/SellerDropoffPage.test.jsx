@@ -49,6 +49,7 @@ describe('SellerDropoffPage', () => {
         sellerId: 'seller_1',
         buyerId: 'buyer_2',
         listingId: 'listing_2',
+        buyerCity: 'Sliema',
         paymentStatus: 'paid',
         trackingStatus: 'awaiting_delivery',
         dropoffScanToken: 'token-order-2',
@@ -86,6 +87,7 @@ describe('SellerDropoffPage', () => {
         sellerId: 'seller_1',
         buyerId: 'buyer_2',
         listingId: 'listing_2',
+        buyerCity: 'Sliema',
         paymentStatus: 'paid',
         trackingStatus: 'awaiting_delivery',
         dropoffScanToken: 'token-order-2',
@@ -99,6 +101,13 @@ describe('SellerDropoffPage', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(screen.getByAltText('Drop-off QR for order SIB-1002')).toBeInTheDocument()
     expect(screen.queryByAltText('Drop-off QR for order SIB-1001')).not.toBeInTheDocument()
+    expect(screen.getByText('IMPORTANT: Write clearly on parcel')).toBeInTheDocument()
+    expect(screen.getByText('ORDER ID')).toBeInTheDocument()
+    expect(screen.getByText('SURNAME')).toBeInTheDocument()
+    expect(screen.getByText('LOCALITY')).toBeInTheDocument()
+    expect(screen.getByText('Sliema')).toBeInTheDocument()
+    expect(screen.getByText('Write these clearly on the outside of the parcel before handing it to MYConvenience.')).toBeInTheDocument()
+    expect(screen.queryByText('Buyer name')).not.toBeInTheDocument()
   })
 
   it('shows confirmed parcels only in the Confirmed tab', () => {

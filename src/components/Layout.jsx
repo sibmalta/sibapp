@@ -10,6 +10,8 @@ import SellerDropoffPrompt from './SellerDropoffPrompt'
 export default function Layout() {
   const { pathname } = useLocation()
   const isMessagesRoot = pathname === '/messages' || pathname === '/messages/'
+  const isDropoffQrPage = pathname === '/dropoff' || pathname.startsWith('/dropoff/')
+  const showSellerDropoffPrompt = !isMessagesRoot && !isDropoffQrPage
 
   return (
     <div className="min-h-screen bg-sib-warm text-sib-text dark:bg-[#18211f] dark:text-[#f4efe7] transition-colors">
@@ -21,7 +23,7 @@ export default function Layout() {
         </div>
 
         <main className={isMessagesRoot ? '' : 'pb-24 lg:pb-12'}>
-          {!isMessagesRoot && <SellerDropoffPrompt />}
+          {showSellerDropoffPrompt && <SellerDropoffPrompt />}
           <Outlet />
           {!isMessagesRoot && <Footer />}
         </main>
