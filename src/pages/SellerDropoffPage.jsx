@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { CheckCircle, MapPin, Package, QrCode, X } from 'lucide-react'
+import { AlertTriangle, CheckCircle, MapPin, Package, QrCode, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useApp } from '../context/AppContext'
 import { buildDropoffScanUrl, getOrderCode, getQrCodeImageUrl, isDropoffConfirmed } from '../lib/dropoffQr'
@@ -263,30 +263,43 @@ function QrModal({ parcel, onClose }) {
             <img src={qrUrl} alt={`Drop-off QR for order ${parcel.orderCode}`} className="h-full w-full object-contain" />
           </div>
 
-          <div className="mt-4 rounded-2xl border border-amber-200 bg-[#fff7e6] p-4 text-sib-text shadow-sm dark:border-amber-500/20 dark:bg-[#332d20] dark:text-[#f4efe7]">
-            <p className="text-base font-black">Write on parcel</p>
-            <p className="mt-0.5 text-xs font-semibold text-sib-muted dark:text-[#aeb8b4]">Required for delivery sorting</p>
-            <div className="mt-4 grid gap-4">
-              <div>
-                <p className="text-[11px] font-black uppercase text-sib-muted dark:text-[#aeb8b4]">ORDER ID</p>
-                <p className="mt-1 break-all font-mono text-2xl font-black leading-tight text-sib-text dark:text-[#f4efe7]">{parcel.labelDetails.orderId}</p>
-              </div>
-              <div>
-                <p className="text-[11px] font-black uppercase text-sib-muted dark:text-[#aeb8b4]">SURNAME</p>
-                <p className="mt-0.5 text-xl font-black leading-snug text-sib-text dark:text-[#f4efe7]">{parcel.labelDetails.surname}</p>
-              </div>
-              <div>
-                <p className="text-[11px] font-black uppercase text-sib-muted dark:text-[#aeb8b4]">LOCALITY</p>
-                <p className="mt-0.5 text-xl font-black leading-snug text-sib-text dark:text-[#f4efe7]">{parcel.labelDetails.locality}</p>
-              </div>
-              <div>
-                <p className="text-[11px] font-bold uppercase text-sib-muted dark:text-[#aeb8b4]">Item</p>
-                <p className="mt-0.5 text-xs font-semibold leading-relaxed text-sib-muted dark:text-[#aeb8b4]">{parcel.itemTitle}</p>
-              </div>
+          <div className="mt-4 overflow-hidden rounded-2xl border-2 border-red-200 bg-white text-sib-text shadow-sm dark:border-red-500/30 dark:bg-[#202b28] dark:text-[#f4efe7]">
+            <div className="flex items-start gap-2 bg-[#fff1f1] px-4 py-3 text-red-700 dark:bg-red-500/10 dark:text-red-200">
+              <AlertTriangle size={15} className="mt-0.5 shrink-0" />
+              <p className="text-xs font-black leading-snug">Required for delivery — parcels without this may be delayed</p>
             </div>
-            <p className="mt-4 text-xs font-semibold leading-relaxed text-sib-muted dark:text-[#aeb8b4]">
-              Write these clearly on the outside of the parcel before handing it to MYConvenience.
-            </p>
+            <div className="p-4">
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-red-100 px-2.5 py-1 text-[10px] font-black uppercase text-red-700 dark:bg-red-500/15 dark:text-red-200">Required</span>
+                <p className="text-base font-black">REQUIRED: Write on parcel</p>
+              </div>
+              <div className="mt-4 divide-y divide-sib-stone/80 rounded-xl border border-sib-stone bg-white dark:divide-[rgba(242,238,231,0.10)] dark:border-[rgba(242,238,231,0.10)] dark:bg-[#26322f]">
+                <div className="px-3 py-3">
+                  <p className="text-[11px] font-black uppercase text-red-700 dark:text-red-200">ORDER ID</p>
+                  <p className="mt-1 break-all font-mono text-2xl font-black leading-tight text-sib-text dark:text-[#f4efe7]">{parcel.labelDetails.orderId}</p>
+                </div>
+                <div className="grid grid-cols-1 gap-0 sm:grid-cols-2 sm:divide-x sm:divide-sib-stone/80 dark:sm:divide-[rgba(242,238,231,0.10)]">
+                  <div className="px-3 py-3">
+                    <p className="text-[11px] font-black uppercase text-red-700 dark:text-red-200">SURNAME</p>
+                    <p className="mt-0.5 text-xl font-black leading-snug text-sib-text dark:text-[#f4efe7]">{parcel.labelDetails.surname}</p>
+                  </div>
+                  <div className="border-t border-sib-stone/80 px-3 py-3 dark:border-[rgba(242,238,231,0.10)] sm:border-t-0">
+                    <p className="text-[11px] font-black uppercase text-red-700 dark:text-red-200">LOCALITY</p>
+                    <p className="mt-0.5 text-xl font-black leading-snug text-sib-text dark:text-[#f4efe7]">{parcel.labelDetails.locality}</p>
+                  </div>
+                </div>
+                <div className="px-3 py-3">
+                  <p className="text-[11px] font-bold uppercase text-sib-muted dark:text-[#aeb8b4]">Item</p>
+                  <p className="mt-0.5 text-xs font-semibold leading-relaxed text-sib-muted dark:text-[#aeb8b4]">{parcel.itemTitle}</p>
+                </div>
+              </div>
+              <p className="mt-4 text-xs font-bold leading-relaxed text-sib-text dark:text-[#f4efe7]">
+                Write these clearly on the outside of the parcel before handing it to MYConvenience.
+              </p>
+              <p className="mt-2 text-xs font-black leading-relaxed text-red-700 dark:text-red-200">
+                Parcels without these details may be delayed or returned.
+              </p>
+            </div>
           </div>
         </div>
       </div>
