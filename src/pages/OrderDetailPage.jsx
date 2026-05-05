@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import {
   CheckCircle, Clock, Truck, Package, ShieldCheck,
@@ -126,7 +126,7 @@ export default function OrderDetailPage() {
   const fulfilmentMethodLabel = getOrderFulfilmentMethodLabel(order, shipment)
   const pendingDropoffConfirmationCopy = getDropoffPendingConfirmationCopy({ order, shipment, fulfilmentMethod })
   const fulfilmentStatusLabel = (order.fulfilmentStatus || shipment?.fulfilmentStatus || shipment?.status || order.trackingStatus || order.status || 'pending').replace(/_/g, ' ')
-  const fulfilmentPrice = order.fulfilmentPrice ?? shipment?.fulfilmentPrice ?? order.deliveryFee ?? 3.50
+  const fulfilmentPrice = order.fulfilmentPrice ?? shipment?.fulfilmentPrice ?? order.deliveryFee ?? 3.00
   const orderCode = getOrderCode(order)
   const buyerDisplayName = order.buyerFullName || buyer?.name || buyer?.username || 'Buyer'
   const dropoffScanUrl = buildDropoffScanUrl(order, typeof window !== 'undefined' ? window.location.origin : 'https://sibmalta.com')
@@ -426,7 +426,7 @@ export default function OrderDetailPage() {
                 <div className="mb-3 flex items-start gap-2 rounded-xl border border-blue-100 bg-white/70 p-2.5 transition-colors dark:border-blue-500/20 dark:bg-[#26322f]/80">
                   <ShieldCheck size={14} className="mt-0.5 flex-shrink-0 text-blue-600" />
                   <p className="text-[11px] leading-relaxed text-blue-700 dark:text-[#aeb8b4]">
-                    Your parcel will be confirmed once the store scans your QR code.
+                    Drop off your parcel at MYConvenience. Your parcel will be confirmed once the store scans your QR code.
                   </p>
                 </div>
               )}
