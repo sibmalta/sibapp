@@ -542,7 +542,7 @@ export function AppProvider({ children }) {
     const deliveryType = deliveryInfo?.type || 'home_delivery'
     const fulfilmentMethod = normalizeFulfilmentMethod(deliveryType)
     if (fulfilmentMethod === 'locker' && !isLockerEligible(listing)) {
-      showToast('Locker delivery not available for this item', 'error')
+      showToast('Only small parcels are supported right now.', 'error')
       return null
     }
     const dFee = getFulfilmentPrice(fulfilmentMethod)
@@ -1904,7 +1904,7 @@ export function AppProvider({ children }) {
 
   const calculateBundleFees = useCallback((subtotal, deliveryFeeOverride) => {
     const buyerProtectionFee = parseFloat((0.75 + subtotal * 0.05).toFixed(2))
-    const deliveryFee = typeof deliveryFeeOverride === 'number' ? deliveryFeeOverride : 4.50
+    const deliveryFee = typeof deliveryFeeOverride === 'number' ? deliveryFeeOverride : 3.50
     const bundledFee = parseFloat((buyerProtectionFee + deliveryFee).toFixed(2))
     const total = parseFloat((subtotal + bundledFee).toFixed(2))
     return { buyerProtectionFee, deliveryFee, bundledFee, total }
@@ -1923,7 +1923,7 @@ export function AppProvider({ children }) {
     const deliveryType = deliveryInfo?.type || 'home_delivery'
     const fulfilmentMethod = normalizeFulfilmentMethod(deliveryType)
     if (fulfilmentMethod === 'locker' && items.some(item => !isLockerEligible(item))) {
-      showToast('Locker delivery not available for this item', 'error')
+      showToast('Only small parcels are supported right now.', 'error')
       return null
     }
     const dFee = getFulfilmentPrice(fulfilmentMethod)
@@ -2263,7 +2263,7 @@ export function AppProvider({ children }) {
     const deliveryType = deliveryInfo?.type || 'home_delivery'
     const fulfilmentMethod = normalizeFulfilmentMethod(deliveryType)
     if (fulfilmentMethod === 'locker' && items.some(item => !isLockerEligible(item))) {
-      showToast('Locker delivery not available for this item', 'error')
+      showToast('Only small parcels are supported right now.', 'error')
       return null
     }
     const dFee = getFulfilmentPrice(fulfilmentMethod)
@@ -2979,7 +2979,7 @@ export function AppProvider({ children }) {
 
   const calculateFees = useCallback((price, deliveryFeeOverride) => {
     const buyerProtectionFee = parseFloat((0.75 + price * 0.05).toFixed(2))
-    const deliveryFee = typeof deliveryFeeOverride === 'number' ? deliveryFeeOverride : 4.50
+    const deliveryFee = typeof deliveryFeeOverride === 'number' ? deliveryFeeOverride : 3.50
     const bundledFee = parseFloat((buyerProtectionFee + deliveryFee).toFixed(2))
     const total = parseFloat((price + bundledFee).toFixed(2))
     return { buyerProtectionFee, deliveryFee, bundledFee, total }

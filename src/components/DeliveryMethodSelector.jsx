@@ -44,12 +44,12 @@ export default function DeliveryMethodSelector({
   const methods = [
     ...(lockerEligible ? [{
       id: 'locker_collection',
-      name: 'Locker collection',
-      description: 'Collect from an available locker near you',
+      name: 'MYConvenience drop-off',
+      description: 'Small parcel courier delivery from MYConvenience',
       price: getFulfilmentPrice('locker'),
       estimatedDays: '2-4 working days',
       icon: Box,
-      helpText: 'Once your parcel arrives, you will be notified with collection instructions.',
+      helpText: 'Seller drops off at MYConvenience. Courier collects small parcels by motorcycle.',
     }] : []),
   ]
 
@@ -59,7 +59,7 @@ export default function DeliveryMethodSelector({
       {!lockerEligible && (
         <div className="mb-2 rounded-xl border border-amber-200 dark:border-amber-400/20 bg-amber-50 dark:bg-[#26322f] px-3 py-2">
           <p className="text-xs font-medium text-amber-800 dark:text-amber-200">
-            Locker delivery not available for this item.
+            Only small parcels are supported right now.
           </p>
         </div>
       )}
@@ -103,7 +103,7 @@ export default function DeliveryMethodSelector({
 
               {method.id === 'locker_collection' && isSelected && (
                 <div className="mt-2 ml-8">
-                  <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mb-1.5">Choose a locker location</p>
+                  <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mb-1.5">Choose a MYConvenience location</p>
                   <div className="relative">
                     <button
                       type="button"
@@ -116,7 +116,7 @@ export default function DeliveryMethodSelector({
                       <div className="flex items-center gap-2 min-w-0 flex-1">
                         <MapPin size={14} className="flex-shrink-0 text-sib-muted dark:text-[#aeb8b4]" />
                         <span className="truncate">
-                          {selectedLocker ? selectedLocker.locationName : 'Select locker location...'}
+                          {selectedLocker ? selectedLocker.locationName : 'Select MYConvenience location...'}
                         </span>
                       </div>
                       <ChevronDown size={14} className={`flex-shrink-0 text-sib-muted dark:text-[#aeb8b4] transition-transform ${lockerDropdownOpen ? 'rotate-180' : ''}`} />

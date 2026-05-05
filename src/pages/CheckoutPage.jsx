@@ -415,7 +415,7 @@ export default function CheckoutPage() {
 
   const handleDeliveryChange = (methodId) => {
     if (methodId === 'locker_collection' && !listingLockerEligible) {
-      setErrors(prev => ({ ...prev, deliveryMethod: 'Locker delivery not available for this item' }))
+      setErrors(prev => ({ ...prev, deliveryMethod: 'Only small parcels are supported right now.' }))
       return
     }
     setErrors(prev => ({ ...prev, deliveryMethod: null, locker: null }))
@@ -434,8 +434,8 @@ export default function CheckoutPage() {
   const validateDelivery = () => {
     const e = {}
     if (isLocker) {
-      if (!listingLockerEligible) e.deliveryMethod = 'Locker delivery not available for this item'
-      if (!selectedLockerId) e.locker = 'Please select a locker location'
+      if (!listingLockerEligible) e.deliveryMethod = 'Only small parcels are supported right now.'
+      if (!selectedLockerId) e.locker = 'Please select a MYConvenience location'
     } else {
       if (!address.trim()) e.address = 'Enter your street address'
       if (!city.trim()) e.city = 'Enter your city or town'
@@ -685,7 +685,7 @@ export default function CheckoutPage() {
   }
 
   const deliveryLabel = isLocker
-    ? `Locker: ${selectedLocker?.locationName || 'Select locker'}`
+    ? `MYConvenience: ${selectedLocker?.locationName || 'Select location'}`
     : getFulfilmentMethodLabel(deliveryMethodId)
 
   const estimatedDays = isLocker ? '2-4 working days' : '2-3 working days'

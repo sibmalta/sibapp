@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { useLogistics, LOGISTICS_STATUSES, LOGISTICS_FILTER_PRESETS } from '../hooks/useLogistics'
 import { isDropoffConfirmed } from '../lib/dropoffQr'
+import { getCourierDeliveryTimingLabel } from '../lib/courierDeliveryTiming'
 
 const TEST_DROPOFF_STORE = {
   id: 'my-sliema-dingli',
@@ -626,7 +627,7 @@ export default function LogisticsTab({ orders, getUserById, getListingById, getS
               <table className="w-full min-w-[980px] text-left">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    {['Order code', 'Order', 'Shipment', 'Seller', 'Buyer', 'Item', 'Drop-off store', 'Confirmed at', 'Buyer address', 'Buyer contact', 'Status', 'Fallback', 'Notes'].map(header => (
+                    {['Order number', 'Order', 'Shipment', 'Seller', 'Buyer name', 'Item', 'Store/location', 'Scan time', 'Buyer area/address', 'Buyer contact', 'Delivery timing', 'Status', 'Fallback', 'Notes'].map(header => (
                       <th key={header} className="px-3 py-2.5 font-semibold text-gray-500 text-[10px] uppercase tracking-wider">{header}</th>
                     ))}
                   </tr>
@@ -647,6 +648,7 @@ export default function LogisticsTab({ orders, getUserById, getListingById, getS
                       <td className="px-3 py-2.5 text-xs text-gray-600 whitespace-nowrap">{fmtDate(row.droppedOffAt)}</td>
                       <td className="px-3 py-2.5 text-xs text-gray-600 max-w-[180px] truncate">{row.buyerDeliveryAddress || '—'}</td>
                       <td className="px-3 py-2.5 text-xs text-gray-600">{row.buyerContact || '—'}</td>
+                      <td className="px-3 py-2.5 text-xs font-semibold text-gray-700">{row.deliveryTiming ? getCourierDeliveryTimingLabel(row.deliveryTiming) : '—'}</td>
                       <td className="px-3 py-2.5"><StatusBadge statusId={row.deliveryStatus || 'dropped_off'} /></td>
                       <td className="px-3 py-2.5 text-xs text-gray-600">{row.fallbackStoreName || '—'}</td>
                       <td className="px-3 py-2.5 text-xs text-gray-600 max-w-[160px] truncate">{row.notes || '—'}</td>

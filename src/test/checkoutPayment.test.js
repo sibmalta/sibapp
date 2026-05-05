@@ -94,7 +94,7 @@ describe('checkout payment helpers', () => {
       isLocker: true,
       lockerEligible: true,
       selectedLockerId: '',
-    })).toBe('Please select a locker location before continuing to payment.')
+    })).toBe('Please select a MYConvenience location before continuing to payment.')
   })
 
   it('blocked checkout returns a specific blocker and does not call createPaymentIntent', async () => {

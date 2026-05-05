@@ -337,7 +337,7 @@ export default function OrdersPage() {
             const itemImage = listing?.images?.[0] || order?.listingImage
             const orderRef = order?.orderRef || order?.id?.slice(-8)
             const fulfilmentMethod = order?.fulfilmentMethod || shipment?.fulfilmentMethod || order?.deliveryMethod || ''
-            const fulfilmentFee = order?.fulfilmentPrice ?? shipment?.fulfilmentPrice ?? order?.deliveryFee ?? 4.50
+            const fulfilmentFee = order?.fulfilmentPrice ?? shipment?.fulfilmentPrice ?? order?.deliveryFee ?? 3.50
             const buyerReference = other?.username || other?.name || order?.buyerId?.slice(0, 8) || 'buyer'
             const pendingDropoffConfirmationCopy = getDropoffPendingConfirmationCopy({ order, shipment, fulfilmentMethod })
             const sellerNextStep = fulfilmentMethod ? sellerState.nextStep : pendingDropoffConfirmationCopy

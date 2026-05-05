@@ -8,6 +8,8 @@ import {
   isDropoffConfirmed,
   orderCodeMatches,
 } from '../lib/dropoffQr'
+import { getPublicDropoffScanState } from '../lib/publicDropoffScan'
+import { getCourierDeliveryTiming, getCourierDeliveryTimingLabel } from '../lib/courierDeliveryTiming'
 
 describe('drop-off QR helpers', () => {
   it('builds a tokenized public scan URL with order id and human-readable order code', () => {
@@ -44,5 +46,90 @@ describe('drop-off QR helpers', () => {
     expect(isDropoffConfirmed({ shipment: { status: 'awaiting_shipment' } })).toBe(false)
     expect(isDropoffConfirmed({ shipment: { status: 'dropped_off' } })).toBe(true)
     expect(isDropoffConfirmed({ order: { dropoffConfirmedAt: '2026-05-03T10:00:00.000Z' } })).toBe(true)
+  })
+
+  it('allows a valid awaiting_fulfilment scan to confirm without leaking internal status', () => {
+    const state = getPublicDropoffScanState({
+      ok: true,
+      valid: true,
+      codeValid: true,
+      confirmed: false,
+      canConfirm: false,
+      status: 'awaiting_fulfilment',
+      message: 'Old internal readiness message',
+    })
+
+    expect(state).toMatchObject({
+      canConfirm: true,
+      statusLabel: 'Ready for drop-off',
+      message: 'Ready to confirm this parcel.',
+    })
+  })
+
+  it('allows valid scans with a missing shipment record to confirm', () => {
+    const state = getPublicDropoffScanState({
+      ok: true,
+      valid: true,
+      codeValid: true,
+      confirmed: false,
+      canConfirm: false,
+      error: 'shipment_missing',
+      status: 'awaiting_shipment',
+    })
+
+    expect(state.canConfirm).toBe(true)
+    expect(state.statusLabel).toBe('Ready for drop-off')
+  })
+
+  it('shows already confirmed scans as idempotent and not confirmable', () => {
+    const state = getPublicDropoffScanState({
+      ok: true,
+      valid: true,
+      codeValid: true,
+      confirmed: true,
+      status: 'dropped_off',
+    })
+
+    expect(state).toMatchObject({
+      confirmed: true,
+      canConfirm: false,
+      statusLabel: 'Parcel already confirmed',
+      message: 'Parcel already confirmed.',
+    })
+  })
+
+  it('classifies courier delivery timing before and after the noon cutoff', () => {
+    expect(getCourierDeliveryTiming(new Date(2026, 4, 5, 11, 59))).toBe('same_day')
+    expect(getCourierDeliveryTimingLabel(new Date(2026, 4, 5, 11, 59))).toBe('Same-day')
+    expect(getCourierDeliveryTiming(new Date(2026, 4, 5, 12, 0))).toBe('next_day')
+    expect(getCourierDeliveryTimingLabel(new Date(2026, 4, 5, 12, 0))).toBe('Next-day')
+  })
+
+  it('shows delivery timing after public scan confirmation', () => {
+    const state = getPublicDropoffScanState({
+      ok: true,
+      valid: true,
+      codeValid: true,
+      confirmed: true,
+      deliveryTiming: 'same_day',
+    })
+
+    expect(state.deliveryTimingLabel).toBe('Same-day')
+  })
+
+  it('blocks invalid public scan tokens', () => {
+    const state = getPublicDropoffScanState({
+      ok: false,
+      valid: false,
+      error: 'invalid_scan',
+      message: 'Old invalid token message',
+    })
+
+    expect(state).toMatchObject({
+      invalid: true,
+      canConfirm: false,
+      statusLabel: 'Invalid or expired QR code',
+      message: 'Invalid or expired QR code.',
+    })
   })
 })

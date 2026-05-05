@@ -5,8 +5,8 @@ export const FULFILMENT_METHODS = {
 }
 
 export const FULFILMENT_PRICES = {
-  [FULFILMENT_METHODS.LOCKER]: 3.25,
-  [FULFILMENT_METHODS.DELIVERY]: 4.50,
+  [FULFILMENT_METHODS.LOCKER]: 3.50,
+  [FULFILMENT_METHODS.DELIVERY]: 3.50,
 }
 
 export function normalizeFulfilmentMethod(value) {
@@ -22,14 +22,14 @@ export function getFulfilmentPrice(method) {
 
 export function getFulfilmentMethodLabel(method) {
   const normalized = normalizeFulfilmentMethod(method)
-  if (normalized === FULFILMENT_METHODS.LOCKER) return 'Locker collection'
+  if (normalized === FULFILMENT_METHODS.LOCKER) return 'MYConvenience drop-off'
   if (normalized === FULFILMENT_METHODS.DELIVERY) return 'Legacy delivery method'
   return 'Drop-off pending'
 }
 
 export function getFulfilmentMethodShortLabel(method) {
   const normalized = normalizeFulfilmentMethod(method)
-  if (normalized === FULFILMENT_METHODS.LOCKER) return 'Locker'
+  if (normalized === FULFILMENT_METHODS.LOCKER) return 'MYConvenience'
   if (normalized === FULFILMENT_METHODS.DELIVERY) return 'Legacy delivery'
   return 'Drop-off pending'
 }

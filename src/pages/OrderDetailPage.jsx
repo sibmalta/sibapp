@@ -126,8 +126,9 @@ export default function OrderDetailPage() {
   const fulfilmentMethodLabel = getOrderFulfilmentMethodLabel(order, shipment)
   const pendingDropoffConfirmationCopy = getDropoffPendingConfirmationCopy({ order, shipment, fulfilmentMethod })
   const fulfilmentStatusLabel = (order.fulfilmentStatus || shipment?.fulfilmentStatus || shipment?.status || order.trackingStatus || order.status || 'pending').replace(/_/g, ' ')
-  const fulfilmentPrice = order.fulfilmentPrice ?? shipment?.fulfilmentPrice ?? order.deliveryFee ?? 4.50
+  const fulfilmentPrice = order.fulfilmentPrice ?? shipment?.fulfilmentPrice ?? order.deliveryFee ?? 3.50
   const orderCode = getOrderCode(order)
+  const buyerDisplayName = order.buyerFullName || buyer?.name || buyer?.username || 'Buyer'
   const dropoffScanUrl = buildDropoffScanUrl(order, typeof window !== 'undefined' ? window.location.origin : 'https://sibmalta.com')
   const dropoffQrUrl = getQrCodeImageUrl(dropoffScanUrl)
 
@@ -387,21 +388,35 @@ export default function OrderDetailPage() {
               <p className="mb-4 text-sm font-semibold text-blue-800 dark:text-blue-100">
                 Show this QR code at MYConvenience.
               </p>
+              <div className="mb-3 grid gap-2 text-xs font-semibold text-blue-800 dark:text-blue-100 sm:grid-cols-2">
+                <p className="rounded-xl bg-white/70 px-3 py-2 dark:bg-[#26322f]/80">Drop off before 12:00pm for same-day delivery.</p>
+                <p className="rounded-xl bg-white/70 px-3 py-2 dark:bg-[#26322f]/80">Drop-offs after 12:00pm are delivered the next working day.</p>
+              </div>
+              <p className="mb-3 text-xs font-semibold text-blue-800 dark:text-blue-100">
+                Write the order number and buyer name clearly on the outside of the parcel.
+              </p>
               <div className="mb-3 rounded-2xl border border-blue-100 bg-white/85 p-4 dark:border-blue-500/20 dark:bg-[#202b28]">
                 <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center">
                   <div className="flex h-64 w-64 max-w-full shrink-0 items-center justify-center rounded-2xl bg-white p-3 shadow-sm ring-1 ring-blue-100 dark:ring-blue-500/20">
                     <img src={dropoffQrUrl} alt={`Drop-off QR for order ${orderCode}`} className="h-full w-full object-contain" />
                   </div>
                   <div className="w-full min-w-0 flex-1 text-center sm:text-left">
-                    <p className="text-sm font-semibold text-blue-800 dark:text-blue-100">
-                      Write this order code on your parcel.
-                    </p>
-                    <div className="mt-3 rounded-2xl bg-blue-100 px-4 py-3 dark:bg-blue-500/20">
-                      <p className="text-[11px] font-bold uppercase text-blue-700 dark:text-blue-100/80">
-                        Order code (write on parcel)
+                    <div className="rounded-2xl bg-blue-100 px-4 py-3 dark:bg-blue-500/20">
+                      <p className="text-sm font-black text-blue-950 dark:text-blue-50">
+                        Write on parcel
                       </p>
-                      <p className="mt-1 break-all font-mono text-2xl font-black text-blue-950 dark:text-blue-50 sm:text-3xl">
-                        {orderCode}
+                      <div className="mt-3 space-y-2">
+                        <div>
+                          <p className="text-[11px] font-bold uppercase text-blue-700 dark:text-blue-100/80">Order number</p>
+                          <p className="mt-0.5 break-all font-mono text-2xl font-black text-blue-950 dark:text-blue-50 sm:text-3xl">{orderCode}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-bold uppercase text-blue-700 dark:text-blue-100/80">Buyer</p>
+                          <p className="mt-0.5 text-xl font-black text-blue-950 dark:text-blue-50">{buyerDisplayName}</p>
+                        </div>
+                      </div>
+                      <p className="mt-3 text-xs font-semibold leading-relaxed text-blue-800 dark:text-blue-100">
+                        Write both clearly on the outside of the package before handing it to MYConvenience.
                       </p>
                     </div>
                   </div>

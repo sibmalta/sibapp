@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
   getDropoffPendingConfirmationCopy,
+  getFulfilmentPrice,
   getFulfilmentMethodLabel,
   getFulfilmentMethodShortLabel,
   getOrderFulfilmentMethodLabel,
   getOrderFulfilmentProviderLabel,
   normalizeFulfilmentMethod,
 } from '../lib/fulfilment'
+import { rowToOrder } from '../lib/db/orders'
 
 describe('drop-off confirmation copy', () => {
   it('uses MYconvenience wording only when the fulfilment data names MYconvenience', () => {
@@ -47,6 +49,26 @@ describe('drop-off confirmation copy', () => {
 })
 
 describe('fulfilment method labels', () => {
+  it('uses the new active MYConvenience courier delivery price', () => {
+    expect(getFulfilmentPrice('delivery')).toBe(3.50)
+    expect(getFulfilmentPrice('home_delivery')).toBe(3.50)
+    expect(getFulfilmentPrice('locker_collection')).toBe(3.50)
+  })
+
+  it('preserves historical fulfilment prices stored on orders', () => {
+    const order = rowToOrder({
+      id: 'order_legacy',
+      seller_id: 'seller_1',
+      buyer_id: 'buyer_1',
+      listing_id: 'listing_1',
+      fulfilment_method: 'delivery',
+      fulfilment_price: 4.50,
+      delivery_fee: 3.50,
+    })
+
+    expect(order.fulfilmentPrice).toBe(4.50)
+  })
+
   it('uses Drop-off pending when fulfilment method is missing', () => {
     expect(normalizeFulfilmentMethod(null)).toBeNull()
     expect(normalizeFulfilmentMethod(undefined)).toBeNull()

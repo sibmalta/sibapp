@@ -836,6 +836,7 @@ export function rowToLogisticsDeliverySheetRow(row) {
     droppedOffAt: row.dropped_off_at || null,
     buyerDeliveryAddress: row.buyer_delivery_address || '',
     buyerContact: row.buyer_contact || '',
+    deliveryTiming: row.delivery_timing || '',
     deliveryStatus: row.delivery_status || '',
     fallbackStoreName: row.fallback_store_name || '',
     notes: row.notes || '',

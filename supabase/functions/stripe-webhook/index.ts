@@ -29,7 +29,7 @@ function normalizeFulfilmentMethod(value: string | null | undefined) {
 }
 
 function getFulfilmentPrice(method: string) {
-  return method === 'locker' ? 3.25 : 4.50
+  return 3.50
 }
 
 function getPaymentIntentListingIds(paymentIntent: Stripe.PaymentIntent) {

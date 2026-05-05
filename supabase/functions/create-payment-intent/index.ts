@@ -47,8 +47,8 @@ class CheckoutError extends Error {
 }
 
 const BUNDLE_DELIVERY_FEES: Record<string, number> = {
-  home_delivery: 4.50,
-  locker_collection: 3.25,
+  home_delivery: 3.50,
+  locker_collection: 3.50,
 }
 
 const LEGACY_CATEGORY_MAP: Record<string, string> = {
@@ -417,7 +417,7 @@ function validateLockerEligibility(listings: ListingRow[], deliveryMethod: strin
   if (!ineligible) return
 
   throw new CheckoutError(
-    'Locker delivery not available for this item',
+    'Only small parcels are supported right now.',
     400,
     'locker_not_available',
     'delivery_method_validation',

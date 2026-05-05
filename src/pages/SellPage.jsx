@@ -656,7 +656,8 @@ useEffect(() => {
   const validateStep1 = () => {
     const e = {}
     if (!form.price || isNaN(form.price) || Number(form.price) < 1) e.price = 'Enter a valid price'
-    if (deliveryEligible && form.lockerEligible === null) e.lockerEligible = 'Choose whether this item can be safely carried by one person'
+    if (deliveryEligible && form.lockerEligible === null) e.lockerEligible = 'Confirm this is a small parcel'
+    if (deliveryEligible && form.lockerEligible === false) e.lockerEligible = 'Only small parcels are supported right now.'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -1196,7 +1197,7 @@ useEffect(() => {
       {step === 1 && (
         <>
           <h2 className="text-xl font-bold text-sib-text mb-1">Price & Delivery</h2>
-          <p className="text-xs text-sib-muted mb-5">Set your price and confirm the delivery size.</p>
+          <p className="text-xs text-sib-muted mb-5">Set your price and confirm this is a small parcel.</p>
 
           {deliveryEligible && (
             <div className="mb-5">
@@ -1204,12 +1205,16 @@ useEffect(() => {
                   Parcel size
                 </label>
                 <p className="text-[11px] text-sib-muted mb-2 leading-relaxed">
-                  Can this item be safely carried by one person?
+                  Only small parcels are supported right now.
                 </p>
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => set('lockerEligible', true)}
+                  onClick={() => {
+                    set('lockerEligible', true)
+                    set('onePersonCarry', true)
+                    set('deliverySize', 'small')
+                  }}
                   className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                     form.lockerEligible === true ? 'bg-sib-primary text-white' : 'bg-sib-sand text-sib-muted'
                   }`}
@@ -1229,7 +1234,7 @@ useEffect(() => {
                 {errors.lockerEligible && <p className="text-red-500 text-xs mt-1">{errors.lockerEligible}</p>}
                 {form.lockerEligible === false && (
                   <p className="text-[11px] text-sib-muted mt-2">
-                    Parcel drop-off may need extra review for this item.
+                    Your parcel must be small enough to be carried safely by one motorcycle courier.
                   </p>
                 )}
               </div>
@@ -1237,13 +1242,9 @@ useEffect(() => {
 
           {/* ── Delivery Size Picker — with 1-person-carry toggle ── */}
           {deliveryEligible && (() => {
-            const forceBulky = isForceBulky(form.category, form.subcategory)
             const allowed = getAllowedTiers(form.category, form.subcategory, form.onePersonCarry)
-            const onlyBulky = allowed.length === 1 && allowed[0] === 'bulky'
-            const selectedSize = form.deliverySize || getDefaultDeliverySize(form.category, form.subcategory)
-            const TIER_ICONS = { small: Package, medium: Package, heavy: Package, bulky: Truck }
-            const showCarryToggle = !forceBulky
-            const bulkyHint = titleSuggestsBulky(form.title) && form.onePersonCarry === null
+            const selectedSize = 'small'
+            const TIER_ICONS = { small: Package }
 
             return (
               <div className="mb-5">
@@ -1252,7 +1253,7 @@ useEffect(() => {
                 </label>
 
                 {/* 1-person-carry toggle — not shown for force-bulky categories */}
-                {showCarryToggle && (
+                {false && (
                   <div className="mb-3">
                     <p className="text-[11px] text-sib-muted mb-2 leading-relaxed">
                       Can this item be safely carried by 1 person?
@@ -1285,9 +1286,7 @@ useEffect(() => {
 
                 {/* Guidance text */}
                 <p className="text-[11px] text-sib-muted mb-2 leading-relaxed">
-                  {onlyBulky
-                    ? 'This item needs special handling. Choose the closest size for handling.'
-                    : 'Choose the size that best fits your item. The buyer pays delivery.'}
+                  Your parcel must be small enough to be carried safely by one motorcycle courier.
                 </p>
 
                 {/* Tier buttons */}
@@ -1300,10 +1299,9 @@ useEffect(() => {
                         key={tier.id}
                         type="button"
                         onClick={() => set('deliverySize', tier.id)}
-                        disabled={onlyBulky}
                         className={`flex items-start gap-3 px-4 py-3 rounded-xl border transition-colors text-left ${
                           isSelected ? 'border-sib-primary bg-sib-primary/5' : 'border-sib-stone'
-                        } ${onlyBulky ? 'cursor-default' : ''}`}
+                        }`}
                       >
                         <div className={`mt-0.5 w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${
                           isSelected ? 'border-sib-primary bg-sib-primary' : 'border-sib-stone'
@@ -1325,7 +1323,7 @@ useEffect(() => {
                 </div>
 
                 {/* Bulky delivery notes */}
-                {selectedSize === 'bulky' && (
+                {false && (
                   <div className="mt-2 p-3 rounded-xl bg-amber-50 border border-amber-200">
                     <p className="text-xs font-semibold text-amber-800 mb-1">Bulky delivery — please note</p>
                     <ul className="space-y-0.5">

@@ -9,7 +9,8 @@ describe('sell listing parcel-size copy', () => {
     const sellPage = readFileSync(resolve(root, 'src/pages/SellPage.jsx'), 'utf8')
 
     expect(sellPage).toContain('Parcel size')
-    expect(sellPage).toContain('Can this item be safely carried by one person?')
+    expect(sellPage).toContain('Only small parcels are supported right now.')
+    expect(sellPage).toContain('Your parcel must be small enough to be carried safely by one motorcycle courier.')
     expect(sellPage).not.toContain('Locker fit')
     expect(sellPage).not.toContain('locker size')
     expect(sellPage).not.toContain('Does this item fit within 40 x 40 x 60 cm')

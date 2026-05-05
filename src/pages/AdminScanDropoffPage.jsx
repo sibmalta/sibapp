@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { CheckCircle, Loader2, Package, ShieldCheck, XCircle } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
-import { confirmPublicDropoffScan, getPublicDropoffScan } from '../lib/publicDropoffScan'
+import { confirmPublicDropoffScan, getPublicDropoffScan, getPublicDropoffScanState } from '../lib/publicDropoffScan'
 
 function formatDate(value) {
   if (!value) return 'Not confirmed yet'
@@ -24,12 +24,12 @@ function SummaryRow({ label, value }) {
   )
 }
 
-function StatusNotice({ scan, result }) {
-  const message = result?.message || scan?.message
+function StatusNotice({ scanState, result }) {
+  const message = result?.message || scanState?.message
   if (!message) return null
 
-  const success = result?.type === 'success' || scan?.confirmed
-  const invalid = result?.type === 'error' || scan?.valid === false || scan?.codeValid === false
+  const success = result?.type === 'success' || scanState?.confirmed
+  const invalid = result?.type === 'error' || scanState?.invalid
   const classes = success
     ? 'border-green-100 bg-green-50 text-green-800 dark:border-green-500/20 dark:bg-[#20322b] dark:text-green-100'
     : invalid
@@ -85,7 +85,7 @@ export default function AdminScanDropoffPage() {
   }, [scanPayload])
 
   const handleConfirm = async () => {
-    if (!scan?.canConfirm || confirming) return
+    if (!getPublicDropoffScanState(scan).canConfirm || confirming) return
     setConfirming(true)
     setResult(null)
     try {
@@ -96,17 +96,19 @@ export default function AdminScanDropoffPage() {
       }
 
       setScan(data)
+      const nextState = getPublicDropoffScanState(data)
       setResult({
         type: data?.confirmedNow ? 'success' : 'info',
-        message: data?.confirmedNow ? 'Parcel received and confirmed.' : data?.message || 'Parcel already confirmed.',
+        message: data?.confirmedNow ? 'Parcel confirmed.' : nextState.message,
       })
     } finally {
       setConfirming(false)
     }
   }
 
-  const canConfirm = Boolean(scan?.canConfirm)
-  const confirmed = Boolean(scan?.confirmed)
+  const scanState = getPublicDropoffScanState(scan)
+  const canConfirm = Boolean(scanState.canConfirm)
+  const confirmed = Boolean(scanState.confirmed)
 
   return (
     <div className="pb-10">
@@ -129,21 +131,24 @@ export default function AdminScanDropoffPage() {
               <Loader2 size={16} className="animate-spin" />
               Loading scan details...
             </div>
-          ) : scan?.valid === false ? (
+          ) : scanState.invalid ? (
             <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-red-700 dark:border-red-500/20 dark:bg-[#362322] dark:text-red-200">
               <div className="flex items-center gap-2 font-bold">
-                <XCircle size={18} /> Invalid QR code
+                <XCircle size={18} /> Invalid or expired QR code
               </div>
-              <p className="mt-1 text-sm">{scan?.message || 'Ask the seller to open the latest QR from their order detail page.'}</p>
+              <p className="mt-1 text-sm">{scanState.message}</p>
             </div>
           ) : (
             <div className="space-y-3">
               <SummaryRow label="Order code" value={scan?.orderCode} />
               <SummaryRow label="Parcel" value={scan?.itemTitle || 'Seller parcel'} />
-              <SummaryRow label="Status" value={confirmed ? 'Drop-off confirmed' : scan?.status} />
+              <SummaryRow label="Status" value={scanState.statusLabel} />
               <SummaryRow label="Confirmed at" value={formatDate(scan?.confirmedAt)} />
+              {scanState.deliveryTimingLabel && (
+                <SummaryRow label="Delivery timing" value={scanState.deliveryTimingLabel} />
+              )}
 
-              <StatusNotice scan={scan} result={result} />
+              <StatusNotice scanState={scanState} result={result} />
 
               <div className="rounded-2xl border border-blue-100 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-500/20 dark:bg-[#21303a] dark:text-blue-100">
                 <div className="flex items-start gap-2">

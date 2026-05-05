@@ -321,7 +321,7 @@ export default function BundleCheckoutPage() {
 
   const handleDeliveryChange = (methodId) => {
     if (methodId === 'locker_collection' && !bundleLockerEligible) {
-      setErrors(prev => ({ ...prev, deliveryMethod: 'Locker delivery not available for this item' }))
+      setErrors(prev => ({ ...prev, deliveryMethod: 'Only small parcels are supported right now.' }))
       return
     }
     setErrors(prev => ({ ...prev, deliveryMethod: null, locker: null }))
@@ -339,8 +339,8 @@ export default function BundleCheckoutPage() {
   const validateDelivery = () => {
     const e = {}
     if (isLocker) {
-      if (!bundleLockerEligible) e.deliveryMethod = 'Locker delivery not available for this item'
-      if (!selectedLockerId) e.locker = 'Please select a locker location'
+      if (!bundleLockerEligible) e.deliveryMethod = 'Only small parcels are supported right now.'
+      if (!selectedLockerId) e.locker = 'Please select a MYConvenience location'
     } else {
       if (!address.trim()) e.address = 'Enter your street address'
       if (!city.trim()) e.city = 'Enter your city or town'

@@ -1,6 +1,6 @@
 /**
  * Delivery configuration for Sib marketplace.
- * Edit prices, method names, and locker locations here.
+ * Edit prices, method names, and MYConvenience locations here.
  * Admin panel can override these values in the future.
  */
 
@@ -16,12 +16,12 @@ export const DELIVERY_METHODS = [
   },
   {
     id: 'locker_collection',
-    name: 'Locker collection',
-    description: 'Collect from an available locker near you',
-    price: 3.25,
+    name: 'MYConvenience drop-off',
+    description: 'Seller drops off at MYConvenience for courier delivery',
+    price: 3.50,
     estimatedDays: '2–4 working days',
-    icon: 'locker',
-    helpText: 'Once your parcel arrives, you will be notified with collection instructions.',
+    icon: 'store',
+    helpText: 'Small parcels are collected by motorcycle courier from MYConvenience.',
     active: true,
   },
 ]
@@ -91,7 +91,7 @@ export function getDeliveryMethod(id) {
  */
 export function getDeliveryFee(methodId) {
   const method = getDeliveryMethod(methodId)
-  return method ? method.price : 4.50
+  return method ? method.price : 3.50
 }
 
 /**

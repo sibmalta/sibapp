@@ -52,8 +52,8 @@ export function getPaymentInitializationBlocker({
   }
   if (deliveryMethod === 'home_delivery') return LEGACY_HOME_DELIVERY_UNAVAILABLE_MESSAGE
   if (isLocker) {
-    if (!lockerEligible) return 'Locker delivery not available for this item.'
-    if (!selectedLockerId) return 'Please select a locker location before continuing to payment.'
+    if (!lockerEligible) return 'Only small parcels are supported right now.'
+    if (!selectedLockerId) return 'Please select a MYConvenience location before continuing to payment.'
     return ''
   }
   if (!String(address).trim()) return 'Enter your street address before continuing to payment.'

@@ -57,8 +57,8 @@ function GuidanceBody() {
         <div>
           <p className="text-xs font-bold text-sib-text dark:text-[#f4efe7] mb-0.5">Delivery options</p>
           <ul className="text-[11px] text-sib-muted dark:text-[#aeb8b4] leading-relaxed space-y-0.5">
-            <li>Locker collection: €3.25</li>
-            <li>Home delivery is currently unavailable for new orders</li>
+            <li>MYConvenience drop-off courier delivery: EUR 3.50</li>
+            <li>Only small parcels are supported right now.</li>
           </ul>
         </div>
       </div>
@@ -69,7 +69,7 @@ function GuidanceBody() {
         <div>
           <p className="text-xs font-bold text-sib-text dark:text-[#f4efe7] mb-0.5">Fulfilment</p>
           <ul className="text-[11px] text-sib-muted dark:text-[#aeb8b4] leading-relaxed space-y-0.5">
-            <li>Delivery partner details will be shown when available</li>
+            <li>Couriers collect small parcels from MYConvenience by motorcycle.</li>
           </ul>
         </div>
       </div>
@@ -80,9 +80,7 @@ function GuidanceBody() {
         <div>
           <p className="text-xs font-bold text-sib-text dark:text-[#f4efe7] mb-0.5">Limits</p>
           <ul className="text-[11px] text-sib-muted dark:text-[#aeb8b4] leading-relaxed space-y-0.5">
-            <li>Maximum approx weight: 100 kg</li>
-            <li>Must fit through standard doors</li>
-            <li>Must be movable without specialist equipment</li>
+            <li>Your parcel must be small enough to be carried safely by one motorcycle courier.</li>
           </ul>
         </div>
       </div>
@@ -93,8 +91,8 @@ function GuidanceBody() {
         <div>
           <p className="text-xs font-bold text-sib-text dark:text-[#f4efe7] mb-0.5">Not supported</p>
           <ul className="text-[11px] text-sib-muted dark:text-[#aeb8b4] leading-relaxed space-y-0.5">
-            <li>Items requiring cranes or specialist transport</li>
-            <li>Extremely large or commercial equipment</li>
+            <li>Medium, heavy, bulky, or oversized parcels</li>
+            <li>Items needing specialist transport</li>
           </ul>
         </div>
       </div>

@@ -1,3 +1,5 @@
+import { getCourierDeliveryTiming, getCourierDeliveryTimingLabel } from './courierDeliveryTiming'
+
 export const DELIVERY_SHEET_FIELDS = [
   'order_id',
   'shipment_id',
@@ -10,6 +12,7 @@ export const DELIVERY_SHEET_FIELDS = [
   'dropped_off_at',
   'buyer_delivery_address',
   'buyer_contact',
+  'delivery_timing',
   'delivery_status',
   'fallback_store_name',
   'notes',
@@ -35,6 +38,8 @@ function formatAddress(value) {
 
 export function buildDeliverySheetRow({ order = {}, shipment = {}, seller = {}, buyer = {}, listing = {} } = {}) {
   const buyerAddress = shipment.deliveryAddressSnapshot || shipment.recipientAddress || order.deliveryAddressSnapshot || order.address
+  const scanTime = shipment.dropoffConfirmedAt || shipment.droppedOffAt || order.dropoffConfirmedAt
+  const deliveryTiming = shipment.deliveryTiming || order.deliveryTiming || getCourierDeliveryTiming(scanTime)
   const buyerContact = [
     order.buyerPhone || buyer.phone,
     buyer.email,
@@ -52,8 +57,9 @@ export function buildDeliverySheetRow({ order = {}, shipment = {}, seller = {}, 
     dropped_off_at: shipment.droppedOffAt || null,
     buyer_delivery_address: formatAddress(buyerAddress),
     buyer_contact: buyerContact,
+    delivery_timing: deliveryTiming,
     delivery_status: shipment.status || order.fulfilmentStatus || order.trackingStatus || '',
     fallback_store_name: shipment.fallbackStoreName || '',
-    notes: shipment.notes || '',
+    notes: shipment.notes || `Delivery timing: ${getCourierDeliveryTimingLabel(deliveryTiming)}`,
   }
 }

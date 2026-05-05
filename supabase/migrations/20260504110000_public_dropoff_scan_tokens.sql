@@ -25,6 +25,9 @@ ALTER TABLE IF EXISTS public.orders
   ALTER COLUMN dropoff_scan_token SET DEFAULT public.generate_dropoff_scan_token(),
   ALTER COLUMN dropoff_scan_token SET NOT NULL;
 
+ALTER TABLE IF EXISTS public.logistics_delivery_sheet
+  ADD COLUMN IF NOT EXISTS delivery_timing TEXT;
+
 CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_dropoff_scan_token
   ON public.orders(dropoff_scan_token);
 
@@ -61,7 +64,7 @@ AS $$
     'valid', false,
     'canConfirm', false,
     'error', 'invalid_scan',
-    'message', 'This QR code is invalid or expired.'
+    'message', 'Invalid or expired QR code.'
   );
 $$;
 
@@ -85,7 +88,6 @@ DECLARE
   v_code_valid BOOLEAN;
   v_confirmed_at TIMESTAMPTZ;
   v_confirmed BOOLEAN;
-  v_paid BOOLEAN;
 BEGIN
   BEGIN
     v_order_id := nullif(btrim(coalesce(p_order_id, '')), '')::UUID;
@@ -118,10 +120,6 @@ BEGIN
   ORDER BY created_at DESC
   LIMIT 1;
 
-  v_paid := lower(coalesce(v_order.payment_status, '')) IN ('paid', 'succeeded')
-    OR lower(coalesce(v_order.status, '')) IN ('paid', 'payment_received_seller_payout_pending', 'shipped', 'delivered', 'confirmed', 'completed')
-    OR lower(coalesce(v_order.tracking_status, '')) IN ('awaiting_delivery', 'shipped', 'in_transit', 'delivered');
-
   v_confirmed_at := coalesce(v_order.dropoff_confirmed_at, v_shipment.dropoff_confirmed_at, v_shipment.dropped_off_at);
   v_confirmed := v_confirmed_at IS NOT NULL
     OR coalesce(v_shipment.status, '') = 'dropped_off'
@@ -131,29 +129,30 @@ BEGIN
     'ok', true,
     'valid', true,
     'codeValid', v_code_valid,
-    'eligible', v_paid,
+    'eligible', v_code_valid,
     'orderId', v_order.id,
     'orderCode', v_expected_code,
     'itemTitle', coalesce(nullif(v_order.listing_title, ''), 'Seller parcel'),
     'status', CASE
       WHEN v_confirmed THEN 'dropped_off'
-      ELSE coalesce(nullif(v_shipment.status, ''), nullif(v_order.fulfilment_status, ''), nullif(v_order.tracking_status, ''), v_order.status, 'pending')
+      ELSE 'ready_for_dropoff'
     END,
     'confirmed', v_confirmed,
     'confirmedAt', v_confirmed_at,
-    'canConfirm', v_code_valid AND v_paid AND v_shipment.id IS NOT NULL AND NOT v_confirmed,
+    'deliveryTiming', CASE
+      WHEN v_confirmed_at IS NULL THEN NULL
+      WHEN (v_confirmed_at AT TIME ZONE 'Europe/Malta')::time < TIME '12:00' THEN 'same_day'
+      ELSE 'next_day'
+    END,
+    'canConfirm', v_code_valid AND NOT v_confirmed,
     'error', CASE
       WHEN NOT v_code_valid THEN 'code_mismatch'
-      WHEN NOT v_paid THEN 'order_not_paid'
-      WHEN v_shipment.id IS NULL THEN 'shipment_missing'
       ELSE NULL
     END,
     'message', CASE
-      WHEN NOT v_code_valid THEN 'The QR code does not match this parcel code.'
-      WHEN NOT v_paid THEN 'This order is not ready for store drop-off confirmation.'
-      WHEN v_shipment.id IS NULL THEN 'This parcel is not ready for store drop-off confirmation yet.'
+      WHEN NOT v_code_valid THEN 'Invalid or expired QR code.'
       WHEN v_confirmed THEN 'Parcel already confirmed.'
-      ELSE 'Ready to confirm parcel receipt.'
+      ELSE 'Ready to confirm this parcel.'
     END
   );
 END;
@@ -179,7 +178,6 @@ DECLARE
   v_now TIMESTAMPTZ := now();
   v_confirmed_at TIMESTAMPTZ;
   v_confirmed BOOLEAN;
-  v_paid BOOLEAN;
   v_store_name TEXT := 'MYConvenience';
   v_location TEXT := 'MYConvenience QR scan';
 BEGIN
@@ -222,14 +220,6 @@ BEGIN
   LIMIT 1
   FOR UPDATE;
 
-  v_paid := lower(coalesce(v_order.payment_status, '')) IN ('paid', 'succeeded')
-    OR lower(coalesce(v_order.status, '')) IN ('paid', 'payment_received_seller_payout_pending', 'shipped', 'delivered', 'confirmed', 'completed')
-    OR lower(coalesce(v_order.tracking_status, '')) IN ('awaiting_delivery', 'shipped', 'in_transit', 'delivered');
-
-  IF NOT v_paid OR v_shipment.id IS NULL THEN
-    RETURN public.get_public_dropoff_scan(p_order_id, p_token, p_code);
-  END IF;
-
   v_confirmed_at := coalesce(v_order.dropoff_confirmed_at, v_shipment.dropoff_confirmed_at, v_shipment.dropped_off_at);
   v_confirmed := v_confirmed_at IS NOT NULL
     OR coalesce(v_shipment.status, '') = 'dropped_off'
@@ -243,19 +233,21 @@ BEGIN
       || jsonb_build_object('alreadyConfirmed', true);
   END IF;
 
-  UPDATE public.shipments
-  SET
-    status = 'dropped_off',
-    fulfilment_status = 'dropped_off',
-    dropoff_store_name = coalesce(nullif(dropoff_store_name, ''), v_store_name),
-    dropped_off_at = v_now,
-    dropoff_confirmed_at = v_now,
-    dropoff_confirmed_by = NULL,
-    dropoff_location = v_location,
-    current_location = v_location,
-    notes = coalesce(nullif(notes, ''), 'Confirmed by MYConvenience public QR scan.'),
-    updated_at = v_now
-  WHERE id = v_shipment.id;
+  IF v_shipment.id IS NOT NULL THEN
+    UPDATE public.shipments
+    SET
+      status = 'dropped_off',
+      fulfilment_status = 'dropped_off',
+      dropoff_store_name = coalesce(nullif(dropoff_store_name, ''), v_store_name),
+      dropped_off_at = v_now,
+      dropoff_confirmed_at = v_now,
+      dropoff_confirmed_by = NULL,
+      dropoff_location = v_location,
+      current_location = v_location,
+      notes = coalesce(nullif(notes, ''), 'Confirmed by MYConvenience public QR scan.'),
+      updated_at = v_now
+    WHERE id = v_shipment.id;
+  END IF;
 
   UPDATE public.orders
   SET
@@ -266,40 +258,56 @@ BEGIN
     updated_at = v_now
   WHERE id = v_order.id;
 
-  INSERT INTO public.logistics_delivery_sheet (
-    order_id,
-    shipment_id,
-    seller_name,
-    buyer_name,
-    item_title,
-    dropoff_store_name,
-    dropped_off_at,
-    delivery_status,
-    notes,
-    order_code,
-    updated_at
-  )
-  VALUES (
-    v_order.id,
-    v_shipment.id,
-    coalesce(v_order.seller_name, ''),
-    coalesce(v_order.buyer_full_name, ''),
-    coalesce(nullif(v_order.listing_title, ''), 'Seller parcel'),
-    v_store_name,
-    v_now,
-    'dropped_off',
-    'Confirmed by MYConvenience public QR scan.',
-    v_expected_code,
-    v_now
-  )
-  ON CONFLICT (shipment_id) DO UPDATE
-  SET
-    order_code = excluded.order_code,
-    dropoff_store_name = excluded.dropoff_store_name,
-    dropped_off_at = excluded.dropped_off_at,
-    delivery_status = excluded.delivery_status,
-    notes = excluded.notes,
-    updated_at = excluded.updated_at;
+  IF v_shipment.id IS NOT NULL THEN
+    INSERT INTO public.logistics_delivery_sheet (
+      order_id,
+      shipment_id,
+      seller_name,
+      buyer_name,
+      item_title,
+      dropoff_store_name,
+      dropped_off_at,
+      buyer_delivery_address,
+      buyer_contact,
+      delivery_status,
+      notes,
+      order_code,
+      delivery_timing,
+      updated_at
+    )
+    VALUES (
+      v_order.id,
+      v_shipment.id,
+      coalesce(v_order.seller_name, ''),
+      coalesce(v_order.buyer_full_name, ''),
+      coalesce(nullif(v_order.listing_title, ''), 'Seller parcel'),
+      v_store_name,
+      v_now,
+      array_to_string(array_remove(ARRAY[
+        nullif(v_order.buyer_city, ''),
+        nullif(v_order.buyer_postcode, ''),
+        nullif(v_order.address::text, '{}')
+      ], NULL), ', '),
+      coalesce(v_order.buyer_phone, ''),
+      'dropped_off',
+      'Confirmed by MYConvenience public QR scan.',
+      v_expected_code,
+      CASE
+        WHEN (v_now AT TIME ZONE 'Europe/Malta')::time < TIME '12:00' THEN 'same_day'
+        ELSE 'next_day'
+      END,
+      v_now
+    )
+    ON CONFLICT (shipment_id) DO UPDATE
+    SET
+      order_code = excluded.order_code,
+      dropoff_store_name = excluded.dropoff_store_name,
+      dropped_off_at = excluded.dropped_off_at,
+      delivery_status = excluded.delivery_status,
+      delivery_timing = excluded.delivery_timing,
+      notes = excluded.notes,
+      updated_at = excluded.updated_at;
+  END IF;
 
   INSERT INTO public.dropoff_scan_logs (order_id, shipment_id, order_code, scan_status, message, dropoff_location)
   VALUES (v_order.id, v_shipment.id, v_expected_code, 'confirmed', 'Parcel received from seller by public QR scan', v_location);

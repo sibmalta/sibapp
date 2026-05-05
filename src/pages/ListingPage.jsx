@@ -85,16 +85,16 @@ export function ListingDeliveryCard({ listing }) {
         <div className="mt-1 flex flex-wrap gap-2 text-xs font-semibold">
           {lockerEligible ? (
             <span className="rounded-full bg-white/70 dark:bg-[#26322f] px-2.5 py-1 text-sib-primary">
-              Locker €{FULFILMENT_PRICES.locker.toFixed(2)}
+              MYConvenience drop-off EUR {FULFILMENT_PRICES.locker.toFixed(2)}
             </span>
           ) : (
             <span className="rounded-full bg-sib-sand dark:bg-[#26322f] px-2.5 py-1 text-sib-muted dark:text-[#aeb8b4]">
-              Locker not available for this item
+              Only small parcels are supported right now
             </span>
           )}
         </div>
         <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mt-1.5">
-          Home delivery is currently unavailable for new orders.
+          Your parcel must be small enough to be carried safely by one motorcycle courier.
         </p>
       </div>
     </div>

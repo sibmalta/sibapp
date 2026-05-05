@@ -22,9 +22,8 @@ describe('logistics delivery sheet', () => {
         status: 'dropped_off',
         dropoffStoreName: 'MYconvenience Msida',
         dropoffStoreAddress: 'Triq ix-Xatt, Msida',
-        droppedOffAt: '2026-04-28T10:00:00.000Z',
+        droppedOffAt: new Date(2026, 4, 5, 11, 30).toISOString(),
         fallbackStoreName: 'MYconvenience Gzira',
-        notes: 'Handle with care',
       },
       buyer: { email: 'buyer@example.com' },
       seller: { name: 'Seller Profile' },
@@ -39,12 +38,26 @@ describe('logistics delivery sheet', () => {
       item_title: 'Vintage Jacket',
       dropoff_store_name: 'MYconvenience Msida',
       dropoff_store_address: 'Triq ix-Xatt, Msida',
-      dropped_off_at: '2026-04-28T10:00:00.000Z',
+      dropped_off_at: new Date(2026, 4, 5, 11, 30).toISOString(),
       buyer_delivery_address: '1 Main Street, Sliema, SLM 1000, Malta',
       buyer_contact: '+35699999999 / buyer@example.com',
+      delivery_timing: 'same_day',
       delivery_status: 'dropped_off',
       fallback_store_name: 'MYconvenience Gzira',
-      notes: 'Handle with care',
+      notes: 'Delivery timing: Same-day',
     })
+  })
+
+  it('marks scans after 12:00pm as next-day delivery', () => {
+    const row = buildDeliverySheetRow({
+      order: { id: 'order-2', buyerFullName: 'Buyer Snapshot' },
+      shipment: {
+        id: 'shipment-2',
+        status: 'dropped_off',
+        droppedOffAt: new Date(2026, 4, 5, 12, 1).toISOString(),
+      },
+    })
+
+    expect(row.delivery_timing).toBe('next_day')
   })
 })
