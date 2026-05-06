@@ -4,7 +4,7 @@ import {
   ShieldCheck, Shield, Users, ShoppingBag, AlertTriangle, MessageSquare, Package,
   CheckCircle, Truck, Ban, UserCheck, Eye, Lock, Unlock, RefreshCw,
   ChevronDown, ChevronUp, XCircle, Search, DollarSign, Clock,
-  Flag, Trash2, EyeOff, Send, AlertOctagon, Mail, Plus, X, Tags,
+  Flag, Trash2, EyeOff, AlertOctagon, Mail, Plus, X, Tags,
   Clipboard,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
@@ -188,7 +188,7 @@ export default function AdminPage() {
     currentUser, users, listings, orders, ordersLoading, shipmentsLoading, logisticsDeliverySheetLoading, conversations, disputes, disputesLoading, logisticsDeliverySheet,
     updateOrderStatus, refundOrder, holdPayout, releasePayout, cancelOrder,
     suspendUser, banUser, restoreUser,
-    resolveDispute, addDisputeMessage, showToast,
+    resolveDispute, showToast,
     getUserById, getListingById, getUserListings, getUserOrders, getUserSales,
     getUserConversations,
     refreshOrders, refreshDisputes, refreshShipments, refreshLogisticsDeliverySheet,
@@ -208,7 +208,6 @@ export default function AdminPage() {
   const [orderFilter, setOrderFilter] = useState('all')
   const [chatFilter, setChatFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
-  const [disputeMsg, setDisputeMsg] = useState('')
   const [userActivityTab, setUserActivityTab] = useState({})
   const [shipmentModal, setShipmentModal] = useState(null)
   const [adminActionModal, setAdminActionModal] = useState(null)
@@ -405,9 +404,6 @@ export default function AdminPage() {
           throw new Error(result?.error?.message || result?.error || 'Dispute insert returned no row.')
         }
         showToast('Dispute opened')
-      } else if (type === 'dispute_freeze') {
-        await holdPayout(order.id)
-        showToast('Funds frozen for dispute')
       } else if (type === 'dispute_refund') {
         await resolveDispute(dispute.id, 'refunded')
         showToast('Dispute resolved - buyer refunded')
@@ -973,9 +969,6 @@ export default function AdminPage() {
                 const listing = getListingById(d.listingId || order?.listingId)
                 const isExpanded = expandedDispute === d.id
                 const typeLabels = DISPUTE_REASONS || { not_as_described: 'Not as described', not_received: 'Item not received', delivery_issue: 'Delivery issue', wrong_item: 'Wrong item received', damaged: 'Item damaged', admin_review: 'Admin review' }
-                const relatedConvo = (conversations || []).find(c =>
-                  c.participants.includes(d.buyerId) && c.participants.includes(d.sellerId)
-                )
                 return (
                   <div key={d.id} className={`rounded-2xl border ${isActiveDisputeStatus(d.status) ? 'border-orange-200 bg-orange-50/30' : 'border-sib-ash'}`}>
                     <button onClick={() => setExpandedDispute(isExpanded ? null : d.id)} className="w-full flex items-center gap-3 p-3 text-left">
@@ -1003,46 +996,21 @@ export default function AdminPage() {
                             <p className="text-[10px] text-sib-muted">Payout</p>
                             <p className="text-xs font-semibold text-sib-text capitalize">{order?.payoutStatus || 'pending'}</p>
                           </div>
+                          <div className="p-2 bg-white rounded-xl border border-sib-ash">
+                            <p className="text-[10px] text-sib-muted">Parties</p>
+                            <p className="text-xs font-semibold text-sib-text">{buyer?.name || 'Unknown buyer'}</p>
+                            <p className="text-[10px] text-sib-muted">Seller: {seller?.name || 'Unknown seller'}</p>
+                          </div>
+                          <div className="p-2 bg-white rounded-xl border border-sib-ash">
+                            <p className="text-[10px] text-sib-muted">Status</p>
+                            <p className="text-xs font-semibold text-sib-text capitalize">{String(d.status || 'open').replace(/_/g, ' ')}</p>
+                          </div>
                         </div>
 
                         <div className="p-2.5 rounded-xl bg-white border border-sib-ash">
-                          <p className="text-[10px] font-semibold text-sib-muted mb-1">Reason</p>
-                          <p className="text-xs text-sib-text leading-snug">{d.details || d.description || d.reason || 'No details provided.'}</p>
+                          <p className="text-[10px] font-semibold text-sib-muted mb-1">Reason / details</p>
+                          <p className="text-xs text-sib-text leading-snug">{d.details || d.reason || 'No details provided.'}</p>
                         </div>
-
-                        {relatedConvo && (
-                          <div>
-                            <p className="text-[10px] font-semibold text-sib-muted mb-1">Related conversation</p>
-                            <div className="max-h-36 overflow-y-auto space-y-1 p-2 bg-white rounded-xl border border-sib-ash">
-                              {(relatedConvo.messages || []).slice(-10).map(m => {
-                                const sender = getUserById(m.senderId)
-                                const msgFlags = detectFlags(m.text || '')
-                                return (
-                                  <div key={m.id} className={`p-1.5 rounded-lg text-[11px] ${m.flagged || msgFlags.length > 0 ? 'bg-red-50 border border-red-100' : 'bg-sib-sand'}`}>
-                                    <span className="font-semibold text-sib-text">{sender?.name || '?'}: </span>
-                                    <span className="text-sib-muted">{m.text}</span>
-                                    {msgFlags.length > 0 && (
-                                      <span className="ml-1 text-[9px] text-red-500 font-semibold">[{msgFlags.join(', ')}]</span>
-                                    )}
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          </div>
-                        )}
-
-                        {d.adminMessages && d.adminMessages.length > 0 && (
-                          <div>
-                            <p className="text-[10px] font-semibold text-sib-muted mb-1">Admin notes</p>
-                            <div className="space-y-1">
-                              {d.adminMessages.map((am, i) => (
-                                <div key={i} className="p-1.5 bg-indigo-50 rounded-lg border border-indigo-100 text-[11px] text-indigo-700">
-                                  <span className="font-semibold">Admin:</span> {am.text} <span className="text-[9px] text-indigo-400 ml-1">{formatDate(am.createdAt)}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
 
                         {d.status === 'resolved' && d.resolution && (
                           <div className="p-2 rounded-xl bg-green-50 border border-green-100 text-xs text-green-700 font-medium flex items-center gap-1.5">
@@ -1052,48 +1020,22 @@ export default function AdminPage() {
                         )}
 
                         {isActiveDisputeStatus(d.status) && (
-                          <div className="space-y-2">
-                            <div className="flex gap-1.5">
-                              <input type="text" placeholder="Send message to parties..."
-                                value={disputeMsg} onChange={e => setDisputeMsg(e.target.value)}
-                                className="flex-1 px-3 py-2 bg-white border border-sib-ash rounded-xl text-xs outline-none focus:border-sib-primary" />
-                              <button onClick={() => {
-                                if (!disputeMsg.trim()) return
-                                addDisputeMessage(d.id, disputeMsg.trim())
-                                showToast('Message sent')
-                                setDisputeMsg('')
-                              }} className="w-10 h-10 bg-sib-primary rounded-xl flex items-center justify-center flex-shrink-0 active:scale-95">
-                                <Send size={13} className="text-white" />
-                              </button>
-                            </div>
-                            <button onClick={() => {
-                              addDisputeMessage(d.id, 'Please provide photo/screenshot evidence to support your claim.')
-                              showToast('Evidence request sent')
-                            }} className="w-full py-2 bg-purple-50 text-purple-700 text-[11px] font-semibold rounded-xl flex items-center justify-center gap-1 border border-purple-100 active:scale-95">
-                              <Mail size={11} /> Request Evidence
+                          <div className="flex gap-1.5">
+                            <button onClick={() => openAdminActionModal('dispute_refund', order, buyer, seller, { dispute: d })}
+                              disabled={!order}
+                              className="flex-1 py-2 bg-blue-50 text-blue-700 text-[11px] font-semibold rounded-xl flex items-center justify-center gap-1 border border-blue-100 active:scale-95 disabled:opacity-50">
+                              <RefreshCw size={11} /> Refund Buyer
                             </button>
-
-                            {order && order.payoutStatus !== 'held' && (
-                              <button onClick={() => openAdminActionModal('dispute_freeze', order, buyer, seller, { dispute: d })}
-                                className="w-full py-2 bg-orange-50 text-orange-700 text-[11px] font-semibold rounded-xl flex items-center justify-center gap-1 border border-orange-100 active:scale-95">
-                                <Lock size={11} /> Freeze Funds
-                              </button>
-                            )}
-
-                            <div className="flex gap-1.5">
-                              <button onClick={() => openAdminActionModal('dispute_refund', order, buyer, seller, { dispute: d })}
-                                className="flex-1 py-2 bg-blue-50 text-blue-700 text-[11px] font-semibold rounded-xl flex items-center justify-center gap-1 border border-blue-100 active:scale-95">
-                                <RefreshCw size={11} /> Refund Buyer
-                              </button>
-                              <button onClick={() => openAdminActionModal('dispute_payout', order, buyer, seller, { dispute: d })}
-                                className="flex-1 py-2 bg-green-50 text-green-700 text-[11px] font-semibold rounded-xl flex items-center justify-center gap-1 border border-green-100 active:scale-95">
-                                <Unlock size={11} /> Pay Seller
-                              </button>
-                              <button onClick={() => openAdminActionModal('dispute_dismiss', order, buyer, seller, { dispute: d })}
-                                className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center flex-shrink-0 border border-red-100 active:scale-95">
-                                <XCircle size={13} className="text-red-500" />
-                              </button>
-                            </div>
+                            <button onClick={() => openAdminActionModal('dispute_payout', order, buyer, seller, { dispute: d })}
+                              disabled={!order}
+                              className="flex-1 py-2 bg-green-50 text-green-700 text-[11px] font-semibold rounded-xl flex items-center justify-center gap-1 border border-green-100 active:scale-95 disabled:opacity-50">
+                              <Unlock size={11} /> Release Funds to Seller
+                            </button>
+                            <button onClick={() => openAdminActionModal('dispute_dismiss', order, buyer, seller, { dispute: d })}
+                              disabled={!order}
+                              className="flex-1 py-2 bg-gray-100 text-gray-700 text-[11px] font-semibold rounded-xl flex items-center justify-center gap-1 border border-gray-200 active:scale-95 disabled:opacity-50">
+                              <XCircle size={11} /> Close Dispute
+                            </button>
                           </div>
                         )}
                       </div>
@@ -1449,9 +1391,8 @@ export default function AdminPage() {
           release: 'Release funds?',
           cancel: 'Cancel order?',
           dispute: 'Open dispute?',
-          dispute_freeze: 'Freeze funds?',
           dispute_refund: 'Confirm buyer refund',
-          dispute_payout: 'Pay seller?',
+          dispute_payout: 'Release funds to seller?',
           dispute_dismiss: 'Dismiss dispute?',
         }
         const confirmLabels = {
@@ -1460,9 +1401,8 @@ export default function AdminPage() {
           release: 'Confirm release',
           cancel: 'Confirm cancellation',
           dispute: 'Confirm dispute',
-          dispute_freeze: 'Confirm freeze',
           dispute_refund: 'Confirm refund',
-          dispute_payout: 'Confirm payout',
+          dispute_payout: 'Confirm release',
           dispute_dismiss: 'Confirm dismissal',
         }
         const warnings = {
@@ -1471,7 +1411,6 @@ export default function AdminPage() {
           release: 'This may release funds to the seller. Confirm the order is ready for payout.',
           cancel: 'This will cancel the order and notify the buyer and seller.',
           dispute: 'This will open an admin review for this order.',
-          dispute_freeze: 'This will hold seller payout while the dispute is reviewed.',
           dispute_refund: 'This will initiate a real refund. This action cannot be undone.',
           dispute_payout: 'This may release funds to the seller. Confirm the dispute outcome before continuing.',
           dispute_dismiss: 'This will dismiss the dispute without refunding the buyer or paying out through this action.',

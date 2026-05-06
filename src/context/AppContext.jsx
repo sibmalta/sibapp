@@ -11,7 +11,7 @@ import {
   sendOfferAcceptedEmail, sendOfferDeclinedEmail, sendOfferCounteredEmail,
   sendOrderConfirmedEmail, sendOrderCancelledEmail, sendOrderCancelledSellerEmail,
   sendItemShippedEmail, sendItemDeliveredEmail,
-  sendRefundConfirmedEmail, sendDisputeOpenedEmail, sendDisputeResolvedEmail, sendDisputeMessageEmail,
+  sendRefundConfirmedEmail, sendDisputeOpenedEmail, sendDisputeResolvedEmail,
   sendItemSoldEmail, sendSaleDropoffInstructionsEmail, sendDropoffReminder24hEmail, sendPayoutReleasedEmail,
   sendSuspiciousActivityEmail,
   sendMessageReceivedEmail,
@@ -2647,47 +2647,9 @@ export function AppProvider({ children }) {
 
   // ── Admin: add message to dispute ────────────────────────────────
   const addDisputeMessage = useCallback(async (disputeId, message, fromAdmin = true) => {
-    const now = new Date().toISOString()
-    const dispute = disputes.find(d => d.id === disputeId)
-    if (!dispute) return
-    const msgs = dispute.messages || []
-    const newMsg = { id: `dm${Date.now()}`, text: message, fromAdmin, createdAt: now }
-    const { error } = await dbPatchDispute(disputeId, {
-      messages: [...msgs, newMsg],
-      updatedAt: now,
-    })
-    if (error) {
-      console.error('[addDisputeMessage] DB write failed:', error.message)
-      showToast('Failed to add dispute message: ' + error.message, 'error')
-      return
-    }
-    // Notify both parties
-    if (dispute) {
-      addNotification({ userId: dispute.buyerId, orderId: dispute.orderId, type: 'dispute_message', title: 'Dispute update', message: fromAdmin ? 'Admin has sent a message regarding your dispute.' : message })
-      addNotification({ userId: dispute.sellerId, orderId: dispute.orderId, type: 'dispute_message', title: 'Dispute update', message: fromAdmin ? 'Admin has sent a message regarding the dispute.' : message })
-      // Email both parties about the new dispute message
-      const order = orders.find(o => o.id === dispute.orderId)
-      const buyer = users.find(u => u.id === dispute.buyerId)
-      const seller = users.find(u => u.id === dispute.sellerId)
-      const orderRef = order?.orderRef || dispute.orderId
-      if (buyer?.email) sendDisputeMessageEmail(buyer.email, buyer.name, orderRef, message, {
-        related_entity_type: 'dispute',
-        related_entity_id: dispute.id,
-        disputeId: dispute.id,
-        orderId: order?.id,
-        sellerId: dispute.sellerId,
-        buyerId: dispute.buyerId,
-      })
-      if (seller?.email) sendDisputeMessageEmail(seller.email, seller.name, orderRef, message, {
-        related_entity_type: 'dispute',
-        related_entity_id: dispute.id,
-        disputeId: dispute.id,
-        orderId: order?.id,
-        sellerId: dispute.sellerId,
-        buyerId: dispute.buyerId,
-      })
-    }
-  }, [disputes, orders, users, addNotification, dbPatchDispute, showToast])
+    console.info('[addDisputeMessage] dispute-specific messaging is disabled for MVP; use normal chat.', { disputeId, fromAdmin, message })
+    showToast('Use the normal chat for dispute evidence and messages.', 'error')
+  }, [showToast])
 
   // ──────────────────────────────────────────────────────────────────
 
