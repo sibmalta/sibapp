@@ -2524,7 +2524,7 @@ export function AppProvider({ children }) {
     const accessToken = authSession?.access_token
     if (!accessToken) {
       showToast('You must be signed in to process refunds', 'error')
-      return
+      return { ok: false, error: 'You must be signed in to process refunds' }
     }
 
     // Call Stripe Refund Edge Function — it also updates the order in DB
@@ -2533,7 +2533,7 @@ export function AppProvider({ children }) {
     } catch (stripeErr) {
       console.error('[refundOrder] Stripe refund failed:', stripeErr.message)
       showToast('Stripe refund failed: ' + stripeErr.message, 'error')
-      return
+      return { ok: false, error: stripeErr.message }
     }
 
     // Refresh orders from DB to pick up the Edge Function's updates
@@ -2554,6 +2554,7 @@ export function AppProvider({ children }) {
         })
       }
     }
+    return { ok: true }
   }, [orders, users, listings, authSession, refreshOrders, showToast])
 
   const resolveDispute = useCallback(async (disputeId, resolution) => {

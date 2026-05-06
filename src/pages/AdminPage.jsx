@@ -109,6 +109,9 @@ function getAdminOrderItemTitle(order, listing) {
 }
 
 function getAdminOrderWarning(order) {
+  if (isOrderRefunded(order)) {
+    return null
+  }
   if (order?.payoutStatus === 'blocked_seller_setup' || order?.payoutStatus === 'seller_setup_blocked') {
     return { label: 'Payout blocked', status: 'seller_setup_blocked' }
   }
@@ -125,6 +128,35 @@ function getAdminOrderWarning(order) {
     return { label: 'Overdue', status: 'flagged' }
   }
   return null
+}
+
+function getOrderPaymentStatus(order) {
+  return order?.paymentStatus || order?.payment_status || order?.status || 'unknown'
+}
+
+function getOrderPayoutStatus(order) {
+  return order?.payoutStatus || order?.sellerPayoutStatus || order?.payout_status || 'pending'
+}
+
+function getRefundedAt(order) {
+  return order?.refundedAt || order?.refunded_at || order?.refunded_at_iso || null
+}
+
+function isOrderRefunded(order) {
+  return getOrderPaymentStatus(order) === 'refunded' || order?.trackingStatus === 'refunded' || Boolean(getRefundedAt(order))
+}
+
+function getAdminOrderPrimaryStatus(order) {
+  if (isOrderRefunded(order)) return 'refunded'
+  return order?.trackingStatus || order?.status || order?.paymentStatus || order?.payment_status
+}
+
+function getOrderRefundAmount(order) {
+  return Number(order?.totalPrice ?? order?.total_price ?? order?.amount ?? order?.itemPrice ?? 0)
+}
+
+function getOrderShortCode(order) {
+  return order?.orderRef || order?.orderCode || order?.id?.slice(-8) || 'Unknown order'
 }
 
 const FLAG_PATTERNS = [
@@ -179,6 +211,9 @@ export default function AdminPage() {
   const [disputeMsg, setDisputeMsg] = useState('')
   const [userActivityTab, setUserActivityTab] = useState({})
   const [shipmentModal, setShipmentModal] = useState(null)
+  const [adminActionModal, setAdminActionModal] = useState(null)
+  const [adminActionProcessing, setAdminActionProcessing] = useState(false)
+  const [refundConfirmationText, setRefundConfirmationText] = useState('')
 
   // ── Email logs from DB ────────────────────────────────────────
   const [emailLogs, setEmailLogs] = useState([])
@@ -332,6 +367,63 @@ export default function AdminPage() {
     }
   }
 
+  const openAdminActionModal = (type, order, buyer, seller, extra = {}) => {
+    setRefundConfirmationText('')
+    setAdminActionModal({ type, order, buyer, seller, ...extra })
+  }
+
+  const closeAdminActionModal = () => {
+    if (adminActionProcessing) return
+    setAdminActionModal(null)
+    setRefundConfirmationText('')
+  }
+
+  const confirmAdminAction = async () => {
+    if (!adminActionModal?.order || adminActionProcessing) return
+    const { type, order, dispute } = adminActionModal
+    const refundAmount = getOrderRefundAmount(order)
+    setAdminActionProcessing(true)
+    try {
+      if (type === 'refund') {
+        const result = await refundOrder(order.id)
+        if (result?.ok === false || result?.error) {
+          throw new Error(result?.error?.message || result?.error || 'Refund failed')
+        }
+        showToast(`€${refundAmount.toFixed(2)} refunded to buyer (confirmed)`)
+      } else if (type === 'freeze') {
+        await holdPayout(order.id)
+        showToast('Funds frozen')
+      } else if (type === 'release') {
+        await releasePayout(order.id)
+        showToast('Funds released to seller')
+      } else if (type === 'cancel') {
+        await cancelOrder(order.id)
+        showToast('Order cancelled')
+      } else if (type === 'dispute') {
+        await adminOpenDispute(order.id, 'Admin-initiated review')
+        showToast('Dispute opened')
+      } else if (type === 'dispute_freeze') {
+        await holdPayout(order.id)
+        showToast('Funds frozen for dispute')
+      } else if (type === 'dispute_refund') {
+        await resolveDispute(dispute.id, 'refunded')
+        showToast('Dispute resolved - buyer refunded')
+      } else if (type === 'dispute_payout') {
+        await resolveDispute(dispute.id, 'seller_payout')
+        showToast('Dispute resolved - seller paid')
+      } else if (type === 'dispute_dismiss') {
+        await resolveDispute(dispute.id, 'dismissed')
+        showToast('Dispute dismissed')
+      }
+      setAdminActionModal(null)
+      setRefundConfirmationText('')
+    } catch (err) {
+      showToast(`${type === 'refund' || type === 'dispute_refund' ? 'Refund' : 'Admin action'} failed: ${err?.message || 'Please try again.'}`, 'error')
+    } finally {
+      setAdminActionProcessing(false)
+    }
+  }
+
   return (
     <div className="pb-20">
       <div className="px-4 py-3 bg-sib-primary flex items-center gap-2">
@@ -408,13 +500,16 @@ export default function AdminPage() {
                 const isExpanded = expandedOrder === order.id
                 const itemTitle = getAdminOrderItemTitle(order, listing)
                 const warningBadge = getAdminOrderWarning(order)
+                const refunded = isOrderRefunded(order)
+                const refundedAt = getRefundedAt(order)
+                const primaryStatus = getAdminOrderPrimaryStatus(order)
                 return (
                   <div key={order.id} className={`rounded-2xl border ${isExpanded ? 'border-sib-primary/30 shadow-sm' : 'border-sib-ash'}`}>
                     <button onClick={() => setExpandedOrder(isExpanded ? null : order.id)} className="w-full p-3 text-left">
                       <div className="flex items-center justify-between mb-1">
                         <p className="text-[10px] font-mono text-sib-muted">#{order.id?.slice(-8)}</p>
                         <div className="flex gap-1">
-                          <Badge status={order.trackingStatus || order.status || order.paymentStatus} />
+                          <Badge status={primaryStatus} />
                           {warningBadge && <Badge label={warningBadge.label} status={warningBadge.status} />}
                         </div>
                       </div>
@@ -464,6 +559,13 @@ export default function AdminPage() {
                           </div>
                         )}
 
+                        {refunded && (
+                          <div className="p-2 rounded-xl bg-red-50 border border-red-200 text-[11px] text-red-700">
+                            <p className="font-bold">Refunded</p>
+                            {refundedAt && <p>Refunded at: {formatDate(refundedAt)}</p>}
+                          </div>
+                        )}
+
                         <div className="p-2 bg-sib-sand rounded-xl text-[10px] text-sib-muted space-y-0.5">
                           <p className="font-semibold text-sib-text">Accounting</p>
                           <p>Buyer paid: €{Number(order.totalPrice || 0).toFixed(2)}</p>
@@ -471,13 +573,15 @@ export default function AdminPage() {
                           <p>Delivery fee: €{Number(order.deliveryFeeAmount ?? order.deliveryFee ?? 0).toFixed(2)}</p>
                           <p>Platform fee: €{Number(order.platformFeeAmount ?? order.platformFee ?? 0).toFixed(2)}</p>
                           {order.stripeFeeAmount != null && <p>Stripe fee: €{Number(order.stripeFeeAmount).toFixed(2)}</p>}
-                          <p>Payout status: {getStatusLabel(order.payoutStatus || order.sellerPayoutStatus || 'pending')}</p>
+                          <p>Payment status: {getStatusLabel(getOrderPaymentStatus(order))}</p>
+                          <p>Payout status: {getStatusLabel(getOrderPayoutStatus(order))}</p>
                           {order.stripeTransferId && <p>Stripe transfer: {order.stripeTransferId}</p>}
                         </div>
 
                         <div className="p-2 bg-sib-sand rounded-xl text-[10px] text-sib-muted space-y-0.5">
                           <p><Clock size={9} className="inline mr-1" />Created: {formatDate(order.createdAt)}</p>
                           {order.paidAt && <p><DollarSign size={9} className="inline mr-1" />Paid: {formatDate(order.paidAt)}</p>}
+                          {refundedAt && <p><RefreshCw size={9} className="inline mr-1" />Refunded: {formatDate(refundedAt)}</p>}
                           {order.shippedAt && <p><Truck size={9} className="inline mr-1" />Shipped: {formatDate(order.shippedAt)}</p>}
                           {order.deliveredAt && <p><CheckCircle size={9} className="inline mr-1" />Delivered: {formatDate(order.deliveredAt)}</p>}
                           {order.payoutReleasedAt && <p><Unlock size={9} className="inline mr-1" />Payout released: {formatDate(order.payoutReleasedAt)}</p>}
@@ -535,32 +639,41 @@ export default function AdminPage() {
                                 <CheckCircle size={12} /> Mark Delivered
                               </button>
                             )}
-                            {order.payoutStatus !== 'held' && order.trackingStatus !== 'refunded' && order.trackingStatus !== 'cancelled' && (
-                              <button onClick={() => { holdPayout(order.id); showToast('Funds frozen') }}
+                            {order.payoutStatus !== 'held' && !refunded && order.trackingStatus !== 'cancelled' && (
+                              <button onClick={() => openAdminActionModal('freeze', order, buyer, seller)}
+                                disabled={adminActionProcessing}
                                 className="py-2 bg-orange-50 text-orange-700 text-[11px] font-semibold rounded-xl flex items-center justify-center gap-1 border border-orange-100 active:scale-95 transition-transform">
                                 <Lock size={12} /> Freeze Funds
                               </button>
                             )}
-                            {order.payoutStatus !== 'released' && order.trackingStatus !== 'refunded' && order.trackingStatus !== 'cancelled' && (
-                              <button onClick={() => { releasePayout(order.id); showToast('Funds released to seller') }}
+                            {order.payoutStatus !== 'released' && !refunded && order.trackingStatus !== 'cancelled' && (
+                              <button onClick={() => openAdminActionModal('release', order, buyer, seller)}
+                                disabled={adminActionProcessing}
                                 className="py-2 bg-emerald-50 text-emerald-700 text-[11px] font-semibold rounded-xl flex items-center justify-center gap-1 border border-emerald-100 active:scale-95 transition-transform">
                                 <Unlock size={12} /> Release Funds
                               </button>
                             )}
-                            {order.trackingStatus !== 'refunded' && order.trackingStatus !== 'cancelled' && (
-                              <button onClick={() => { refundOrder(order.id); showToast('Buyer refunded') }}
-                                className="py-2 bg-red-50 text-red-600 text-[11px] font-semibold rounded-xl flex items-center justify-center gap-1 border border-red-100 active:scale-95 transition-transform">
-                                <RefreshCw size={12} /> Refund Buyer
+                            {refunded ? (
+                              <div className="py-2 bg-red-50 text-red-600 text-[11px] font-semibold rounded-xl flex items-center justify-center gap-1 border border-red-100">
+                                <CheckCircle size={12} /> Already refunded
+                              </div>
+                            ) : order.trackingStatus !== 'cancelled' && (
+                              <button onClick={() => openAdminActionModal('refund', order, buyer, seller)}
+                                disabled={adminActionProcessing}
+                                className="py-2 bg-red-50 text-red-600 text-[11px] font-semibold rounded-xl flex items-center justify-center gap-1 border border-red-100 active:scale-95 transition-transform disabled:opacity-60 disabled:active:scale-100">
+                                <RefreshCw size={12} /> {adminActionProcessing ? 'Processing...' : 'Refund Buyer'}
                               </button>
                             )}
-                            {order.trackingStatus !== 'cancelled' && order.trackingStatus !== 'refunded' && (
-                              <button onClick={() => { cancelOrder(order.id); showToast('Order cancelled') }}
+                            {order.trackingStatus !== 'cancelled' && !refunded && (
+                              <button onClick={() => openAdminActionModal('cancel', order, buyer, seller)}
+                                disabled={adminActionProcessing}
                                 className="py-2 bg-gray-100 text-gray-600 text-[11px] font-semibold rounded-xl flex items-center justify-center gap-1 border border-gray-200 active:scale-95 transition-transform">
                                 <XCircle size={12} /> Cancel Order
                               </button>
                             )}
-                            {order.trackingStatus !== 'under_review' && order.trackingStatus !== 'refunded' && order.trackingStatus !== 'cancelled' && !(disputes || []).some(d => d.orderId === order.id && isActiveDisputeStatus(d.status)) && (
-                              <button onClick={() => { adminOpenDispute(order.id, 'Admin-initiated review'); showToast('Dispute opened') }}
+                            {order.trackingStatus !== 'under_review' && !refunded && order.trackingStatus !== 'cancelled' && !(disputes || []).some(d => d.orderId === order.id && isActiveDisputeStatus(d.status)) && (
+                              <button onClick={() => openAdminActionModal('dispute', order, buyer, seller)}
+                                disabled={adminActionProcessing}
                                 className="py-2 bg-purple-50 text-purple-700 text-[11px] font-semibold rounded-xl flex items-center justify-center gap-1 border border-purple-100 active:scale-95 transition-transform">
                                 <AlertTriangle size={12} /> Open Dispute
                               </button>
@@ -954,22 +1067,22 @@ export default function AdminPage() {
                             </button>
 
                             {order && order.payoutStatus !== 'held' && (
-                              <button onClick={() => { holdPayout(order.id); showToast('Funds frozen for dispute') }}
+                              <button onClick={() => openAdminActionModal('dispute_freeze', order, buyer, seller, { dispute: d })}
                                 className="w-full py-2 bg-orange-50 text-orange-700 text-[11px] font-semibold rounded-xl flex items-center justify-center gap-1 border border-orange-100 active:scale-95">
                                 <Lock size={11} /> Freeze Funds
                               </button>
                             )}
 
                             <div className="flex gap-1.5">
-                              <button onClick={() => { resolveDispute(d.id, 'refunded'); showToast('Dispute resolved — buyer refunded') }}
+                              <button onClick={() => openAdminActionModal('dispute_refund', order, buyer, seller, { dispute: d })}
                                 className="flex-1 py-2 bg-blue-50 text-blue-700 text-[11px] font-semibold rounded-xl flex items-center justify-center gap-1 border border-blue-100 active:scale-95">
                                 <RefreshCw size={11} /> Refund Buyer
                               </button>
-                              <button onClick={() => { resolveDispute(d.id, 'seller_payout'); showToast('Dispute resolved — seller paid') }}
+                              <button onClick={() => openAdminActionModal('dispute_payout', order, buyer, seller, { dispute: d })}
                                 className="flex-1 py-2 bg-green-50 text-green-700 text-[11px] font-semibold rounded-xl flex items-center justify-center gap-1 border border-green-100 active:scale-95">
                                 <Unlock size={11} /> Pay Seller
                               </button>
-                              <button onClick={() => { resolveDispute(d.id, 'dismissed'); showToast('Dispute dismissed') }}
+                              <button onClick={() => openAdminActionModal('dispute_dismiss', order, buyer, seller, { dispute: d })}
                                 className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center flex-shrink-0 border border-red-100 active:scale-95">
                                 <XCircle size={13} className="text-red-500" />
                               </button>
@@ -1317,6 +1430,109 @@ export default function AdminPage() {
         )}
 
       </div>
+
+      {adminActionModal && (() => {
+        const { type, order, buyer, seller } = adminActionModal
+        const refundAmount = getOrderRefundAmount(order)
+        const requiresTypedRefund = (type === 'refund' || type === 'dispute_refund') && refundAmount > 20
+        const confirmDisabled = adminActionProcessing || (requiresTypedRefund && refundConfirmationText !== 'REFUND')
+        const titles = {
+          refund: 'Confirm buyer refund',
+          freeze: 'Freeze funds?',
+          release: 'Release funds?',
+          cancel: 'Cancel order?',
+          dispute: 'Open dispute?',
+          dispute_freeze: 'Freeze funds?',
+          dispute_refund: 'Confirm buyer refund',
+          dispute_payout: 'Pay seller?',
+          dispute_dismiss: 'Dismiss dispute?',
+        }
+        const confirmLabels = {
+          refund: 'Confirm refund',
+          freeze: 'Confirm freeze',
+          release: 'Confirm release',
+          cancel: 'Confirm cancellation',
+          dispute: 'Confirm dispute',
+          dispute_freeze: 'Confirm freeze',
+          dispute_refund: 'Confirm refund',
+          dispute_payout: 'Confirm payout',
+          dispute_dismiss: 'Confirm dismissal',
+        }
+        const warnings = {
+          refund: 'This will initiate a real refund. This action cannot be undone.',
+          freeze: 'This will hold seller payout for this order until an admin releases it.',
+          release: 'This may release funds to the seller. Confirm the order is ready for payout.',
+          cancel: 'This will cancel the order and notify the buyer and seller.',
+          dispute: 'This will open an admin review for this order.',
+          dispute_freeze: 'This will hold seller payout while the dispute is reviewed.',
+          dispute_refund: 'This will initiate a real refund. This action cannot be undone.',
+          dispute_payout: 'This may release funds to the seller. Confirm the dispute outcome before continuing.',
+          dispute_dismiss: 'This will dismiss the dispute without refunding the buyer or paying out through this action.',
+        }
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/45 px-4" role="dialog" aria-modal="true" aria-label={titles[type]} onClick={closeAdminActionModal}>
+            <div className="w-full max-w-md rounded-t-3xl sm:rounded-3xl bg-white dark:bg-[#202b28] shadow-2xl border border-sib-ash dark:border-[rgba(242,238,231,0.10)]" onClick={e => e.stopPropagation()}>
+              <div className="px-4 py-3 border-b border-sib-ash dark:border-[rgba(242,238,231,0.10)]">
+                <p className="text-sm font-bold text-sib-text dark:text-[#f4efe7]">{titles[type]}</p>
+                <p className="text-[11px] text-red-600 font-semibold mt-1">{warnings[type]}</p>
+              </div>
+
+              <div className="p-4 space-y-3">
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="p-2 bg-sib-sand dark:bg-[#26322f] rounded-xl">
+                    <p className="text-[10px] text-sib-muted dark:text-[#aeb8b4] font-semibold">Order</p>
+                    <p className="font-semibold text-sib-text dark:text-[#f4efe7] break-words">{getOrderShortCode(order)}</p>
+                  </div>
+                  <div className="p-2 bg-sib-sand dark:bg-[#26322f] rounded-xl">
+                    <p className="text-[10px] text-sib-muted dark:text-[#aeb8b4] font-semibold">Amount</p>
+                    <p className="font-semibold text-sib-text dark:text-[#f4efe7]">€{refundAmount.toFixed(2)}</p>
+                  </div>
+                  <div className="p-2 bg-sib-sand dark:bg-[#26322f] rounded-xl">
+                    <p className="text-[10px] text-sib-muted dark:text-[#aeb8b4] font-semibold">Buyer</p>
+                    <p className="font-semibold text-sib-text dark:text-[#f4efe7]">{buyer?.name || 'Unknown buyer'}</p>
+                  </div>
+                  <div className="p-2 bg-sib-sand dark:bg-[#26322f] rounded-xl">
+                    <p className="text-[10px] text-sib-muted dark:text-[#aeb8b4] font-semibold">Seller</p>
+                    <p className="font-semibold text-sib-text dark:text-[#f4efe7]">{seller?.name || 'Unknown seller'}</p>
+                  </div>
+                </div>
+
+                {requiresTypedRefund && (
+                  <label className="block">
+                    <span className="text-[11px] font-semibold text-sib-muted dark:text-[#aeb8b4]">Type REFUND to continue</span>
+                    <input
+                      value={refundConfirmationText}
+                      onChange={e => setRefundConfirmationText(e.target.value)}
+                      className="mt-1 w-full rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold tracking-wider text-red-700 outline-none focus:border-red-400"
+                      autoComplete="off"
+                    />
+                  </label>
+                )}
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    onClick={closeAdminActionModal}
+                    disabled={adminActionProcessing}
+                    className="flex-1 py-2.5 rounded-xl border border-sib-ash bg-white text-sib-muted text-sm font-semibold disabled:opacity-60"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmAdminAction}
+                    disabled={confirmDisabled}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50 ${
+                      type === 'refund' || type === 'dispute_refund' ? 'bg-red-600' : 'bg-sib-primary'
+                    }`}
+                  >
+                    {adminActionProcessing ? 'Processing...' : confirmLabels[type]}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {shipmentModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/45 px-4" onClick={() => setShipmentModal(null)}>
