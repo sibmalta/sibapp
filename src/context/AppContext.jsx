@@ -2925,9 +2925,7 @@ export function AppProvider({ children }) {
     const now = new Date().toISOString()
     const existing = shipments.find(s => s.orderId === orderId)
 
-    if (existing?.shipmentReference || existing?.shipmentCreatedAt) {
-      return { data: existing, error: null, duplicate: true, payload: shipmentPayload }
-    }
+    const duplicate = Boolean(existing?.shipmentReference || existing?.shipmentCreatedAt)
 
     const updates = {
       status: 'label_created',
@@ -2947,13 +2945,13 @@ export function AppProvider({ children }) {
       updatedAt: now,
     }
 
-    if (existing?.id) {
-      const { data, error } = await dbPatchShipment(existing.id, updates)
-      if (error) return { data: null, error, payload: shipmentPayload }
-      return { data, error: null, duplicate: false, payload: shipmentPayload }
-    }
-
-    const { data, error } = await dbCreateShipment({
+    let result
+    if (duplicate) {
+      result = { data: existing, error: null }
+    } else if (existing?.id) {
+      result = await dbPatchShipment(existing.id, updates)
+    } else {
+      result = await dbCreateShipment({
       orderId: order.id,
       orderRef: order.orderRef,
       sellerId: order.sellerId,
@@ -2964,8 +2962,25 @@ export function AppProvider({ children }) {
       fulfilmentPrice: order.fulfilmentPrice ?? order.deliveryFee,
       ...updates,
     })
-    return { data, error, duplicate: false, payload: shipmentPayload }
-  }, [orders, shipments, users, dbCreateShipment, dbPatchShipment])
+    }
+
+    const { data, error } = result
+    if (error) return { data: null, error, payload: shipmentPayload }
+
+    const buyer = users.find(u => u.id === order.buyerId)
+    const seller = users.find(u => u.id === order.sellerId)
+    const listing = listings.find(l => l.id === order.listingId)
+    const sheetRow = buildDeliverySheetRow({ order, shipment: data, seller, buyer, listing })
+    sheetRow.order_code = getOrderCode(order)
+    if (!sheetRow.delivery_status || ['label_created', 'awaiting_shipment'].includes(sheetRow.delivery_status)) {
+      sheetRow.delivery_status = 'awaiting_pickup'
+    }
+    const { error: sheetError } = await upsertDeliverySheetRow(sheetRow)
+    if (sheetError) return { data, error: sheetError, payload: shipmentPayload }
+
+    await Promise.all([refreshShipments(), refreshLogisticsDeliverySheet()])
+    return { data, error: null, duplicate, payload: shipmentPayload }
+  }, [orders, shipments, users, listings, dbCreateShipment, dbPatchShipment, upsertDeliverySheetRow, refreshShipments, refreshLogisticsDeliverySheet])
 
   // ──────────────────────────────────────────────────────────────────
   // getUserById, getUserByUsername, getListingById, getUserListings come from hooks above

@@ -54,6 +54,15 @@ function getLocality(value) {
   return value.locality || value.city || value.town || value.village || value.area || ''
 }
 
+function getInitialDeliveryStatus(order, shipment) {
+  if (shipment.status) return shipment.status
+  if (order.deliveryStatus) return order.deliveryStatus
+  if (order.delivery_status) return order.delivery_status
+  if (order.dropoffConfirmedAt || order.dropoff_confirmed_at) return 'dropped_off'
+  if (order.paymentStatus === 'paid' || order.payment_status === 'paid' || order.paidAt || order.paid_at) return 'awaiting_pickup'
+  return order.fulfilmentStatus || order.trackingStatus || ''
+}
+
 export function buildDeliverySheetRow({ order = {}, shipment = {}, seller = {}, buyer = {}, listing = {} } = {}) {
   const buyerAddress = shipment.deliveryAddressSnapshot || shipment.recipientAddress || order.deliveryAddressSnapshot || order.address
   const buyerName = order.buyerFullName || buyer.name || buyer.username || ''
@@ -84,7 +93,7 @@ export function buildDeliverySheetRow({ order = {}, shipment = {}, seller = {}, 
     buyer_delivery_address: formatAddress(buyerAddress),
     buyer_contact: buyerContact,
     delivery_timing: deliveryTiming,
-    delivery_status: shipment.status || order.fulfilmentStatus || order.trackingStatus || '',
+    delivery_status: getInitialDeliveryStatus(order, shipment),
     fallback_store_name: shipment.fallbackStoreName || '',
     notes: shipment.notes || `Delivery timing: ${getCourierDeliveryTimingLabel(deliveryTiming)}`,
   }

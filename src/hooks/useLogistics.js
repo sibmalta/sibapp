@@ -12,7 +12,7 @@ const NOTIF_KEY = 'sib_logistics_notifications'
 
 export const LOGISTICS_STATUSES = [
   { id: 'paid',                   label: 'Paid',                    color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  { id: 'awaiting_pickup',        label: 'Awaiting Pickup Booking', color: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
+  { id: 'awaiting_pickup',        label: 'Awaiting Pickup',         color: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
   { id: 'pickup_booked',          label: 'Pickup Booked',           color: 'bg-blue-50 text-blue-700 border-blue-200' },
   { id: 'collected',              label: 'Collected',               color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
   { id: 'dropped_off',            label: 'Awaiting courier pickup', color: 'bg-amber-50 text-amber-700 border-amber-200' },

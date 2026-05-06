@@ -503,6 +503,8 @@ export default function AdminPage() {
                 const refunded = isOrderRefunded(order)
                 const refundedAt = getRefundedAt(order)
                 const primaryStatus = getAdminOrderPrimaryStatus(order)
+                const deliverySheetRow = logisticsDeliverySheet.find(row => row.orderId === order.id || row.order_id === order.id)
+                const needsShipmentRepair = !shipment || !deliverySheetRow
                 return (
                   <div key={order.id} className={`rounded-2xl border ${isExpanded ? 'border-sib-primary/30 shadow-sm' : 'border-sib-ash'}`}>
                     <button onClick={() => setExpandedOrder(isExpanded ? null : order.id)} className="w-full p-3 text-left">
@@ -623,10 +625,12 @@ export default function AdminPage() {
                         <div className="space-y-1.5">
                           <p className="text-[10px] font-semibold text-sib-muted uppercase tracking-wider">Admin Actions</p>
                           <div className="grid grid-cols-2 gap-1.5">
-                            <button onClick={() => handleCreateShipmentShortcut(order, buyer)}
-                              className="py-2 bg-sib-primary/10 text-sib-primary text-[11px] font-semibold rounded-xl flex items-center justify-center gap-1 border border-sib-primary/20 active:scale-95 transition-transform">
-                              <Clipboard size={12} /> {shipment?.shipmentReference ? 'View Shipment' : 'Create Shipment'}
-                            </button>
+                            {needsShipmentRepair && (
+                              <button onClick={() => handleCreateShipmentShortcut(order, buyer)}
+                                className="py-2 bg-sib-primary/10 text-sib-primary text-[11px] font-semibold rounded-xl flex items-center justify-center gap-1 border border-sib-primary/20 active:scale-95 transition-transform">
+                                <Clipboard size={12} /> Repair Missing Shipment
+                              </button>
+                            )}
                             {order.trackingStatus === 'pending' && (
                               <button onClick={() => { updateOrderStatus(order.id, 'shipped'); showToast('Marked as shipped') }}
                                 className="py-2 bg-blue-50 text-blue-700 text-[11px] font-semibold rounded-xl flex items-center justify-center gap-1 border border-blue-100 active:scale-95 transition-transform">
