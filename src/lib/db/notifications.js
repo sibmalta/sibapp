@@ -45,6 +45,8 @@ export function notificationToRow(notification) {
   return row
 }
 
+const ORDER_SCOPED_DEDUPE_TYPES = new Set(['new_sale', 'bundle_sold', 'overdue_warning'])
+
 export async function fetchUserNotifications(supabase, userId) {
   try {
     if (!userId) return { data: [], error: null }
@@ -73,7 +75,7 @@ export async function insertNotification(supabase, notification) {
 
     if (!error) return { data: rowToNotification(data), error: null }
 
-    if (error.code === '23505' && row.user_id && row.type && row.order_id) {
+    if (error.code === '23505' && row.user_id && row.type && row.order_id && ORDER_SCOPED_DEDUPE_TYPES.has(row.type)) {
       const { data: existing, error: existingError } = await supabase
         .from('notifications')
         .select('*')

@@ -33,6 +33,7 @@ import { buildDeliverySheetRow } from '../lib/logisticsDeliverySheet'
 import { getOrderCode, isDropoffConfirmed } from '../lib/dropoffQr'
 import { calculateMarketplacePaymentSplit } from '../lib/marketplacePayments'
 import { getCourierDeliveryTiming } from '../lib/courierDeliveryTiming'
+import { getOverdueOrderIdsToFlag } from '../lib/overdueNotifications'
 import {
   buildCourierCollectedSystemMessage,
   buildDeliveredSystemMessage,
@@ -268,6 +269,7 @@ export function AppProvider({ children }) {
   const [bundleOffers, setBundleOffers] = useState(() => loadFromStorage('sib_bundleOffers', []))
   const [toast, setToast] = useState(null)
   const counterOfferRequestsRef = useRef(new Map())
+  const overdueFlagInFlightRef = useRef(new Set())
   const [packagePrepDismissedOfferIds, setPackagePrepDismissedOfferIds] = useState(() => new Set())
   const addOrderSystemMessageRef = useRef(null)
 
@@ -1151,37 +1153,41 @@ export function AppProvider({ children }) {
 
   // ── Flag overdue order for admin review (does NOT create dispute) ─
   const flagOrderOverdue = useCallback(async (orderId) => {
-    const { error } = await dbPatchOrder(orderId, { overdueFlag: true, overdueFlaggedAt: new Date().toISOString() })
-    if (error) {
-      console.error('[flagOrderOverdue] DB write failed:', error.message)
-      return
-    }
-    const order = orders.find(o => o.id === orderId)
-    if (order) {
-      addNotification({
-        userId: order.sellerId,
-        orderId,
-        type: 'overdue_warning',
-        title: 'Collection overdue',
-        message: 'Your collection is overdue. Please prepare the item immediately to avoid order cancellation.',
-      })
+    if (!orderId || overdueFlagInFlightRef.current.has(orderId)) return
+    overdueFlagInFlightRef.current.add(orderId)
+    try {
+      const { error } = await dbPatchOrder(orderId, { overdueFlag: true, overdueFlaggedAt: new Date().toISOString() })
+      if (error) {
+        console.error('[flagOrderOverdue] DB write failed:', error.message)
+        return
+      }
+      const order = orders.find(o => o.id === orderId)
+      if (order) {
+        addNotification({
+          userId: order.sellerId,
+          orderId,
+          type: 'overdue_warning',
+          title: 'Collection overdue',
+          message: 'Your collection is overdue. Please prepare the item immediately to avoid order cancellation.',
+        })
+      }
+    } finally {
+      overdueFlagInFlightRef.current.delete(orderId)
     }
   }, [orders, addNotification, dbPatchOrder])
 
   // ── Check and flag overdue shipments on mount / periodically ──
   useEffect(() => {
     const now = Date.now()
-    orders.forEach(o => {
-      if (o.trackingStatus !== 'pending' && o.trackingStatus !== 'paid') return
-      if (o.overdueFlag) return // already flagged
-      const shipment = shipments.find(s => s.orderId === o.id)
-      if (!shipment) return
-      const deadline = new Date(shipment.shipByDeadline).getTime()
-      if (now > deadline) {
-        flagOrderOverdue(o.id)
-      }
+    getOverdueOrderIdsToFlag({
+      orders,
+      shipments,
+      now,
+      inFlightOrderIds: overdueFlagInFlightRef.current,
+    }).forEach(orderId => {
+      flagOrderOverdue(orderId)
     })
-  }, [orders, shipments]) // runs when orders or shipments change
+  }, [orders, shipments, flagOrderOverdue]) // runs when orders or shipments change
 
   // ── Seller payout profile ─────────────────────────────────────────
   const savePayoutProfile = useCallback((userId, profile) => {
