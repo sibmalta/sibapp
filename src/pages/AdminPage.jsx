@@ -268,17 +268,6 @@ export default function AdminPage() {
     }
   }, [currentUser?.isAdmin, tab, refreshOrders, refreshDisputes, refreshShipments, refreshLogisticsDeliverySheet])
 
-  if (!currentUser?.isAdmin) {
-    return (
-      <div className="flex flex-col items-center justify-center py-24 gap-3 px-6 text-center">
-        <ShieldCheck size={40} className="text-sib-secondary" />
-        <p className="font-semibold text-sib-text">Admin access only</p>
-        <p className="text-sm text-sib-muted">Log in as an admin to access this panel.</p>
-        <button onClick={() => navigate('/')} className="text-sib-primary text-sm font-medium mt-2">Go home</button>
-      </div>
-    )
-  }
-
   const pendingOrders = orders.filter(o => o.trackingStatus === 'pending')
   const sortedDisputes = useMemo(() => sortDisputesForAdmin(disputes || []), [disputes])
   const openDisputes = (disputes || []).filter(d => isActiveDisputeStatus(d.status))
@@ -325,6 +314,17 @@ export default function AdminPage() {
       )
     })
   }, [listings, searchQuery, tab])
+
+  if (!currentUser?.isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-3 px-6 text-center">
+        <ShieldCheck size={40} className="text-sib-secondary" />
+        <p className="font-semibold text-sib-text">Admin access only</p>
+        <p className="text-sm text-sib-muted">Log in as an admin to access this panel.</p>
+        <button onClick={() => navigate('/')} className="text-sib-primary text-sm font-medium mt-2">Go home</button>
+      </div>
+    )
+  }
 
   function getUserFlags(userId) {
     const flags = []
