@@ -1064,20 +1064,23 @@ export function AppProvider({ children }) {
 
   // ── Buyer opens dispute ───────────────────────────────────────────
   const openDispute = useCallback(async (orderId, reason, opts = {}) => {
-    const order = orders.find(o => o.id === orderId)
-    if (!order) return null
+    const requestedOrderId = String(orderId || '').trim()
+    const source = opts.source || 'buyer' // 'buyer', 'admin', 'system'
+    const order = orders.find(o => o.id === requestedOrderId) ||
+      orders.find(o => o.orderRef === requestedOrderId || o.orderCode === requestedOrderId)
+    if (!order) return source === 'admin' ? { ok: false, error: 'Order not found' } : null
+    const disputeOrderId = order.id
     // Prevent duplicate dispute on same order
-    const existing = disputes.find(d => d.orderId === orderId && isActiveDisputeStatus(d.status))
+    const existing = disputes.find(d => d.orderId === disputeOrderId && isActiveDisputeStatus(d.status))
     if (existing) return existing
     const type = opts.type || 'not_as_described'
     const description = reason || DISPUTE_REASONS[type] || reason
-    const source = opts.source || 'buyer' // 'buyer', 'admin', 'system'
 
     let newDispute = null
     if (source === 'buyer') {
       try {
-        const result = await disputeBuyerProtectionOrder(orderId, { type, reason: description })
-        newDispute = result.dispute || { id: result.disputeId, orderId, buyerId: order.buyerId, sellerId: order.sellerId, type, reason: description, description, status: 'open', source }
+        const result = await disputeBuyerProtectionOrder(disputeOrderId, { type, reason: description })
+        newDispute = result.dispute || { id: result.disputeId, orderId: disputeOrderId, buyerId: order.buyerId, sellerId: order.sellerId, type, reason: description, description, status: 'open', source }
         await refreshOrders()
         await refreshDisputes()
         await refreshNotifications()
@@ -1088,7 +1091,7 @@ export function AppProvider({ children }) {
       }
     } else {
       const { data, error: disputeErr } = await dbCreateDispute({
-        orderId,
+        orderId: disputeOrderId,
         buyerId: order.buyerId,
         sellerId: order.sellerId,
         type,
@@ -1102,24 +1105,24 @@ export function AppProvider({ children }) {
       if (disputeErr) {
         console.error('[openDispute] DB write failed:', disputeErr.message)
         showToast('Failed to open dispute: ' + disputeErr.message, 'error')
-        return null
+        return source === 'admin' ? { ok: false, error: disputeErr.message } : null
       }
       newDispute = data
-      const { error: orderErr } = await dbPatchOrder(orderId, { status: 'disputed', trackingStatus: 'under_review', payoutStatus: 'disputed', disputedAt: new Date().toISOString() })
+      const { error: orderErr } = await dbPatchOrder(disputeOrderId, { status: 'disputed', trackingStatus: 'under_review', payoutStatus: 'disputed', disputedAt: new Date().toISOString() })
       if (orderErr) console.error('[openDispute] order patch failed:', orderErr.message)
     }
 
     if (source !== 'buyer') {
       addNotification({
         userId: order.sellerId,
-        orderId,
+        orderId: disputeOrderId,
         type: 'dispute_opened',
         title: source === 'admin' ? 'Admin opened a dispute' : 'Buyer reported an issue',
         message: `${source === 'admin' ? 'An admin has opened a dispute' : 'The buyer has reported an issue'}: "${description}". Your payout is on hold until this is resolved.`,
       })
       addNotification({
         userId: order.buyerId,
-        orderId,
+        orderId: disputeOrderId,
         type: 'dispute_opened_buyer',
         title: source === 'admin' ? 'Admin review opened' : 'Issue reported',
         message: source === 'admin'

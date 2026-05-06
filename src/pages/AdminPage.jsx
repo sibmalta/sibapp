@@ -400,7 +400,10 @@ export default function AdminPage() {
         await cancelOrder(order.id)
         showToast('Order cancelled')
       } else if (type === 'dispute') {
-        await adminOpenDispute(order.id, 'Admin-initiated review')
+        const result = await adminOpenDispute(order.id, 'Admin-initiated review')
+        if (!result || result?.ok === false || result?.error) {
+          throw new Error(result?.error?.message || result?.error || 'Could not open dispute')
+        }
         showToast('Dispute opened')
       } else if (type === 'dispute_freeze') {
         await holdPayout(order.id)

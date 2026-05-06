@@ -12,8 +12,8 @@ vi.mock('../context/AppContext', () => ({
 
 function makeOrder(overrides = {}) {
   return {
-    id: 'order-12345678',
-    orderRef: 'SIB-12345678',
+    id: '11111111-2222-3333-4444-555555555555',
+    orderRef: 'SIB-MOHK0P3K',
     listingId: 'listing-1',
     buyerId: 'buyer-1',
     sellerId: 'seller-1',
@@ -100,7 +100,7 @@ describe('Admin Orders financial action guardrails', () => {
     expect(mockApp.refundOrder).not.toHaveBeenCalled()
     expect(dialog).toBeInTheDocument()
     expect(within(dialog).getByText('This will initiate a real refund. This action cannot be undone.')).toBeInTheDocument()
-    expect(within(dialog).getByText('SIB-12345678')).toBeInTheDocument()
+    expect(within(dialog).getByText('SIB-MOHK0P3K')).toBeInTheDocument()
     expect(within(dialog).getByText('Maya Buyer')).toBeInTheDocument()
     expect(within(dialog).getByText('Leo Seller')).toBeInTheDocument()
     expect(within(dialog).getByRole('button', { name: /Confirm refund/i })).toBeEnabled()
@@ -125,7 +125,7 @@ describe('Admin Orders financial action guardrails', () => {
     fireEvent.click(screen.getByRole('button', { name: /Confirm refund/i }))
 
     await waitFor(() => {
-      expect(mockApp.refundOrder).toHaveBeenCalledWith('order-12345678')
+      expect(mockApp.refundOrder).toHaveBeenCalledWith('11111111-2222-3333-4444-555555555555')
     })
     expect(mockApp.showToast).toHaveBeenCalledWith('€18.90 refunded to buyer (confirmed)')
   })
@@ -167,5 +167,40 @@ describe('Admin Orders financial action guardrails', () => {
       expect(mockApp.showToast).toHaveBeenCalledWith('Refund failed: Stripe rejected refund', 'error')
     })
     expect(screen.getByRole('button', { name: /Refund Buyer/i })).toBeInTheDocument()
+  })
+
+  it('opens disputes with the UUID order id while displaying the public order code', async () => {
+    renderPage()
+    expandOrder()
+
+    fireEvent.click(screen.getByRole('button', { name: /Open Dispute/i }))
+
+    const dialog = screen.getByRole('dialog', { name: /Open dispute/i })
+    expect(within(dialog).getByText('SIB-MOHK0P3K')).toBeInTheDocument()
+
+    fireEvent.click(within(dialog).getByRole('button', { name: /Confirm dispute/i }))
+
+    await waitFor(() => {
+      expect(mockApp.adminOpenDispute).toHaveBeenCalledWith(
+        '11111111-2222-3333-4444-555555555555',
+        'Admin-initiated review',
+      )
+    })
+    expect(mockApp.adminOpenDispute).not.toHaveBeenCalledWith('SIB-MOHK0P3K', expect.anything())
+    expect(mockApp.showToast).toHaveBeenCalledWith('Dispute opened')
+  })
+
+  it('does not show dispute success when the insert fails', async () => {
+    renderPage()
+    mockApp.adminOpenDispute.mockResolvedValue({ ok: false, error: 'invalid input syntax for type uuid' })
+    expandOrder()
+
+    fireEvent.click(screen.getByRole('button', { name: /Open Dispute/i }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: /Open dispute/i })).getByRole('button', { name: /Confirm dispute/i }))
+
+    await waitFor(() => {
+      expect(mockApp.showToast).toHaveBeenCalledWith('Admin action failed: invalid input syntax for type uuid', 'error')
+    })
+    expect(mockApp.showToast).not.toHaveBeenCalledWith('Dispute opened')
   })
 })
