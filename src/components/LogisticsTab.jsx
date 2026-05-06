@@ -578,8 +578,8 @@ export default function LogisticsTab({ orders, getUserById, getListingById, getS
           {deliverySheetRows.length === 0 ? (
             <div className="text-center py-10">
               <Clipboard size={28} className="mx-auto text-gray-300 mb-2" />
-              <p className="text-gray-500 text-sm">No store drop-offs yet.</p>
-              <p className="text-[11px] text-gray-400 mt-1">Rows appear here when a MYconvenience store scans a seller drop-off code.</p>
+              <p className="text-gray-500 text-sm">No logistics rows yet.</p>
+              <p className="text-[11px] text-gray-400 mt-1">Rows appear here automatically when orders are paid.</p>
             </div>
           ) : (
             <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white">
