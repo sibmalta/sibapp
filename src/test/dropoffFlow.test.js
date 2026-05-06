@@ -251,6 +251,18 @@ describe('seller drop-off flow', () => {
     expect(new Set(activePins).size).toBe(activePins.length)
   })
 
+  it('uses logistics delivery sheet rows as the dispatch board status source', () => {
+    const logisticsTab = readFileSync(resolve(root, 'src/components/LogisticsTab.jsx'), 'utf8')
+
+    expect(logisticsTab).toContain('Dispatch board source of truth: logistics_delivery_sheet rows.')
+    expect(logisticsTab).toContain('deliverySheetRows || []')
+    expect(logisticsTab).toContain('item.status === filter')
+    expect(logisticsTab).toContain("status: getDeliveryRowStatus(row)")
+    expect(logisticsTab).toContain("row.deliveryStatus || row.delivery_status || 'awaiting_pickup'")
+    expect(logisticsTab).toContain('Order record unavailable')
+    expect(logisticsTab).not.toContain('getLogistics(o.id).logisticsStatus === filter')
+  })
+
   it('supports drop-off instruction and 24h reminder emails with dedupe keys', () => {
     const sendEmail = readFileSync(resolve(root, 'supabase/functions/send-email/index.ts'), 'utf8')
     const appContext = readFileSync(resolve(root, 'src/context/AppContext.jsx'), 'utf8')

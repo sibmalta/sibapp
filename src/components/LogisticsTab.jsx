@@ -60,6 +60,38 @@ function DropoffStateBadge({ shipment, order }) {
   )
 }
 
+const FAILED_DELIVERY_STATUSES = ['pickup_failed', 'delivery_failed', 'hold_dispute', 'failed', 'exception']
+
+function getDeliveryRowStatus(row = {}) {
+  return row.deliveryStatus || row.delivery_status || 'awaiting_pickup'
+}
+
+function getDeliveryRowOrder(row, orders) {
+  return orders.find(order => order.id === row.orderId) || null
+}
+
+function getDeliveryRowSearchText({ row, order, listing, buyer, seller }) {
+  return [
+    row.orderCode,
+    row.orderId,
+    row.shipmentId,
+    row.itemTitle,
+    row.buyerName,
+    row.buyerSurname,
+    row.buyerLocality,
+    row.sellerName,
+    row.dropoffStoreName,
+    row.dropoffLocationName,
+    row.dropoffStoreAddress,
+    row.pickupZone,
+    row.deliveryStatus,
+    order?.id,
+    listing?.title,
+    buyer?.name,
+    seller?.name,
+  ].filter(Boolean).join(' ').toLowerCase()
+}
+
 /* ── Order detail drawer ───────────────────────────────────── */
 function OrderDrawer({ order, listing, buyer, seller, shipment, logistics, onUpdate, onClose }) {
   const [editing, setEditing] = useState(false)
@@ -415,51 +447,47 @@ export default function LogisticsTab({ orders, getUserById, getListingById, getS
     }
   }, [relevantOrders, testOrderId])
 
-  // Filtered + searched
-  const filteredOrders = useMemo(() => {
-    let result = relevantOrders
+  // Dispatch board source of truth: logistics_delivery_sheet rows.
+  // Orders remain commercial/payment records and are only used for optional display enrichment.
+  const dispatchRows = useMemo(() => {
+    return (deliverySheetRows || []).map(row => {
+      const order = getDeliveryRowOrder(row, orders)
+      const listing = order ? getListingById(order.listingId) : null
+      const buyer = order ? getUserById(order.buyerId) : null
+      const seller = order ? getUserById(order.sellerId) : null
+      return { row, order, listing, buyer, seller, status: getDeliveryRowStatus(row) }
+    })
+  }, [deliverySheetRows, orders, getListingById, getUserById])
+
+  // Filtered + searched delivery sheet rows
+  const filteredDispatchRows = useMemo(() => {
+    let result = dispatchRows
 
     if (filter !== 'all') {
       if (filter === 'failed') {
-        result = result.filter(o => {
-          const lg = getLogistics(o.id)
-          return ['pickup_failed', 'delivery_failed', 'hold_dispute'].includes(lg.logisticsStatus)
-        })
+        result = result.filter(item => FAILED_DELIVERY_STATUSES.includes(item.status))
       } else {
-        result = result.filter(o => getLogistics(o.id).logisticsStatus === filter)
+        result = result.filter(item => item.status === filter)
       }
     }
 
     if (searchQ.trim()) {
       const q = searchQ.toLowerCase()
-      result = result.filter(o => {
-        const listing = getListingById(o.listingId)
-        const buyer = getUserById(o.buyerId)
-        const seller = getUserById(o.sellerId)
-        const lg = getLogistics(o.id)
-        return (
-          o.id?.toLowerCase().includes(q) ||
-          listing?.title?.toLowerCase().includes(q) ||
-          buyer?.name?.toLowerCase().includes(q) ||
-          seller?.name?.toLowerCase().includes(q) ||
-          lg.assignedDriver?.toLowerCase().includes(q)
-        )
-      })
+      result = result.filter(item => getDeliveryRowSearchText(item).includes(q))
     }
 
     return result
-  }, [relevantOrders, filter, searchQ, getLogistics, getListingById, getUserById, logisticsData])
+  }, [dispatchRows, filter, searchQ])
 
   // Counts per status
   const statusCounts = useMemo(() => {
-    const counts = { all: relevantOrders.length, failed: 0 }
-    for (const o of relevantOrders) {
-      const st = getLogistics(o.id).logisticsStatus
+    const counts = { all: dispatchRows.length, failed: 0 }
+    for (const { status: st } of dispatchRows) {
       counts[st] = (counts[st] || 0) + 1
-      if (['pickup_failed', 'delivery_failed', 'hold_dispute'].includes(st)) counts.failed++
+      if (FAILED_DELIVERY_STATUSES.includes(st)) counts.failed++
     }
     return counts
-  }, [relevantOrders, getLogistics, logisticsData])
+  }, [dispatchRows])
 
   const unreadNotifs = logisticsNotifications.filter(n => !n.read).length
 
@@ -679,43 +707,42 @@ export default function LogisticsTab({ orders, getUserById, getListingById, getS
             ))}
           </div>
 
-          <p className="text-[11px] text-gray-500 font-medium mb-2">{filteredOrders.length} order{filteredOrders.length !== 1 ? 's' : ''}</p>
+          <p className="text-[11px] text-gray-500 font-medium mb-2">{filteredDispatchRows.length} logistics row{filteredDispatchRows.length !== 1 ? 's' : ''}</p>
 
-          {filteredOrders.length === 0 ? (
+          {filteredDispatchRows.length === 0 ? (
             <div className="text-center py-10">
               <Package size={28} className="mx-auto text-gray-300 mb-2" />
-              <p className="text-gray-500 text-sm">No orders match this filter.</p>
+              <p className="text-gray-500 text-sm">No logistics rows match this filter.</p>
             </div>
           ) : (
             /* ── Desktop table (hidden on mobile) ─── */
             <>
               {/* Mobile cards */}
               <div className="space-y-2 lg:hidden">
-                {filteredOrders.map(order => {
-                  const listing = getListingById(order.listingId)
-                  const buyer = getUserById(order.buyerId)
-                  const seller = getUserById(order.sellerId)
-                  const lg = getLogistics(order.id)
-                  const shipment = getShipmentByOrderId?.(order.id)
+                {filteredDispatchRows.map(({ row, order, listing, buyer, seller, status }) => {
+                  const shipment = order ? getShipmentByOrderId?.(order.id) : null
+                  const key = row.id || row.shipmentId || row.orderId
                   return (
-                    <button key={order.id} onClick={() => setDrawerOrder(order)}
+                    <button key={key} onClick={() => order && setDrawerOrder(order)}
                       className="w-full text-left rounded-2xl border border-gray-200 p-3 hover:border-blue-200 transition-colors bg-white active:scale-[0.99]">
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-[10px] font-mono text-gray-400">#{order.id?.slice(-8)}</span>
-                        <StatusBadge statusId={lg.logisticsStatus} />
+                        <span className="text-[10px] font-mono text-gray-400">{row.orderCode || `#${row.orderId?.slice(-8)}` || '-'}</span>
+                        <StatusBadge statusId={status} />
                       </div>
-                      <div className="mb-1.5">
-                        <DropoffStateBadge shipment={shipment} order={order} />
-                      </div>
-                      <p className="text-sm font-medium text-gray-900 line-clamp-1">{listing?.title || 'Unknown'}</p>
+                      {order && (
+                        <div className="mb-1.5">
+                          <DropoffStateBadge shipment={shipment} order={order} />
+                        </div>
+                      )}
+                      <p className="text-sm font-medium text-gray-900 line-clamp-1">{row.itemTitle || listing?.title || 'Unknown item'}</p>
                       <div className="flex items-center justify-between mt-1.5 text-[11px] text-gray-500">
-                        <span>{buyer?.name || '?'} → {seller?.name || '?'}</span>
-                        <span>€{order.totalPrice?.toFixed(2)}</span>
+                        <span>{row.buyerName || buyer?.name || '?'} / {row.sellerName || seller?.name || '?'}</span>
+                        <span>{fmtShort(row.droppedOffAt || row.updatedAt)}</span>
                       </div>
                       <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 text-[10px] text-gray-400">
-                        {lg.assignedDriver && <span>🚗 {lg.assignedDriver}</span>}
-                        {lg.pickupDay && <span>📦 {fmtShort(lg.pickupDay)}</span>}
-                        {lg.deliveryDay && <span>🏠 {fmtShort(lg.deliveryDay)}</span>}
+                        {row.dropoffStoreName || row.dropoffLocationName ? <span>{row.dropoffStoreName || row.dropoffLocationName}</span> : null}
+                        {row.pickupZone && <span>{row.pickupZone}</span>}
+                        {!order && <span>Order record unavailable</span>}
                       </div>
                     </button>
                   )
@@ -732,47 +759,49 @@ export default function LogisticsTab({ orders, getUserById, getListingById, getS
                       <th className="px-3 py-2.5 font-semibold text-gray-500 text-[10px] uppercase tracking-wider">Item</th>
                       <th className="px-3 py-2.5 font-semibold text-gray-500 text-[10px] uppercase tracking-wider">Buyer</th>
                       <th className="px-3 py-2.5 font-semibold text-gray-500 text-[10px] uppercase tracking-wider">Seller</th>
-                      <th className="px-3 py-2.5 font-semibold text-gray-500 text-[10px] uppercase tracking-wider">Pickup</th>
-                      <th className="px-3 py-2.5 font-semibold text-gray-500 text-[10px] uppercase tracking-wider">Delivery</th>
-                      <th className="px-3 py-2.5 font-semibold text-gray-500 text-[10px] uppercase tracking-wider">Driver</th>
+                      <th className="px-3 py-2.5 font-semibold text-gray-500 text-[10px] uppercase tracking-wider">Store</th>
+                      <th className="px-3 py-2.5 font-semibold text-gray-500 text-[10px] uppercase tracking-wider">Confirmed</th>
+                      <th className="px-3 py-2.5 font-semibold text-gray-500 text-[10px] uppercase tracking-wider">Timing</th>
                       <th className="px-3 py-2.5 font-semibold text-gray-500 text-[10px] uppercase tracking-wider">Status</th>
                       <th className="px-3 py-2.5 font-semibold text-gray-500 text-[10px] uppercase tracking-wider">Notes</th>
                       <th className="px-3 py-2.5 font-semibold text-gray-500 text-[10px] uppercase tracking-wider"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {filteredOrders.map(order => {
-                      const listing = getListingById(order.listingId)
-                      const buyer = getUserById(order.buyerId)
-                      const seller = getUserById(order.sellerId)
-                      const lg = getLogistics(order.id)
-                      const shipment = getShipmentByOrderId?.(order.id)
+                    {filteredDispatchRows.map(({ row, order, listing, buyer, seller, status }) => {
+                      const shipment = order ? getShipmentByOrderId?.(order.id) : null
+                      const key = row.id || row.shipmentId || row.orderId
                       return (
-                        <tr key={order.id} className="hover:bg-gray-50/50 transition-colors">
-                          <td className="px-3 py-2.5 font-mono text-gray-400 whitespace-nowrap">#{order.id?.slice(-8)}</td>
-                          <td className="px-3 py-2.5 text-gray-500 whitespace-nowrap">{fmtShort(order.createdAt)}</td>
-                          <td className="px-3 py-2.5 text-gray-800 font-medium max-w-[140px] truncate">{listing?.title || '—'}</td>
+                        <tr key={key} className="hover:bg-gray-50/50 transition-colors">
+                          <td className="px-3 py-2.5 font-mono text-gray-400 whitespace-nowrap">{row.orderCode || `#${row.orderId?.slice(-8)}` || '-'}</td>
+                          <td className="px-3 py-2.5 text-gray-500 whitespace-nowrap">{fmtShort(row.createdAt || order?.createdAt)}</td>
+                          <td className="px-3 py-2.5 text-gray-800 font-medium max-w-[140px] truncate">{row.itemTitle || listing?.title || '-'}</td>
                           <td className="px-3 py-2.5 whitespace-nowrap">
-                            <p className="text-gray-800">{order.buyerFullName || buyer?.name || '—'}</p>
-                            <p className="text-[10px] text-gray-400">{order.buyerPhone || buyer?.phone || '—'}</p>
+                            <p className="text-gray-800">{row.buyerName || order?.buyerFullName || buyer?.name || '-'}</p>
+                            <p className="text-[10px] text-gray-400">{row.buyerLocality || row.buyerContact || order?.buyerPhone || buyer?.phone || '-'}</p>
                           </td>
                           <td className="px-3 py-2.5 whitespace-nowrap">
-                            <p className="text-gray-800">{order.sellerName || seller?.name || '—'}</p>
-                            <p className="text-[10px] text-gray-400">{order.sellerPhone || seller?.phone || '—'}</p>
+                            <p className="text-gray-800">{row.sellerName || order?.sellerName || seller?.name || '-'}</p>
+                            <p className="text-[10px] text-gray-400">{order?.sellerPhone || seller?.phone || '-'}</p>
                           </td>
-                          <td className="px-3 py-2.5 text-gray-500 whitespace-nowrap">{lg.pickupDay ? fmtShort(lg.pickupDay) : '—'}</td>
-                          <td className="px-3 py-2.5 text-gray-500 whitespace-nowrap">{lg.deliveryDay ? fmtShort(lg.deliveryDay) : '—'}</td>
-                          <td className="px-3 py-2.5 text-gray-600 whitespace-nowrap">{lg.assignedDriver || '—'}</td>
+                          <td className="px-3 py-2.5 text-gray-500 whitespace-nowrap">{row.dropoffStoreName || row.dropoffLocationName || '-'}</td>
+                          <td className="px-3 py-2.5 text-gray-500 whitespace-nowrap">{fmtShort(row.droppedOffAt)}</td>
+                          <td className="px-3 py-2.5 text-gray-600 whitespace-nowrap">{row.deliveryTiming ? getCourierDeliveryTimingLabel(row.deliveryTiming) : '-'}</td>
                           <td className="px-3 py-2.5">
                             <div className="flex flex-col items-start gap-1">
-                              <StatusBadge statusId={lg.logisticsStatus} />
-                              <DropoffStateBadge shipment={shipment} order={order} />
+                              <StatusBadge statusId={status} />
+                              {order ? <DropoffStateBadge shipment={shipment} order={order} /> : (
+                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border border-gray-200 bg-gray-50 text-gray-500">
+                                  Order unavailable
+                                </span>
+                              )}
                             </div>
                           </td>
-                          <td className="px-3 py-2.5 text-gray-400 max-w-[120px] truncate">{lg.internalNotes || '—'}</td>
+                          <td className="px-3 py-2.5 text-gray-400 max-w-[120px] truncate">{row.notes || '-'}</td>
                           <td className="px-3 py-2.5">
-                            <button onClick={() => setDrawerOrder(order)}
-                              className="p-1.5 rounded-lg bg-gray-100 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                            <button onClick={() => order && setDrawerOrder(order)}
+                              disabled={!order}
+                              className="p-1.5 rounded-lg bg-gray-100 hover:bg-blue-50 hover:text-blue-600 transition-colors disabled:cursor-not-allowed disabled:opacity-40">
                               <Eye size={13} />
                             </button>
                           </td>
@@ -803,3 +832,5 @@ export default function LogisticsTab({ orders, getUserById, getListingById, getS
     </div>
   )
 }
+
+
