@@ -22,14 +22,16 @@ function formatDate(value) {
 
 function SummaryRow({ label, value }) {
   return (
-    <div className="flex items-start justify-between gap-4 rounded-2xl bg-sib-sand px-3 py-2.5 text-sm dark:bg-[#26322f]">
+    <div className="flex flex-col gap-1 rounded-2xl bg-sib-sand px-3 py-2.5 text-sm dark:bg-[#26322f] sm:flex-row sm:items-start sm:justify-between sm:gap-4">
       <span className="text-sib-muted dark:text-[#aeb8b4]">{label}</span>
-      <span className="max-w-[60%] text-right font-semibold text-sib-text dark:text-[#f4efe7]">{value || '-'}</span>
+      <span className="break-words font-semibold text-sib-text dark:text-[#f4efe7] sm:max-w-[65%] sm:text-right">{value || '-'}</span>
     </div>
   )
 }
 
 function StatusNotice({ scanState, result }) {
+  if (scanState?.confirmed) return null
+
   const message = result?.message || scanState?.message
   if (!message) return null
 
@@ -58,6 +60,8 @@ export default function AdminScanDropoffPage() {
   const [verifiedStore, setVerifiedStore] = useState(null)
   const [verifyingPin, setVerifyingPin] = useState(false)
   const [pinError, setPinError] = useState('')
+  const wrongPinMessage = 'Invalid store PIN. Please check the PIN and try again.'
+  const verifyIssueMessage = 'We could not verify the store right now. Please try again.'
 
   const scanPayload = useMemo(() => ({
     orderId: searchParams.get('orderId') || '',
@@ -100,11 +104,21 @@ export default function AdminScanDropoffPage() {
     setVerifiedStore(null)
     try {
       const { data, error } = await identifyPublicDropoffStoreByPin({ storePin })
-      if (error || !data) {
-        setPinError('Invalid store PIN')
+      if (error?.message === 'Invalid store PIN') {
+        setPinError(wrongPinMessage)
+        return
+      }
+      if (error) {
+        setPinError(verifyIssueMessage)
+        return
+      }
+      if (!data) {
+        setPinError(wrongPinMessage)
         return
       }
       setVerifiedStore(data)
+    } catch {
+      setPinError(verifyIssueMessage)
     } finally {
       setVerifyingPin(false)
     }
@@ -194,7 +208,9 @@ export default function AdminScanDropoffPage() {
               <SummaryRow label="Order code" value={scan?.orderCode} />
               <SummaryRow label="Parcel" value={scan?.itemTitle || 'Seller parcel'} />
               <SummaryRow label="Status" value={scanState.statusLabel} />
-              <SummaryRow label="Confirmed at" value={formatDate(scan?.confirmedAt)} />
+              {confirmed && (
+                <SummaryRow label="Confirmed at" value={formatDate(scanState.confirmedAt || scan?.confirmedAt)} />
+              )}
               {confirmed && (
                 <SummaryRow label="Store" value={storeName || 'Not provided'} />
               )}
@@ -261,15 +277,17 @@ export default function AdminScanDropoffPage() {
                 </div>
               )}
 
-              <button
-                type="button"
-                onClick={confirmed ? undefined : handleConfirm}
-                disabled={confirmed ? false : (!canConfirm || confirming)}
-                className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-sib-primary px-4 py-3 text-sm font-black text-white transition hover:bg-sib-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {confirming ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-                {confirming ? 'Confirming...' : confirmed ? 'Done' : 'Confirm parcel received'}
-              </button>
+              {!confirmed && (
+                <button
+                  type="button"
+                  onClick={handleConfirm}
+                  disabled={!canConfirm || confirming}
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-sib-primary px-4 py-3 text-sm font-black text-white transition hover:bg-sib-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {confirming ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
+                  {confirming ? 'Confirming...' : 'Confirm parcel received'}
+                </button>
+              )}
             </div>
           )}
         </div>
