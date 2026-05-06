@@ -12,12 +12,6 @@ import { useLogistics, LOGISTICS_STATUSES, LOGISTICS_FILTER_PRESETS } from '../h
 import { isDropoffConfirmed } from '../lib/dropoffQr'
 import { getCourierDeliveryTimingLabel } from '../lib/courierDeliveryTiming'
 
-const TEST_DROPOFF_STORE = {
-  id: '00000000-0000-4000-8000-000000000101',
-  name: 'MY Sliema - Dingli Street',
-  address: 'Dingli Street, Sliema',
-}
-
 /* ── helpers ───────────────────────────────────────────────── */
 function fmtDate(d) {
   if (!d) return '—'
@@ -414,7 +408,7 @@ function FormField({ label, children }) {
 /* ══════════════════════════════════════════════════════════════
    MAIN EXPORT — LogisticsTab
    ══════════════════════════════════════════════════════════════ */
-export default function LogisticsTab({ orders, getUserById, getListingById, getShipmentByOrderId, deliverySheetRows = [], markShipmentDroppedOff, loading = false, showToast }) {
+export default function LogisticsTab({ orders, getUserById, getListingById, getShipmentByOrderId, deliverySheetRows = [], loading = false, showToast }) {
   const {
     logisticsData, logisticsNotifications, getLogistics, updateLogistics, initOrder,
     markNotifRead, clearNotifs,
@@ -424,8 +418,6 @@ export default function LogisticsTab({ orders, getUserById, getListingById, getS
   const [searchQ, setSearchQ] = useState('')
   const [drawerOrder, setDrawerOrder] = useState(null)
   const [viewMode, setViewMode] = useState('dispatch') // 'dispatch' | 'driver' | 'sheet' | 'notifications'
-  const [testOrderId, setTestOrderId] = useState('')
-  const [testDropOffLoading, setTestDropOffLoading] = useState(false)
 
   // Auto-init paid orders that don't have logistics records yet
   useEffect(() => {
@@ -440,12 +432,6 @@ export default function LogisticsTab({ orders, getUserById, getListingById, getS
   const relevantOrders = useMemo(() => {
     return orders.filter(o => ['paid', 'shipped', 'delivered'].includes(o.trackingStatus) || o.paidAt)
   }, [orders])
-
-  useEffect(() => {
-    if (!testOrderId && relevantOrders.length > 0) {
-      setTestOrderId(relevantOrders[0].id)
-    }
-  }, [relevantOrders, testOrderId])
 
   // Dispatch board source of truth: logistics_delivery_sheet rows.
   // Orders remain commercial/payment records and are only used for optional display enrichment.
@@ -496,56 +482,8 @@ export default function LogisticsTab({ orders, getUserById, getListingById, getS
     showToast?.('Logistics updated')
   }
 
-  const handleTestDropOff = async () => {
-    if (!testOrderId) return
-    console.log('Dropping off order:', testOrderId)
-    setTestDropOffLoading(true)
-    try {
-      const result = await markShipmentDroppedOff(testOrderId, TEST_DROPOFF_STORE)
-      if (!result?.error) setViewMode('sheet')
-    } finally {
-      setTestDropOffLoading(false)
-    }
-  }
-
   return (
     <div>
-      <div className="mb-4 rounded-3xl border-2 border-amber-400 bg-amber-50 p-4 shadow-sm">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-          <div className="flex-1">
-            <p className="text-sm font-black uppercase tracking-wider text-amber-800">MVP TEST: Mark Shipment Dropped Off</p>
-            <p className="mt-1 text-xs font-medium text-amber-700">
-              Select a paid order and run the real MYconvenience scan flow for {TEST_DROPOFF_STORE.name}.
-            </p>
-            <select
-              value={testOrderId}
-              onChange={e => setTestOrderId(e.target.value)}
-              className="mt-3 w-full rounded-2xl border border-amber-300 bg-white px-3 py-2.5 text-sm font-semibold text-gray-800 outline-none focus:border-amber-500"
-            >
-              {relevantOrders.length === 0 ? (
-                <option value="">No paid orders available</option>
-              ) : relevantOrders.map(order => {
-                const listing = getListingById(order.listingId)
-                const shipment = getShipmentByOrderId?.(order.id)
-                return (
-                  <option key={order.id} value={order.id}>
-                    #{order.id?.slice(-8)} - {listing?.title || 'Unknown item'}{shipment ? '' : ' (no shipment yet)'}
-                  </option>
-                )
-              })}
-            </select>
-          </div>
-          <button
-            type="button"
-            onClick={handleTestDropOff}
-            disabled={!testOrderId || testDropOffLoading}
-            className="rounded-2xl bg-amber-600 px-5 py-3 text-sm font-black text-white shadow-sm transition-colors hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {testDropOffLoading ? 'Marking dropped off...' : 'Mark Dropped Off (MY Sliema)'}
-          </button>
-        </div>
-      </div>
-
       {loading && (
         <div className="mb-3 rounded-2xl border border-gray-200 bg-white p-3 text-xs font-semibold text-gray-500">
           Loading logistics data...

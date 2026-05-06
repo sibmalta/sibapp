@@ -114,7 +114,7 @@ export default function AdminPage() {
     deleteListing, flagListing, hideListing, updateStyleTags,
     adminOpenDispute, DISPUTE_REASONS,
     updateSellerBadges,
-    getShipmentByOrderId, markShipmentDroppedOff, adminCreateShipmentShortcut,
+    getShipmentByOrderId, adminCreateShipmentShortcut,
   } = useApp()
   const navigate = useNavigate()
   const loadedAdminTabsRef = useRef(new Set())
@@ -548,7 +548,6 @@ export default function AdminPage() {
             getListingById={getListingById}
             getShipmentByOrderId={getShipmentByOrderId}
             deliverySheetRows={logisticsDeliverySheet}
-            markShipmentDroppedOff={markShipmentDroppedOff}
             loading={ordersLoading || shipmentsLoading || logisticsDeliverySheetLoading}
             showToast={showToast}
           />
