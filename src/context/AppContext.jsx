@@ -2491,13 +2491,13 @@ export function AppProvider({ children }) {
     const order = orders.find(o => o.id === orderId)
     if (!order) {
       showToast('Order not found', 'error')
-      return
+      return { ok: false, error: 'Order not found' }
     }
 
     const accessToken = authSession?.access_token
     if (!accessToken) {
       showToast('You must be signed in to release payouts', 'error')
-      return
+      return { ok: false, error: 'You must be signed in to release payouts' }
     }
 
     // Call Stripe Transfer Edge Function — it also updates the order in DB
@@ -2511,7 +2511,7 @@ export function AppProvider({ children }) {
     } catch (stripeErr) {
       console.error('[releasePayout] Stripe transfer failed:', stripeErr.message)
       showToast('Stripe transfer failed: ' + stripeErr.message, 'error')
-      return
+      return { ok: false, error: stripeErr.message || 'Stripe transfer failed' }
     }
 
     // Refresh orders from DB to pick up the Edge Function's updates
@@ -2529,6 +2529,7 @@ export function AppProvider({ children }) {
         buyerId: order.buyerId,
       })
     }
+    return { ok: true }
   }, [orders, users, listings, authSession, refreshOrders, showToast])
 
   const refundOrder = useCallback(async (orderId) => {
@@ -2573,15 +2574,7 @@ export function AppProvider({ children }) {
     if (error) {
       console.error('[resolveDispute] DB write failed:', error.message)
       showToast('Failed to resolve dispute: ' + error.message, 'error')
-      return
-    }
-    if (resolution === 'refunded') {
-      const dispute = disputes.find(d => d.id === disputeId)
-      if (dispute) await refundOrder(dispute.orderId)
-    }
-    if (resolution === 'seller_payout') {
-      const dispute = disputes.find(d => d.id === disputeId)
-      if (dispute) await releasePayout(dispute.orderId)
+      return { ok: false, error: error.message }
     }
     // Send dispute resolved emails to both buyer and seller
     const dispute = disputes.find(d => d.id === disputeId)
@@ -2591,6 +2584,13 @@ export function AppProvider({ children }) {
       const buyer = users.find(u => u.id === dispute.buyerId)
       const seller = users.find(u => u.id === dispute.sellerId)
       const orderRef = order?.orderRef || order?.id || 'N/A'
+      const outcome = resolution === 'refunded'
+        ? 'Buyer refunded.'
+        : resolution === 'seller_payout'
+          ? 'Funds released to seller.'
+          : 'Dispute closed.'
+      addNotification({ userId: dispute.buyerId, orderId: order?.id, type: 'dispute_resolved', title: 'Dispute resolved', message: outcome })
+      addNotification({ userId: dispute.sellerId, orderId: order?.id, type: 'dispute_resolved', title: 'Dispute resolved', message: outcome })
       if (buyer?.email) sendDisputeResolvedEmail(buyer.email, buyer.name, orderRef, resolution, {
         related_entity_type: 'dispute',
         related_entity_id: dispute.id,
@@ -2610,7 +2610,8 @@ export function AppProvider({ children }) {
         buyerId: dispute.buyerId,
       })
     }
-  }, [disputes, orders, users, listings, dbPatchDispute, refundOrder, releasePayout, showToast])
+    return { ok: true }
+  }, [disputes, orders, users, listings, addNotification, dbPatchDispute, showToast])
 
   // ── Admin: cancel order ──────────────────────────────────────────
   const cancelOrder = useCallback(async (orderId) => {

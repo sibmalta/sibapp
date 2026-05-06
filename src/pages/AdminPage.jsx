@@ -405,13 +405,30 @@ export default function AdminPage() {
         }
         showToast('Dispute opened')
       } else if (type === 'dispute_refund') {
-        await resolveDispute(dispute.id, 'refunded')
+        const refundResult = await refundOrder(order.id)
+        if (refundResult?.ok === false || refundResult?.error) {
+          throw new Error(refundResult?.error?.message || refundResult?.error || 'Refund failed')
+        }
+        const resolveResult = await resolveDispute(dispute.id, 'refunded')
+        if (resolveResult?.ok === false || resolveResult?.error) {
+          throw new Error(resolveResult?.error?.message || resolveResult?.error || 'Could not close dispute')
+        }
         showToast('Dispute resolved - buyer refunded')
       } else if (type === 'dispute_payout') {
-        await resolveDispute(dispute.id, 'seller_payout')
+        const payoutResult = await releasePayout(order.id)
+        if (payoutResult?.ok === false || payoutResult?.error) {
+          throw new Error(payoutResult?.error?.message || payoutResult?.error || 'Payout release failed')
+        }
+        const resolveResult = await resolveDispute(dispute.id, 'seller_payout')
+        if (resolveResult?.ok === false || resolveResult?.error) {
+          throw new Error(resolveResult?.error?.message || resolveResult?.error || 'Could not close dispute')
+        }
         showToast('Dispute resolved - seller paid')
       } else if (type === 'dispute_dismiss') {
-        await resolveDispute(dispute.id, 'dismissed')
+        const resolveResult = await resolveDispute(dispute.id, 'dismissed')
+        if (resolveResult?.ok === false || resolveResult?.error) {
+          throw new Error(resolveResult?.error?.message || resolveResult?.error || 'Could not close dispute')
+        }
         showToast('Dispute dismissed')
       }
       setAdminActionModal(null)
@@ -969,6 +986,13 @@ export default function AdminPage() {
                 const listing = getListingById(d.listingId || order?.listingId)
                 const isExpanded = expandedDispute === d.id
                 const typeLabels = DISPUTE_REASONS || { not_as_described: 'Not as described', not_received: 'Item not received', delivery_issue: 'Delivery issue', wrong_item: 'Wrong item received', damaged: 'Item damaged', admin_review: 'Admin review' }
+                const relatedConvo = (conversations || []).find(c =>
+                  c.orderId === d.orderId ||
+                  c.order_id === d.orderId ||
+                  c.listingId === (d.listingId || order?.listingId) ||
+                  c.listing_id === (d.listingId || order?.listingId) ||
+                  ((c.participants || []).includes(d.buyerId) && (c.participants || []).includes(d.sellerId))
+                )
                 return (
                   <div key={d.id} className={`rounded-2xl border ${isActiveDisputeStatus(d.status) ? 'border-orange-200 bg-orange-50/30' : 'border-sib-ash'}`}>
                     <button onClick={() => setExpandedDispute(isExpanded ? null : d.id)} className="w-full flex items-center gap-3 p-3 text-left">
@@ -1010,6 +1034,25 @@ export default function AdminPage() {
                         <div className="p-2.5 rounded-xl bg-white border border-sib-ash">
                           <p className="text-[10px] font-semibold text-sib-muted mb-1">Reason / details</p>
                           <p className="text-xs text-sib-text leading-snug">{d.details || d.reason || 'No details provided.'}</p>
+                        </div>
+
+                        <div className="p-2.5 rounded-xl bg-sib-sand border border-sib-ash">
+                          <p className="text-xs text-sib-muted leading-snug">
+                            Use chat to request evidence from buyer/seller. Review messages, listing photos, order details, and logistics history before deciding.
+                          </p>
+                          {relatedConvo ? (
+                            <button
+                              onClick={() => {
+                                setTab('chats')
+                                setExpandedChat(relatedConvo.id)
+                              }}
+                              className="mt-2 w-full py-2 bg-white text-sib-primary text-[11px] font-semibold rounded-xl flex items-center justify-center gap-1 border border-sib-ash active:scale-95"
+                            >
+                              <MessageSquare size={11} /> View chat
+                            </button>
+                          ) : (
+                            <p className="mt-2 text-[11px] font-semibold text-sib-muted">No chat found</p>
+                          )}
                         </div>
 
                         {d.status === 'resolved' && d.resolution && (
