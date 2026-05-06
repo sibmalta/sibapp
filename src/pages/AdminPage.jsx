@@ -16,7 +16,7 @@ import { SELLER_BADGE_DEFS } from '../components/SellerTrustBadges'
 import LogisticsTab from '../components/LogisticsTab'
 import { buildAdminShipmentPayload, formatAdminShipmentPayload } from '../lib/adminShipment'
 import { ADMIN_ORDER_STATUSES, filterAdminOrders } from '../lib/adminOrders'
-import { isActiveDisputeStatus, sortDisputesForAdmin } from '../lib/disputes'
+import { getDisputeMessagesForDispute, isActiveDisputeStatus, sortDisputesForAdmin } from '../lib/disputes'
 
 const TABS = [
   { id: 'orders', label: 'Orders', icon: ShoppingBag },
@@ -185,13 +185,13 @@ function detectFlags(text) {
 
 export default function AdminPage() {
   const {
-    currentUser, users, listings, orders, ordersLoading, shipmentsLoading, logisticsDeliverySheetLoading, conversations, disputes, disputesLoading, logisticsDeliverySheet,
+    currentUser, users, listings, orders, ordersLoading, shipmentsLoading, logisticsDeliverySheetLoading, conversations, disputes, disputeMessages, disputesLoading, logisticsDeliverySheet,
     updateOrderStatus, refundOrder, holdPayout, releasePayout, cancelOrder,
     suspendUser, banUser, restoreUser,
-    resolveDispute, showToast,
+    resolveDispute, showToast, addDisputeMessage,
     getUserById, getListingById, getUserListings, getUserOrders, getUserSales,
     getUserConversations,
-    refreshOrders, refreshDisputes, refreshShipments, refreshLogisticsDeliverySheet,
+    refreshOrders, refreshDisputes, refreshDisputeMessages, refreshShipments, refreshLogisticsDeliverySheet,
     deleteListing, flagListing, hideListing, updateStyleTags,
     adminOpenDispute, DISPUTE_REASONS,
     updateSellerBadges,
@@ -213,6 +213,7 @@ export default function AdminPage() {
   const [adminActionModal, setAdminActionModal] = useState(null)
   const [adminActionProcessing, setAdminActionProcessing] = useState(false)
   const [refundConfirmationText, setRefundConfirmationText] = useState('')
+  const [adminDisputeMessages, setAdminDisputeMessages] = useState({})
 
   // ── Email logs from DB ────────────────────────────────────────
   const [emailLogs, setEmailLogs] = useState([])
@@ -263,9 +264,10 @@ export default function AdminPage() {
     }
     if (tab === 'disputes') {
       refreshDisputes()
+      refreshDisputeMessages?.()
       refreshOrders()
     }
-  }, [currentUser?.isAdmin, tab, refreshOrders, refreshDisputes, refreshShipments, refreshLogisticsDeliverySheet])
+  }, [currentUser?.isAdmin, tab, refreshOrders, refreshDisputes, refreshDisputeMessages, refreshShipments, refreshLogisticsDeliverySheet])
 
   const pendingOrders = orders.filter(o => o.trackingStatus === 'pending')
   const sortedDisputes = useMemo(() => sortDisputesForAdmin(disputes || []), [disputes])
@@ -338,6 +340,23 @@ export default function AdminPage() {
     })
     if (suspiciousCount > 0) flags.push({ label: `${suspiciousCount} flagged msg${suspiciousCount > 1 ? 's' : ''}`, color: 'text-red-600 bg-red-50' })
     return flags
+  }
+
+  const handleAdminDisputeMessage = async (dispute) => {
+    const message = String(adminDisputeMessages[dispute.id] || '').trim()
+    if (!message) return
+    const result = await addDisputeMessage(dispute.id, message, {
+      fromAdmin: true,
+      senderRole: 'admin',
+      senderProfileId: currentUser.id,
+    })
+    if (result?.ok === false) {
+      showToast(result.error || 'Could not add dispute message.', 'error')
+      return
+    }
+    setAdminDisputeMessages(prev => ({ ...prev, [dispute.id]: '' }))
+    refreshDisputeMessages?.()
+    showToast('Dispute message added')
   }
 
   const handleCreateShipmentShortcut = async (order, buyer) => {
@@ -985,6 +1004,7 @@ export default function AdminPage() {
                 const order = orders.find(o => o.id === d.orderId)
                 const listing = getListingById(d.listingId || order?.listingId)
                 const isExpanded = expandedDispute === d.id
+                const timeline = getDisputeMessagesForDispute(disputeMessages || [], d.id)
                 const typeLabels = DISPUTE_REASONS || { not_as_described: 'Not as described', not_received: 'Item not received', delivery_issue: 'Delivery issue', wrong_item: 'Wrong item received', damaged: 'Item damaged', admin_review: 'Admin review' }
                 const relatedConvo = (conversations || []).find(c =>
                   c.orderId === d.orderId ||
@@ -1034,6 +1054,42 @@ export default function AdminPage() {
                         <div className="p-2.5 rounded-xl bg-white border border-sib-ash">
                           <p className="text-[10px] font-semibold text-sib-muted mb-1">Reason / details</p>
                           <p className="text-xs text-sib-text leading-snug">{d.details || d.reason || 'No details provided.'}</p>
+                        </div>
+
+                        <div className="p-2.5 rounded-xl bg-white border border-sib-ash">
+                          <p className="text-[10px] font-semibold text-sib-muted mb-2">Dispute timeline / evidence</p>
+                          {timeline.length === 0 ? (
+                            <p className="text-xs text-sib-muted">No dispute messages yet.</p>
+                          ) : (
+                            <div className="space-y-2">
+                              {timeline.map(message => (
+                                <div key={message.id} className="rounded-xl bg-sib-sand px-3 py-2">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <p className="text-[10px] font-black uppercase text-sib-muted">{message.senderRole}</p>
+                                    <p className="text-[10px] text-sib-muted">{formatDate(message.createdAt)}</p>
+                                  </div>
+                                  <p className="mt-1 text-xs text-sib-text leading-snug">{message.message}</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {isActiveDisputeStatus(d.status) && (
+                            <div className="mt-2 flex gap-2">
+                              <input
+                                value={adminDisputeMessages[d.id] || ''}
+                                onChange={event => setAdminDisputeMessages(prev => ({ ...prev, [d.id]: event.target.value }))}
+                                placeholder="Add admin message..."
+                                className="min-w-0 flex-1 rounded-xl border border-sib-ash px-3 py-2 text-xs outline-none focus:border-sib-primary"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleAdminDisputeMessage(d)}
+                                className="rounded-xl bg-sib-primary px-3 py-2 text-[11px] font-bold text-white"
+                              >
+                                Add
+                              </button>
+                            </div>
+                          )}
                         </div>
 
                         <div className="p-2.5 rounded-xl bg-sib-sand border border-sib-ash">

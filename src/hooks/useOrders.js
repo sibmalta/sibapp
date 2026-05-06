@@ -15,12 +15,18 @@ import {
   fetchLogisticsDeliverySheet, upsertLogisticsDeliverySheetRow,
   insertDropoffScanLog,
 } from '../lib/db/orders'
+import {
+  fetchDisputeMessages,
+  insertDisputeMessage,
+  openDisputeCase,
+} from '../lib/disputes'
 
 export function useOrders() {
   const { supabase, withAuthRetry } = useSupabase()
 
   const [orders, setOrders] = useState([])
   const [disputes, setDisputes] = useState([])
+  const [disputeMessages, setDisputeMessages] = useState([])
   const [payouts, setPayouts] = useState([])
   const [shipments, setShipments] = useState([])
   const [logisticsDeliverySheet, setLogisticsDeliverySheet] = useState([])
@@ -28,6 +34,7 @@ export function useOrders() {
   const [dbError, setDbError] = useState(null)
   const [ordersLoading, setOrdersLoading] = useState(false)
   const [disputesLoading, setDisputesLoading] = useState(false)
+  const [disputeMessagesLoading, setDisputeMessagesLoading] = useState(false)
   const [payoutsLoading, setPayoutsLoading] = useState(false)
   const [shipmentsLoading, setShipmentsLoading] = useState(false)
   const [logisticsDeliverySheetLoading, setLogisticsDeliverySheetLoading] = useState(false)
@@ -102,6 +109,20 @@ export function useOrders() {
     }
     markDbOk()
     setDisputes(prev => prev.map(d => d.id === disputeId ? data : d))
+    return { data, error: null }
+  }, [withAuthRetry, requireDb, markDbOk])
+
+  const createDisputeMessage = useCallback(async (message) => {
+    const check = requireDb()
+    if (!check.ok) return { data: null, error: { message: check.reason } }
+
+    const { data, error } = await withAuthRetry((client) => insertDisputeMessage(client, message))
+    if (error) {
+      console.error('[useOrders] insertDisputeMessage failed:', error.message)
+      return { data: null, error }
+    }
+    markDbOk()
+    setDisputeMessages(prev => [...prev, data])
     return { data, error: null }
   }, [withAuthRetry, requireDb, markDbOk])
 
@@ -226,6 +247,34 @@ export function useOrders() {
     setDisputesLoading(false)
   }, [supabase, dbAvailable, markDbOk])
 
+  const refreshDisputeMessages = useCallback(async () => {
+    if (dbAvailable === false) return
+    setDisputeMessagesLoading(true)
+    const { data, error } = await fetchDisputeMessages(supabase)
+    if (error) {
+      console.error('[useOrders] fetchDisputeMessages failed:', error.message)
+    } else {
+      markDbOk()
+      setDisputeMessages(data || [])
+    }
+    setDisputeMessagesLoading(false)
+  }, [supabase, dbAvailable, markDbOk])
+
+  const createDisputeCase = useCallback(async (payload) => {
+    const check = requireDb()
+    if (!check.ok) return { data: null, error: { message: check.reason } }
+
+    const { data, error } = await withAuthRetry((client) => openDisputeCase(client, payload))
+    if (error) {
+      console.error('[useOrders] openDisputeCase failed:', error.message)
+      return { data: null, error }
+    }
+    markDbOk()
+    await refreshDisputes()
+    await refreshDisputeMessages()
+    return { data, error: null }
+  }, [withAuthRetry, requireDb, markDbOk, refreshDisputes, refreshDisputeMessages])
+
   const refreshPayouts = useCallback(async () => {
     if (dbAvailable === false) return
     setPayoutsLoading(true)
@@ -268,6 +317,7 @@ export function useOrders() {
   return {
     orders,
     disputes,
+    disputeMessages,
     payouts,
     shipments,
     logisticsDeliverySheet,
@@ -275,6 +325,7 @@ export function useOrders() {
     dbError,
     ordersLoading,
     disputesLoading,
+    disputeMessagesLoading,
     payoutsLoading,
     shipmentsLoading,
     logisticsDeliverySheetLoading,
@@ -285,6 +336,8 @@ export function useOrders() {
     patchOrder,
     createDispute,
     patchDispute,
+    createDisputeCase,
+    createDisputeMessage,
     createPayout,
     patchPayout,
     createShipment,
@@ -294,6 +347,7 @@ export function useOrders() {
     createDropoffScanLog,
     refreshOrders,
     refreshDisputes,
+    refreshDisputeMessages,
     refreshPayouts,
     refreshShipments,
     refreshLogisticsDeliverySheet,

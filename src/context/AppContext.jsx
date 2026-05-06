@@ -24,11 +24,11 @@ import { FULFILMENT_PROVIDER, getFulfilmentMethodLabel, getFulfilmentPrice, norm
 import { sendNewOfferSellerEmail } from '../lib/offerEmail'
 import { getOfferCreationBlockReason, isActiveOffer } from '../lib/offerStatus'
 import { createShippingProvider } from '../lib/shippingProvider'
-import { autoReleaseBuyerProtectionOrders, confirmBuyerProtectionOrder, disputeBuyerProtectionOrder } from '../lib/buyerProtectionApi'
+import { autoReleaseBuyerProtectionOrders, confirmBuyerProtectionOrder } from '../lib/buyerProtectionApi'
 import { getDeliveredOrderPatch } from '../lib/buyerProtection'
 import { isLockerEligible } from '../lib/lockerEligibility'
 import { buildAdminShipmentPayload } from '../lib/adminShipment'
-import { isActiveDisputeStatus } from '../lib/disputes'
+import { getEvidenceSenderRole, isActiveDisputeStatus } from '../lib/disputes'
 import { buildDeliverySheetRow } from '../lib/logisticsDeliverySheet'
 import { getOrderCode, isDropoffConfirmed } from '../lib/dropoffQr'
 import { calculateMarketplacePaymentSplit } from '../lib/marketplacePayments'
@@ -237,15 +237,16 @@ export function AppProvider({ children }) {
 
   // ── Supabase-backed orders/disputes/payouts/shipments hook (no localStorage fallback) ────
   const {
-    orders, disputes, payouts: dbPayouts, shipments, logisticsDeliverySheet,
+    orders, disputes, disputeMessages, payouts: dbPayouts, shipments, logisticsDeliverySheet,
     dbAvailable: ordersDbAvailable,
     dbError: ordersDbError,
-    ordersLoading, disputesLoading, payoutsLoading, shipmentsLoading, logisticsDeliverySheetLoading,
+    ordersLoading, disputesLoading, disputeMessagesLoading, payoutsLoading, shipmentsLoading, logisticsDeliverySheetLoading,
     setOrders, setDisputes, setShipments,
     createOrder: dbCreateOrder,
     patchOrder: dbPatchOrder,
-    createDispute: dbCreateDispute,
     patchDispute: dbPatchDispute,
+    createDisputeCase: dbCreateDisputeCase,
+    createDisputeMessage: dbCreateDisputeMessage,
     createPayout: dbCreatePayout,
     patchPayout: dbPatchPayout,
     createShipment: dbCreateShipment,
@@ -253,6 +254,7 @@ export function AppProvider({ children }) {
     patchShipmentByOrderId: dbPatchShipmentByOrderId,
     refreshOrders,
     refreshDisputes,
+    refreshDisputeMessages,
     refreshPayouts,
     refreshShipments,
     upsertDeliverySheetRow,
@@ -1076,49 +1078,23 @@ export function AppProvider({ children }) {
     const type = opts.type || 'not_as_described'
     const description = reason || DISPUTE_REASONS[type] || reason
 
-    let newDispute = null
-    if (source === 'buyer') {
-      try {
-        const result = await disputeBuyerProtectionOrder(disputeOrderId, { type, reason: description })
-        newDispute = result.dispute || { id: result.disputeId, orderId: disputeOrderId, buyerId: order.buyerId, sellerId: order.sellerId, type, reason: description, description, status: 'open', source }
-        await refreshOrders()
-        await refreshDisputes()
-        await refreshNotifications()
-      } catch (error) {
-        console.error('[openDispute] buyer-protection function failed:', error?.message || error)
-        showToast('Failed to open dispute: ' + (error?.message || 'Please try again.'), 'error')
-        return null
-      }
-    } else {
-      const disputePayload = {
-        orderId: disputeOrderId,
-        buyerId: order.buyerId,
-        sellerId: order.sellerId,
-        reason: description,
-        details: description,
-        listingId: order.listingId,
-        status: 'open',
-        adminMessages: [],
-      }
-      console.info('[adminOpenDispute] insert payload', disputePayload)
-      const { data, error: disputeErr, status, statusText } = await dbCreateDispute(disputePayload)
-      console.info('[adminOpenDispute] insert result', { data, error: disputeErr, status, statusText })
-      if (disputeErr) {
-        console.error('[openDispute] DB write failed:', disputeErr)
-        const errorMessage = disputeErr.message || String(disputeErr)
-        showToast('Failed to open dispute: ' + errorMessage, 'error')
-        return source === 'admin' ? { ok: false, error: errorMessage } : null
-      }
-      if (!data) {
-        const errorMessage = 'Dispute insert returned no row.'
-        console.error('[openDispute] DB write failed:', { error: errorMessage, status, statusText })
-        showToast('Failed to open dispute: ' + errorMessage, 'error')
-        return source === 'admin' ? { ok: false, error: errorMessage } : null
-      }
-      newDispute = data
-      const { error: orderErr } = await dbPatchOrder(disputeOrderId, { status: 'disputed', trackingStatus: 'under_review', payoutStatus: 'disputed', disputedAt: new Date().toISOString() })
-      if (orderErr) console.error('[openDispute] order patch failed:', orderErr.message)
+    const { data: newDispute, error: disputeErr } = await dbCreateDisputeCase({
+      orderId: disputeOrderId,
+      reason: description,
+      details: description,
+      type,
+      source,
+    })
+    if (disputeErr || !newDispute) {
+      const errorMessage = disputeErr?.message || 'Dispute insert returned no row.'
+      console.error('[openDispute] workflow failed:', errorMessage)
+      showToast('Failed to open dispute: ' + errorMessage, 'error')
+      return source === 'admin' ? { ok: false, error: errorMessage } : null
     }
+    await refreshOrders()
+    await refreshDisputes()
+    await refreshDisputeMessages()
+    if (source === 'buyer') await refreshNotifications()
 
     if (source !== 'buyer') {
       addNotification({
@@ -1166,11 +1142,11 @@ export function AppProvider({ children }) {
     }
 
     return newDispute
-  }, [orders, disputes, users, addNotification, dbCreateDispute, dbPatchOrder, showToast, refreshOrders, refreshDisputes, refreshNotifications])
+  }, [orders, disputes, users, addNotification, dbCreateDisputeCase, showToast, refreshOrders, refreshDisputes, refreshDisputeMessages, refreshNotifications])
 
   // ── Admin opens dispute on an order ─────────────────────────────
-  const adminOpenDispute = useCallback((orderId, reason) => {
-    return openDispute(orderId, reason || 'Opened for admin review', { type: 'admin_review', source: 'admin' })
+  const adminOpenDispute = useCallback((orderId, reason, details) => {
+    return openDispute(orderId, details || reason || 'Opened for admin review', { type: 'admin_review', source: 'admin' })
   }, [openDispute])
 
   // ── Flag overdue order for admin review (does NOT create dispute) ─
@@ -2647,10 +2623,28 @@ export function AppProvider({ children }) {
   }, [orders, users, listings, addNotification, dbPatchOrder, showToast])
 
   // ── Admin: add message to dispute ────────────────────────────────
-  const addDisputeMessage = useCallback(async (disputeId, message, fromAdmin = true) => {
-    console.info('[addDisputeMessage] dispute-specific messaging is disabled for MVP; use normal chat.', { disputeId, fromAdmin, message })
-    showToast('Use the normal chat for dispute evidence and messages.', 'error')
-  }, [showToast])
+  const addDisputeMessage = useCallback(async (disputeId, message, options = {}) => {
+    const dispute = disputes.find(d => d.id === disputeId)
+    if (!dispute) return { ok: false, error: 'Dispute not found' }
+    const trimmed = String(message || '').trim()
+    if (!trimmed) return { ok: false, error: 'Message is required' }
+
+    const senderRole = options.senderRole || (options.fromAdmin ? 'admin' : getEvidenceSenderRole({ dispute, currentUserId: currentUser?.id }))
+    const senderProfileId = senderRole === 'system' ? null : (options.senderProfileId || currentUser?.id || null)
+    const { data, error } = await dbCreateDisputeMessage({
+      disputeId,
+      orderId: dispute.orderId,
+      senderProfileId,
+      senderRole,
+      message: trimmed,
+      attachments: options.attachments || [],
+    })
+    if (error) {
+      showToast('Failed to add dispute message: ' + error.message, 'error')
+      return { ok: false, error: error.message }
+    }
+    return { ok: true, message: data }
+  }, [currentUser?.id, disputes, dbCreateDisputeMessage, showToast])
 
   // ──────────────────────────────────────────────────────────────────
 
@@ -2983,14 +2977,14 @@ export function AppProvider({ children }) {
 
   return (
     <AppContext.Provider value={{
-      currentUser, users, listings, listingsLoading, listingsLoadingMore, hasMoreListings, orders, ordersLoading, ordersDbAvailable, ordersDbError, conversations, reviews, disputes, disputesLoading, likedListings, payoutProfiles, notifications, offers, bundle, bundleOffers, shipments, shipmentsLoading, logisticsDeliverySheet, logisticsDeliverySheetLoading, toast,
+      currentUser, users, listings, listingsLoading, listingsLoadingMore, hasMoreListings, orders, ordersLoading, ordersDbAvailable, ordersDbError, conversations, reviews, disputes, disputeMessages, disputesLoading, disputeMessagesLoading, likedListings, payoutProfiles, notifications, offers, bundle, bundleOffers, shipments, shipmentsLoading, logisticsDeliverySheet, logisticsDeliverySheetLoading, toast,
       PROTECTION_WINDOW_MS, SHIPPING_DEADLINE_MS,
       login, signup, register, logout, requestPasswordReset, validateResetToken, resetPassword, updateProfile,
       createListing, updateListing, deleteListing, boostListing, unboostListing, flagListing, approveListing, hideListing, updateStyleTags, updateCollectionTags, adminUpdateListingMeta, toggleLike, loadMoreListings,
       placeOrder, getOrCreateConversation, sendMessage, markConversationRead, getUnreadConversationCount, updateOrderStatus,
       confirmDelivery, openDispute, adminOpenDispute, flagOrderOverdue, DISPUTE_REASONS,
       addNotification, markNotificationRead, markAllNotificationsRead, getUserNotifications, refreshNotifications,
-      refreshOrders, refreshDisputes, refreshPayouts, refreshShipments, refreshLogisticsDeliverySheet,
+      refreshOrders, refreshDisputes, refreshDisputeMessages, refreshPayouts, refreshShipments, refreshLogisticsDeliverySheet,
       createOffer, acceptOffer, declineOffer, counterOffer, releaseListingReservation, recoverOfferConversationFromLink, getOfferById, getListingOffers, getUserActiveOfferOnListing,
       pendingPackagePreparationOffer, dismissPackagePreparationPrompt, markOfferPackagePrepared,
       addToBundle, removeFromBundle, clearBundle, isInBundle, calculateBundleFees, placeBundleOrder,

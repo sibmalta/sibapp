@@ -14,6 +14,7 @@ import { getDropoffPendingConfirmationCopy, getOrderFulfilmentMethodLabel, getOr
 import { buildDropoffScanUrl, getOrderCode, getQrCodeImageUrl, isDropoffConfirmed } from '../lib/dropoffQr'
 import { isOrderPaidForDropoff, shouldShowSellerDropoffQr } from '../lib/sellerDropoffPrompt'
 import { getParcelLabelDetails } from '../lib/parcelLabel'
+import { getDisputeMessagesForDispute, getEvidenceSenderRole, isActiveDisputeStatus } from '../lib/disputes'
 
 function formatCountdown(ms) {
   if (ms <= 0) return '00:00:00'
@@ -32,10 +33,10 @@ export default function OrderDetailPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const {
-    orders, getListingById, getUserById, currentUser,
+    orders, disputes, disputeMessages, getListingById, getUserById, currentUser,
     confirmDelivery, openDispute, showToast, PROTECTION_WINDOW_MS,
     getShipmentByOrderId, DISPUTE_REASONS,
-    refreshOrders, refreshShipments, ordersLoading, shipmentsLoading,
+    refreshOrders, refreshShipments, refreshDisputeMessages, addDisputeMessage, ordersLoading, shipmentsLoading,
   } = useApp()
 
   const BUYER_REASONS = ['not_received', 'not_as_described', 'wrong_item', 'damaged']
@@ -43,6 +44,9 @@ export default function OrderDetailPage() {
   const [disputeOpen, setDisputeOpen] = useState(false)
   const [disputeReason, setDisputeReason] = useState('')
   const [disputeType, setDisputeType] = useState('')
+  const [evidenceOpen, setEvidenceOpen] = useState(false)
+  const [evidenceMessage, setEvidenceMessage] = useState('')
+  const [evidenceSubmitting, setEvidenceSubmitting] = useState(false)
   const [countdown, setCountdown] = useState(null)
   const loadedOrderRef = useRef(false)
 
@@ -116,6 +120,9 @@ export default function OrderDetailPage() {
   const isBuyer = currentUser?.id === order.buyerId
   const isSeller = currentUser?.id === order.sellerId
   const other = isBuyer ? seller : buyer
+  const activeDispute = (disputes || []).find(dispute => dispute.orderId === order.id && isActiveDisputeStatus(dispute.status))
+  const activeDisputeMessages = activeDispute ? getDisputeMessagesForDispute(disputeMessages || [], activeDispute.id) : []
+  const evidenceSenderRole = getEvidenceSenderRole({ dispute: activeDispute, currentUserId: currentUser?.id })
 
   const isPaid = isOrderPaidForDropoff(order)
   const isDelivered = order.trackingStatus === 'delivered'
@@ -151,6 +158,25 @@ export default function OrderDetailPage() {
     setDisputeReason('')
     setDisputeType('')
     showToast('Issue reported. We will review your case.')
+  }
+
+  const handleEvidenceSubmit = async () => {
+    const message = evidenceMessage.trim()
+    if (!activeDispute || !evidenceSenderRole || !message || evidenceSubmitting) return
+    setEvidenceSubmitting(true)
+    const result = await addDisputeMessage(activeDispute.id, message, {
+      senderRole: evidenceSenderRole,
+      senderProfileId: currentUser.id,
+    })
+    setEvidenceSubmitting(false)
+    if (result?.ok === false) {
+      showToast(result.error || 'Could not submit evidence.', 'error')
+      return
+    }
+    setEvidenceMessage('')
+    setEvidenceOpen(false)
+    refreshDisputeMessages?.()
+    showToast('Evidence submitted.')
   }
 
   return (
@@ -363,11 +389,11 @@ export default function OrderDetailPage() {
         )}
 
         {/* ── Disputed state ── */}
-        {isDisputed && (
+        {(isDisputed || activeDispute) && (
           <div className="p-4 rounded-2xl bg-red-50 dark:bg-[#26322f] border border-red-200 dark:border-[rgba(242,238,231,0.10)] transition-colors">
             <div className="flex items-center gap-2 mb-1">
               <AlertTriangle size={16} className="text-red-600" />
-              <h2 className="text-sm font-bold text-red-800">Issue reported</h2>
+              <h2 className="text-sm font-bold text-red-800">Dispute under review</h2>
             </div>
             <p className="text-xs text-red-700 leading-relaxed">
               {isBuyer
@@ -375,6 +401,44 @@ export default function OrderDetailPage() {
                 : 'The buyer has reported an issue. Your payout is on hold until this is resolved.'
               }
             </p>
+            {evidenceSenderRole && (
+              <button
+                type="button"
+                onClick={() => setEvidenceOpen(open => !open)}
+                className="mt-3 w-full rounded-xl bg-white px-3 py-2 text-xs font-bold text-red-700 border border-red-100"
+              >
+                Provide Evidence
+              </button>
+            )}
+            {evidenceOpen && (
+              <div className="mt-3 space-y-2">
+                <textarea
+                  value={evidenceMessage}
+                  onChange={event => setEvidenceMessage(event.target.value)}
+                  placeholder="Describe what happened or list the evidence you can provide..."
+                  rows={3}
+                  className="w-full rounded-xl border border-red-200 bg-white p-3 text-sm text-sib-text outline-none focus:border-red-400"
+                />
+                <button
+                  type="button"
+                  onClick={handleEvidenceSubmit}
+                  disabled={!evidenceMessage.trim() || evidenceSubmitting}
+                  className="w-full rounded-xl bg-red-600 px-3 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+                >
+                  {evidenceSubmitting ? 'Submitting...' : 'Submit evidence'}
+                </button>
+              </div>
+            )}
+            {activeDisputeMessages.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {activeDisputeMessages.map(message => (
+                  <div key={message.id} className="rounded-xl bg-white/80 px-3 py-2 text-xs">
+                    <p className="font-bold capitalize text-sib-muted">{message.senderRole}</p>
+                    <p className="mt-0.5 text-sib-text">{message.message}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
