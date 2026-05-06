@@ -31,6 +31,7 @@ const TABS = [
 const STATUS_COLORS = {
   pending: 'bg-yellow-50 text-yellow-700 border-yellow-200',
   paid: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  awaiting_delivery: 'bg-blue-50 text-blue-700 border-blue-200',
   payment_received_seller_payout_pending: 'bg-amber-50 text-amber-700 border-amber-200',
   setup_pending: 'bg-amber-50 text-amber-700 border-amber-200',
   shipped: 'bg-blue-50 text-blue-700 border-blue-200',
@@ -43,6 +44,7 @@ const STATUS_COLORS = {
   transfer_failed: 'bg-red-50 text-red-700 border-red-200',
   blocked_payouts: 'bg-amber-50 text-amber-800 border-amber-200',
   blocked_seller_setup: 'bg-amber-50 text-amber-800 border-amber-200',
+  seller_setup_blocked: 'bg-amber-50 text-amber-800 border-amber-200',
   cancelled: 'bg-gray-100 text-gray-500 border-gray-200',
   under_review: 'bg-purple-50 text-purple-700 border-purple-200',
   open: 'bg-yellow-50 text-yellow-700 border-yellow-200',
@@ -57,10 +59,35 @@ const STATUS_COLORS = {
   flagged: 'bg-orange-50 text-orange-600 border-orange-200',
 }
 
+const STATUS_LABELS = {
+  awaiting_delivery: 'Awaiting Delivery',
+  paid: 'Paid',
+  payment_received_seller_payout_pending: 'Payment Received',
+  setup_pending: 'Setup Pending',
+  shipped: 'Shipped',
+  delivered: 'Delivered',
+  under_review: 'Under Review',
+  held: 'Held',
+  releasable: 'Releasable',
+  released: 'Released',
+  disputed: 'Disputed',
+  transfer_failed: 'Transfer Failed',
+  blocked_payouts: 'Blocked Payouts',
+  blocked_seller_setup: 'Seller Setup Blocked',
+  seller_setup_blocked: 'Seller Setup Blocked',
+  refunded: 'Refunded',
+  cancelled: 'Cancelled',
+}
+
+function getStatusLabel(status) {
+  if (!status) return 'Unknown'
+  return STATUS_LABELS[status] || status.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase())
+}
+
 function Badge({ label, status }) {
   return (
     <span className={`text-[10px] font-semibold capitalize px-2 py-0.5 rounded-full border ${STATUS_COLORS[status] || 'bg-gray-100 text-gray-500 border-gray-200'}`}>
-      {label || status}
+      {label || getStatusLabel(status)}
     </span>
   )
 }
@@ -73,9 +100,31 @@ function formatDate(d) {
 }
 
 function formatAdminOrderFilterLabel(status) {
-  if (status === 'blocked_payouts') return 'Blocked payouts'
-  if (status === 'blocked_seller_setup') return 'Seller setup blocked'
-  return status.replace(/_/g, ' ')
+  if (status === 'all') return 'All'
+  return getStatusLabel(status)
+}
+
+function getAdminOrderItemTitle(order, listing) {
+  return listing?.title || order?.itemTitle || order?.item_title || order?.listingTitle || 'Order item unavailable'
+}
+
+function getAdminOrderWarning(order) {
+  if (order?.payoutStatus === 'blocked_seller_setup' || order?.payoutStatus === 'seller_setup_blocked') {
+    return { label: 'Payout blocked', status: 'seller_setup_blocked' }
+  }
+  if (order?.payoutStatus === 'transfer_failed' || order?.sellerPayoutStatus === 'transfer_failed') {
+    return { label: 'Transfer failed', status: 'transfer_failed' }
+  }
+  if (order?.sellerPayoutStatus === 'setup_pending') {
+    return { label: 'Payout setup pending', status: 'setup_pending' }
+  }
+  if (order?.payoutStatus === 'held') {
+    return { label: 'Funds held', status: 'held' }
+  }
+  if (order?.overdueFlag) {
+    return { label: 'Overdue', status: 'flagged' }
+  }
+  return null
 }
 
 const FLAG_PATTERNS = [
@@ -357,22 +406,22 @@ export default function AdminPage() {
                 const seller = getUserById(order.sellerId)
                 const shipment = getShipmentByOrderId(order.id)
                 const isExpanded = expandedOrder === order.id
+                const itemTitle = getAdminOrderItemTitle(order, listing)
+                const warningBadge = getAdminOrderWarning(order)
                 return (
                   <div key={order.id} className={`rounded-2xl border ${isExpanded ? 'border-sib-primary/30 shadow-sm' : 'border-sib-ash'}`}>
                     <button onClick={() => setExpandedOrder(isExpanded ? null : order.id)} className="w-full p-3 text-left">
                       <div className="flex items-center justify-between mb-1">
                         <p className="text-[10px] font-mono text-sib-muted">#{order.id?.slice(-8)}</p>
                         <div className="flex gap-1">
-                          <Badge status={order.trackingStatus} />
-                          {order.payoutStatus === 'held' && <Badge label="Funds held" status="held" />}
-                          {order.payoutStatus === 'blocked_seller_setup' && <Badge label="Payout blocked: seller setup" status="blocked_seller_setup" />}
-                          {order.sellerPayoutStatus === 'setup_pending' && <Badge label="Payout setup pending" status="setup_pending" />}
-                          {order.payoutStatus === 'released' && <Badge label="Released" status="released" />}
-                          {order.overdueFlag && <Badge label="Overdue" status="flagged" />}
+                          <Badge status={order.trackingStatus || order.status || order.paymentStatus} />
+                          {warningBadge && <Badge label={warningBadge.label} status={warningBadge.status} />}
                         </div>
                       </div>
-                      <p className="text-sm font-medium text-sib-text line-clamp-1">{listing?.title || 'Unknown item'}</p>
-                      <p className="text-xs text-sib-muted mt-0.5">{buyer?.name || '?'} → {seller?.name || '?'} · €{order.totalPrice?.toFixed(2)}</p>
+                      <p className="text-sm font-medium text-sib-text line-clamp-1">{itemTitle}</p>
+                      <p className="text-xs text-sib-muted mt-0.5">
+                        {buyer?.name || 'Unknown buyer'} → {seller?.name || 'Unknown seller'} · €{Number(order.totalPrice || 0).toFixed(2)}
+                      </p>
                       <div className="flex items-center justify-between mt-1.5">
                         <p className="text-[10px] text-sib-muted">{formatDate(order.createdAt)}</p>
                         {isExpanded ? <ChevronUp size={13} className="text-sib-muted" /> : <ChevronDown size={13} className="text-sib-muted" />}
@@ -395,13 +444,13 @@ export default function AdminPage() {
                           </div>
                           <div className="p-2 bg-sib-sand rounded-xl">
                             <p className="text-[10px] text-sib-muted font-medium mb-0.5">Item</p>
-                            <p className="font-semibold text-sib-text line-clamp-1">{listing?.title || '—'}</p>
-                            <p className="text-[10px] text-sib-muted">€{listing?.price?.toFixed(2)}</p>
+                            <p className="font-semibold text-sib-text line-clamp-1">{itemTitle}</p>
+                            <p className="text-[10px] text-sib-muted">€{Number(listing?.price ?? order.itemPrice ?? order.totalPrice ?? 0).toFixed(2)}</p>
                           </div>
                           <div className="p-2 bg-sib-sand rounded-xl">
                             <p className="text-[10px] text-sib-muted font-medium mb-0.5">Total paid</p>
-                            <p className="font-semibold text-sib-text">€{order.totalPrice?.toFixed(2)}</p>
-                            <p className="text-[10px] text-sib-muted">Payout: {order.payoutStatus || 'pending'}</p>
+                            <p className="font-semibold text-sib-text">€{Number(order.totalPrice || 0).toFixed(2)}</p>
+                            <p className="text-[10px] text-sib-muted">Payout: {getStatusLabel(order.payoutStatus || order.sellerPayoutStatus || 'pending')}</p>
                           </div>
                         </div>
 
@@ -422,7 +471,7 @@ export default function AdminPage() {
                           <p>Delivery fee: €{Number(order.deliveryFeeAmount ?? order.deliveryFee ?? 0).toFixed(2)}</p>
                           <p>Platform fee: €{Number(order.platformFeeAmount ?? order.platformFee ?? 0).toFixed(2)}</p>
                           {order.stripeFeeAmount != null && <p>Stripe fee: €{Number(order.stripeFeeAmount).toFixed(2)}</p>}
-                          <p>Payout status: {order.payoutStatus || order.sellerPayoutStatus || 'pending'}</p>
+                          <p>Payout status: {getStatusLabel(order.payoutStatus || order.sellerPayoutStatus || 'pending')}</p>
                           {order.stripeTransferId && <p>Stripe transfer: {order.stripeTransferId}</p>}
                         </div>
 
@@ -521,11 +570,11 @@ export default function AdminPage() {
                             <p className="text-[10px] text-sib-muted mb-1">Override status:</p>
                             <div className="flex gap-1 flex-wrap">
                               {['pending', 'shipped', 'delivered', 'refunded', 'cancelled'].map(s => (
-                                <button key={s} onClick={() => { updateOrderStatus(order.id, s); showToast(`Status → ${s}`) }}
+                                <button key={s} onClick={() => { updateOrderStatus(order.id, s); showToast(`Status → ${getStatusLabel(s)}`) }}
                                   className={`text-[9px] font-semibold px-2 py-1 rounded-full capitalize border transition-colors ${
                                     order.trackingStatus === s ? 'bg-sib-primary text-white border-sib-primary' : 'bg-white text-sib-muted border-sib-ash hover:border-sib-primary hover:text-sib-primary'
                                   }`}>
-                                  {s}
+                                  {getStatusLabel(s)}
                                 </button>
                               ))}
                             </div>

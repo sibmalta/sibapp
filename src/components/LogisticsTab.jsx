@@ -9,6 +9,7 @@ import {
   AlertTriangle, ArrowRight, StickyNote, Filter, Eye, Clipboard,
 } from 'lucide-react'
 import { useLogistics, LOGISTICS_STATUSES, LOGISTICS_FILTER_PRESETS } from '../hooks/useLogistics'
+import { isDropoffConfirmed } from '../lib/dropoffQr'
 import { getCourierDeliveryTimingLabel } from '../lib/courierDeliveryTiming'
 
 /* ── helpers ───────────────────────────────────────────────── */
@@ -21,25 +22,34 @@ function fmtShort(d) {
   try { return new Date(d).toLocaleDateString('en-MT', { day: 'numeric', month: 'short' }) } catch { return d }
 }
 
-const DELIVERY_STATUS_UI = {
-  awaiting_pickup: { label: 'Awaiting Pickup', color: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
-  pickup_booked: { label: 'Pickup Booked', color: 'bg-blue-50 text-blue-700 border-blue-200' },
-  collected: { label: 'Collected', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-  dropped_off: { label: 'Dropped Off', color: 'bg-amber-50 text-amber-700 border-amber-200' },
-  out_for_delivery: { label: 'Out for Delivery', color: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
-  delivered: { label: 'Delivered', color: 'bg-green-50 text-green-700 border-green-200' },
-  pickup_failed: { label: 'Pickup Failed', color: 'bg-red-50 text-red-600 border-red-200' },
-  delivery_failed: { label: 'Delivery Failed', color: 'bg-red-50 text-red-600 border-red-200' },
-  hold_dispute: { label: 'Held / Dispute', color: 'bg-orange-50 text-orange-700 border-orange-200' },
-  failed: { label: 'Failed', color: 'bg-red-50 text-red-600 border-red-200' },
-  exception: { label: 'Exception', color: 'bg-red-50 text-red-600 border-red-200' },
-}
-
 function StatusBadge({ statusId }) {
-  const s = DELIVERY_STATUS_UI[statusId] || { label: 'Unknown', color: 'bg-gray-50 text-gray-600 border-gray-200' }
+  const s = LOGISTICS_STATUSES.find(x => x.id === statusId)
+  if (!s) return <span className="text-[10px] text-gray-500">{statusId}</span>
   return (
     <span className={`text-[10px] font-semibold capitalize px-2 py-0.5 rounded-full border ${s.color}`}>
       {s.label}
+    </span>
+  )
+}
+
+function getDropoffState(shipment, order) {
+  if (isDropoffConfirmed({ order, shipment })) {
+    return {
+      label: 'Drop-off confirmed',
+      className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    }
+  }
+  return {
+    label: 'Awaiting seller drop-off',
+    className: 'border-amber-200 bg-amber-50 text-amber-700',
+  }
+}
+
+function DropoffStateBadge({ shipment, order }) {
+  const state = getDropoffState(shipment, order)
+  return (
+    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${state.className}`}>
+      {state.label}
     </span>
   )
 }
@@ -48,10 +58,6 @@ const FAILED_DELIVERY_STATUSES = ['pickup_failed', 'delivery_failed', 'hold_disp
 
 function getDeliveryRowStatus(row = {}) {
   return row.deliveryStatus || row.delivery_status || 'awaiting_pickup'
-}
-
-function getDeliveryRowItemTitle(row = {}) {
-  return row.itemTitle || row.item_title || 'Parcel'
 }
 
 function getDeliveryRowOrder(row, orders) {
@@ -113,7 +119,7 @@ function OrderDrawer({ order, listing, buyer, seller, shipment, logistics, onUpd
         <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between rounded-t-3xl">
           <div>
             <p className="text-[10px] font-mono text-gray-400">#{order.id?.slice(-8)}</p>
-            <p className="text-sm font-bold text-gray-900">{listing?.title || 'Parcel'}</p>
+            <p className="text-sm font-bold text-gray-900">{listing?.title || 'Unknown item'}</p>
           </div>
           <div className="flex items-center gap-2">
             {!editing ? (
@@ -192,6 +198,10 @@ function OrderDrawer({ order, listing, buyer, seller, shipment, logistics, onUpd
                 <div className="flex items-center gap-2 mb-1.5">
                   <span className="text-[10px] text-gray-400 font-medium">Status:</span>
                   <StatusBadge statusId={logistics.logisticsStatus} />
+                </div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-[10px] text-gray-400 font-medium">Drop-off:</span>
+                  <DropoffStateBadge shipment={shipment} order={order} />
                 </div>
                 <Row label="Pickup Day" value={logistics.pickupDay ? fmtShort(logistics.pickupDay) : '—'} />
                 <Row label="Delivery Day" value={logistics.deliveryDay ? fmtShort(logistics.deliveryDay) : '—'} />
@@ -318,7 +328,7 @@ function DriverView({ orders, getUserById, getListingById, logisticsData, getLog
                 )}
               </div>
 
-              <p className="text-sm font-semibold text-gray-900 mb-1">{listing?.title || 'Parcel'}</p>
+              <p className="text-sm font-semibold text-gray-900 mb-1">{listing?.title || 'Unknown item'}</p>
 
               <div className="space-y-1 text-xs text-gray-600">
                 <div className="flex items-center gap-1.5">
@@ -594,8 +604,8 @@ export default function LogisticsTab({ orders, getUserById, getListingById, getS
                       <td className="px-3 py-2.5 text-xs text-gray-700">{row.pickupZone || "-"}</td>
                       <td className="px-3 py-2.5 text-xs text-gray-600 whitespace-nowrap">{fmtDate(row.droppedOffAt)}</td>
                       <td className="px-3 py-2.5 text-xs font-semibold text-gray-700">{row.deliveryTiming ? getCourierDeliveryTimingLabel(row.deliveryTiming) : "-"}</td>
-                      <td className="px-3 py-2.5"><StatusBadge statusId={getDeliveryRowStatus(row)} /></td>
-                      <td className="px-3 py-2.5 text-xs text-gray-900 font-medium">{getDeliveryRowItemTitle(row)}</td>
+                      <td className="px-3 py-2.5"><StatusBadge statusId={row.deliveryStatus || "dropped_off"} /></td>
+                      <td className="px-3 py-2.5 text-xs text-gray-900 font-medium">{row.itemTitle || "-"}</td>
                       <td className="px-3 py-2.5 text-xs text-gray-700">{row.sellerName || "-"}</td>
                       <td className="px-3 py-2.5 text-xs text-gray-600 max-w-[180px] truncate">{row.buyerDeliveryAddress || "-"}</td>
                       <td className="px-3 py-2.5 text-xs text-gray-600 max-w-[160px] truncate">{row.notes || "-"}</td>
@@ -647,7 +657,8 @@ export default function LogisticsTab({ orders, getUserById, getListingById, getS
             <>
               {/* Mobile cards */}
               <div className="space-y-2 lg:hidden">
-                {filteredDispatchRows.map(({ row, order, buyer, seller, status }) => {
+                {filteredDispatchRows.map(({ row, order, listing, buyer, seller, status }) => {
+                  const shipment = order ? getShipmentByOrderId?.(order.id) : null
                   const key = row.id || row.shipmentId || row.orderId
                   return (
                     <button key={key} onClick={() => order && setDrawerOrder(order)}
@@ -656,7 +667,12 @@ export default function LogisticsTab({ orders, getUserById, getListingById, getS
                         <span className="text-[10px] font-mono text-gray-400">{row.orderCode || `#${row.orderId?.slice(-8)}` || '-'}</span>
                         <StatusBadge statusId={status} />
                       </div>
-                      <p className="text-sm font-medium text-gray-900 line-clamp-1">{getDeliveryRowItemTitle(row)}</p>
+                      {order && (
+                        <div className="mb-1.5">
+                          <DropoffStateBadge shipment={shipment} order={order} />
+                        </div>
+                      )}
+                      <p className="text-sm font-medium text-gray-900 line-clamp-1">{row.itemTitle || listing?.title || 'Unknown item'}</p>
                       <div className="flex items-center justify-between mt-1.5 text-[11px] text-gray-500">
                         <span>{row.buyerName || buyer?.name || '?'} / {row.sellerName || seller?.name || '?'}</span>
                         <span>{fmtShort(row.droppedOffAt || row.updatedAt)}</span>
@@ -690,13 +706,14 @@ export default function LogisticsTab({ orders, getUserById, getListingById, getS
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {filteredDispatchRows.map(({ row, order, buyer, seller, status }) => {
+                    {filteredDispatchRows.map(({ row, order, listing, buyer, seller, status }) => {
+                      const shipment = order ? getShipmentByOrderId?.(order.id) : null
                       const key = row.id || row.shipmentId || row.orderId
                       return (
                         <tr key={key} className="hover:bg-gray-50/50 transition-colors">
                           <td className="px-3 py-2.5 font-mono text-gray-400 whitespace-nowrap">{row.orderCode || `#${row.orderId?.slice(-8)}` || '-'}</td>
                           <td className="px-3 py-2.5 text-gray-500 whitespace-nowrap">{fmtShort(row.createdAt || order?.createdAt)}</td>
-                          <td className="px-3 py-2.5 text-gray-800 font-medium max-w-[140px] truncate">{getDeliveryRowItemTitle(row)}</td>
+                          <td className="px-3 py-2.5 text-gray-800 font-medium max-w-[140px] truncate">{row.itemTitle || listing?.title || '-'}</td>
                           <td className="px-3 py-2.5 whitespace-nowrap">
                             <p className="text-gray-800">{row.buyerName || order?.buyerFullName || buyer?.name || '-'}</p>
                             <p className="text-[10px] text-gray-400">{row.buyerLocality || row.buyerContact || order?.buyerPhone || buyer?.phone || '-'}</p>
@@ -711,7 +728,7 @@ export default function LogisticsTab({ orders, getUserById, getListingById, getS
                           <td className="px-3 py-2.5">
                             <div className="flex flex-col items-start gap-1">
                               <StatusBadge statusId={status} />
-                              {!order && (
+                              {order ? <DropoffStateBadge shipment={shipment} order={order} /> : (
                                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border border-gray-200 bg-gray-50 text-gray-500">
                                   Order unavailable
                                 </span>
