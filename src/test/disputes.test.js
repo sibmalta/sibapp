@@ -53,4 +53,21 @@ describe('dispute handling helpers', () => {
       adminNotes: 'Needs photos',
     })
   })
+
+  it('maps legacy dispute description to details without writing a description column', () => {
+    const row = disputeToRow({
+      orderId: 'order-1',
+      reason: 'Admin review',
+      description: 'Needs admin review',
+      adminMessages: [],
+    })
+
+    expect(row).toMatchObject({
+      order_id: 'order-1',
+      reason: 'Admin review',
+      details: 'Needs admin review',
+      admin_messages: [],
+    })
+    expect(row).not.toHaveProperty('description')
+  })
 })

@@ -76,14 +76,19 @@ export function useOrders() {
     const check = requireDb()
     if (!check.ok) return { data: null, error: { message: check.reason } }
 
-    const { data, error } = await withAuthRetry((client) => insertDispute(client, disputeData))
+    const { data, error, status, statusText } = await withAuthRetry((client) => insertDispute(client, disputeData))
     if (error) {
-      console.error('[useOrders] insertDispute failed:', error.message)
-      return { data: null, error }
+      console.error('[useOrders] insertDispute failed:', { error, status, statusText })
+      return { data: null, error, status, statusText }
+    }
+    if (!data) {
+      const missingRowError = { message: 'Dispute insert returned no row.' }
+      console.error('[useOrders] insertDispute failed:', { error: missingRowError, status, statusText })
+      return { data: null, error: missingRowError, status, statusText }
     }
     markDbOk()
     setDisputes(prev => [data, ...prev])
-    return { data, error: null }
+    return { data, error: null, status, statusText }
   }, [withAuthRetry, requireDb, markDbOk])
 
   const patchDispute = useCallback(async (disputeId, updates) => {

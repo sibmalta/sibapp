@@ -1090,22 +1090,30 @@ export function AppProvider({ children }) {
         return null
       }
     } else {
-      const { data, error: disputeErr } = await dbCreateDispute({
+      const disputePayload = {
         orderId: disputeOrderId,
         buyerId: order.buyerId,
         sellerId: order.sellerId,
-        type,
         reason: description,
-        description,
+        details: description,
+        listingId: order.listingId,
         status: 'open',
-        source,
-        messages: [],
         adminMessages: [],
-      })
+      }
+      console.info('[adminOpenDispute] insert payload', disputePayload)
+      const { data, error: disputeErr, status, statusText } = await dbCreateDispute(disputePayload)
+      console.info('[adminOpenDispute] insert result', { data, error: disputeErr, status, statusText })
       if (disputeErr) {
-        console.error('[openDispute] DB write failed:', disputeErr.message)
-        showToast('Failed to open dispute: ' + disputeErr.message, 'error')
-        return source === 'admin' ? { ok: false, error: disputeErr.message } : null
+        console.error('[openDispute] DB write failed:', disputeErr)
+        const errorMessage = disputeErr.message || String(disputeErr)
+        showToast('Failed to open dispute: ' + errorMessage, 'error')
+        return source === 'admin' ? { ok: false, error: errorMessage } : null
+      }
+      if (!data) {
+        const errorMessage = 'Dispute insert returned no row.'
+        console.error('[openDispute] DB write failed:', { error: errorMessage, status, statusText })
+        showToast('Failed to open dispute: ' + errorMessage, 'error')
+        return source === 'admin' ? { ok: false, error: errorMessage } : null
       }
       newDispute = data
       const { error: orderErr } = await dbPatchOrder(disputeOrderId, { status: 'disputed', trackingStatus: 'under_review', payoutStatus: 'disputed', disputedAt: new Date().toISOString() })

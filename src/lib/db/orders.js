@@ -542,8 +542,8 @@ export function disputeToRow(dispute) {
   if (dispute.listingId !== undefined) row.listing_id = dispute.listingId
   if (dispute.type !== undefined) row.type = dispute.type
   if (dispute.reason !== undefined) row.reason = dispute.reason
-  if (dispute.description !== undefined) row.description = dispute.description
   if (dispute.details !== undefined) row.details = dispute.details
+  else if (dispute.description !== undefined) row.details = dispute.description
   if (dispute.status !== undefined) row.status = dispute.status
   if (dispute.source !== undefined) row.source = dispute.source
   if (dispute.resolution !== undefined) row.resolution = dispute.resolution
@@ -574,13 +574,16 @@ export async function fetchAllDisputes(supabase) {
 export async function insertDispute(supabase, dispute) {
   try {
     const row = disputeToRow(dispute)
-    const { data, error } = await supabase
+    console.info('[insertDispute] payload', row)
+    const { data, error, status, statusText } = await supabase
       .from('disputes')
       .insert(row)
       .select()
       .single()
-    if (error) return { data: null, error }
-    return { data: rowToDispute(data), error: null }
+    console.info('[insertDispute] response', { data, error, status, statusText })
+    if (error) return { data: null, error, status, statusText }
+    if (!data) return { data: null, error: { message: 'Dispute insert returned no row.' }, status, statusText }
+    return { data: rowToDispute(data), error: null, status, statusText }
   } catch (e) {
     return { data: null, error: { message: e.message } }
   }

@@ -401,8 +401,8 @@ export default function AdminPage() {
         showToast('Order cancelled')
       } else if (type === 'dispute') {
         const result = await adminOpenDispute(order.id, 'Admin-initiated review')
-        if (!result || result?.ok === false || result?.error) {
-          throw new Error(result?.error?.message || result?.error || 'Could not open dispute')
+        if (!result || result?.ok === false || result?.error || !result?.id) {
+          throw new Error(result?.error?.message || result?.error || 'Dispute insert returned no row.')
         }
         showToast('Dispute opened')
       } else if (type === 'dispute_freeze') {
