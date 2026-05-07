@@ -13,6 +13,9 @@ function friendlyPayoutError(raw) {
   if (/Stripe Connect is not enabled/i.test(raw) || /Only Stripe Connect platforms/i.test(raw)) {
     return '__CONFIG_MISSING__'
   }
+  if (/test mode/i.test(raw) || /testmode/i.test(raw) || /stripe_account_mode_mismatch/i.test(raw)) {
+    return 'This payout account was created in Stripe test mode. Please restart payout setup with a live account.'
+  }
   if (/failed to fetch/i.test(raw) || /network/i.test(raw) || /timeout/i.test(raw) || /500|502|503|504/.test(raw) || /edge function/i.test(raw)) {
     return "We couldn't connect to our payment provider right now. Please try again in a moment."
   }

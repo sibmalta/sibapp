@@ -9,13 +9,15 @@ import Stripe from 'npm:stripe@14.14.0'
 import { createClient } from 'npm:@supabase/supabase-js@2.45.0'
 
 type StripeConnectBody = {
-  mode?: 'start' | 'status'
+  mode?: 'start' | 'status' | 'reset_invalid_account'
   returnUrl?: string
   refreshUrl?: string
+  confirmation?: string
 }
 
 const PRODUCTION_APP_URL = 'https://sibmalta.com'
 const PAYOUT_SETTINGS_PATH = '/seller/payout-settings'
+const TEST_MODE_ACCOUNT_MESSAGE = 'This payout account was created in Stripe test mode. Please restart payout setup with a live account.'
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -88,6 +90,17 @@ function stripeConnectErrorResponse(error: unknown) {
     )
   }
 
+  if (isStripeModeMismatchError(error)) {
+    return jsonResponse(
+      {
+        error: TEST_MODE_ACCOUNT_MESSAGE,
+        code: 'stripe_account_mode_mismatch',
+        details,
+      },
+      409,
+    )
+  }
+
   return jsonResponse(
     {
       error: message || 'Failed to set up Stripe Connect',
@@ -96,6 +109,47 @@ function stripeConnectErrorResponse(error: unknown) {
     },
     500,
   )
+}
+
+function getStripeKeyMode(stripeKey: string) {
+  if (stripeKey.startsWith('sk_live_')) return 'live'
+  if (stripeKey.startsWith('sk_test_')) return 'test'
+  return 'unknown'
+}
+
+function getExpectedStripeMode() {
+  const explicit = Deno.env.get('STRIPE_MODE')?.trim().toLowerCase()
+  if (explicit === 'live' || explicit === 'test') return explicit
+
+  const environment = [
+    Deno.env.get('APP_ENV'),
+    Deno.env.get('ENVIRONMENT'),
+    Deno.env.get('VERCEL_ENV'),
+    Deno.env.get('SUPABASE_ENV'),
+  ].filter(Boolean).join(' ').toLowerCase()
+
+  if (/\b(production|prod|live)\b/.test(environment)) return 'live'
+  if (/\b(local|development|dev|staging|preview|test)\b/.test(environment)) return 'test'
+
+  const urls = [
+    Deno.env.get('APP_URL'),
+    Deno.env.get('SUPABASE_URL'),
+  ].filter(Boolean)
+
+  if (urls.some((url) => /localhost|127\.0\.0\.1|\.local/i.test(url || ''))) return 'test'
+  if (urls.some((url) => /sibmalta\.com/i.test(url || ''))) return 'live'
+
+  return null
+}
+
+function validateStripeKeyForEnvironment(stripeKey: string) {
+  const keyMode = getStripeKeyMode(stripeKey)
+  const expectedMode = getExpectedStripeMode()
+
+  if (!expectedMode || keyMode === 'unknown' || keyMode === expectedMode) return
+
+  const target = expectedMode === 'live' ? 'Production' : 'Non-production'
+  throw new Error(`${target} payout setup is configured with a Stripe ${keyMode} secret key. Use a Stripe ${expectedMode} secret key for this environment.`)
 }
 
 function isInvalidConnectedAccountError(error: unknown) {
@@ -108,6 +162,14 @@ function isInvalidConnectedAccountError(error: unknown) {
     /No such account/i.test(message) ||
     /account_invalid/i.test(message)
   )
+}
+
+function isStripeModeMismatchError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error)
+  return /test account created with a testmode key/i.test(message)
+    || /can only be used with testmode keys/i.test(message)
+    || /live account created with a livemode key/i.test(message)
+    || /can only be used with livemode keys/i.test(message)
 }
 
 function getServiceRoleClient() {
@@ -230,6 +292,7 @@ Deno.serve(async (req) => {
         500,
       )
     }
+    validateStripeKeyForEnvironment(stripeKey)
 
     const auth = parseUserToken(req)
     if ('error' in auth) {
@@ -260,6 +323,22 @@ Deno.serve(async (req) => {
 
     let accountId = profile?.stripe_account_id || null
 
+    if (mode === 'reset_invalid_account') {
+      if (body.confirmation !== 'RESET_STRIPE_ACCOUNT') {
+        return jsonResponse({ error: 'Reset confirmation is required.' }, 400)
+      }
+
+      await clearStoredStripeAccount(supabase, userId, 'manual reset requested by authenticated seller')
+      return jsonResponse({
+        accountId: null,
+        detailsSubmitted: false,
+        chargesEnabled: false,
+        payoutsEnabled: false,
+        onboardingRequired: true,
+        accountReset: true,
+      })
+    }
+
     if (mode === 'status' && !accountId) {
       return jsonResponse({
         accountId: null,
@@ -281,6 +360,31 @@ Deno.serve(async (req) => {
       const synced = await syncStripeAccountStatus(supabase, stripe, userId, accountId)
       account = synced.account
     } catch (error) {
+      if (isStripeModeMismatchError(error)) {
+        await clearStoredStripeAccount(supabase, userId, error instanceof Error ? error.message : 'stripe mode mismatch')
+
+        if (mode === 'status') {
+          return jsonResponse({
+            accountId: null,
+            detailsSubmitted: false,
+            chargesEnabled: false,
+            payoutsEnabled: false,
+            onboardingRequired: true,
+            accountReset: true,
+            resetReason: 'stripe_account_mode_mismatch',
+          })
+        }
+
+        return jsonResponse(
+          {
+            error: TEST_MODE_ACCOUNT_MESSAGE,
+            code: 'stripe_account_mode_mismatch',
+            accountReset: true,
+          },
+          409,
+        )
+      }
+
       if (!isInvalidConnectedAccountError(error)) throw error
 
       await clearStoredStripeAccount(supabase, userId, error instanceof Error ? error.message : 'invalid connected account')

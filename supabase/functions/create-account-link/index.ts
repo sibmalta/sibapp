@@ -8,6 +8,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.45.0'
 
 const PRODUCTION_APP_URL = 'https://sibmalta.com'
 const PAYOUT_SETTINGS_PATH = '/seller/payout-settings'
+const TEST_MODE_ACCOUNT_MESSAGE = 'This payout account was created in Stripe test mode. Please restart payout setup with a live account.'
 
 function getAppUrl() {
   const configuredUrl = Deno.env.get('APP_URL')?.trim()
@@ -69,6 +70,17 @@ function stripeConnectErrorResponse(error: unknown) {
     )
   }
 
+  if (/test account created with a testmode key/i.test(message) || /can only be used with testmode keys/i.test(message)) {
+    return new Response(
+      JSON.stringify({
+        error: TEST_MODE_ACCOUNT_MESSAGE,
+        code: 'stripe_account_mode_mismatch',
+        details,
+      }),
+      { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+  }
+
   return new Response(
     JSON.stringify({
       error: message || 'Failed to create account link',
@@ -85,6 +97,8 @@ function isInvalidConnectedAccountError(error: unknown) {
   return (
     stripeError?.code === 'account_invalid' ||
     stripeError?.code === 'resource_missing' ||
+    /test account created with a testmode key/i.test(message) ||
+    /can only be used with testmode keys/i.test(message) ||
     /provided key does not have access to account/i.test(message) ||
     /No such account/i.test(message) ||
     /account_invalid/i.test(message)

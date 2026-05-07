@@ -277,6 +277,21 @@ export async function startStripeConnect(accessToken, returnUrl) {
   return data
 }
 
+export async function resetInvalidStripeConnectAccount(accessToken) {
+  if (!isValidSupabaseAccessToken(accessToken)) {
+    throw new Error('Not authenticated. Please log in to reset payout setup.')
+  }
+
+  return callEdgeFunction(
+    'stripe-connect',
+    {
+      mode: 'reset_invalid_account',
+      confirmation: 'RESET_STRIPE_ACCOUNT',
+    },
+    accessToken
+  )
+}
+
 export async function createTransfer(params, accessToken) {
   return callEdgeFunction('create-transfer', params, accessToken)
 }

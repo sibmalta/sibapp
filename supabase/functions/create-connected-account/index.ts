@@ -12,6 +12,8 @@ function isInvalidConnectedAccountError(error: unknown) {
   return (
     stripeError?.code === 'account_invalid' ||
     stripeError?.code === 'resource_missing' ||
+    /test account created with a testmode key/i.test(message) ||
+    /can only be used with testmode keys/i.test(message) ||
     /provided key does not have access to account/i.test(message) ||
     /No such account/i.test(message) ||
     /account_invalid/i.test(message)

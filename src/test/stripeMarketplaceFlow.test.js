@@ -40,4 +40,19 @@ describe('Stripe marketplace payment flow wiring', () => {
     expect(createTransfer).toContain("seller_payout_status: 'paid'")
     expect(createTransfer).toContain("payout_status: 'released'")
   })
+
+  it('guards Stripe Connect payout setup against test/live mode mismatches', () => {
+    const stripeConnect = readFileSync(resolve(root, 'supabase/functions/stripe-connect/index.ts'), 'utf8')
+    const payoutSettings = readFileSync(resolve(root, 'src/pages/PayoutSettingsPage.jsx'), 'utf8')
+    const stripeClient = readFileSync(resolve(root, 'src/lib/stripe.js'), 'utf8')
+
+    expect(stripeConnect).toContain('validateStripeKeyForEnvironment(stripeKey)')
+    expect(stripeConnect).toContain('STRIPE_MODE')
+    expect(stripeConnect).toContain('stripe_account_mode_mismatch')
+    expect(stripeConnect).toContain('This payout account was created in Stripe test mode. Please restart payout setup with a live account.')
+    expect(stripeConnect).toContain("mode?: 'start' | 'status' | 'reset_invalid_account'")
+    expect(stripeConnect).toContain("confirmation !== 'RESET_STRIPE_ACCOUNT'")
+    expect(payoutSettings).toContain('This payout account was created in Stripe test mode. Please restart payout setup with a live account.')
+    expect(stripeClient).toContain('resetInvalidStripeConnectAccount')
+  })
 })
