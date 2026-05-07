@@ -91,7 +91,7 @@ function summarizeOrder(row) {
     id: row.id,
     orderRef: row.order_ref,
     role: isBuyer ? 'buyer' : 'seller',
-    item: row.listing_title || 'Order item',
+    item: row.listing_title || 'your item',
     status: row.status,
     trackingStatus: row.tracking_status,
     fulfilmentStatus: row.fulfilment_status,
@@ -140,7 +140,7 @@ export function detectSupportIntent(message) {
   if (/\b(refund|money back|cancel and refund|want my money back)\b/.test(normalized)) return 'refund'
   if (/\b(dispute|item not as described|not as described|fake|damaged|evidence|seller issue|buyer issue)\b/.test(normalized)) return 'dispute'
   if (/\b(payout|seller payout|when will i get paid|when do i get paid|funds|release funds|get paid)\b/.test(normalized)) return 'payout'
-  if (/\b(where'?s my order|where is my order|order|delivery|arrived|hasn't arrived|hasnt arrived|not arrived|tracking|parcel|package|shipped|bought|purchase)\b/.test(normalized)) return 'order'
+  if (/\b(where'?s my (order|delivery|parcel|package)|where is my (order|delivery|parcel|package)|when will delivery be|order|delivery|arrived|hasn't arrived|hasnt arrived|not arrived|tracking|parcel|package|shipped|bought|purchase)\b/.test(normalized)) return 'order'
   if (/\b(hi|hello|hey|help|support)\b/.test(normalized)) return 'generic'
 
   return 'generic'
@@ -168,7 +168,7 @@ function getLogisticsLabel(status) {
   if (order.deliveredAt) return 'Delivered'
   if (order.trackingStatus) return humanizeStatus(order.trackingStatus)
   if (order.fulfilmentStatus) return humanizeStatus(order.fulfilmentStatus)
-  return 'Not updated yet'
+  return 'Live delivery tracking is not available yet'
 }
 
 function formatOrderLine(status) {
@@ -195,12 +195,26 @@ function buildSingleOrderStatusAnswer(status) {
     `I found your order for ${order.item || 'your item'} (${code}).`,
     `Order status: ${humanizeStatus(order.status) || 'In progress'}.`,
     `Delivery status: ${getLogisticsLabel(status)}.`,
-    `Next step: ${nextStep}.`,
+    `Next step: ${nextStep}`,
   ]
+  if (!status?.logistics && !status?.shipment) {
+    lines.splice(3, 0, 'Live delivery tracking is not available yet, but the order is still on your account.')
+  }
   if (order.dropoffStoreName) lines.push(`Drop-off store: ${order.dropoffStoreName}.`)
   if (order.deliveryTiming) lines.push(`Delivery timing: ${humanizeStatus(order.deliveryTiming)}.`)
   lines.push('If this looks wrong, I can escalate it to Sib support.')
   return lines.join('\n')
+}
+
+export function getDeliveryNextStep(status) {
+  const value = String(status || '').toLowerCase()
+  if (value === 'awaiting_pickup') return 'The seller still needs to drop off or hand over the item.'
+  if (value === 'dropped_off') return 'The item has been dropped off and is waiting for courier pickup.'
+  if (value === 'collected') return 'The courier has collected the item.'
+  if (value === 'out_for_delivery') return 'The courier is delivering it.'
+  if (value === 'delivered') return 'This order is marked as delivered.'
+  if (value === 'paid' || value === 'awaiting_delivery') return 'The order is paid and waiting to enter the delivery flow.'
+  return 'Live delivery tracking is not available yet, but the order is still on your account.'
 }
 
 function getNextStep(status) {
@@ -209,15 +223,13 @@ function getNextStep(status) {
   const shipment = status?.shipment || null
   const deliveryStatus = logistics?.delivery_status || shipment?.status || order.trackingStatus || order.fulfilmentStatus || order.status
 
+  if (!deliveryStatus) return getDeliveryNextStep('unknown')
+
   if (order.refundedAt || order.paymentStatus === 'refunded') return 'The refund has already been recorded.'
   if (order.disputedAt || order.status === 'disputed') return 'Sib support will review the dispute and any evidence.'
-  if (order.deliveredAt || deliveryStatus === 'delivered') return 'Check the parcel and confirm everything is okay.'
-  if (deliveryStatus === 'out_for_delivery') return 'The courier should deliver it soon.'
-  if (deliveryStatus === 'collected') return 'The courier has collected it and delivery is in progress.'
-  if (deliveryStatus === 'dropped_off' || order.dropoffConfirmedAt) return 'MYConvenience has received it and it is awaiting courier collection or delivery processing.'
-  if (deliveryStatus === 'awaiting_delivery' || deliveryStatus === 'awaiting_shipment' || deliveryStatus === 'awaiting_fulfilment') return 'The seller needs to drop off or prepare the parcel.'
-  if (order.status === 'paid') return 'The seller should prepare and drop off the parcel.'
-  return 'Keep an eye on this order. I can escalate it if the status does not change.'
+  if (order.dropoffConfirmedAt && !logistics?.delivery_status && !shipment?.status) return getDeliveryNextStep('dropped_off')
+  if (deliveryStatus === 'awaiting_shipment' || deliveryStatus === 'awaiting_fulfilment') return 'The seller still needs to drop off or hand over the item.'
+  return getDeliveryNextStep(deliveryStatus)
 }
 
 async function loadUserOrdersForSupport(userId) {
@@ -235,14 +247,14 @@ async function buildOrderStatusReply(userId) {
   const { orders, error } = await loadUserOrdersForSupport(userId)
   if (error) {
     return {
-      answer: "I'm having trouble checking that right now. You can try again, or I can escalate this to Sib support.",
+      answer: "I'm having trouble checking live order details right now. If this is urgent, I can send this to Sib support with your account details.",
       usedTools: ['getUserOrders'],
     }
   }
 
   if (!orders.length) {
     return {
-      answer: "I can't see any orders on your account yet. If you bought something using another account, please log in with that account or contact Sib support.",
+      answer: "I can help, but I can't see any orders on this account yet. If you bought the item using another account, please log in with that account. Otherwise, send the item name or seller name and I can help you contact Sib support.",
       usedTools: ['getUserOrders'],
     }
   }

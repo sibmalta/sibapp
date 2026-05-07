@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { handleSupportRequest, runTool, TOOL_DEFINITIONS } from '../../api/ai/support.js'
+import { getDeliveryNextStep, handleSupportRequest, runTool, TOOL_DEFINITIONS } from '../../api/ai/support.js'
 
 const USER_ID = '11111111-1111-4111-8111-111111111111'
 const BUYER_ID = USER_ID
@@ -155,6 +155,21 @@ describe('Sib Support AI tools', () => {
     expect(result.usedTools).toEqual(['getUserOrders', 'getLogisticsStatus'])
   })
 
+  it('answers where is my delivery with no orders using helpful recovery guidance', async () => {
+    setupFetchMock({ orders: [] })
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: 'Where is my delivery?',
+      context: 'General support',
+    })
+
+    expect(result.answer).toContain("I can help, but I can't see any orders on this account yet.")
+    expect(result.answer).toContain('send the item name or seller name')
+    expect(result.answer).not.toContain('trouble checking')
+    expect(result.answer).not.toContain('I could not reach Sib Support AI')
+  })
+
   it('treats a delayed purchase as an order delivery question', async () => {
     setupFetchMock({
       orders: [orderRow({
@@ -195,7 +210,36 @@ describe('Sib Support AI tools', () => {
     expect(result.answer).toContain('Which one do you mean?')
     expect(result.answer).toContain('SIB-FIRST - Blue jacket')
     expect(result.answer).toContain('SIB-SECOND - Black boots')
+    expect(result.answer).not.toContain('I could not reach Sib Support AI')
     expect(result.usedTools).toEqual(['getUserOrders', 'getLogisticsStatus'])
+  })
+
+  it('gives order status when one order has no logistics rows', async () => {
+    setupFetchMock({
+      orders: [orderRow({
+        id: ORDER_ID,
+        order_ref: 'SIB-NO-LOGISTICS',
+        listing_title: '',
+        status: 'paid',
+        tracking_status: null,
+        fulfilment_status: null,
+      })],
+      logisticsRows: [],
+      shipmentRows: [],
+    })
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: 'When will delivery be?',
+      context: 'General support',
+    })
+
+    expect(result.answer).toContain('SIB-NO-LOGISTICS')
+    expect(result.answer).toContain('your item')
+    expect(result.answer).toContain('Live delivery tracking is not available yet')
+    expect(result.answer).toContain('order is still on your account')
+    expect(result.answer).not.toContain('trouble checking')
+    expect(result.answer).not.toContain('I could not reach Sib Support AI')
   })
 
   it('returns a friendly empty state when the user has no orders', async () => {
@@ -207,8 +251,9 @@ describe('Sib Support AI tools', () => {
       context: 'General support',
     })
 
-    expect(result.answer).toContain("I can't see any orders on your account yet.")
+    expect(result.answer).toContain("I can help, but I can't see any orders on this account yet.")
     expect(result.answer).toContain('another account')
+    expect(result.answer).toContain('seller name')
     expect(result.usedTools).toEqual(['getUserOrders'])
   })
 
@@ -221,9 +266,19 @@ describe('Sib Support AI tools', () => {
       context: 'General support',
     })
 
-    expect(result.answer).toContain("I'm having trouble checking that right now")
-    expect(result.answer).toContain('escalate')
+    expect(result.answer).toContain("I'm having trouble checking live order details right now")
+    expect(result.answer).toContain('send this to Sib support')
     expect(result.usedTools).toEqual(['getUserOrders'])
+  })
+
+  it('maps delivery statuses to plain-English next steps', () => {
+    expect(getDeliveryNextStep('awaiting_pickup')).toBe('The seller still needs to drop off or hand over the item.')
+    expect(getDeliveryNextStep('dropped_off')).toBe('The item has been dropped off and is waiting for courier pickup.')
+    expect(getDeliveryNextStep('collected')).toBe('The courier has collected the item.')
+    expect(getDeliveryNextStep('out_for_delivery')).toBe('The courier is delivering it.')
+    expect(getDeliveryNextStep('delivered')).toBe('This order is marked as delivered.')
+    expect(getDeliveryNextStep('paid')).toBe('The order is paid and waiting to enter the delivery flow.')
+    expect(getDeliveryNextStep('')).toBe('Live delivery tracking is not available yet, but the order is still on your account.')
   })
 
   it('never refunds automatically and recommends human support for refund requests', async () => {
