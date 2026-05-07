@@ -141,6 +141,7 @@ export function detectSupportIntent(message) {
   const text = String(message || '').toLowerCase()
   const normalized = text.replace(/[’]/g, "'")
 
+  if (/\b(report a problem|problem with|contact support|contact sib support|escalate|human support|support ticket|talk to support)\b/.test(normalized)) return 'report_problem'
   if (/\b(refund|money back|cancel and refund|want my money back)\b/.test(normalized)) return 'refund'
   if (/\b(dispute|item not as described|not as described|fake|damaged|evidence|seller issue|buyer issue)\b/.test(normalized)) return 'dispute'
   if (/\b(payout|payout pending|where is my payout|seller payout|payment from sale|seller payment|when will i get paid|when do i get paid|when do payouts arrive|why haven't i been paid|why havent i been paid|funds|release funds|get paid)\b/.test(normalized)) return 'payout'
@@ -304,6 +305,48 @@ function hasContextError(context, section) {
   return (context?.errors || []).some(error => error.section === section)
 }
 
+function summarizeSupportContext(context) {
+  if (!context) {
+    return {
+      supportContextLoaded: false,
+      contextCounts: null,
+      sectionErrors: [],
+    }
+  }
+  return {
+    supportContextLoaded: true,
+    contextCounts: {
+      orders: context.orders?.length || 0,
+      buyerOrders: context.buyerOrders?.length || 0,
+      sellerOrders: context.sellerOrders?.length || 0,
+      logistics: context.logisticsRecords?.length || 0,
+      shipments: context.shipmentRecords?.length || 0,
+      disputes: context.disputes?.length || 0,
+      refunds: context.refunds?.length || 0,
+      payoutOrders: context.payouts?.payoutOrders?.length || 0,
+      supportTickets: context.supportTickets?.length || 0,
+    },
+    sectionErrors: (context.errors || []).map(error => ({
+      section: error.section,
+      table: error.table,
+      kind: error.kind,
+      status: error.status,
+      message: error.message,
+    })),
+  }
+}
+
+function logSupportRequest({ userId, message, detectedIntent, hasSession, supportContext }) {
+  logSupportEvent('support_request', {
+    route: '/api/ai/support',
+    userId,
+    message: String(message || '').slice(0, 500),
+    detectedIntent,
+    hasSession,
+    ...summarizeSupportContext(supportContext),
+  })
+}
+
 function getOrderIdList(orders) {
   return [...new Set((orders || []).map(order => order.id).filter(Boolean))]
 }
@@ -356,7 +399,7 @@ export async function getSupportContext(userId) {
       userId,
       errors,
       fallback: [],
-      fn: () => fetchRowsForOrders('logistics_delivery_sheet', 'order_id,delivery_status,dropoff_store_name,dropoff_store_address,dropped_off_at,delivery_timing,pickup_zone,buyer_locality,confirmed_at,updated_at', orderIds, '&order=updated_at.desc'),
+      fn: () => fetchRowsForOrders('logistics_delivery_sheet', '*', orderIds, '&order=updated_at.desc'),
     }),
     loadSupportSection({
       section: 'logistics',
@@ -364,7 +407,7 @@ export async function getSupportContext(userId) {
       userId,
       errors,
       fallback: [],
-      fn: () => fetchRowsForOrders('shipments', 'order_id,id,status,tracking_number,ship_by_deadline,shipped_at,delivered_at,dropoff_store_name,dropoff_store_address,dropped_off_at,current_location,fulfilment_status,delivery_timing', orderIds, '&order=updated_at.desc'),
+      fn: () => fetchRowsForOrders('shipments', '*', orderIds, '&order=updated_at.desc'),
     }),
     loadSupportSection({
       section: 'disputes',
@@ -372,7 +415,7 @@ export async function getSupportContext(userId) {
       userId,
       errors,
       fallback: [],
-      fn: () => fetchRowsForOrders('disputes', 'order_id,id,status,reason,details,source,created_at,resolved_at', orderIds, '&order=created_at.desc'),
+      fn: () => fetchRowsForOrders('disputes', '*', orderIds, '&order=created_at.desc'),
     }),
     loadSupportSection({
       section: 'support_tickets',
@@ -380,7 +423,7 @@ export async function getSupportContext(userId) {
       userId,
       errors,
       fallback: [],
-      fn: () => supabaseFetch(`/rest/v1/support_tickets?user_id=eq.${encodeURIComponent(userId)}&select=id,order_id,category,subject,status,created_at&order=created_at.desc&limit=10`, { serviceRole: true }),
+      fn: () => supabaseFetch(`/rest/v1/support_tickets?user_id=eq.${encodeURIComponent(userId)}&select=*&order=created_at.desc&limit=10`, { serviceRole: true }),
     }),
   ])
 
@@ -698,10 +741,24 @@ async function buildDisputeReply(userId, supportContext) {
     answer: [
       disputedOrders.length > 1
         ? 'I found more than one disputed order. Which one do you mean?'
-        : 'I can help you prepare dispute evidence.',
+        : "I can't see any open disputes on this account.",
       'Useful evidence: clear photos, screenshots, a short explanation, parcel/order details, and delivery or drop-off information.',
       'A human admin reviews dispute outcomes.',
     ].join('\n'),
+    usedTools: ['getSupportContext'],
+  }
+}
+
+function buildReportProblemReply(supportContext) {
+  const recentOrder = supportContext?.orders?.[0] || null
+  logSupportEvent('support_escalation_recommended', { intent: 'report_problem', reason: 'user_requested_support_contact' })
+  return {
+    answer: [
+      'I can connect you with Sib support for this issue.',
+      recentOrder ? `If this is about ${getOrderCode(recentOrder)} - ${recentOrder.item || 'your item'}, include that in the request.` : 'Add the item name, seller name, or order code if you have it.',
+      'Use the support form to send the details to Sib support.',
+    ].join('\n'),
+    action: 'open_support_ticket',
     usedTools: ['getSupportContext'],
   }
 }
@@ -713,18 +770,22 @@ function buildGenericHelpReply() {
   }
 }
 
-async function handleDeterministicIntent(intent, userId, message) {
-  if (!['order', 'payout', 'refund', 'dispute'].includes(intent)) return null
+async function handleDeterministicIntent(intent, userId, message, supportContext, contextError) {
+  if (!['order', 'payout', 'refund', 'dispute', 'report_problem'].includes(intent)) return null
   logSupportEvent('support_intent', { intent })
-  const { supportContext, error } = await loadSupportContext(userId, intent)
-  if (error) {
+  if (contextError) {
     const failure = {
       order: "I'm having trouble checking live order details right now. If this is urgent, I can send this to Sib support with your account details.",
       payout: "I'm having trouble checking payout details right now. If this is urgent, I can send this to Sib support with your account details.",
       refund: "I'm having trouble checking refund details right now. If this is urgent, I can send this to Sib support with your account details.",
       dispute: "I'm having trouble checking your dispute status right now. If this is urgent, I can send this to Sib support with your account details.",
+      report_problem: 'I can connect you with Sib support for this issue. Use the support form to send the details to Sib support.',
     }[intent]
-    return { answer: failure, usedTools: ['getSupportContext'] }
+    return {
+      answer: failure,
+      action: intent === 'report_problem' ? 'open_support_ticket' : undefined,
+      usedTools: ['getSupportContext'],
+    }
   }
 
   switch (intent) {
@@ -736,25 +797,20 @@ async function handleDeterministicIntent(intent, userId, message) {
       return buildRefundReply(userId, message, supportContext)
     case 'dispute':
       return buildDisputeReply(userId, supportContext)
+    case 'report_problem':
+      return buildReportProblemReply(supportContext)
     default:
       return null
   }
 }
 
 async function getCurrentUserProfile(userId) {
-  const rows = await supabaseFetch(`/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=id,username,name,location,is_shop,is_admin,stripe_onboarding_complete,charges_enabled,payouts_enabled`, { serviceRole: true })
+  const rows = await supabaseFetch(`/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=*&limit=1`, { serviceRole: true })
   return sanitizeProfile(rows?.[0])
 }
 
 async function getUserOrders(userId) {
-  const select = [
-    'id', 'order_ref', 'buyer_id', 'seller_id', 'listing_title', 'status', 'tracking_status',
-    'fulfilment_status', 'fulfilment_method', 'delivery_method', 'paid_at', 'dropoff_confirmed_at',
-    'dropoff_store_name', 'dropoff_location_name', 'delivery_timing', 'delivered_at', 'buyer_confirmed_at',
-    'disputed_at', 'payout_status', 'payment_status', 'seller_payout_status', 'refunded_at',
-    'total_price', 'seller_payout_amount', 'seller_payout', 'platform_fee_amount', 'platform_fee',
-    'delivery_fee_amount', 'delivery_fee', 'created_at',
-  ].join(',')
+  const select = '*'
   const query = `/rest/v1/orders?or=(buyer_id.eq.${encodeURIComponent(userId)},seller_id.eq.${encodeURIComponent(userId)})&select=${select}&order=created_at.desc&limit=20`
   const rows = await supabaseFetch(query, { serviceRole: true })
   return (rows || []).map(row => summarizeOrder({ ...row, __viewer_id: userId }))
@@ -943,10 +999,35 @@ export async function handleSupportRequest({ accessToken, message, orderId, cont
   const authUser = await verifyUser(accessToken)
   const userId = authUser.id
   const intent = detectSupportIntent(message)
+  const deterministicIntents = new Set(['order', 'payout', 'refund', 'dispute', 'report_problem'])
 
-  if (!orderId) {
-    const deterministic = await handleDeterministicIntent(intent, userId, message)
-    if (deterministic) return deterministic
+  if (deterministicIntents.has(intent)) {
+    const { supportContext, error } = await loadSupportContext(userId, intent)
+    logSupportRequest({
+      userId,
+      message,
+      detectedIntent: intent,
+      hasSession: Boolean(accessToken),
+      supportContext,
+    })
+    const deterministic = await handleDeterministicIntent(intent, userId, message, supportContext, error)
+    if (deterministic) {
+      const debug = summarizeSupportContext(supportContext)
+      return {
+        ...deterministic,
+        detectedIntent: intent,
+        contextCounts: debug.contextCounts,
+        sectionErrors: debug.sectionErrors,
+      }
+    }
+  } else {
+    logSupportRequest({
+      userId,
+      message,
+      detectedIntent: intent,
+      hasSession: Boolean(accessToken),
+      supportContext: null,
+    })
   }
 
   const initialInput = [
@@ -1004,10 +1085,11 @@ export async function handleSupportRequest({ accessToken, message, orderId, cont
     return {
       answer: extractOutputText(response) || buildGenericHelpReply().answer,
       usedTools,
+      detectedIntent: intent,
     }
   } catch (error) {
     console.error('[support-ai] OpenAI fallback failed:', error?.message || error)
-    return buildGenericHelpReply()
+    return { ...buildGenericHelpReply(), detectedIntent: intent }
   }
 }
 

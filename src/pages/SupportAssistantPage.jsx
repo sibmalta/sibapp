@@ -86,7 +86,9 @@ export default function SupportAssistantPage() {
   }, [currentUser?.name, currentUser?.email, orderId])
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    if (typeof endRef.current?.scrollIntoView === 'function') {
+      endRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    }
   }, [messages, loading])
 
   if (!currentUser) return null
@@ -105,12 +107,26 @@ export default function SupportAssistantPage() {
         orderId,
         context: contextLabel,
       })
+      if (import.meta.env.VITE_DEBUG_SUPPORT_AI === 'true') {
+        console.debug('[Ask Sib]', {
+          message: text,
+          detectedIntent: result.detectedIntent,
+          contextCounts: result.contextCounts,
+          sectionErrors: result.sectionErrors,
+          usedTools: result.usedTools,
+          action: result.action,
+        })
+      }
       setMessages(prev => [...prev, {
         id: `assistant-${Date.now()}`,
         role: 'assistant',
         text: result.answer || 'I could not answer that. You can escalate this to Sib Support.',
       }])
       setAssistantReplyCount(count => count + 1)
+      if (result.action === 'open_support_ticket') {
+        setSupportSent(false)
+        setSupportOpen(true)
+      }
     } catch (error) {
       showToast(error.message || 'Sib Support is unavailable right now.', 'error')
       setMessages(prev => [...prev, {

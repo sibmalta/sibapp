@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import React from 'react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { getDeliveryNextStep, handleSupportRequest, runTool, TOOL_DEFINITIONS } from '../../api/ai/support.js'
 
 const USER_ID = '11111111-1111-4111-8111-111111111111'
@@ -114,10 +117,47 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  cleanup()
   vi.unstubAllEnvs()
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
+  vi.doUnmock('../pages/SupportAssistantPage.jsx')
+  vi.doUnmock('../context/AppContext')
+  vi.doUnmock('../lib/supportAi')
+  vi.doUnmock('../lib/supportTickets')
+  vi.doUnmock('../components/PageHeader')
 })
+
+async function renderSupportAssistantPage({ askResponse } = {}) {
+  vi.resetModules()
+  const askMock = vi.fn().mockResolvedValue(askResponse || {
+    answer: 'Deterministic support answer.',
+    detectedIntent: 'order',
+    contextCounts: { orders: 1 },
+    sectionErrors: [],
+    usedTools: ['getSupportContext'],
+  })
+  vi.doMock('../lib/supportAi', () => ({ askSibSupport: askMock }))
+  vi.doMock('../lib/supportTickets', () => ({
+    createSupportTicket: vi.fn(),
+    uploadSupportAttachments: vi.fn().mockResolvedValue([]),
+  }))
+  vi.doMock('../context/AppContext', () => ({
+    useApp: () => ({
+      currentUser: { id: USER_ID, name: 'Test User', email: 'test@sib.test' },
+      orders: [],
+      showToast: vi.fn(),
+    }),
+  }))
+  vi.doMock('../components/PageHeader', () => ({
+    default: ({ title }) => React.createElement('div', { 'data-testid': 'page-header' }, title),
+  }))
+  const { default: SupportAssistantPage } = await import('../pages/SupportAssistantPage.jsx')
+  render(
+    React.createElement(MemoryRouter, null, React.createElement(SupportAssistantPage))
+  )
+  return { askMock }
+}
 
 describe('Sib Support AI tools', () => {
   it('does not expose financial or admin mutation tools', () => {
@@ -154,12 +194,12 @@ describe('Sib Support AI tools', () => {
       context: 'Order support',
     })
 
-    expect(result.answer).toContain('waiting for drop-off')
-    expect(result.usedTools).toEqual(['getOrderStatus'])
+    expect(result.answer).toContain('seller has not yet handed over the item')
+    expect(result.usedTools).toEqual(['getSupportContext'])
   })
 
   it('answers where is my order directly when the user has one active order', async () => {
-    setupFetchMock({
+    const calls = setupFetchMock({
       orders: [orderRow({
         id: ORDER_ID,
         order_ref: 'SIB-ONE',
@@ -180,6 +220,7 @@ describe('Sib Support AI tools', () => {
     expect(result.answer).toContain('Blue jacket')
     expect(result.answer).toContain('Delivery status: Dropped Off')
     expect(result.usedTools).toEqual(['getSupportContext'])
+    expect(calls.some(call => call.url === 'https://api.openai.com/v1/responses')).toBe(false)
   })
 
   it('answers where is my delivery with no orders using helpful recovery guidance', async () => {
@@ -436,7 +477,7 @@ describe('Sib Support AI tools', () => {
   })
 
   it('gives no-payout-activity guidance when the seller has no seller orders', async () => {
-    setupFetchMock({ orders: [] })
+    const calls = setupFetchMock({ orders: [] })
 
     const result = await handleSupportRequest({
       accessToken: 'user-token',
@@ -447,6 +488,41 @@ describe('Sib Support AI tools', () => {
     expect(result.answer).toContain('I cannot see any payout activity yet on this account.')
     expect(result.answer).toContain('Bank transfers can take several business days')
     expect(result.answer).not.toContain('trouble checking')
+    expect(calls.some(call => call.url === 'https://api.openai.com/v1/responses')).toBe(false)
+  })
+
+  it('returns support ticket action for report a problem without calling OpenAI first', async () => {
+    const calls = setupFetchMock({
+      orders: [orderRow({ id: ORDER_ID, order_ref: 'SIB-REPORT', listing_title: 'Orange top', status: 'paid' })],
+    })
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: 'Report a problem',
+      context: 'General support',
+    })
+
+    expect(result.answer).toContain('I can connect you with Sib support')
+    expect(result.answer).toContain('SIB-REPORT')
+    expect(result.action).toBe('open_support_ticket')
+    expect(result.detectedIntent).toBe('report_problem')
+    expect(calls.some(call => call.url === 'https://api.openai.com/v1/responses')).toBe(false)
+  })
+
+  it('generic hello can call OpenAI', async () => {
+    const calls = setupFetchMock({
+      openAiResponses: [{ output_text: 'Hello from Sib support.' }],
+    })
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: 'hello',
+      context: 'General support',
+    })
+
+    expect(result.answer).toBe('Hello from Sib support.')
+    expect(result.detectedIntent).toBe('generic')
+    expect(calls.some(call => call.url === 'https://api.openai.com/v1/responses')).toBe(true)
   })
 
   it('uses payout-specific failure wording when payout context cannot load orders', async () => {
@@ -657,22 +733,9 @@ describe('Sib Support AI tools', () => {
     expect(result.sellerPayoutStatus).toBeUndefined()
   })
 
-  it('escalates financial/admin requests instead of mutating orders', async () => {
+  it('routes financial/admin requests to human support instead of mutating orders', async () => {
     const calls = setupFetchMock({
-      openAiResponses: [
-        {
-          output: [{
-            type: 'function_call',
-            name: 'createSupportEscalation',
-            call_id: 'call-escalate',
-            arguments: JSON.stringify({
-              orderId: ORDER_ID,
-              reason: 'User requested a buyer refund.',
-            }),
-          }],
-        },
-        { output_text: 'I have escalated this to Sib Support for human review.' },
-      ],
+      orders: [orderRow({ id: ORDER_ID, order_ref: 'SIB-FINANCIAL', listing_title: 'Test parcel', status: 'paid' })],
     })
 
     const result = await handleSupportRequest({
@@ -682,9 +745,99 @@ describe('Sib Support AI tools', () => {
       context: 'Order support',
     })
 
-    expect(result.answer).toContain('escalated')
-    expect(result.usedTools).toEqual(['createSupportEscalation'])
-    expect(calls.some(call => call.url.includes('/rest/v1/support_escalations') && call.init.method === 'POST')).toBe(true)
+    expect(result.answer).toContain('Refunds are always reviewed')
+    expect(result.answer).toContain('I can connect you with Sib support for this issue.')
+    expect(result.usedTools).toEqual(['getSupportContext'])
+    expect(calls.some(call => call.url.includes('/rest/v1/support_escalations') && call.init.method === 'POST')).toBe(false)
     expect(calls.some(call => call.url.includes('/rest/v1/orders') && ['POST', 'PATCH', 'PUT', 'DELETE'].includes(call.init.method))).toBe(false)
+    expect(calls.some(call => call.url === 'https://api.openai.com/v1/responses')).toBe(false)
+  })
+})
+
+describe('Ask Sib support prompt buttons', () => {
+  it('clicking Where is my order sends the exact prompt through Ask Sib', async () => {
+    const { askMock } = await renderSupportAssistantPage({
+      askResponse: {
+        answer: "I can't see any orders on this account yet.",
+        detectedIntent: 'order',
+        contextCounts: { orders: 0 },
+        sectionErrors: [],
+        usedTools: ['getSupportContext'],
+      },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Where is my order?' }))
+
+    await waitFor(() => {
+      expect(askMock).toHaveBeenCalledWith(expect.objectContaining({
+        message: 'Where is my order?',
+        context: 'General support',
+      }))
+    })
+    expect(await screen.findByText(/I can't see any orders on this account yet/i)).toBeTruthy()
+  })
+
+  it('clicking When will I get paid sends payout prompt through Ask Sib', async () => {
+    const { askMock } = await renderSupportAssistantPage({
+      askResponse: {
+        answer: "I can't see any completed sales eligible for payout yet.",
+        detectedIntent: 'payout',
+        contextCounts: { sellerOrders: 0 },
+        sectionErrors: [],
+        usedTools: ['getSupportContext'],
+      },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'When will I get paid?' }))
+
+    await waitFor(() => {
+      expect(askMock).toHaveBeenCalledWith(expect.objectContaining({
+        message: 'When will I get paid?',
+      }))
+    })
+    expect(await screen.findByText(/completed sales eligible for payout/i)).toBeTruthy()
+  })
+
+  it('clicking dispute prompt sends dispute prompt through Ask Sib', async () => {
+    const { askMock } = await renderSupportAssistantPage({
+      askResponse: {
+        answer: "I can't see any open disputes on this account.",
+        detectedIntent: 'dispute',
+        contextCounts: { disputes: 0 },
+        sectionErrors: [],
+        usedTools: ['getSupportContext'],
+      },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'I need help with a dispute' }))
+
+    await waitFor(() => {
+      expect(askMock).toHaveBeenCalledWith(expect.objectContaining({
+        message: 'I need help with a dispute',
+      }))
+    })
+    expect(await screen.findByText(/open disputes on this account/i)).toBeTruthy()
+  })
+
+  it('clicking Report a problem opens the support ticket form from API action', async () => {
+    const { askMock } = await renderSupportAssistantPage({
+      askResponse: {
+        answer: 'I can connect you with Sib support for this issue.',
+        action: 'open_support_ticket',
+        detectedIntent: 'report_problem',
+        contextCounts: { orders: 0 },
+        sectionErrors: [],
+        usedTools: ['getSupportContext'],
+      },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Report a problem' }))
+
+    await waitFor(() => {
+      expect(askMock).toHaveBeenCalledWith(expect.objectContaining({
+        message: 'Report a problem',
+      }))
+    })
+    expect(await screen.findByRole('dialog', { name: 'Contact Sib Support' })).toBeTruthy()
   })
 })
