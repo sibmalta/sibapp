@@ -243,64 +243,206 @@ async function loadUserOrdersForSupport(userId) {
   return { orders }
 }
 
-async function buildOrderStatusReply(userId) {
-  const { orders, error } = await loadUserOrdersForSupport(userId)
-  if (error) {
+function logSupportEvent(event, payload = {}) {
+  console.info('[support-ai]', JSON.stringify({ event, ...payload }))
+}
+
+function getOrderIdList(orders) {
+  return [...new Set((orders || []).map(order => order.id).filter(Boolean))]
+}
+
+function byOrderId(rows = [], orderIds = []) {
+  const map = new Map()
+  for (const row of rows || []) {
+    if (row?.order_id && !map.has(row.order_id)) map.set(row.order_id, row)
+    if (!row?.order_id && orderIds.length === 1 && !map.has(orderIds[0])) map.set(orderIds[0], row)
+  }
+  return map
+}
+
+async function fetchRowsForOrders(table, select, orderIds, suffix = '') {
+  if (!orderIds.length) return []
+  const encodedIds = orderIds.map(id => `"${String(id).replace(/"/g, '')}"`).join(',')
+  return supabaseFetch(`/rest/v1/${table}?order_id=in.(${encodedIds})&select=${select}${suffix}`, { serviceRole: true })
+}
+
+export async function getSupportContext(userId) {
+  const profilePromise = getCurrentUserProfile(userId).catch(error => {
+    console.error('[support-ai] support context profile fetch failed:', error?.message || error)
+    return null
+  })
+  const orders = await getUserOrders(userId)
+  const orderIds = getOrderIdList(orders)
+  const [
+    profile,
+    logisticsRecords,
+    shipmentRecords,
+    disputes,
+    supportTickets,
+  ] = await Promise.all([
+    profilePromise,
+    fetchRowsForOrders('logistics_delivery_sheet', 'order_id,delivery_status,dropoff_store_name,dropoff_store_address,dropped_off_at,delivery_timing,pickup_zone,buyer_locality,confirmed_at,updated_at', orderIds, '&order=updated_at.desc').catch(error => {
+      console.error('[support-ai] support context logistics fetch failed:', error?.message || error)
+      return []
+    }),
+    fetchRowsForOrders('shipments', 'order_id,id,status,tracking_number,ship_by_deadline,shipped_at,delivered_at,dropoff_store_name,dropoff_store_address,dropped_off_at,current_location,fulfilment_status,delivery_timing', orderIds, '&order=updated_at.desc').catch(error => {
+      console.error('[support-ai] support context shipment fetch failed:', error?.message || error)
+      return []
+    }),
+    fetchRowsForOrders('disputes', 'order_id,id,status,reason,details,source,created_at,resolved_at', orderIds, '&order=created_at.desc').catch(error => {
+      console.error('[support-ai] support context disputes fetch failed:', error?.message || error)
+      return []
+    }),
+    supabaseFetch(`/rest/v1/support_tickets?user_id=eq.${encodeURIComponent(userId)}&select=id,order_id,category,subject,status,created_at&order=created_at.desc&limit=10`, { serviceRole: true }).catch(error => {
+      console.error('[support-ai] support context tickets fetch failed:', error?.message || error)
+      return []
+    }),
+  ])
+
+  const buyerOrders = orders.filter(order => order.role === 'buyer')
+  const sellerOrders = orders.filter(order => order.role === 'seller')
+  const context = {
+    profile,
+    orders,
+    buyerOrders,
+    sellerOrders,
+    logisticsRecords,
+    shipmentRecords,
+    disputes,
+    refunds: orders.filter(order => order.refundedAt || order.paymentStatus === 'refunded'),
+    supportTickets,
+    logisticsByOrderId: byOrderId(logisticsRecords, orderIds),
+    shipmentsByOrderId: byOrderId(shipmentRecords, orderIds),
+    disputesByOrderId: byOrderId(disputes, orderIds),
+  }
+  logSupportEvent('support_context_loaded', {
+    buyerOrders: buyerOrders.length,
+    sellerOrders: sellerOrders.length,
+    logisticsRecords: logisticsRecords.length,
+    shipmentRecords: shipmentRecords.length,
+    disputes: disputes.length,
+    supportTickets: supportTickets.length,
+  })
+  return context
+}
+
+async function loadSupportContext(userId, intent) {
+  try {
+    const supportContext = await getSupportContext(userId)
+    return { supportContext }
+  } catch (error) {
+    console.error('[support-ai] getSupportContext failed:', error?.message || error)
+    logSupportEvent('support_context_failed', { intent, reason: error?.message || 'unknown' })
+    return { error }
+  }
+}
+
+function orderStatusFromContext(supportContext, order) {
+  return {
+    order,
+    logistics: supportContext?.logisticsByOrderId?.get(order.id) || null,
+    shipment: supportContext?.shipmentsByOrderId?.get(order.id) || null,
+    dispute: supportContext?.disputesByOrderId?.get(order.id) || null,
+  }
+}
+
+function getOrderTimingPhrase(order, logistics, shipment) {
+  const dateValue = logistics?.dropped_off_at || logistics?.confirmed_at || shipment?.dropped_off_at || shipment?.shipped_at || order.dropoffConfirmedAt || order.createdAt
+  if (!dateValue) return ''
+  const date = new Date(dateValue)
+  if (Number.isNaN(date.getTime())) return ''
+  const now = new Date()
+  const ageMs = now.getTime() - date.getTime()
+  if (ageMs >= 0 && ageMs < 36 * 60 * 60 * 1000) return 'today'
+  if (ageMs >= 36 * 60 * 60 * 1000 && ageMs < 60 * 60 * 60 * 1000) return 'yesterday'
+  return `on ${date.toLocaleDateString('en-GB')}`
+}
+
+function buildOperationalOrderReply(status) {
+  const order = status?.order || {}
+  const logistics = status?.logistics || null
+  const shipment = status?.shipment || null
+  const deliveryStatus = logistics?.delivery_status || shipment?.status || order.trackingStatus || order.fulfilmentStatus || order.status || 'unknown'
+  const timing = getOrderTimingPhrase(order, logistics, shipment)
+  const item = order.item || 'your item'
+  const code = getOrderCode(order)
+
+  if (deliveryStatus === 'dropped_off' || order.dropoffConfirmedAt) {
+    return `Your order for ${item} (${code}) was dropped off${timing ? ` ${timing}` : ''} and is waiting for courier collection.`
+  }
+  if (deliveryStatus === 'collected') return `Your order for ${item} (${code}) has been collected by the courier.`
+  if (deliveryStatus === 'out_for_delivery') return `Your order for ${item} (${code}) is currently out for delivery.`
+  if (deliveryStatus === 'delivered' || order.deliveredAt) return `Your order for ${item} (${code}) is marked as delivered.`
+  if (['awaiting_pickup', 'awaiting_shipment', 'awaiting_fulfilment', 'paid', 'awaiting_delivery'].includes(deliveryStatus)) {
+    return `Your order for ${item} (${code}) is paid, but the seller has not yet handed over the item.`
+  }
+  return `I found your order for ${item} (${code}).`
+}
+
+async function buildOrderStatusReply(userId, supportContext) {
+  const context = supportContext || (await loadSupportContext(userId, 'order')).supportContext
+  if (!context) {
     return {
       answer: "I'm having trouble checking live order details right now. If this is urgent, I can send this to Sib support with your account details.",
-      usedTools: ['getUserOrders'],
+      usedTools: ['getSupportContext'],
     }
   }
 
+  const { orders } = context
   if (!orders.length) {
+    logSupportEvent('support_fallback', { intent: 'order', reason: 'no_orders' })
     return {
       answer: "I can help, but I can't see any orders on this account yet. If you bought the item using another account, please log in with that account. Otherwise, send the item name or seller name and I can help you contact Sib support.",
-      usedTools: ['getUserOrders'],
+      usedTools: ['getSupportContext'],
     }
   }
 
   const activeOrders = orders.filter(isActiveOrder)
   if (activeOrders.length === 1) {
-    const status = await getLogisticsStatus(userId, activeOrders[0].id).catch(() => ({ order: activeOrders[0] }))
+    const status = orderStatusFromContext(context, activeOrders[0])
     return {
-      answer: buildSingleOrderStatusAnswer(status),
-      usedTools: ['getUserOrders', 'getLogisticsStatus'],
+      answer: [
+        buildOperationalOrderReply(status),
+        `Order status: ${humanizeStatus(activeOrders[0].status) || 'In progress'}.`,
+        `Delivery status: ${getLogisticsLabel(status)}.`,
+        `Next step: ${getNextStep(status)}`,
+        !status.logistics && !status.shipment ? 'Live delivery tracking is not available yet, but the order is still on your account.' : '',
+        activeOrders[0].dropoffStoreName ? `Drop-off store: ${activeOrders[0].dropoffStoreName}.` : '',
+        activeOrders[0].deliveryTiming ? `Delivery timing: ${humanizeStatus(activeOrders[0].deliveryTiming)}.` : '',
+      ].filter(Boolean).join('\n'),
+      usedTools: ['getSupportContext'],
     }
   }
 
   const recentOrders = orders.slice(0, 5)
-  const statuses = await Promise.all(recentOrders.map(order =>
-    getLogisticsStatus(userId, order.id).catch(() => ({ order }))
-  ))
+  const statuses = recentOrders.map(order => orderStatusFromContext(context, order))
+  logSupportEvent('support_fallback', { intent: 'order', reason: 'multiple_orders', count: recentOrders.length })
   return {
     answer: [
       'I found a few recent orders. Which one do you mean?',
       ...statuses.map(formatOrderLine),
     ].join('\n'),
-    usedTools: ['getUserOrders', 'getLogisticsStatus'],
+    usedTools: ['getSupportContext'],
   }
 }
 
-async function buildPayoutReply(userId, message) {
-  const { orders, error } = await loadUserOrdersForSupport(userId)
-  if (error) {
+async function buildPayoutReply(userId, message, supportContext) {
+  const context = supportContext || (await loadSupportContext(userId, 'payout')).supportContext
+  if (!context) {
     return {
       answer: "I'm having trouble checking payout details right now. If this is urgent, I can send this to Sib support with your account details.",
-      usedTools: ['getUserOrders'],
+      usedTools: ['getSupportContext'],
     }
   }
 
-  const profile = await getCurrentUserProfile(userId).catch(error => {
-    console.error('[support-ai] getCurrentUserProfile for payout failed:', error?.message || error)
-    return null
-  })
-
-  const sellerOrders = orders.filter(order => order.role === 'seller')
+  const profile = context.profile
+  const sellerOrders = context.sellerOrders
   const asksManualRelease = /\b(release funds|release payout|release my funds|pay me now)\b/i.test(message || '')
   if (asksManualRelease) {
+    logSupportEvent('support_escalation_recommended', { intent: 'payout', reason: 'manual_release_request' })
     return {
       answer: 'Payout releases always need the normal buyer-protection/admin review. I can connect you with Sib support for this issue.',
-      usedTools: ['getUserOrders', 'getCurrentUserProfile'],
+      usedTools: ['getSupportContext'],
     }
   }
 
@@ -310,7 +452,7 @@ async function buildPayoutReply(userId, message) {
         'I cannot see any payout activity yet on this account.',
         'Payouts are normally released after delivery is confirmed. Bank transfers can take several business days.',
       ].join('\n'),
-      usedTools: ['getUserOrders', 'getCurrentUserProfile'],
+      usedTools: ['getSupportContext'],
     }
   }
 
@@ -321,7 +463,7 @@ async function buildPayoutReply(userId, message) {
         'To receive payouts, you still need to complete your payout verification setup.',
         'Open your payout settings and finish Stripe verification. Once setup is complete, eligible payouts can be processed after delivery confirmation and buyer protection review.',
       ].join('\n'),
-      usedTools: ['getUserOrders', 'getCurrentUserProfile'],
+      usedTools: ['getSupportContext'],
     }
   }
 
@@ -331,7 +473,7 @@ async function buildPayoutReply(userId, message) {
         'Your payout account needs attention before payouts can be sent.',
         'Please check your payout settings for any verification or restriction messages. Sib support can help if the account status looks unclear.',
       ].join('\n'),
-      usedTools: ['getUserOrders', 'getCurrentUserProfile'],
+      usedTools: ['getSupportContext'],
     }
   }
 
@@ -341,7 +483,7 @@ async function buildPayoutReply(userId, message) {
         'You do not have any completed sales ready for payout yet.',
         'Payouts are normally released after delivery is confirmed. Buyer protection may temporarily delay payout release.',
       ].join('\n'),
-      usedTools: ['getUserOrders', 'getCurrentUserProfile'],
+      usedTools: ['getSupportContext'],
     }
   }
 
@@ -354,7 +496,7 @@ async function buildPayoutReply(userId, message) {
       'Payouts are normally released after delivery is confirmed. Buyer protection may temporarily delay payout release.',
       'Bank transfers can take several business days after release.',
     ].join('\n'),
-    usedTools: ['getUserOrders', 'getCurrentUserProfile'],
+    usedTools: ['getSupportContext'],
   }
 }
 
@@ -378,39 +520,49 @@ function formatPayoutOrderLine(order) {
   return `${getOrderCode(order)} - ${order.item || 'your item'}: payout ${humanizeStatus(payout) || 'Pending'}. ${deliveryCopy} ${holdCopy}`
 }
 
-async function buildRefundReply(userId, message) {
-  const { orders } = await loadUserOrdersForSupport(userId)
-  const buyerOrder = orders?.find(order => order.role === 'buyer' && !order.refundedAt) || orders?.[0] || null
+async function buildRefundReply(userId, message, supportContext) {
+  const context = supportContext || (await loadSupportContext(userId, 'refund')).supportContext
+  if (!context) {
+    return {
+      answer: "I'm having trouble checking refund details right now. If this is urgent, I can send this to Sib support with your account details.",
+      usedTools: ['getSupportContext'],
+    }
+  }
+  const refundedOrder = context.refunds?.[0] || null
+  const buyerOrder = refundedOrder || context.buyerOrders?.find(order => !order.refundedAt) || context.orders?.[0] || null
   return {
     answer: [
-      'Refunds are always reviewed by Sib support before any money is returned.',
+      refundedOrder
+        ? `Refund status: ${getOrderCode(refundedOrder)} is already marked as ${humanizeStatus(refundedOrder.paymentStatus) || 'Refunded'}.`
+        : 'Refunds are always reviewed by Sib support before any money is returned.',
       buyerOrder ? `I found ${getOrderCode(buyerOrder)} - ${buyerOrder.item || 'your item'}.` : 'I could not confidently match this to one order.',
       'I can connect you with Sib support for this issue.',
     ].join('\n'),
-    usedTools: ['getUserOrders'],
+    usedTools: ['getSupportContext'],
   }
 }
 
-async function buildDisputeReply(userId) {
-  const { orders, error } = await loadUserOrdersForSupport(userId)
-  if (error) {
+async function buildDisputeReply(userId, supportContext) {
+  const context = supportContext || (await loadSupportContext(userId, 'dispute')).supportContext
+  if (!context) {
     return {
-      answer: "I'm having trouble checking your dispute status right now. You can try again, or I can escalate this to Sib support.",
-      usedTools: ['getUserOrders'],
+      answer: "I'm having trouble checking your dispute status right now. If this is urgent, I can send this to Sib support with your account details.",
+      usedTools: ['getSupportContext'],
     }
   }
 
-  const disputedOrders = orders.filter(order => order.disputedAt || order.status === 'disputed')
+  const disputedOrders = context.orders.filter(order => order.disputedAt || order.status === 'disputed' || context.disputesByOrderId.has(order.id))
   if (disputedOrders.length === 1) {
-    const status = await getDisputeStatus(userId, disputedOrders[0].id).catch(() => ({ order: disputedOrders[0], dispute: null, messages: [] }))
-    const disputeStatus = status?.dispute?.status ? humanizeStatus(status.dispute.status) : 'Under Review'
+    const dispute = context.disputesByOrderId.get(disputedOrders[0].id) || null
+    const disputeStatus = dispute?.status ? humanizeStatus(dispute.status) : 'Under Review'
     return {
       answer: [
         `${getOrderCode(disputedOrders[0])}: dispute status is ${disputeStatus}.`,
+        dispute?.reason ? `Reason: ${dispute.reason}.` : '',
         'Please provide clear photos, screenshots, a short explanation, and any delivery/drop-off details.',
         'A human admin reviews dispute outcomes. I cannot refund, release funds, or close the dispute.',
-      ].join('\n'),
-      usedTools: ['getUserOrders', 'getDisputeStatus'],
+      ].filter(Boolean).join('\n'),
+      usedTools: ['getSupportContext'],
     }
   }
 
@@ -422,7 +574,7 @@ async function buildDisputeReply(userId) {
       'Useful evidence: clear photos, screenshots, a short explanation, parcel/order details, and delivery or drop-off information.',
       'A human admin reviews dispute outcomes.',
     ].join('\n'),
-    usedTools: ['getUserOrders'],
+    usedTools: ['getSupportContext'],
   }
 }
 
@@ -434,15 +586,28 @@ function buildGenericHelpReply() {
 }
 
 async function handleDeterministicIntent(intent, userId, message) {
+  if (!['order', 'payout', 'refund', 'dispute'].includes(intent)) return null
+  logSupportEvent('support_intent', { intent })
+  const { supportContext, error } = await loadSupportContext(userId, intent)
+  if (error) {
+    const failure = {
+      order: "I'm having trouble checking live order details right now. If this is urgent, I can send this to Sib support with your account details.",
+      payout: "I'm having trouble checking payout details right now. If this is urgent, I can send this to Sib support with your account details.",
+      refund: "I'm having trouble checking refund details right now. If this is urgent, I can send this to Sib support with your account details.",
+      dispute: "I'm having trouble checking your dispute status right now. If this is urgent, I can send this to Sib support with your account details.",
+    }[intent]
+    return { answer: failure, usedTools: ['getSupportContext'] }
+  }
+
   switch (intent) {
     case 'order':
-      return buildOrderStatusReply(userId)
+      return buildOrderStatusReply(userId, supportContext)
     case 'payout':
-      return buildPayoutReply(userId, message)
+      return buildPayoutReply(userId, message, supportContext)
     case 'refund':
-      return buildRefundReply(userId, message)
+      return buildRefundReply(userId, message, supportContext)
     case 'dispute':
-      return buildDisputeReply(userId)
+      return buildDisputeReply(userId, supportContext)
     default:
       return null
   }

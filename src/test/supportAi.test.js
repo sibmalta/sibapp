@@ -39,7 +39,7 @@ function setupEnv() {
   vi.stubEnv('OPENAI_API_KEY', 'openai-key')
 }
 
-function setupFetchMock({ order = orderRow(), orders, profileRows = [], logisticsRows = [], shipmentRows = [], failOrders = false, failOpenAi = false, openAiResponses = [] } = {}) {
+function setupFetchMock({ order = orderRow(), orders, profileRows = [], logisticsRows = [], shipmentRows = [], disputeRows = [], failOrders = false, failOpenAi = false, openAiResponses = [] } = {}) {
   const orderRows = orders || (order ? [order] : [])
   const calls = []
   let openAiIndex = 0
@@ -74,8 +74,9 @@ function setupFetchMock({ order = orderRow(), orders, profileRows = [], logistic
     if (href.includes('/rest/v1/profiles')) return jsonResponse(profileRows)
     if (href.includes('/rest/v1/shipments')) return jsonResponse(shipmentRows)
     if (href.includes('/rest/v1/logistics_delivery_sheet')) return jsonResponse(logisticsRows)
-    if (href.includes('/rest/v1/disputes')) return jsonResponse([])
+    if (href.includes('/rest/v1/disputes')) return jsonResponse(disputeRows)
     if (href.includes('/rest/v1/dispute_messages')) return jsonResponse([])
+    if (href.includes('/rest/v1/support_tickets')) return jsonResponse([])
 
     throw new Error(`Unexpected fetch: ${href}`)
   }))
@@ -152,7 +153,7 @@ describe('Sib Support AI tools', () => {
     expect(result.answer).toContain('SIB-ONE')
     expect(result.answer).toContain('Blue jacket')
     expect(result.answer).toContain('Delivery status: Dropped Off')
-    expect(result.usedTools).toEqual(['getUserOrders', 'getLogisticsStatus'])
+    expect(result.usedTools).toEqual(['getSupportContext'])
   })
 
   it('answers where is my delivery with no orders using helpful recovery guidance', async () => {
@@ -190,7 +191,7 @@ describe('Sib Support AI tools', () => {
     expect(result.answer).toContain('Summer dress')
     expect(result.answer).toContain('SIB-DRESS')
     expect(result.answer).toContain('Next step')
-    expect(result.usedTools).toEqual(['getUserOrders', 'getLogisticsStatus'])
+    expect(result.usedTools).toEqual(['getSupportContext'])
   })
 
   it('asks which order the user means when multiple recent orders match', async () => {
@@ -211,7 +212,7 @@ describe('Sib Support AI tools', () => {
     expect(result.answer).toContain('SIB-FIRST - Blue jacket')
     expect(result.answer).toContain('SIB-SECOND - Black boots')
     expect(result.answer).not.toContain('I could not reach Sib Support AI')
-    expect(result.usedTools).toEqual(['getUserOrders', 'getLogisticsStatus'])
+    expect(result.usedTools).toEqual(['getSupportContext'])
   })
 
   it('gives order status when one order has no logistics rows', async () => {
@@ -254,7 +255,7 @@ describe('Sib Support AI tools', () => {
     expect(result.answer).toContain("I can help, but I can't see any orders on this account yet.")
     expect(result.answer).toContain('another account')
     expect(result.answer).toContain('seller name')
-    expect(result.usedTools).toEqual(['getUserOrders'])
+    expect(result.usedTools).toEqual(['getSupportContext'])
   })
 
   it('returns a proper escalation message when order lookup fails', async () => {
@@ -268,7 +269,7 @@ describe('Sib Support AI tools', () => {
 
     expect(result.answer).toContain("I'm having trouble checking live order details right now")
     expect(result.answer).toContain('send this to Sib support')
-    expect(result.usedTools).toEqual(['getUserOrders'])
+    expect(result.usedTools).toEqual(['getSupportContext'])
   })
 
   it('maps delivery statuses to plain-English next steps', () => {
@@ -425,9 +426,61 @@ describe('Sib Support AI tools', () => {
 
     expect(result.answer).toContain('Refunds are always reviewed')
     expect(result.answer).toContain('I can connect you with Sib support for this issue.')
-    expect(result.usedTools).toEqual(['getUserOrders'])
+    expect(result.usedTools).toEqual(['getSupportContext'])
     expect(calls.some(call => call.url.includes('/rest/v1/support_escalations'))).toBe(false)
     expect(calls.some(call => call.url.includes('create-refund'))).toBe(false)
+  })
+
+  it('answers refund status from real refunded order context', async () => {
+    setupFetchMock({
+      orders: [orderRow({
+        id: ORDER_ID,
+        order_ref: 'SIB-REFUNDED',
+        listing_title: 'Yellow scarf',
+        payment_status: 'refunded',
+        refunded_at: '2026-05-07T10:00:00.000Z',
+      })],
+    })
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: 'What is my refund status?',
+      context: 'General support',
+    })
+
+    expect(result.answer).toContain('Refund status: SIB-REFUNDED is already marked as Refunded.')
+    expect(result.answer).toContain('Yellow scarf')
+    expect(result.usedTools).toEqual(['getSupportContext'])
+  })
+
+  it('answers dispute in review from dispute context', async () => {
+    setupFetchMock({
+      orders: [orderRow({
+        id: ORDER_ID,
+        order_ref: 'SIB-DISPUTE',
+        listing_title: 'Vintage coat',
+        status: 'disputed',
+        disputed_at: '2026-05-07T10:00:00.000Z',
+      })],
+      disputeRows: [{
+        id: 'disp-1',
+        order_id: ORDER_ID,
+        status: 'under_review',
+        reason: 'Item not as described',
+        created_at: '2026-05-07T10:05:00.000Z',
+      }],
+    })
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: "What's happening with my dispute?",
+      context: 'General support',
+    })
+
+    expect(result.answer).toContain('SIB-DISPUTE: dispute status is Under Review.')
+    expect(result.answer).toContain('Reason: Item not as described.')
+    expect(result.answer).toContain('Please provide clear photos')
+    expect(result.usedTools).toEqual(['getSupportContext'])
   })
 
   it('still returns a deterministic order reply when OpenAI fails', async () => {
