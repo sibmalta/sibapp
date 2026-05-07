@@ -19,6 +19,7 @@ describe('deploy caching and SPA fallback config', () => {
 
     expect(vercel).toContain('no-cache, no-store, must-revalidate')
     expect(vercel).toContain('public, max-age=31536000, immutable')
+    expect(vercel).toContain('/((?!api/|assets/|.*\\\\.).*)')
     expect(headers).toContain('/index.html')
     expect(headers).toContain('/assets/*')
   })
