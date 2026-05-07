@@ -281,10 +281,9 @@ async function buildPayoutReply(userId, message) {
   const sellerOrders = orders.filter(order => order.role === 'seller').slice(0, 5)
   const asksManualRelease = /\b(release funds|release payout|release my funds|pay me now)\b/i.test(message || '')
   if (asksManualRelease) {
-    const escalation = await createSupportEscalation(userId, sellerOrders[0]?.id, 'Seller asked to manually release payout funds.')
     return {
-      answer: `Payout releases always need the normal buyer-protection/admin review. I ${escalation?.error ? 'can escalate this to Sib support' : 'created a Sib support escalation'} so a human can check it.`,
-      usedTools: ['getUserOrders', 'createSupportEscalation'],
+      answer: 'Payout releases always need the normal buyer-protection/admin review. I can connect you with Sib support for this issue.',
+      usedTools: ['getUserOrders'],
     }
   }
 
@@ -314,14 +313,13 @@ async function buildPayoutReply(userId, message) {
 async function buildRefundReply(userId, message) {
   const { orders } = await loadUserOrdersForSupport(userId)
   const buyerOrder = orders?.find(order => order.role === 'buyer' && !order.refundedAt) || orders?.[0] || null
-  const escalation = await createSupportEscalation(userId, buyerOrder?.id, `Refund support requested: ${String(message || '').slice(0, 300)}`)
   return {
     answer: [
       'Refunds are always reviewed by Sib support before any money is returned.',
-      buyerOrder ? `I found ${getOrderCode(buyerOrder)} - ${buyerOrder.item || 'your item'} and attached it to the support request.` : 'I could not confidently match this to one order, so I created a general support request.',
-      escalation?.error ? 'I can escalate this to Sib support if you want to continue.' : 'I created a support escalation so a human can review it.',
+      buyerOrder ? `I found ${getOrderCode(buyerOrder)} - ${buyerOrder.item || 'your item'}.` : 'I could not confidently match this to one order.',
+      'I can connect you with Sib support for this issue.',
     ].join('\n'),
-    usedTools: ['getUserOrders', 'createSupportEscalation'],
+    usedTools: ['getUserOrders'],
   }
 }
 

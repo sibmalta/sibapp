@@ -5,7 +5,7 @@ import {
   CheckCircle, Truck, Ban, UserCheck, Eye, Lock, Unlock, RefreshCw,
   ChevronDown, ChevronUp, XCircle, Search, DollarSign, Clock,
   Flag, Trash2, EyeOff, AlertOctagon, Mail, Plus, X, Tags,
-  Clipboard,
+  Clipboard, LifeBuoy,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import UserAvatar from '../components/UserAvatar'
@@ -26,6 +26,7 @@ const TABS = [
   { id: 'chats', label: 'Chats', icon: MessageSquare },
   { id: 'listings', label: 'Listings', icon: Package },
   { id: 'emails', label: 'Emails', icon: Mail },
+  { id: 'support', label: 'Support', icon: LifeBuoy },
 ]
 
 const STATUS_COLORS = {
@@ -220,6 +221,27 @@ export default function AdminPage() {
   const [emailLogsLoading, setEmailLogsLoading] = useState(false)
   const [emailFilter, setEmailFilter] = useState('all')
   const [emailSearch, setEmailSearch] = useState('')
+  const [supportTickets, setSupportTickets] = useState([])
+  const [supportTicketsLoading, setSupportTicketsLoading] = useState(false)
+  const [expandedSupportTicket, setExpandedSupportTicket] = useState(null)
+
+  const fetchSupportTickets = useCallback(async () => {
+    setSupportTicketsLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('support_tickets')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(200)
+      if (error) throw error
+      setSupportTickets(data || [])
+    } catch (err) {
+      console.error('[AdminPage] Failed to fetch support tickets:', err)
+      showToast?.('Could not load support tickets.', 'error')
+    } finally {
+      setSupportTicketsLoading(false)
+    }
+  }, [showToast])
 
   const fetchEmailLogs = useCallback(async () => {
     setEmailLogsLoading(true)
@@ -246,6 +268,10 @@ export default function AdminPage() {
   useEffect(() => {
     if (tab === 'emails') fetchEmailLogs()
   }, [tab, fetchEmailLogs])
+
+  useEffect(() => {
+    if (tab === 'support') fetchSupportTickets()
+  }, [tab, fetchSupportTickets])
 
   useEffect(() => {
     if (!currentUser?.isAdmin) return
@@ -1370,6 +1396,82 @@ export default function AdminPage() {
                 )
               })}
             </div>
+          </div>
+        )}
+
+        {tab === 'support' && (
+          <div>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <div>
+                <p className="text-sm font-bold text-sib-text">Support queue</p>
+                <p className="text-[11px] text-sib-muted">Read-only intake from Ask Sib and support forms.</p>
+              </div>
+              <button onClick={fetchSupportTickets}
+                className="px-3 py-2 bg-sib-sand rounded-xl text-xs font-semibold text-sib-muted border border-sib-ash flex items-center gap-1 active:scale-95">
+                <RefreshCw size={11} className={supportTicketsLoading ? 'animate-spin' : ''} /> Refresh
+              </button>
+            </div>
+
+            {supportTicketsLoading && supportTickets.length === 0 ? (
+              <div className="text-center py-10">
+                <RefreshCw size={20} className="mx-auto text-sib-ash mb-2 animate-spin" />
+                <p className="text-sib-muted text-sm">Loading support tickets...</p>
+              </div>
+            ) : supportTickets.length === 0 ? (
+              <div className="text-center py-10">
+                <LifeBuoy size={28} className="mx-auto text-sib-ash mb-2" />
+                <p className="text-sib-muted text-sm">No support tickets yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {supportTickets.map(ticket => {
+                  const isOpen = expandedSupportTicket === ticket.id
+                  const attachments = Array.isArray(ticket.attachment_urls) ? ticket.attachment_urls : []
+                  const conversation = Array.isArray(ticket.ai_conversation) ? ticket.ai_conversation : []
+                  return (
+                    <div key={ticket.id} className="rounded-2xl border border-sib-ash bg-white p-3">
+                      <button type="button" onClick={() => setExpandedSupportTicket(isOpen ? null : ticket.id)} className="w-full text-left">
+                        <div className="flex items-center justify-between gap-2">
+                          <Badge status={ticket.status} label={getStatusLabel(ticket.status)} />
+                          <span className="text-[10px] text-sib-muted">{formatDate(ticket.created_at)}</span>
+                        </div>
+                        <p className="mt-1 text-xs font-bold text-sib-text">{ticket.subject}</p>
+                        <p className="mt-0.5 text-[11px] text-sib-muted">{ticket.category} · {ticket.name} · {ticket.email}</p>
+                        {ticket.order_id && <p className="mt-0.5 text-[10px] font-mono text-sib-muted">Order: {ticket.order_id}</p>}
+                      </button>
+                      {isOpen && (
+                        <div className="mt-3 space-y-3 border-t border-sib-ash pt-3">
+                          <div>
+                            <p className="text-[10px] font-bold uppercase text-sib-muted">Message</p>
+                            <p className="mt-1 whitespace-pre-wrap text-xs text-sib-text">{ticket.message}</p>
+                          </div>
+                          {attachments.length > 0 && (
+                            <div>
+                              <p className="text-[10px] font-bold uppercase text-sib-muted">Attachments</p>
+                              <div className="mt-1 space-y-1">
+                                {attachments.map((item, index) => (
+                                  <p key={index} className="break-all text-[11px] text-sib-muted">{item.name || item.path || item.url || String(item)}</p>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {conversation.length > 0 && (
+                            <div>
+                              <p className="text-[10px] font-bold uppercase text-sib-muted">Ask Sib context</p>
+                              <div className="mt-1 space-y-1">
+                                {conversation.map((message, index) => (
+                                  <p key={index} className="text-[11px] text-sib-muted"><strong>{message.role}:</strong> {message.text}</p>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         )}
 

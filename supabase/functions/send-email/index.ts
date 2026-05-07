@@ -41,6 +41,7 @@ type EmailType =
   | 'bundle_offer_accepted'
   | 'bundle_offer_declined'
   | 'bundle_offer_countered'
+  | 'support_ticket'
 
 interface EmailPayload {
   type: EmailType
@@ -994,6 +995,54 @@ case 'item_sold': {
             Reply in Sib Messages to keep your conversation and Buyer Protection in one place.
           </p>
           ${btn('View Message', url)}
+        `),
+      }
+    }
+
+    case 'support_ticket': {
+      const {
+        ticketId,
+        name,
+        email,
+        category,
+        subject,
+        message,
+        orderRef,
+        orderStatus,
+        itemTitle,
+        attachmentUrls = [],
+        aiConversation = [],
+      } = data
+      const ph = `${name || 'A Sib user'} submitted a support ticket.`
+      const orderPart = orderRef ? ` - Order ${orderRef}` : ''
+      return {
+        subject: `[Sib Support] ${category || 'Other'}${orderPart}`,
+        preheader: ph,
+        html: wrap(ph, `
+          <h2 style="font-size:18px;color:#1F2937;text-align:center;margin:14px 0 8px;">New Support Ticket</h2>
+          ${infoBox('#FFF7ED', `
+            <p style="font-size:14px;color:#4B5563;margin:0 0 4px;"><strong>Ticket:</strong> ${ticketId || 'N/A'}</p>
+            <p style="font-size:14px;color:#4B5563;margin:0 0 4px;"><strong>Category:</strong> ${category || 'Other'}</p>
+            <p style="font-size:14px;color:#4B5563;margin:0 0 4px;"><strong>Subject:</strong> ${subject || 'Support request'}</p>
+            <p style="font-size:14px;color:#4B5563;margin:0;"><strong>From:</strong> ${name || 'Sib user'} &lt;${email || 'unknown'}&gt;</p>
+          `)}
+          ${orderRef ? infoBox('#F0F9FF', `
+            <p style="font-size:14px;color:#4B5563;margin:0 0 4px;"><strong>Order:</strong> ${orderRef}</p>
+            <p style="font-size:14px;color:#4B5563;margin:0 0 4px;"><strong>Item:</strong> ${itemTitle || 'N/A'}</p>
+            <p style="font-size:14px;color:#4B5563;margin:0;"><strong>Status:</strong> ${orderStatus || 'N/A'}</p>
+          `) : ''}
+          ${infoBox('#FFFFFF', `
+            <p style="font-size:13px;color:#374151;font-weight:700;margin:0 0 8px;">Message</p>
+            <p style="font-size:13px;color:#4B5563;white-space:pre-wrap;margin:0;">${String(message || '').slice(0, 4000)}</p>
+          `)}
+          ${Array.isArray(attachmentUrls) && attachmentUrls.length ? infoBox('#F0F9FF', `
+            <p style="font-size:13px;color:#374151;font-weight:700;margin:0 0 8px;">Attachments</p>
+            ${attachmentUrls.map((item: any) => `<p style="font-size:12px;color:#4B5563;margin:0 0 4px;">${String(item.name || item.path || item.url || item).slice(0, 300)}</p>`).join('')}
+          `) : ''}
+          ${Array.isArray(aiConversation) && aiConversation.length ? infoBox('#F9FAFB', `
+            <p style="font-size:13px;color:#374151;font-weight:700;margin:0 0 8px;">Recent Ask Sib conversation</p>
+            ${aiConversation.slice(-12).map((entry: any) => `<p style="font-size:12px;color:#4B5563;margin:0 0 6px;"><strong>${String(entry.role || 'message')}:</strong> ${String(entry.text || '').slice(0, 500)}</p>`).join('')}
+          `) : ''}
         `),
       }
     }

@@ -226,7 +226,7 @@ describe('Sib Support AI tools', () => {
     expect(result.usedTools).toEqual(['getUserOrders'])
   })
 
-  it('never refunds automatically and creates a support escalation for refund requests', async () => {
+  it('never refunds automatically and recommends human support for refund requests', async () => {
     const calls = setupFetchMock({
       orders: [orderRow({ id: ORDER_ID, order_ref: 'SIB-REFUND', listing_title: 'Red bag', status: 'paid' })],
     })
@@ -238,9 +238,9 @@ describe('Sib Support AI tools', () => {
     })
 
     expect(result.answer).toContain('Refunds are always reviewed')
-    expect(result.answer).toContain('support escalation')
-    expect(result.usedTools).toEqual(['getUserOrders', 'createSupportEscalation'])
-    expect(calls.some(call => call.url.includes('/rest/v1/support_escalations') && call.init.method === 'POST')).toBe(true)
+    expect(result.answer).toContain('I can connect you with Sib support for this issue.')
+    expect(result.usedTools).toEqual(['getUserOrders'])
+    expect(calls.some(call => call.url.includes('/rest/v1/support_escalations'))).toBe(false)
     expect(calls.some(call => call.url.includes('create-refund'))).toBe(false)
   })
 
