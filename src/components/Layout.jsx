@@ -9,6 +9,8 @@ import Footer from './Footer'
 export default function Layout() {
   const { pathname } = useLocation()
   const isMessagesRoot = pathname === '/messages' || pathname === '/messages/'
+  const isSupportPage = pathname === '/support' || pathname === '/support/'
+  const hideFooter = isMessagesRoot || isSupportPage
 
   return (
     <div className="min-h-screen bg-sib-warm text-sib-text dark:bg-[#18211f] dark:text-[#f4efe7] transition-colors">
@@ -19,9 +21,9 @@ export default function Layout() {
           <TopBar />
         </div>
 
-        <main className={isMessagesRoot ? '' : 'pb-24 lg:pb-12'}>
+        <main className={hideFooter ? '' : 'pb-24 lg:pb-12'}>
           <Outlet />
-          {!isMessagesRoot && <Footer />}
+          {!hideFooter && <Footer />}
         </main>
 
         <BundleFloater />

@@ -89,11 +89,11 @@ export default function SupportAssistantPage() {
   }
 
   return (
-    <div className="pb-8">
+    <div className="flex h-[calc(100dvh-88px)] flex-col overflow-hidden lg:h-[calc(100dvh-96px)]">
       <PageHeader title="Ask Sib" />
 
-      <div className="mx-auto flex min-h-[calc(100vh-150px)] max-w-3xl flex-col px-4 py-4">
-        <div className="flex min-h-[560px] flex-1 flex-col overflow-hidden rounded-3xl border border-sib-stone bg-white shadow-sm dark:border-[rgba(242,238,231,0.10)] dark:bg-[#1d2624]">
+      <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col px-3 pb-[calc(4rem+env(safe-area-inset-bottom,0px))] pt-3 sm:px-4 lg:pb-4">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-sib-stone bg-white shadow-sm dark:border-[rgba(242,238,231,0.10)] dark:bg-[#1d2624]">
           <div className="border-b border-sib-stone bg-sib-sand/50 px-4 py-3 dark:border-[rgba(242,238,231,0.10)] dark:bg-[#26322f]">
             <div className="flex items-start gap-3">
               <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sib-primary text-white">
@@ -113,7 +113,7 @@ export default function SupportAssistantPage() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-5">
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 pb-5 sm:px-5">
             <div className="space-y-4">
               {!hasInteracted && (
                 <div className="rounded-2xl border border-sib-stone bg-sib-sand/40 p-4 dark:border-[rgba(242,238,231,0.10)] dark:bg-[#26322f]/70">
@@ -175,7 +175,7 @@ export default function SupportAssistantPage() {
             </div>
           </div>
 
-          <div className="border-t border-sib-stone bg-white p-3 dark:border-[#2d3635] dark:bg-[#1d2624]">
+          <div className="shrink-0 border-t border-sib-stone bg-white p-3 dark:border-[#2d3635] dark:bg-[#1d2624]">
             {assistantReplyCount > 0 && (
               <button
                 type="button"
