@@ -75,7 +75,7 @@ export default function SupportAssistantPage() {
       setMessages(prev => [...prev, {
         id: `error-${Date.now()}`,
         role: 'assistant',
-        text: 'I could not reach Sib Support AI right now. You can try again or escalate to a human admin.',
+        text: "I'm having trouble checking that right now. You can try again, or I can escalate this to Sib support.",
       }])
     } finally {
       setLoading(false)

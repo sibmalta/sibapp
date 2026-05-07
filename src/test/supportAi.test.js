@@ -39,7 +39,8 @@ function setupEnv() {
   vi.stubEnv('OPENAI_API_KEY', 'openai-key')
 }
 
-function setupFetchMock({ order = orderRow(), openAiResponses = [] } = {}) {
+function setupFetchMock({ order = orderRow(), orders, logisticsRows = [], shipmentRows = [], failOrders = false, failOpenAi = false, openAiResponses = [] } = {}) {
+  const orderRows = orders || (order ? [order] : [])
   const calls = []
   let openAiIndex = 0
   vi.stubGlobal('fetch', vi.fn(async (url, init = {}) => {
@@ -47,6 +48,7 @@ function setupFetchMock({ order = orderRow(), openAiResponses = [] } = {}) {
     calls.push({ url: href, init })
 
     if (href === 'https://api.openai.com/v1/responses') {
+      if (failOpenAi) return jsonResponse({ error: { message: 'model unavailable' } }, 500)
       return jsonResponse(openAiResponses[openAiIndex++] || { output_text: 'Support answer.' })
     }
 
@@ -55,7 +57,14 @@ function setupFetchMock({ order = orderRow(), openAiResponses = [] } = {}) {
     }
 
     if (href.includes('/rest/v1/orders')) {
-      return jsonResponse(order ? [order] : [])
+      if (failOrders) return jsonResponse({ message: 'orders unavailable' }, 500)
+      if (href.includes('or=(')) return jsonResponse(orderRows)
+      const match = href.match(/id=eq\.([^&]+)/)
+      if (match) {
+        const id = decodeURIComponent(match[1])
+        return jsonResponse(orderRows.filter(row => row.id === id))
+      }
+      return jsonResponse(orderRows)
     }
 
     if (href.includes('/rest/v1/support_escalations')) {
@@ -63,8 +72,8 @@ function setupFetchMock({ order = orderRow(), openAiResponses = [] } = {}) {
     }
 
     if (href.includes('/rest/v1/profiles')) return jsonResponse([])
-    if (href.includes('/rest/v1/shipments')) return jsonResponse([])
-    if (href.includes('/rest/v1/logistics_delivery_sheet')) return jsonResponse([])
+    if (href.includes('/rest/v1/shipments')) return jsonResponse(shipmentRows)
+    if (href.includes('/rest/v1/logistics_delivery_sheet')) return jsonResponse(logisticsRows)
     if (href.includes('/rest/v1/disputes')) return jsonResponse([])
     if (href.includes('/rest/v1/dispute_messages')) return jsonResponse([])
 
@@ -120,6 +129,150 @@ describe('Sib Support AI tools', () => {
 
     expect(result.answer).toContain('waiting for drop-off')
     expect(result.usedTools).toEqual(['getOrderStatus'])
+  })
+
+  it('answers where is my order directly when the user has one active order', async () => {
+    setupFetchMock({
+      orders: [orderRow({
+        id: ORDER_ID,
+        order_ref: 'SIB-ONE',
+        listing_title: 'Blue jacket',
+        status: 'paid',
+        tracking_status: 'awaiting_delivery',
+      })],
+      logisticsRows: [{ delivery_status: 'dropped_off', dropoff_store_name: 'MYConvenience Sliema' }],
+    })
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: "Where's my order?",
+      context: 'General support',
+    })
+
+    expect(result.answer).toContain('SIB-ONE')
+    expect(result.answer).toContain('Blue jacket')
+    expect(result.answer).toContain('Delivery status: Dropped Off')
+    expect(result.usedTools).toEqual(['getUserOrders', 'getLogisticsStatus'])
+  })
+
+  it('treats a delayed purchase as an order delivery question', async () => {
+    setupFetchMock({
+      orders: [orderRow({
+        id: ORDER_ID,
+        order_ref: 'SIB-DRESS',
+        listing_title: 'Summer dress',
+        status: 'paid',
+        tracking_status: 'awaiting_delivery',
+      })],
+    })
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: "I bought a dress but it hasn't arrived",
+      context: 'General support',
+    })
+
+    expect(result.answer).toContain('Summer dress')
+    expect(result.answer).toContain('SIB-DRESS')
+    expect(result.answer).toContain('Next step')
+    expect(result.usedTools).toEqual(['getUserOrders', 'getLogisticsStatus'])
+  })
+
+  it('asks which order the user means when multiple recent orders match', async () => {
+    setupFetchMock({
+      orders: [
+        orderRow({ id: ORDER_ID, order_ref: 'SIB-FIRST', listing_title: 'Blue jacket', status: 'paid' }),
+        orderRow({ id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', order_ref: 'SIB-SECOND', listing_title: 'Black boots', status: 'shipped' }),
+      ],
+    })
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: 'Where is my order?',
+      context: 'General support',
+    })
+
+    expect(result.answer).toContain('Which one do you mean?')
+    expect(result.answer).toContain('SIB-FIRST - Blue jacket')
+    expect(result.answer).toContain('SIB-SECOND - Black boots')
+    expect(result.usedTools).toEqual(['getUserOrders', 'getLogisticsStatus'])
+  })
+
+  it('returns a friendly empty state when the user has no orders', async () => {
+    setupFetchMock({ orders: [] })
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: "Where's my order?",
+      context: 'General support',
+    })
+
+    expect(result.answer).toContain("I can't see any orders on your account yet.")
+    expect(result.answer).toContain('another account')
+    expect(result.usedTools).toEqual(['getUserOrders'])
+  })
+
+  it('returns a proper escalation message when order lookup fails', async () => {
+    setupFetchMock({ failOrders: true })
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: "Where's my order?",
+      context: 'General support',
+    })
+
+    expect(result.answer).toContain("I'm having trouble checking that right now")
+    expect(result.answer).toContain('escalate')
+    expect(result.usedTools).toEqual(['getUserOrders'])
+  })
+
+  it('never refunds automatically and creates a support escalation for refund requests', async () => {
+    const calls = setupFetchMock({
+      orders: [orderRow({ id: ORDER_ID, order_ref: 'SIB-REFUND', listing_title: 'Red bag', status: 'paid' })],
+    })
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: 'I want a refund',
+      context: 'General support',
+    })
+
+    expect(result.answer).toContain('Refunds are always reviewed')
+    expect(result.answer).toContain('support escalation')
+    expect(result.usedTools).toEqual(['getUserOrders', 'createSupportEscalation'])
+    expect(calls.some(call => call.url.includes('/rest/v1/support_escalations') && call.init.method === 'POST')).toBe(true)
+    expect(calls.some(call => call.url.includes('create-refund'))).toBe(false)
+  })
+
+  it('still returns a deterministic order reply when OpenAI fails', async () => {
+    setupFetchMock({
+      failOpenAi: true,
+      orders: [orderRow({ id: ORDER_ID, order_ref: 'SIB-NO-AI', listing_title: 'Green coat', status: 'shipped' })],
+    })
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: 'Where is my package?',
+      context: 'General support',
+    })
+
+    expect(result.answer).toContain('SIB-NO-AI')
+    expect(result.answer).toContain('Green coat')
+    expect(result.answer).not.toContain('I could not reach Sib Support AI')
+  })
+
+  it('responds warmly to a generic greeting when OpenAI fails', async () => {
+    setupFetchMock({ failOpenAi: true })
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: 'Hello',
+      context: 'General support',
+    })
+
+    expect(result.answer).toContain("Hi, I'm Sib Support")
+    expect(result.answer).toContain('order, delivery, payout, refund, or dispute')
+    expect(result.answer).not.toContain('I could not reach Sib Support AI')
   })
 
   it('blocks access to another user order at the tool boundary', async () => {
