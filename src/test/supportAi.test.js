@@ -39,7 +39,21 @@ function setupEnv() {
   vi.stubEnv('OPENAI_API_KEY', 'openai-key')
 }
 
-function setupFetchMock({ order = orderRow(), orders, profileRows = [], logisticsRows = [], shipmentRows = [], disputeRows = [], failOrders = false, failOpenAi = false, openAiResponses = [] } = {}) {
+function setupFetchMock({
+  order = orderRow(),
+  orders,
+  profileRows = [],
+  logisticsRows = [],
+  shipmentRows = [],
+  disputeRows = [],
+  failOrders = false,
+  failLogistics = false,
+  failDisputes = false,
+  failProfiles = false,
+  failTickets = false,
+  failOpenAi = false,
+  openAiResponses = [],
+} = {}) {
   const orderRows = orders || (order ? [order] : [])
   const calls = []
   let openAiIndex = 0
@@ -71,12 +85,24 @@ function setupFetchMock({ order = orderRow(), orders, profileRows = [], logistic
       return jsonResponse([{ id: 'esc-1', status: 'open', created_at: '2026-05-07T09:05:00.000Z' }])
     }
 
-    if (href.includes('/rest/v1/profiles')) return jsonResponse(profileRows)
+    if (href.includes('/rest/v1/profiles')) {
+      if (failProfiles) return jsonResponse({ message: 'permission denied for table profiles' }, 403)
+      return jsonResponse(profileRows)
+    }
     if (href.includes('/rest/v1/shipments')) return jsonResponse(shipmentRows)
-    if (href.includes('/rest/v1/logistics_delivery_sheet')) return jsonResponse(logisticsRows)
-    if (href.includes('/rest/v1/disputes')) return jsonResponse(disputeRows)
+    if (href.includes('/rest/v1/logistics_delivery_sheet')) {
+      if (failLogistics) return jsonResponse({ message: 'relation "logistics_delivery_sheet" does not exist', code: '42P01' }, 404)
+      return jsonResponse(logisticsRows)
+    }
+    if (href.includes('/rest/v1/disputes')) {
+      if (failDisputes) return jsonResponse({ message: 'permission denied for table disputes' }, 403)
+      return jsonResponse(disputeRows)
+    }
     if (href.includes('/rest/v1/dispute_messages')) return jsonResponse([])
-    if (href.includes('/rest/v1/support_tickets')) return jsonResponse([])
+    if (href.includes('/rest/v1/support_tickets')) {
+      if (failTickets) return jsonResponse({ message: 'relation "support_tickets" does not exist', code: '42P01' }, 404)
+      return jsonResponse([])
+    }
 
     throw new Error(`Unexpected fetch: ${href}`)
   }))
@@ -258,7 +284,7 @@ describe('Sib Support AI tools', () => {
     expect(result.usedTools).toEqual(['getSupportContext'])
   })
 
-  it('returns a proper escalation message when order lookup fails', async () => {
+  it('returns section-specific delivery wording when order lookup fails', async () => {
     setupFetchMock({ failOrders: true })
 
     const result = await handleSupportRequest({
@@ -267,9 +293,32 @@ describe('Sib Support AI tools', () => {
       context: 'General support',
     })
 
-    expect(result.answer).toContain("I'm having trouble checking live order details right now")
+    expect(result.answer).toContain("I can't currently access live delivery tracking")
     expect(result.answer).toContain('send this to Sib support')
     expect(result.usedTools).toEqual(['getSupportContext'])
+  })
+
+  it('still answers order questions when logistics lookup is restricted', async () => {
+    setupFetchMock({
+      failLogistics: true,
+      orders: [orderRow({
+        id: ORDER_ID,
+        order_ref: 'SIB-RLS-LOGISTICS',
+        listing_title: 'Red shoes',
+        status: 'paid',
+      })],
+    })
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: 'Where is my delivery?',
+      context: 'General support',
+    })
+
+    expect(result.answer).toContain('SIB-RLS-LOGISTICS')
+    expect(result.answer).toContain('Red shoes')
+    expect(result.answer).toContain("I can't currently access live delivery tracking")
+    expect(result.answer).not.toContain('Sib Support is unavailable')
   })
 
   it('maps delivery statuses to plain-English next steps', () => {
@@ -400,7 +449,7 @@ describe('Sib Support AI tools', () => {
     expect(result.answer).not.toContain('trouble checking')
   })
 
-  it('uses technical payout failure wording only when the order lookup errors', async () => {
+  it('uses payout-specific failure wording when payout context cannot load orders', async () => {
     setupFetchMock({ failOrders: true })
 
     const result = await handleSupportRequest({
@@ -409,8 +458,34 @@ describe('Sib Support AI tools', () => {
       context: 'General support',
     })
 
-    expect(result.answer).toContain("I'm having trouble checking payout details right now")
+    expect(result.answer).toContain("I can't currently access payout information for your account.")
     expect(result.answer).toContain('send this to Sib support')
+  })
+
+  it('still answers payout questions when Stripe onboarding lookup is restricted', async () => {
+    setupFetchMock({
+      failProfiles: true,
+      orders: [orderRow({
+        id: ORDER_ID,
+        buyer_id: OTHER_ID,
+        seller_id: USER_ID,
+        order_ref: 'SIB-PAYOUT-PROFILE-RLS',
+        listing_title: 'Blue bag',
+        status: 'delivered',
+        delivered_at: '2026-05-07T10:00:00.000Z',
+        payout_status: 'pending',
+      })],
+    })
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: 'When will I get paid?',
+      context: 'General support',
+    })
+
+    expect(result.answer).toContain('Your payout is currently processing.')
+    expect(result.answer).toContain('Blue bag')
+    expect(result.answer).not.toContain('trouble checking')
   })
 
   it('never refunds automatically and recommends human support for refund requests', async () => {
@@ -481,6 +556,46 @@ describe('Sib Support AI tools', () => {
     expect(result.answer).toContain('Reason: Item not as described.')
     expect(result.answer).toContain('Please provide clear photos')
     expect(result.usedTools).toEqual(['getSupportContext'])
+  })
+
+  it('degrades gracefully when dispute details are restricted', async () => {
+    setupFetchMock({
+      failDisputes: true,
+      orders: [orderRow({
+        id: ORDER_ID,
+        order_ref: 'SIB-DISPUTE-RLS',
+        listing_title: 'Vintage dress',
+        status: 'disputed',
+        disputed_at: '2026-05-07T10:00:00.000Z',
+      })],
+    })
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: 'dispute',
+      context: 'General support',
+    })
+
+    expect(result.answer).toContain("I can't currently load dispute details")
+    expect(result.answer).toContain('I can still help escalate this to Sib support')
+    expect(result.answer).not.toContain('Sib Support is unavailable')
+  })
+
+  it('does not fail account answers when support tickets table is missing', async () => {
+    setupFetchMock({
+      failTickets: true,
+      orders: [orderRow({ id: ORDER_ID, order_ref: 'SIB-TICKETS-MISSING', listing_title: 'Cream shirt', status: 'paid' })],
+    })
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: 'where is my order?',
+      context: 'General support',
+    })
+
+    expect(result.answer).toContain('SIB-TICKETS-MISSING')
+    expect(result.answer).toContain('Cream shirt')
+    expect(result.answer).not.toContain('Sib Support is unavailable')
   })
 
   it('still returns a deterministic order reply when OpenAI fails', async () => {

@@ -58,7 +58,11 @@ async function supabaseFetch(path, { method = 'GET', token, body, serviceRole = 
   const data = text ? JSON.parse(text) : null
   if (!response.ok) {
     const message = data?.message || data?.error_description || data?.error || `Supabase request failed (${response.status})`
-    throw new Error(message)
+    const error = new Error(message)
+    error.status = response.status
+    error.statusText = response.statusText
+    error.details = data
+    throw error
   }
   return data
 }
@@ -247,6 +251,59 @@ function logSupportEvent(event, payload = {}) {
   console.info('[support-ai]', JSON.stringify({ event, ...payload }))
 }
 
+function classifySupabaseError(error) {
+  const message = String(error?.message || '')
+  const status = error?.status
+  const code = error?.details?.code
+  if (status === 401 || status === 403 || /permission denied|rls|row-level/i.test(message)) return 'rls_or_permission'
+  if (status === 404 || code === '42P01' || /relation .* does not exist|schema cache|could not find/i.test(message)) return 'missing_relation_or_column'
+  if (status === 406) return 'not_acceptable_or_empty_single'
+  if (status >= 500) return 'supabase_server_error'
+  return 'query_error'
+}
+
+function logSupportQueryFailure({ section, table, userId, error }) {
+  const payload = {
+    event: 'support_query_failed',
+    section,
+    table,
+    userId,
+    status: error?.status || null,
+    statusText: error?.statusText || null,
+    code: error?.details?.code || null,
+    kind: classifySupabaseError(error),
+    message: error?.message || 'Unknown Supabase error',
+  }
+  console.error('[support-ai]', JSON.stringify(payload))
+}
+
+async function loadSupportSection({ section, table, userId, errors, fn, fallback }) {
+  try {
+    const data = await fn()
+    logSupportEvent('support_query_loaded', {
+      section,
+      table,
+      userId,
+      count: Array.isArray(data) ? data.length : data ? 1 : 0,
+    })
+    return data
+  } catch (error) {
+    logSupportQueryFailure({ section, table, userId, error })
+    errors.push({
+      section,
+      table,
+      kind: classifySupabaseError(error),
+      status: error?.status || null,
+      message: error?.message || 'Unknown Supabase error',
+    })
+    return fallback
+  }
+}
+
+function hasContextError(context, section) {
+  return (context?.errors || []).some(error => error.section === section)
+}
+
 function getOrderIdList(orders) {
   return [...new Set((orders || []).map(order => order.id).filter(Boolean))]
 }
@@ -267,11 +324,16 @@ async function fetchRowsForOrders(table, select, orderIds, suffix = '') {
 }
 
 export async function getSupportContext(userId) {
-  const profilePromise = getCurrentUserProfile(userId).catch(error => {
-    console.error('[support-ai] support context profile fetch failed:', error?.message || error)
-    return null
+  const errors = []
+  logSupportEvent('support_context_start', { userId })
+  const orders = await loadSupportSection({
+    section: 'orders',
+    table: 'orders',
+    userId,
+    errors,
+    fallback: [],
+    fn: () => getUserOrders(userId),
   })
-  const orders = await getUserOrders(userId)
   const orderIds = getOrderIdList(orders)
   const [
     profile,
@@ -280,27 +342,51 @@ export async function getSupportContext(userId) {
     disputes,
     supportTickets,
   ] = await Promise.all([
-    profilePromise,
-    fetchRowsForOrders('logistics_delivery_sheet', 'order_id,delivery_status,dropoff_store_name,dropoff_store_address,dropped_off_at,delivery_timing,pickup_zone,buyer_locality,confirmed_at,updated_at', orderIds, '&order=updated_at.desc').catch(error => {
-      console.error('[support-ai] support context logistics fetch failed:', error?.message || error)
-      return []
+    loadSupportSection({
+      section: 'stripe_onboarding',
+      table: 'profiles',
+      userId,
+      errors,
+      fallback: null,
+      fn: () => getCurrentUserProfile(userId),
     }),
-    fetchRowsForOrders('shipments', 'order_id,id,status,tracking_number,ship_by_deadline,shipped_at,delivered_at,dropoff_store_name,dropoff_store_address,dropped_off_at,current_location,fulfilment_status,delivery_timing', orderIds, '&order=updated_at.desc').catch(error => {
-      console.error('[support-ai] support context shipment fetch failed:', error?.message || error)
-      return []
+    loadSupportSection({
+      section: 'logistics',
+      table: 'logistics_delivery_sheet',
+      userId,
+      errors,
+      fallback: [],
+      fn: () => fetchRowsForOrders('logistics_delivery_sheet', 'order_id,delivery_status,dropoff_store_name,dropoff_store_address,dropped_off_at,delivery_timing,pickup_zone,buyer_locality,confirmed_at,updated_at', orderIds, '&order=updated_at.desc'),
     }),
-    fetchRowsForOrders('disputes', 'order_id,id,status,reason,details,source,created_at,resolved_at', orderIds, '&order=created_at.desc').catch(error => {
-      console.error('[support-ai] support context disputes fetch failed:', error?.message || error)
-      return []
+    loadSupportSection({
+      section: 'logistics',
+      table: 'shipments',
+      userId,
+      errors,
+      fallback: [],
+      fn: () => fetchRowsForOrders('shipments', 'order_id,id,status,tracking_number,ship_by_deadline,shipped_at,delivered_at,dropoff_store_name,dropoff_store_address,dropped_off_at,current_location,fulfilment_status,delivery_timing', orderIds, '&order=updated_at.desc'),
     }),
-    supabaseFetch(`/rest/v1/support_tickets?user_id=eq.${encodeURIComponent(userId)}&select=id,order_id,category,subject,status,created_at&order=created_at.desc&limit=10`, { serviceRole: true }).catch(error => {
-      console.error('[support-ai] support context tickets fetch failed:', error?.message || error)
-      return []
+    loadSupportSection({
+      section: 'disputes',
+      table: 'disputes',
+      userId,
+      errors,
+      fallback: [],
+      fn: () => fetchRowsForOrders('disputes', 'order_id,id,status,reason,details,source,created_at,resolved_at', orderIds, '&order=created_at.desc'),
+    }),
+    loadSupportSection({
+      section: 'support_tickets',
+      table: 'support_tickets',
+      userId,
+      errors,
+      fallback: [],
+      fn: () => supabaseFetch(`/rest/v1/support_tickets?user_id=eq.${encodeURIComponent(userId)}&select=id,order_id,category,subject,status,created_at&order=created_at.desc&limit=10`, { serviceRole: true }),
     }),
   ])
 
   const buyerOrders = orders.filter(order => order.role === 'buyer')
   const sellerOrders = orders.filter(order => order.role === 'seller')
+  const refunds = orders.filter(order => order.refundedAt || order.paymentStatus === 'refunded')
   const context = {
     profile,
     orders,
@@ -309,8 +395,14 @@ export async function getSupportContext(userId) {
     logisticsRecords,
     shipmentRecords,
     disputes,
-    refunds: orders.filter(order => order.refundedAt || order.paymentStatus === 'refunded'),
+    refunds,
     supportTickets,
+    payouts: {
+      sellerOrders,
+      payoutOrders: sellerOrders.filter(isPayoutRelevantOrder),
+      profile,
+    },
+    errors,
     logisticsByOrderId: byOrderId(logisticsRecords, orderIds),
     shipmentsByOrderId: byOrderId(shipmentRecords, orderIds),
     disputesByOrderId: byOrderId(disputes, orderIds),
@@ -321,7 +413,10 @@ export async function getSupportContext(userId) {
     logisticsRecords: logisticsRecords.length,
     shipmentRecords: shipmentRecords.length,
     disputes: disputes.length,
+    refunds: refunds.length,
+    payoutOrders: sellerOrders.filter(isPayoutRelevantOrder).length,
     supportTickets: supportTickets.length,
+    errors: errors.map(error => `${error.section}:${error.kind}`),
   })
   return context
 }
@@ -388,6 +483,13 @@ async function buildOrderStatusReply(userId, supportContext) {
     }
   }
 
+  if (hasContextError(context, 'orders')) {
+    return {
+      answer: "I can't currently access live delivery tracking. If this is urgent, I can send this to Sib support with your account details.",
+      usedTools: ['getSupportContext'],
+    }
+  }
+
   const { orders } = context
   if (!orders.length) {
     logSupportEvent('support_fallback', { intent: 'order', reason: 'no_orders' })
@@ -400,13 +502,14 @@ async function buildOrderStatusReply(userId, supportContext) {
   const activeOrders = orders.filter(isActiveOrder)
   if (activeOrders.length === 1) {
     const status = orderStatusFromContext(context, activeOrders[0])
+    const logisticsUnavailable = hasContextError(context, 'logistics')
     return {
       answer: [
         buildOperationalOrderReply(status),
         `Order status: ${humanizeStatus(activeOrders[0].status) || 'In progress'}.`,
-        `Delivery status: ${getLogisticsLabel(status)}.`,
+        logisticsUnavailable ? "I can't currently access live delivery tracking." : `Delivery status: ${getLogisticsLabel(status)}.`,
         `Next step: ${getNextStep(status)}`,
-        !status.logistics && !status.shipment ? 'Live delivery tracking is not available yet, but the order is still on your account.' : '',
+        !logisticsUnavailable && !status.logistics && !status.shipment ? 'Live delivery tracking is not available yet, but the order is still on your account.' : '',
         activeOrders[0].dropoffStoreName ? `Drop-off store: ${activeOrders[0].dropoffStoreName}.` : '',
         activeOrders[0].deliveryTiming ? `Delivery timing: ${humanizeStatus(activeOrders[0].deliveryTiming)}.` : '',
       ].filter(Boolean).join('\n'),
@@ -420,8 +523,9 @@ async function buildOrderStatusReply(userId, supportContext) {
   return {
     answer: [
       'I found a few recent orders. Which one do you mean?',
+      hasContextError(context, 'logistics') ? "I can't currently access live delivery tracking, but I can still see your recent orders." : '',
       ...statuses.map(formatOrderLine),
-    ].join('\n'),
+    ].filter(Boolean).join('\n'),
     usedTools: ['getSupportContext'],
   }
 }
@@ -438,6 +542,12 @@ async function buildPayoutReply(userId, message, supportContext) {
   const profile = context.profile
   const sellerOrders = context.sellerOrders
   const asksManualRelease = /\b(release funds|release payout|release my funds|pay me now)\b/i.test(message || '')
+  if (hasContextError(context, 'orders')) {
+    return {
+      answer: "I can't currently access payout information for your account. If this is urgent, I can send this to Sib support with your account details.",
+      usedTools: ['getSupportContext'],
+    }
+  }
   if (asksManualRelease) {
     logSupportEvent('support_escalation_recommended', { intent: 'payout', reason: 'manual_release_request' })
     return {
@@ -528,6 +638,12 @@ async function buildRefundReply(userId, message, supportContext) {
       usedTools: ['getSupportContext'],
     }
   }
+  if (hasContextError(context, 'orders')) {
+    return {
+      answer: "I'm having trouble checking refund details right now. If this is urgent, I can send this to Sib support with your account details.",
+      usedTools: ['getSupportContext'],
+    }
+  }
   const refundedOrder = context.refunds?.[0] || null
   const buyerOrder = refundedOrder || context.buyerOrders?.find(order => !order.refundedAt) || context.orders?.[0] || null
   return {
@@ -547,6 +663,18 @@ async function buildDisputeReply(userId, supportContext) {
   if (!context) {
     return {
       answer: "I'm having trouble checking your dispute status right now. If this is urgent, I can send this to Sib support with your account details.",
+      usedTools: ['getSupportContext'],
+    }
+  }
+  if (hasContextError(context, 'disputes')) {
+    return {
+      answer: "I can't currently load dispute details, but I can still help escalate this to Sib support.",
+      usedTools: ['getSupportContext'],
+    }
+  }
+  if (hasContextError(context, 'orders')) {
+    return {
+      answer: "I can't currently load dispute details, but I can still help escalate this to Sib support.",
       usedTools: ['getSupportContext'],
     }
   }
