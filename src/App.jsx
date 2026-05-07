@@ -49,6 +49,7 @@ import DeliveryPolicyPage from './pages/DeliveryPolicyPage'
 import DisputesRefundsPage from './pages/DisputesRefundsPage'
 import CookiePolicyPage from './pages/CookiePolicyPage'
 import DeliverySettingsPage from './pages/DeliverySettingsPage'
+import SupportAssistantPage from './pages/SupportAssistantPage'
 
 function RecoveryRedirector() {
   const { recoveryMode, session, loading } = useAuth()
@@ -111,6 +112,7 @@ function AppRoutes() {
           <Route path="how-it-works" element={<HowItWorksPage />} />
           <Route path="faq" element={<FAQPage />} />
           <Route path="contact" element={<ContactPage />} />
+          <Route path="support" element={<SupportAssistantPage />} />
           <Route path="offers" element={<OffersPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="bundle" element={<BundlePage />} />

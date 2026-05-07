@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import {
   CheckCircle, Clock, Truck, Package, ShieldCheck,
   AlertTriangle, Timer, ThumbsUp, MessageCircle, ExternalLink, QrCode,
+  Bot,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import UserAvatar from '../components/UserAvatar'
@@ -193,6 +194,19 @@ export default function OrderDetailPage() {
             <p className="text-base font-bold text-sib-primary mt-1">€{order.totalPrice?.toFixed(2)}</p>
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={() => navigate(`/support?orderId=${encodeURIComponent(order.id)}`)}
+          className="w-full rounded-2xl border border-sib-primary/20 bg-sib-primary/5 px-4 py-3 text-left active:bg-sib-primary/10 transition-colors"
+        >
+          <span className="flex items-center gap-2 text-sm font-bold text-sib-primary">
+            <Bot size={16} /> Ask about this order
+          </span>
+          <span className="mt-0.5 block text-xs text-sib-muted dark:text-[#aeb8b4]">
+            Get help understanding status, delivery, payout, refund, or dispute next steps.
+          </span>
+        </button>
 
         {/* Buyer paid state */}
         {isBuyer && isPaid && !isDelivered && !isConfirmed && !isDisputed && (
@@ -402,13 +416,22 @@ export default function OrderDetailPage() {
               }
             </p>
             {evidenceSenderRole && (
-              <button
-                type="button"
-                onClick={() => setEvidenceOpen(open => !open)}
-                className="mt-3 w-full rounded-xl bg-white px-3 py-2 text-xs font-bold text-red-700 border border-red-100"
-              >
-                Provide Evidence
-              </button>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => setEvidenceOpen(open => !open)}
+                  className="w-full rounded-xl bg-white px-3 py-2 text-xs font-bold text-red-700 border border-red-100"
+                >
+                  Provide Evidence
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/support?orderId=${encodeURIComponent(order.id)}&mode=evidence`)}
+                  className="w-full rounded-xl bg-red-100 px-3 py-2 text-xs font-bold text-red-800 border border-red-200"
+                >
+                  Get help providing evidence
+                </button>
+              </div>
             )}
             {evidenceOpen && (
               <div className="mt-3 space-y-2">

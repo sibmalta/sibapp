@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, User, Bell, Shield, FileText, ShieldCheck, RefreshCw, Ban, ChevronRight, LogOut, HelpCircle, Mail, Lock, Store, Truck, Scale, Cookie, MapPin, Sun, Moon } from 'lucide-react'
+import { ArrowLeft, User, Bell, Shield, FileText, ShieldCheck, RefreshCw, Ban, ChevronRight, LogOut, HelpCircle, Mail, Lock, Store, Truck, Scale, Cookie, MapPin, Sun, Moon, Bot } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { useTheme } from '../context/ThemeContext'
 
@@ -138,6 +138,7 @@ export default function SettingsPage() {
         <p className="text-[11px] font-semibold text-sib-muted dark:text-[#aeb8b4] uppercase tracking-wide mb-2">Help & Support</p>
         <div className="rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] overflow-hidden divide-y divide-sib-stone dark:divide-[rgba(242,238,231,0.10)] sib-panel">
           {[
+            { to: '/support', icon: Bot, label: 'Ask Sib' },
             { to: '/faq', icon: HelpCircle, label: 'FAQ' },
             { to: '/contact', icon: Mail, label: 'Contact Support' },
           ].map(item => (
