@@ -139,7 +139,7 @@ export function detectSupportIntent(message) {
 
   if (/\b(refund|money back|cancel and refund|want my money back)\b/.test(normalized)) return 'refund'
   if (/\b(dispute|item not as described|not as described|fake|damaged|evidence|seller issue|buyer issue)\b/.test(normalized)) return 'dispute'
-  if (/\b(payout|seller payout|when will i get paid|when do i get paid|funds|release funds|get paid)\b/.test(normalized)) return 'payout'
+  if (/\b(payout|payout pending|where is my payout|seller payout|payment from sale|seller payment|when will i get paid|when do i get paid|when do payouts arrive|why haven't i been paid|why havent i been paid|funds|release funds|get paid)\b/.test(normalized)) return 'payout'
   if (/\b(where'?s my (order|delivery|parcel|package)|where is my (order|delivery|parcel|package)|when will delivery be|order|delivery|arrived|hasn't arrived|hasnt arrived|not arrived|tracking|parcel|package|shipped|bought|purchase)\b/.test(normalized)) return 'order'
   if (/\b(hi|hello|hey|help|support)\b/.test(normalized)) return 'generic'
 
@@ -285,41 +285,97 @@ async function buildPayoutReply(userId, message) {
   const { orders, error } = await loadUserOrdersForSupport(userId)
   if (error) {
     return {
-      answer: "I'm having trouble checking your payout status right now. You can try again, or I can escalate this to Sib support.",
+      answer: "I'm having trouble checking payout details right now. If this is urgent, I can send this to Sib support with your account details.",
       usedTools: ['getUserOrders'],
     }
   }
 
-  const sellerOrders = orders.filter(order => order.role === 'seller').slice(0, 5)
+  const profile = await getCurrentUserProfile(userId).catch(error => {
+    console.error('[support-ai] getCurrentUserProfile for payout failed:', error?.message || error)
+    return null
+  })
+
+  const sellerOrders = orders.filter(order => order.role === 'seller')
   const asksManualRelease = /\b(release funds|release payout|release my funds|pay me now)\b/i.test(message || '')
   if (asksManualRelease) {
     return {
       answer: 'Payout releases always need the normal buyer-protection/admin review. I can connect you with Sib support for this issue.',
-      usedTools: ['getUserOrders'],
+      usedTools: ['getUserOrders', 'getCurrentUserProfile'],
     }
   }
 
   if (!sellerOrders.length) {
     return {
-      answer: "I can't see any seller orders waiting for payout on your account yet.",
-      usedTools: ['getUserOrders'],
+      answer: [
+        'I cannot see any payout activity yet on this account.',
+        'Payouts are normally released after delivery is confirmed. Bank transfers can take several business days.',
+      ].join('\n'),
+      usedTools: ['getUserOrders', 'getCurrentUserProfile'],
     }
   }
 
-  const lines = sellerOrders.map(order => {
-    const payout = order.payoutStatus || order.sellerPayoutStatus || 'pending'
-    let reason = 'It will be reviewed after delivery and the buyer protection window.'
-    if (/setup|blocked/i.test(payout)) reason = 'Your Stripe payout setup needs attention before funds can be released.'
-    if (/dispute|held|under_review/i.test(payout)) reason = 'Funds are held while Sib reviews the order or dispute.'
-    if (/releasable/i.test(payout)) reason = 'This payout looks ready for release by the normal payout process.'
-    if (/released|paid/i.test(payout)) reason = 'This payout appears to have been released.'
-    return `${getOrderCode(order)} - ${order.item || 'Item'}: payout ${humanizeStatus(payout)}. ${reason}`
-  })
+  const payoutOrders = sellerOrders.filter(isPayoutRelevantOrder).slice(0, 5)
+  if (profile && !profile.stripeOnboardingComplete && payoutOrders.length) {
+    return {
+      answer: [
+        'To receive payouts, you still need to complete your payout verification setup.',
+        'Open your payout settings and finish Stripe verification. Once setup is complete, eligible payouts can be processed after delivery confirmation and buyer protection review.',
+      ].join('\n'),
+      usedTools: ['getUserOrders', 'getCurrentUserProfile'],
+    }
+  }
+
+  if (profile && profile.stripeOnboardingComplete && !profile.payoutsEnabled && payoutOrders.length) {
+    return {
+      answer: [
+        'Your payout account needs attention before payouts can be sent.',
+        'Please check your payout settings for any verification or restriction messages. Sib support can help if the account status looks unclear.',
+      ].join('\n'),
+      usedTools: ['getUserOrders', 'getCurrentUserProfile'],
+    }
+  }
+
+  if (!payoutOrders.length) {
+    return {
+      answer: [
+        'You do not have any completed sales ready for payout yet.',
+        'Payouts are normally released after delivery is confirmed. Buyer protection may temporarily delay payout release.',
+      ].join('\n'),
+      usedTools: ['getUserOrders', 'getCurrentUserProfile'],
+    }
+  }
+
+  const lines = payoutOrders.map(formatPayoutOrderLine)
 
   return {
-    answer: ['Here is what I can see for your seller payouts:', ...lines].join('\n'),
-    usedTools: ['getUserOrders'],
+    answer: [
+      'Your payout is currently processing.',
+      ...lines,
+      'Payouts are normally released after delivery is confirmed. Buyer protection may temporarily delay payout release.',
+      'Bank transfers can take several business days after release.',
+    ].join('\n'),
+    usedTools: ['getUserOrders', 'getCurrentUserProfile'],
   }
+}
+
+function isPayoutRelevantOrder(order) {
+  const status = String(order?.status || '').toLowerCase()
+  const payout = String(order?.payoutStatus || order?.sellerPayoutStatus || '').toLowerCase()
+  return Boolean(order?.deliveredAt || order?.buyerConfirmedAt || order?.sellerPayoutAmount)
+    || ['delivered', 'completed', 'releasable', 'released', 'payment_received_seller_payout_pending'].includes(status)
+    || ['pending', 'processing', 'held', 'under_review', 'releasable', 'released', 'paid', 'setup_pending', 'blocked_payouts', 'seller_setup_blocked', 'transfer_failed'].includes(payout)
+}
+
+function formatPayoutOrderLine(order) {
+  const payout = order.payoutStatus || order.sellerPayoutStatus || 'pending'
+  const deliveryConfirmed = Boolean(order.deliveredAt || order.buyerConfirmedAt || ['delivered', 'completed'].includes(String(order.status || '').toLowerCase()))
+  const holdCopy = /held|under_review|dispute/i.test(payout)
+    ? 'Buyer protection or review may still be holding this payout.'
+    : 'Buyer protection may still apply until the release check is complete.'
+  const deliveryCopy = deliveryConfirmed
+    ? 'Delivery confirmation is recorded.'
+    : 'Delivery confirmation is still pending.'
+  return `${getOrderCode(order)} - ${order.item || 'your item'}: payout ${humanizeStatus(payout) || 'Pending'}. ${deliveryCopy} ${holdCopy}`
 }
 
 async function buildRefundReply(userId, message) {

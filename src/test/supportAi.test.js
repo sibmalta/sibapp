@@ -39,7 +39,7 @@ function setupEnv() {
   vi.stubEnv('OPENAI_API_KEY', 'openai-key')
 }
 
-function setupFetchMock({ order = orderRow(), orders, logisticsRows = [], shipmentRows = [], failOrders = false, failOpenAi = false, openAiResponses = [] } = {}) {
+function setupFetchMock({ order = orderRow(), orders, profileRows = [], logisticsRows = [], shipmentRows = [], failOrders = false, failOpenAi = false, openAiResponses = [] } = {}) {
   const orderRows = orders || (order ? [order] : [])
   const calls = []
   let openAiIndex = 0
@@ -71,7 +71,7 @@ function setupFetchMock({ order = orderRow(), orders, logisticsRows = [], shipme
       return jsonResponse([{ id: 'esc-1', status: 'open', created_at: '2026-05-07T09:05:00.000Z' }])
     }
 
-    if (href.includes('/rest/v1/profiles')) return jsonResponse([])
+    if (href.includes('/rest/v1/profiles')) return jsonResponse(profileRows)
     if (href.includes('/rest/v1/shipments')) return jsonResponse(shipmentRows)
     if (href.includes('/rest/v1/logistics_delivery_sheet')) return jsonResponse(logisticsRows)
     if (href.includes('/rest/v1/disputes')) return jsonResponse([])
@@ -279,6 +279,137 @@ describe('Sib Support AI tools', () => {
     expect(getDeliveryNextStep('delivered')).toBe('This order is marked as delivered.')
     expect(getDeliveryNextStep('paid')).toBe('The order is paid and waiting to enter the delivery flow.')
     expect(getDeliveryNextStep('')).toBe('Live delivery tracking is not available yet, but the order is still on your account.')
+  })
+
+  it('gives no-completed-sales payout guidance without sounding broken', async () => {
+    setupFetchMock({
+      orders: [orderRow({
+        id: ORDER_ID,
+        buyer_id: OTHER_ID,
+        seller_id: USER_ID,
+        order_ref: 'SIB-PAYOUT-NOT-READY',
+        listing_title: 'Green jumper',
+        status: 'paid',
+        payout_status: null,
+        seller_payout_status: null,
+      })],
+    })
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: 'When will I get paid?',
+      context: 'General support',
+    })
+
+    expect(result.answer).toContain('You do not have any completed sales ready for payout yet.')
+    expect(result.answer).toContain('Payouts are normally released after delivery is confirmed')
+    expect(result.answer).not.toContain('trouble checking')
+    expect(result.answer).not.toContain('I could not reach Sib Support AI')
+  })
+
+  it('explains payout pending for delivered seller sales', async () => {
+    setupFetchMock({
+      orders: [orderRow({
+        id: ORDER_ID,
+        buyer_id: OTHER_ID,
+        seller_id: USER_ID,
+        order_ref: 'SIB-PAYOUT-PENDING',
+        listing_title: 'Silver dress',
+        status: 'delivered',
+        delivered_at: '2026-05-07T10:00:00.000Z',
+        payout_status: 'pending',
+      })],
+    })
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: 'Where is my payout?',
+      context: 'General support',
+    })
+
+    expect(result.answer).toContain('Your payout is currently processing.')
+    expect(result.answer).toContain('Silver dress')
+    expect(result.answer).toContain('Delivery confirmation is recorded')
+    expect(result.answer).toContain('Buyer protection may temporarily delay payout release')
+    expect(result.answer).not.toContain('trouble checking')
+  })
+
+  it('explains incomplete payout onboarding', async () => {
+    setupFetchMock({
+      profileRows: [{ id: USER_ID, stripe_onboarding_complete: false, payouts_enabled: false, charges_enabled: true }],
+      orders: [orderRow({
+        id: ORDER_ID,
+        buyer_id: OTHER_ID,
+        seller_id: USER_ID,
+        order_ref: 'SIB-PAYOUT-SETUP',
+        listing_title: 'Brown boots',
+        status: 'delivered',
+        delivered_at: '2026-05-07T10:00:00.000Z',
+        payout_status: 'pending',
+      })],
+    })
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: 'When do payouts arrive?',
+      context: 'General support',
+    })
+
+    expect(result.answer).toContain('To receive payouts, you still need to complete your payout verification setup.')
+    expect(result.answer).toContain('Stripe verification')
+    expect(result.answer).not.toContain('trouble checking')
+  })
+
+  it('explains payout account restrictions when setup is complete but payouts are disabled', async () => {
+    setupFetchMock({
+      profileRows: [{ id: USER_ID, stripe_onboarding_complete: true, payouts_enabled: false, charges_enabled: true }],
+      orders: [orderRow({
+        id: ORDER_ID,
+        buyer_id: OTHER_ID,
+        seller_id: USER_ID,
+        order_ref: 'SIB-PAYOUT-ATTENTION',
+        listing_title: 'Black bag',
+        status: 'delivered',
+        delivered_at: '2026-05-07T10:00:00.000Z',
+        payout_status: 'pending',
+      })],
+    })
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: "Why haven't I been paid?",
+      context: 'General support',
+    })
+
+    expect(result.answer).toContain('Your payout account needs attention before payouts can be sent.')
+    expect(result.answer).not.toContain('trouble checking')
+  })
+
+  it('gives no-payout-activity guidance when the seller has no seller orders', async () => {
+    setupFetchMock({ orders: [] })
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: 'seller payment',
+      context: 'General support',
+    })
+
+    expect(result.answer).toContain('I cannot see any payout activity yet on this account.')
+    expect(result.answer).toContain('Bank transfers can take several business days')
+    expect(result.answer).not.toContain('trouble checking')
+  })
+
+  it('uses technical payout failure wording only when the order lookup errors', async () => {
+    setupFetchMock({ failOrders: true })
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: 'payout pending',
+      context: 'General support',
+    })
+
+    expect(result.answer).toContain("I'm having trouble checking payout details right now")
+    expect(result.answer).toContain('send this to Sib support')
   })
 
   it('never refunds automatically and recommends human support for refund requests', async () => {
