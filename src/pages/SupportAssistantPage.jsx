@@ -115,6 +115,7 @@ export default function SupportAssistantPage() {
           sectionErrors: result.sectionErrors,
           usedTools: result.usedTools,
           action: result.action,
+          prefill: result.prefill,
         })
       }
       setMessages(prev => [...prev, {
@@ -126,6 +127,15 @@ export default function SupportAssistantPage() {
       }])
       setAssistantReplyCount(count => count + 1)
       if (result.action === 'open_support_ticket') {
+        if (result.prefill) {
+          setSupportForm(prev => ({
+            ...prev,
+            category: result.prefill.category || prev.category,
+            subject: result.prefill.subject || prev.subject,
+            message: result.prefill.message || prev.message,
+            orderId: result.prefill.orderId || prev.orderId,
+          }))
+        }
         setSupportSent(false)
         setSupportOpen(true)
       }
@@ -384,8 +394,9 @@ export default function SupportAssistantPage() {
                 </label>
 
                 <label className="block">
-                  <span className="text-xs font-bold text-sib-muted">Attachments optional</span>
+                  <span className="text-xs font-bold text-sib-muted">Add photos or screenshots</span>
                   <input type="file" multiple accept="image/*,application/pdf" onChange={e => setSupportFiles(Array.from(e.target.files || []))} className="mt-1 w-full rounded-xl border border-dashed border-sib-stone px-3 py-3 text-sm text-sib-muted dark:border-[#2d3635]" />
+                  <p className="mt-1 text-[11px] leading-relaxed text-sib-muted">For item issues, please attach photos of the item, parcel label, and any relevant screenshots.</p>
                   {supportFiles.length > 0 && <p className="mt-1 text-[11px] text-sib-muted">{supportFiles.length} file{supportFiles.length === 1 ? '' : 's'} selected</p>}
                 </label>
 

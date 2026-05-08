@@ -372,6 +372,44 @@ describe('Sib Support AI tools', () => {
     expect(getDeliveryNextStep('')).toBe('Live delivery tracking is not available yet, but the order is still on your account.')
   })
 
+  it('answers general delivery timing as policy guidance, not live tracking failure', async () => {
+    setupFetchMock({ orders: [] })
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: 'How long does delivery usually take?',
+      context: 'General support',
+    })
+
+    expect(result.detectedIntent).toBe('delivery_policy')
+    expect(result.answer).toContain('Delivery timing depends on seller drop-off and courier collection.')
+    expect(result.answer).toContain('courier pickup and delivery')
+    expect(result.answer).not.toContain("I can't currently access live delivery tracking")
+    expect(result.answer).not.toMatch(/upload|send photos here/i)
+  })
+
+  it('includes current status when delivery policy question has a known order', async () => {
+    setupFetchMock({
+      orders: [orderRow({
+        id: ORDER_ID,
+        order_ref: 'SIB-DELIVERY-POLICY',
+        listing_title: 'Blue bag',
+        status: 'paid',
+      })],
+      logisticsRows: [{ order_id: ORDER_ID, delivery_status: 'dropped_off' }],
+    })
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: 'How long after drop off?',
+      context: 'General support',
+    })
+
+    expect(result.detectedIntent).toBe('delivery_policy')
+    expect(result.answer).toContain('SIB-DELIVERY-POLICY')
+    expect(result.answer).toContain('Dropped Off')
+  })
+
   it('gives no-completed-sales payout guidance without sounding broken', async () => {
     setupFetchMock({
       orders: [orderRow({
@@ -716,6 +754,47 @@ describe('Sib Support AI tools', () => {
     expect(result.usedTools).toEqual(['getSupportContext'])
   })
 
+  it('opens a dispute support ticket for wrong item evidence flow', async () => {
+    setupFetchMock({
+      orders: [orderRow({ id: ORDER_ID, order_ref: 'SIB-WRONG-ITEM', listing_title: 'Vintage top', status: 'delivered' })],
+    })
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: 'Someone sent me the wrong item',
+      context: 'General support',
+    })
+
+    expect(result.detectedIntent).toBe('evidence_required')
+    expect(result.action).toBe('open_support_ticket')
+    expect(result.prefill).toMatchObject({
+      category: 'Dispute',
+      subject: 'Wrong item received',
+      orderId: ORDER_ID,
+    })
+    expect(result.prefill.message).toContain('Someone sent me the wrong item')
+    expect(result.answer).toContain('support form to attach photos')
+    expect(result.answer).not.toMatch(/upload.*chat|send photos here/i)
+  })
+
+  it('opens a dispute support ticket with attachment guidance for damaged item', async () => {
+    setupFetchMock({ orders: [] })
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: 'The item is damaged and I need to send evidence',
+      context: 'General support',
+    })
+
+    expect(result.detectedIntent).toBe('evidence_required')
+    expect(result.action).toBe('open_support_ticket')
+    expect(result.prefill.category).toBe('Dispute')
+    expect(result.prefill.subject).toBe('Damaged item received')
+    expect(result.prefill.message).toContain('The item is damaged and I need to send evidence')
+    expect(result.answer).toContain('attach photos of the item, parcel label')
+    expect(result.answer).not.toMatch(/upload.*chat|send photos here/i)
+  })
+
   it('degrades gracefully when dispute details are restricted', async () => {
     setupFetchMock({
       failDisputes: true,
@@ -921,5 +1000,35 @@ describe('Ask Sib support prompt buttons', () => {
       }))
     })
     expect(await screen.findByRole('dialog', { name: 'Contact Sib Support' })).toBeTruthy()
+  })
+
+  it('prefills support ticket form and shows attachment guidance from API action', async () => {
+    await renderSupportAssistantPage({
+      askResponse: {
+        answer: 'I can help escalate this to Sib support. Please use the support form to attach photos of the item, parcel label, and a short explanation.',
+        action: 'open_support_ticket',
+        detectedIntent: 'evidence_required',
+        prefill: {
+          category: 'Dispute',
+          subject: 'Wrong item received',
+          message: 'Issue: Wrong item received\nUser message: Someone sent me the wrong item',
+        },
+        contextCounts: { orders: 1 },
+        sectionErrors: [],
+        usedTools: ['getSupportContext'],
+      },
+    })
+
+    const input = screen.getByPlaceholderText('Ask about an order, payout, delivery, or dispute...')
+    fireEvent.change(input, {
+      target: { value: 'Someone sent me the wrong item' },
+    })
+    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' })
+
+    expect(await screen.findByRole('dialog', { name: 'Contact Sib Support' })).toBeTruthy()
+    expect(screen.getByDisplayValue('Wrong item received')).toBeTruthy()
+    expect(screen.getByDisplayValue(/Someone sent me the wrong item/i)).toBeTruthy()
+    expect(screen.getByText('Add photos or screenshots')).toBeTruthy()
+    expect(screen.getByText(/please attach photos of the item, parcel label/i)).toBeTruthy()
   })
 })

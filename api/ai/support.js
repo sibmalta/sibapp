@@ -140,6 +140,8 @@ const ACTIVE_ORDER_STATUSES = new Set([
 const EXTERNAL_COMMERCE_PATTERN = /\b(amazon|ebay|walmart|nike\.com|online retail platforms?|external marketplaces?)\b/i
 const MARKETPLACE_SHOPPING_PHRASES = /\b(where can i find|where can i buy|looking for|look for|do you have|have you got|search for|show me|find me|i want to buy|can i buy|any .* for sale)\b/i
 const MARKETPLACE_PRODUCT_TERMS = /\b(jacket|jackets|dress|dresses|shoe|shoes|trainer|trainers|sneaker|sneakers|jordan|jordans|nike|adidas|zara|bag|bags|coat|coats|hoodie|hoodies|jeans|top|tops|shirt|shirts|skirt|skirts|boots|heels|watch|watches|clothes|clothing|item|items)\b/i
+const DELIVERY_POLICY_PATTERN = /\b(how long does delivery take|how long does shipping take|when does delivery usually arrive|delivery time|shipping time|how long after drop off|how long after drop-off|when will courier deliver|usual delivery|delivery usually)\b/i
+const EVIDENCE_REQUIRED_PATTERN = /\b(wrong item|damaged item|item is damaged|item was damaged|item not as described|not as described|fake item|missing item|parcel damaged|need to send evidence|send evidence|upload photo|attach photo|attach photos|send photos|provide evidence)\b/i
 
 function userExplicitlyAskedOutsideSib(message) {
   return /\b(outside sib|not on sib|other websites|external sites|alternatives outside|outside sib malta|amazon|ebay|walmart|nike\.com)\b/i.test(String(message || ''))
@@ -151,6 +153,15 @@ function detectMarketplaceShoppingIntent(normalizedMessage) {
   if (MARKETPLACE_SHOPPING_PHRASES.test(text) && MARKETPLACE_PRODUCT_TERMS.test(text)) return true
   if (/^show me\s+\w+/i.test(text) && !/\b(order|delivery|payout|refund|dispute|support)\b/i.test(text)) return true
   return false
+}
+
+function detectDeliveryPolicyIntent(normalizedMessage) {
+  const text = String(normalizedMessage || '')
+  return DELIVERY_POLICY_PATTERN.test(text) && !/\b(where is|where'?s|track|tracking|hasn't arrived|hasnt arrived|not arrived)\b/i.test(text)
+}
+
+function detectEvidenceRequiredIntent(normalizedMessage) {
+  return EVIDENCE_REQUIRED_PATTERN.test(String(normalizedMessage || ''))
 }
 
 function cleanMarketplaceSearchQuery(message) {
@@ -210,6 +221,8 @@ export function detectSupportIntent(message) {
   const normalized = text.replace(/[’]/g, "'")
 
   if (detectMarketplaceShoppingIntent(normalized)) return 'marketplace_shopping'
+  if (detectEvidenceRequiredIntent(normalized)) return 'evidence_required'
+  if (detectDeliveryPolicyIntent(normalized)) return 'delivery_policy'
   if (/\b(report a problem|problem with|contact support|contact sib support|escalate|human support|support ticket|talk to support)\b/.test(normalized)) return 'report_problem'
   if (/\b(refund|money back|cancel and refund|want my money back)\b/.test(normalized)) return 'refund'
   if (/\b(dispute|item not as described|not as described|fake|damaged|evidence|seller issue|buyer issue)\b/.test(normalized)) return 'dispute'
@@ -832,6 +845,59 @@ function buildReportProblemReply(supportContext) {
   }
 }
 
+function inferEvidenceSubject(message) {
+  const text = String(message || '').toLowerCase()
+  if (/\bwrong item\b/.test(text)) return 'Wrong item received'
+  if (/\bdamaged|parcel damaged\b/.test(text)) return 'Damaged item received'
+  if (/\bfake\b/.test(text)) return 'Fake item concern'
+  if (/\bmissing item\b/.test(text)) return 'Missing item issue'
+  if (/\bnot as described\b/.test(text)) return 'Item not as described'
+  return 'Item issue evidence'
+}
+
+function buildEvidenceRequiredReply(message, supportContext) {
+  const recentOrder = supportContext?.orders?.[0] || null
+  const subject = inferEvidenceSubject(message)
+  return {
+    answer: [
+      'I can help escalate this to Sib support.',
+      'Please use the support form to attach photos of the item, parcel label, and a short explanation.',
+      recentOrder ? `I can include ${getOrderCode(recentOrder)} - ${recentOrder.item || 'your item'} as context.` : 'Include the item name, seller name, or order code if you have it.',
+    ].join('\n'),
+    action: 'open_support_ticket',
+    prefill: {
+      category: 'Dispute',
+      subject,
+      message: [
+        `Issue: ${subject}`,
+        `User message: ${String(message || '').trim()}`,
+        '',
+        'Please review the attached photos/screenshots and the order context.',
+      ].join('\n'),
+      orderId: recentOrder?.id || '',
+    },
+    usedTools: ['getSupportContext'],
+  }
+}
+
+function buildDeliveryPolicyReply(supportContext) {
+  const activeOrder = supportContext?.orders?.filter(isActiveOrder)?.[0] || supportContext?.orders?.[0] || null
+  const lines = [
+    'Delivery timing depends on seller drop-off and courier collection.',
+    "Once the seller drops off the parcel, Sib delivery usually moves through courier pickup and delivery. You'll get updates as the order progresses.",
+  ]
+  if (activeOrder) {
+    const status = orderStatusFromContext(supportContext, activeOrder)
+    lines.push(`For ${getOrderCode(activeOrder)} - ${activeOrder.item || 'your item'}: ${getLogisticsLabel(status)}.`)
+    lines.push(`Next step: ${getNextStep(status)}`)
+  }
+  lines.push("If your order appears delayed or tracking hasn't updated, you can contact Sib support.")
+  return {
+    answer: lines.join('\n'),
+    usedTools: supportContext ? ['getSupportContext'] : [],
+  }
+}
+
 function buildGenericHelpReply() {
   return {
     answer: "Hi, I'm Sib Support. I can help check an order, delivery, payout, refund, or dispute. What would you like help with?",
@@ -840,20 +906,29 @@ function buildGenericHelpReply() {
 }
 
 async function handleDeterministicIntent(intent, userId, message, supportContext, contextError) {
-  if (!['marketplace_shopping', 'order', 'payout', 'refund', 'dispute', 'report_problem'].includes(intent)) return null
+  if (!['marketplace_shopping', 'delivery_policy', 'evidence_required', 'order', 'payout', 'refund', 'dispute', 'report_problem'].includes(intent)) return null
   logSupportEvent('support_intent', { intent })
   if (intent === 'marketplace_shopping') return buildMarketplaceShoppingReply(message)
+  if (intent === 'delivery_policy' && !contextError) return buildDeliveryPolicyReply(supportContext)
+  if (intent === 'evidence_required' && !contextError) return buildEvidenceRequiredReply(message, supportContext)
   if (contextError) {
     const failure = {
       order: "I'm having trouble checking live order details right now. If this is urgent, I can send this to Sib support with your account details.",
       payout: "I'm having trouble checking payout details right now. If this is urgent, I can send this to Sib support with your account details.",
       refund: "I'm having trouble checking refund details right now. If this is urgent, I can send this to Sib support with your account details.",
       dispute: "I'm having trouble checking your dispute status right now. If this is urgent, I can send this to Sib support with your account details.",
+      delivery_policy: "Delivery timing depends on seller drop-off and courier collection. Once the seller drops off the parcel, Sib delivery usually moves through courier pickup and delivery. If this is about a delayed order, I can connect you with Sib support.",
+      evidence_required: 'I can help escalate this to Sib support. Please use the support form to attach photos of the item, parcel label, and a short explanation.',
       report_problem: 'I can connect you with Sib support for this issue. Use the support form to send the details to Sib support.',
     }[intent]
     return {
       answer: failure,
-      action: intent === 'report_problem' ? 'open_support_ticket' : undefined,
+      action: ['report_problem', 'evidence_required'].includes(intent) ? 'open_support_ticket' : undefined,
+      prefill: intent === 'evidence_required' ? {
+        category: 'Dispute',
+        subject: inferEvidenceSubject(message),
+        message: `Issue: ${inferEvidenceSubject(message)}\nUser message: ${String(message || '').trim()}`,
+      } : undefined,
       usedTools: ['getSupportContext'],
     }
   }
@@ -861,6 +936,10 @@ async function handleDeterministicIntent(intent, userId, message, supportContext
   switch (intent) {
     case 'order':
       return buildOrderStatusReply(userId, supportContext)
+    case 'delivery_policy':
+      return buildDeliveryPolicyReply(supportContext)
+    case 'evidence_required':
+      return buildEvidenceRequiredReply(message, supportContext)
     case 'payout':
       return buildPayoutReply(userId, message, supportContext)
     case 'refund':
@@ -1063,7 +1142,7 @@ function buildSystemPrompt() {
     "Never reveal another user's private data. Do not infer data you do not have.",
     'Never refund a buyer, release funds, close a dispute, change order status, or promise a financial/admin outcome.',
     'If the user asks for refund/release/close/admin action, explain that a human admin must review it and create a support escalation.',
-    'For disputes, guide users to provide evidence: clear photos, item condition, parcel label/order ID, delivery/drop-off details, and a concise timeline.',
+    'For disputes and item issues, guide users to attach evidence in the Sib support form: clear photos, item condition, parcel label/order ID, delivery/drop-off details, and a concise timeline. Do not ask users to upload or send photos inside chat.',
     'Keep answers short, practical, and reassuring. If uncertain, escalate to human admin.',
   ].join('\n')
 }
@@ -1072,7 +1151,7 @@ export async function handleSupportRequest({ accessToken, message, orderId, cont
   const authUser = await verifyUser(accessToken)
   const userId = authUser.id
   const intent = detectSupportIntent(message)
-  const deterministicIntents = new Set(['marketplace_shopping', 'order', 'payout', 'refund', 'dispute', 'report_problem'])
+  const deterministicIntents = new Set(['marketplace_shopping', 'delivery_policy', 'evidence_required', 'order', 'payout', 'refund', 'dispute', 'report_problem'])
 
   if (intent === 'marketplace_shopping') {
     logSupportRequest({
