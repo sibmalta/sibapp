@@ -92,7 +92,7 @@ export function useNotifications(currentUser) {
       data: notif.data || {},
     }
 
-    const { data, error } = await withAuthRetry((client) => insertNotification(client, payload))
+    const { data, error, skipped } = await withAuthRetry((client) => insertNotification(client, payload))
     if (error) {
       console.error('[useNotifications] insertNotification failed:', {
         userId: notif.userId,
@@ -103,11 +103,13 @@ export function useNotifications(currentUser) {
       return null
     }
 
-    if (notif.userId === currentUser?.id && data) {
-      setNotifications(prev => prev.some(existing => existing.id === data.id) ? prev : sortNotifications([data, ...prev]))
+    const notification = data ? { ...data, skipped: Boolean(skipped) } : null
+
+    if (notif.userId === currentUser?.id && notification) {
+      setNotifications(prev => prev.some(existing => existing.id === notification.id) ? prev : sortNotifications([notification, ...prev]))
     }
 
-    return data
+    return notification
   }, [currentUser?.id, isAuthenticated, withAuthRetry])
 
   const markNotificationRead = useCallback(async (notifId) => {

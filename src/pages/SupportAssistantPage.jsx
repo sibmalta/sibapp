@@ -121,6 +121,8 @@ export default function SupportAssistantPage() {
         id: `assistant-${Date.now()}`,
         role: 'assistant',
         text: result.answer || 'I could not answer that. You can escalate this to Sib Support.',
+        action: result.action || null,
+        searchQuery: result.searchQuery || '',
       }])
       setAssistantReplyCount(count => count + 1)
       if (result.action === 'open_support_ticket') {
@@ -142,6 +144,11 @@ export default function SupportAssistantPage() {
   const escalate = () => {
     setSupportSent(false)
     setSupportOpen(true)
+  }
+
+  const openSearch = (searchQuery) => {
+    const query = String(searchQuery || '').trim()
+    navigate(query ? `/browse?q=${encodeURIComponent(query)}` : '/browse')
   }
 
   const updateSupportForm = (field, value) => {
@@ -241,7 +248,16 @@ export default function SupportAssistantPage() {
                         ? 'rounded-br-md bg-sib-primary text-white'
                         : 'rounded-bl-md border border-sib-stone bg-white text-sib-text dark:border-[rgba(242,238,231,0.10)] dark:bg-[#26322f] dark:text-[#f4efe7]'
                     }`}>
-                      {message.text}
+                      <div>{message.text}</div>
+                      {message.action === 'open_search' && (
+                        <button
+                          type="button"
+                          onClick={() => openSearch(message.searchQuery)}
+                          className="mt-3 rounded-full bg-sib-primary px-3 py-1.5 text-xs font-bold text-white transition-opacity hover:opacity-90"
+                        >
+                          Search Sib for {message.searchQuery || 'items'}
+                        </button>
+                      )}
                     </div>
                   </div>
                 )

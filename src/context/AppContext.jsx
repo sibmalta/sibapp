@@ -34,6 +34,7 @@ import { getOrderCode, isDropoffConfirmed } from '../lib/dropoffQr'
 import { calculateMarketplacePaymentSplit } from '../lib/marketplacePayments'
 import { getCourierDeliveryTiming } from '../lib/courierDeliveryTiming'
 import { getOverdueOrderIdsToFlag } from '../lib/overdueNotifications'
+import { shouldSkipDropoffReminder } from '../lib/dropoffReminderGuard'
 import {
   buildCourierCollectedSystemMessage,
   buildDeliveredSystemMessage,
@@ -282,6 +283,7 @@ export function AppProvider({ children }) {
     getUserNotifications,
     refreshNotifications,
   } = useNotificationsHook(currentUser)
+  const dropoffReminderInFlightRef = useRef(new Set())
 
   const sendSellerDropoffInstructions = useCallback(async ({ seller, order, itemTitle, orderRef, listingId }) => {
     const sellerId = order?.sellerId || seller?.id
@@ -353,27 +355,91 @@ export function AppProvider({ children }) {
   useEffect(() => {
     const checkReminders = async () => {
       const now = Date.now()
-      for (const s of shipments) {
-        if (s.status !== 'awaiting_shipment') continue
+      const awaitingShipments = shipments.filter(s => s.status === 'awaiting_shipment')
+      if (awaitingShipments.length > 0) {
+        console.info('[dropoff-reminder] job start', {
+          shipmentCount: shipments.length,
+          awaitingShipmentCount: awaitingShipments.length,
+          orderCount: orders.length,
+        })
+      }
+      for (const s of awaitingShipments) {
         const order = orders.find(o => o.id === s.orderId)
-        if (isDropoffConfirmed({ order, shipment: s })) continue
-        if (s.reminderSentAt || !s.createdAt) continue
-        const elapsed = now - new Date(s.createdAt).getTime()
-        if (elapsed >= SHIPPING_REMINDER_MS) {
+        if (isDropoffConfirmed({ order, shipment: s })) {
+          console.info('[dropoff-reminder] dedupe skipped', {
+            orderId: s.orderId,
+            userId: s.sellerId,
+            reason: 'dropoff_confirmed',
+          })
+          continue
+        }
+
+        const reminderDecision = shouldSkipDropoffReminder({
+          shipment: s,
+          order,
+          inFlightKeys: dropoffReminderInFlightRef.current,
+          now,
+          windowMs: SHIPPING_REMINDER_MS,
+        })
+        if (reminderDecision.skip) {
+          if (!['not_awaiting_shipment', 'too_early'].includes(reminderDecision.reason)) {
+            console.info('[dropoff-reminder] dedupe skipped', {
+              orderId: s.orderId,
+              userId: s.sellerId,
+              reason: reminderDecision.reason,
+            })
+          }
+          continue
+        }
+
+        dropoffReminderInFlightRef.current.add(reminderDecision.key)
+        try {
           const ts = new Date().toISOString()
           const listing = order ? listings.find(l => l.id === order.listingId) : null
           const seller = users.find(u => u.id === s.sellerId)
-          await sendSellerDropoffReminder({ seller, shipment: s, order, itemTitle: listing?.title })
-          await dbPatchShipmentByOrderId(s.orderId, { reminderSentAt: ts, reminderCount: (s.reminderCount || 0) + 1 })
-          addNotification({
+          const notification = await addNotification({
             userId: s.sellerId,
             orderId: s.orderId,
             status: 'awaiting_shipment',
             actionTarget: `/orders/${s.orderId}`,
-            type: 'ship_reminder',
+            type: 'dropoff_reminder',
             title: 'Reminder: drop off your Sib parcel',
             message: `Please drop off order ${s.orderRef || s.orderId} at a MYconvenience store.`,
           })
+
+          if (!notification) {
+            console.warn('[dropoff-reminder] retry reason', {
+              orderId: s.orderId,
+              userId: s.sellerId,
+              reason: 'notification_insert_failed',
+            })
+            continue
+          }
+
+          await dbPatchShipmentByOrderId(s.orderId, { reminderSentAt: ts, reminderCount: (s.reminderCount || 0) + 1 })
+          if (!notification.skipped) {
+            await sendSellerDropoffReminder({ seller, shipment: s, order, itemTitle: listing?.title })
+            console.info('[dropoff-reminder] notification inserted', {
+              orderId: s.orderId,
+              userId: s.sellerId,
+              notificationId: notification.id,
+            })
+          } else {
+            console.info('[dropoff-reminder] dedupe skipped', {
+              orderId: s.orderId,
+              userId: s.sellerId,
+              notificationId: notification.id,
+              reason: 'recent_notification_exists',
+            })
+          }
+        } catch (error) {
+          console.warn('[dropoff-reminder] retry reason', {
+            orderId: s.orderId,
+            userId: s.sellerId,
+            reason: error?.message || 'unknown_error',
+          })
+        } finally {
+          dropoffReminderInFlightRef.current.delete(reminderDecision.key)
         }
       }
     }

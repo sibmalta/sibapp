@@ -137,10 +137,79 @@ const ACTIVE_ORDER_STATUSES = new Set([
   'disputed',
 ])
 
+const EXTERNAL_COMMERCE_PATTERN = /\b(amazon|ebay|walmart|nike\.com|online retail platforms?|external marketplaces?)\b/i
+const MARKETPLACE_SHOPPING_PHRASES = /\b(where can i find|where can i buy|looking for|look for|do you have|have you got|search for|show me|find me|i want to buy|can i buy|any .* for sale)\b/i
+const MARKETPLACE_PRODUCT_TERMS = /\b(jacket|jackets|dress|dresses|shoe|shoes|trainer|trainers|sneaker|sneakers|jordan|jordans|nike|adidas|zara|bag|bags|coat|coats|hoodie|hoodies|jeans|top|tops|shirt|shirts|skirt|skirts|boots|heels|watch|watches|clothes|clothing|item|items)\b/i
+
+function userExplicitlyAskedOutsideSib(message) {
+  return /\b(outside sib|not on sib|other websites|external sites|alternatives outside|outside sib malta|amazon|ebay|walmart|nike\.com)\b/i.test(String(message || ''))
+}
+
+function detectMarketplaceShoppingIntent(normalizedMessage) {
+  const text = String(normalizedMessage || '')
+  if (userExplicitlyAskedOutsideSib(text)) return false
+  if (MARKETPLACE_SHOPPING_PHRASES.test(text) && MARKETPLACE_PRODUCT_TERMS.test(text)) return true
+  if (/^show me\s+\w+/i.test(text) && !/\b(order|delivery|payout|refund|dispute|support)\b/i.test(text)) return true
+  return false
+}
+
+function cleanMarketplaceSearchQuery(message) {
+  return String(message || '')
+    .toLowerCase()
+    .replace(/[?!.]/g, ' ')
+    .replace(/\b(where can i find|where can i buy|looking for|look for|do you have|have you got|search for|show me|find me|i want to buy|can i buy|on sib|on sib malta|please)\b/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function singularizeShoppingTerm(term) {
+  return String(term || '')
+    .replace(/\bdresses\b/g, 'dress')
+    .replace(/\bjackets\b/g, 'jacket')
+    .replace(/\bhoodies\b/g, 'hoodie')
+    .replace(/\bcoats\b/g, 'coat')
+    .replace(/\bbags\b/g, 'bag')
+    .trim()
+}
+
+function buildMarketplaceShoppingReply(message) {
+  const rawQuery = cleanMarketplaceSearchQuery(message)
+  const searchQuery = singularizeShoppingTerm(rawQuery || 'items')
+  const suggestions = []
+  if (/\bnike\b/i.test(searchQuery) && /\bjacket|hoodie|windbreaker\b/i.test(searchQuery)) {
+    suggestions.push('Nike jacket', 'Nike windbreaker', 'Nike hoodie')
+  } else if (/\bdress|dresses\b/i.test(searchQuery)) {
+    suggestions.push('dress', 'summer dress', 'occasion dress')
+  } else if (/\bjordan|shoe|shoes|sneaker|trainer\b/i.test(searchQuery)) {
+    suggestions.push(searchQuery.includes('jordan') ? 'Jordan shoes' : 'shoes', 'trainers', 'sneakers')
+  } else {
+    suggestions.push(searchQuery, `${searchQuery} women`, `${searchQuery} men`)
+  }
+
+  return {
+    answer: [
+      `You can search for ${searchQuery} directly on Sib Malta using Browse or Search.`,
+      'Try searching for:',
+      ...suggestions.slice(0, 3).map(item => `- ${item}`),
+      'Availability depends on current Sib sellers, and new listings are added regularly.',
+    ].join('\n'),
+    action: 'open_search',
+    searchQuery,
+    usedTools: [],
+  }
+}
+
+function enforceMarketplaceGrounding(answer, originalMessage) {
+  if (!answer || userExplicitlyAskedOutsideSib(originalMessage)) return answer
+  if (!EXTERNAL_COMMERCE_PATTERN.test(answer)) return answer
+  return buildMarketplaceShoppingReply(originalMessage).answer
+}
+
 export function detectSupportIntent(message) {
   const text = String(message || '').toLowerCase()
   const normalized = text.replace(/[’]/g, "'")
 
+  if (detectMarketplaceShoppingIntent(normalized)) return 'marketplace_shopping'
   if (/\b(report a problem|problem with|contact support|contact sib support|escalate|human support|support ticket|talk to support)\b/.test(normalized)) return 'report_problem'
   if (/\b(refund|money back|cancel and refund|want my money back)\b/.test(normalized)) return 'refund'
   if (/\b(dispute|item not as described|not as described|fake|damaged|evidence|seller issue|buyer issue)\b/.test(normalized)) return 'dispute'
@@ -771,8 +840,9 @@ function buildGenericHelpReply() {
 }
 
 async function handleDeterministicIntent(intent, userId, message, supportContext, contextError) {
-  if (!['order', 'payout', 'refund', 'dispute', 'report_problem'].includes(intent)) return null
+  if (!['marketplace_shopping', 'order', 'payout', 'refund', 'dispute', 'report_problem'].includes(intent)) return null
   logSupportEvent('support_intent', { intent })
+  if (intent === 'marketplace_shopping') return buildMarketplaceShoppingReply(message)
   if (contextError) {
     const failure = {
       order: "I'm having trouble checking live order details right now. If this is urgent, I can send this to Sib support with your account details.",
@@ -982,8 +1052,11 @@ async function createOpenAIResponse(payload) {
 
 function buildSystemPrompt() {
   return [
-    'You are Sib Support, a concise marketplace support assistant for Sib Malta.',
-    'Help with orders, MYConvenience drop-off logistics, courier delivery, payouts, refunds, and disputes.',
+    'You are Ask Sib, the support and marketplace assistant for Sib Malta.',
+    'You must prioritize Sib Malta marketplace guidance and support.',
+    'Do not recommend external shopping websites unless the user explicitly asks for alternatives outside Sib Malta.',
+    'If users ask about products, brands, or categories, guide them to browse/search on Sib Malta, explain how to use search, categories, filters, saved searches, or alerts, and encourage marketplace-native actions.',
+    'Help with browsing Sib listings, orders, MYConvenience drop-off logistics, courier delivery, payouts, refunds, and disputes.',
     "Use tools to inspect the authenticated user's own orders when needed.",
     'If the user asks where an order is without an order ID, use getUserOrders first. If there are multiple possible orders, summarize recent orders and ask which one they mean.',
     'Be specific about known order, payment, delivery, and logistics statuses. Do not say something is unavailable unless a backend/API call actually failed.',
@@ -999,7 +1072,24 @@ export async function handleSupportRequest({ accessToken, message, orderId, cont
   const authUser = await verifyUser(accessToken)
   const userId = authUser.id
   const intent = detectSupportIntent(message)
-  const deterministicIntents = new Set(['order', 'payout', 'refund', 'dispute', 'report_problem'])
+  const deterministicIntents = new Set(['marketplace_shopping', 'order', 'payout', 'refund', 'dispute', 'report_problem'])
+
+  if (intent === 'marketplace_shopping') {
+    logSupportRequest({
+      userId,
+      message,
+      detectedIntent: intent,
+      hasSession: Boolean(accessToken),
+      supportContext: null,
+    })
+    const deterministic = await handleDeterministicIntent(intent, userId, message, null, null)
+    return {
+      ...deterministic,
+      detectedIntent: intent,
+      contextCounts: null,
+      sectionErrors: [],
+    }
+  }
 
   if (deterministicIntents.has(intent)) {
     const { supportContext, error } = await loadSupportContext(userId, intent)
@@ -1083,7 +1173,7 @@ export async function handleSupportRequest({ accessToken, message, orderId, cont
     }
 
     return {
-      answer: extractOutputText(response) || buildGenericHelpReply().answer,
+      answer: enforceMarketplaceGrounding(extractOutputText(response) || buildGenericHelpReply().answer, message),
       usedTools,
       detectedIntent: intent,
     }

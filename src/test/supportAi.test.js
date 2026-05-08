@@ -525,6 +525,88 @@ describe('Sib Support AI tools', () => {
     expect(calls.some(call => call.url === 'https://api.openai.com/v1/responses')).toBe(true)
   })
 
+  it('keeps Nike jacket shopping questions grounded in Sib Malta search', async () => {
+    const calls = setupFetchMock()
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: 'where can i find nike jackets?',
+      context: 'General support',
+    })
+
+    expect(result.detectedIntent).toBe('marketplace_shopping')
+    expect(result.answer).toContain('Sib Malta')
+    expect(result.answer).toContain('Nike jacket')
+    expect(result.answer).toContain('Nike windbreaker')
+    expect(result.action).toBe('open_search')
+    expect(result.searchQuery).toBe('nike jacket')
+    expect(result.answer).not.toMatch(/Amazon|eBay|Nike\.com|online retail platforms/i)
+    expect(calls.some(call => call.url === 'https://api.openai.com/v1/responses')).toBe(false)
+  })
+
+  it('keeps show me dresses marketplace-native', async () => {
+    const calls = setupFetchMock()
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: 'show me dresses',
+      context: 'General support',
+    })
+
+    expect(result.detectedIntent).toBe('marketplace_shopping')
+    expect(result.answer).toContain('search for dress directly on Sib Malta')
+    expect(result.answer).toContain('summer dress')
+    expect(result.answer).not.toMatch(/Amazon|eBay|Walmart|online retail platforms/i)
+    expect(calls.some(call => call.url === 'https://api.openai.com/v1/responses')).toBe(false)
+  })
+
+  it('keeps where can i buy shoes marketplace-native', async () => {
+    const calls = setupFetchMock()
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: 'where can i buy shoes',
+      context: 'General support',
+    })
+
+    expect(result.detectedIntent).toBe('marketplace_shopping')
+    expect(result.answer).toContain('Sib Malta')
+    expect(result.answer).toContain('shoes')
+    expect(result.answer).not.toMatch(/Amazon|eBay|Walmart|Nike\.com/i)
+    expect(calls.some(call => call.url === 'https://api.openai.com/v1/responses')).toBe(false)
+  })
+
+  it('rewrites external-commerce generic leakage unless the user asked for outside options', async () => {
+    setupFetchMock({
+      openAiResponses: [{ output_text: 'You can check Amazon, eBay, or other online retail platforms.' }],
+    })
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: 'can you help me find a jacket',
+      context: 'General support',
+    })
+
+    expect(result.answer).toContain('Sib Malta')
+    expect(result.answer).not.toMatch(/Amazon|eBay|online retail platforms/i)
+  })
+
+  it('allows external recommendations only when explicitly requested', async () => {
+    const calls = setupFetchMock({
+      openAiResponses: [{ output_text: 'Outside Sib Malta, you could compare Amazon or eBay.' }],
+    })
+
+    const result = await handleSupportRequest({
+      accessToken: 'user-token',
+      message: 'what are alternatives outside Sib Malta?',
+      context: 'General support',
+    })
+
+    expect(result.detectedIntent).toBe('generic')
+    expect(result.answer).toContain('Amazon')
+    expect(calls.some(call => call.url === 'https://api.openai.com/v1/responses')).toBe(true)
+  })
+
   it('uses payout-specific failure wording when payout context cannot load orders', async () => {
     setupFetchMock({ failOrders: true })
 

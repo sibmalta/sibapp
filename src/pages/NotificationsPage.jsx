@@ -57,6 +57,7 @@ function isOperationalShippingNotification(notif) {
   const text = `${notif.type || ''} ${notif.title || ''} ${notif.message || ''}`.toLowerCase()
   return (
     text.includes('ship_reminder') ||
+    text.includes('dropoff_reminder') ||
     text.includes('bundle_sold') ||
     text.includes('new sale') ||
     text.includes('ship within') ||
@@ -87,6 +88,7 @@ const NOTIF_CONFIG = {
   dispute_message:      { icon: MessageSquare,  color: 'bg-orange-50 text-sib-primary dark:bg-[#26322f] dark:text-[#e8751a]', linkFn: (n) => orderTarget(n) },
   shipped:              { icon: Package,         color: 'bg-sib-sand text-sib-muted dark:bg-[#26322f] dark:text-[#aeb8b4]', linkFn: (n) => orderTarget(n) },
   ship_reminder:        { icon: Truck,           color: 'bg-orange-50 text-sib-primary dark:bg-[#26322f] dark:text-[#e8751a]', linkFn: (n) => orderTarget(n, SELLER_SHIPMENT_QUEUE) },
+  dropoff_reminder:     { icon: Truck,           color: 'bg-orange-50 text-sib-primary dark:bg-[#26322f] dark:text-[#e8751a]', linkFn: (n) => orderTarget(n, SELLER_SHIPMENT_QUEUE) },
   bundle_sold:          { icon: PackagePlus,     color: 'bg-orange-50 text-sib-primary dark:bg-[#26322f] dark:text-[#e8751a]', linkFn: (n) => orderTarget(n, SELLER_SHIPMENT_QUEUE) },
   overdue_warning:      { icon: AlertTriangle,  color: 'bg-amber-50 text-amber-600 dark:bg-[#26322f] dark:text-amber-300',  linkFn: (n) => orderTarget(n, SELLER_SHIPMENT_QUEUE) },
   order_cancelled:      { icon: XCircle,        color: 'bg-red-50 text-red-600 dark:bg-[#26322f] dark:text-red-300',      linkFn: (n) => orderTarget(n) },
