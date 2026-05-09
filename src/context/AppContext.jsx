@@ -11,7 +11,7 @@ import {
   sendOfferAcceptedEmail, sendOfferDeclinedEmail, sendOfferCounteredEmail,
   sendOrderConfirmedEmail, sendOrderCancelledEmail, sendOrderCancelledSellerEmail,
   sendItemShippedEmail, sendItemDeliveredEmail,
-  sendRefundConfirmedEmail, sendDisputeOpenedEmail, sendDisputeResolvedEmail,
+  sendRefundConfirmedEmail, sendDisputeOpenedEmail, sendDisputeResolvedEmail, sendDisputeMessageEmail,
   sendItemSoldEmail, sendSaleDropoffInstructionsEmail, sendDropoffReminder24hEmail, sendPayoutReleasedEmail,
   sendSuspiciousActivityEmail,
   sendMessageReceivedEmail,
@@ -2717,8 +2717,45 @@ export function AppProvider({ children }) {
       showToast('Failed to add dispute message: ' + error.message, 'error')
       return { ok: false, error: error.message }
     }
+    const visibility = options.visibility || 'public'
+    if (visibility === 'public' && senderRole !== 'system') {
+      const order = orders.find(item => item.id === dispute.orderId)
+      const orderRef = order ? getOrderCode(order) : (dispute.orderId?.slice?.(-8) || 'this order')
+      const preview = trimmed.length > 160 ? `${trimmed.slice(0, 157)}...` : trimmed
+      const emailMeta = {
+        related_entity_type: 'dispute',
+        related_entity_id: dispute.id,
+        disputeId: dispute.id,
+        orderId: dispute.orderId,
+        actionTarget: `/messages/dispute_${dispute.id}`,
+      }
+
+      if (senderRole === 'admin') {
+        const recipients = [dispute.buyerId, dispute.sellerId]
+          .filter(Boolean)
+          .map(userId => users.find(user => user.id === userId))
+          .filter(user => user?.email)
+        await Promise.all(recipients.map(user => sendDisputeMessageEmail(
+          user.email,
+          user.name || user.username || 'there',
+          orderRef,
+          preview,
+          { ...emailMeta, userId: user.id },
+        )))
+      } else {
+        const admins = users.filter(user => user?.isAdmin && user.email && user.id !== currentUser?.id)
+        const adminRecipients = admins.length > 0 ? admins : [{ email: 'info@sibmalta.com', name: 'Sib Support', id: 'sib-support' }]
+        await Promise.all(adminRecipients.map(user => sendDisputeMessageEmail(
+          user.email,
+          user.name || user.username || 'Sib Support',
+          orderRef,
+          preview,
+          { ...emailMeta, userId: user.id, senderRole },
+        )))
+      }
+    }
     return { ok: true, message: data }
-  }, [currentUser?.id, disputes, dbCreateDisputeMessage, showToast])
+  }, [currentUser?.id, disputes, dbCreateDisputeMessage, orders, showToast, users])
 
   // ──────────────────────────────────────────────────────────────────
 

@@ -73,6 +73,14 @@ $$;
 CREATE INDEX IF NOT EXISTS idx_dispute_messages_conversation_created
   ON public.dispute_messages(conversation_id, created_at);
 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_dispute_message_dedupe
+  ON public.notifications(user_id, type, order_id, (metadata->>'disputeId'), (metadata->>'messagePreview'), (metadata->>'senderRole'))
+  WHERE type = 'dispute_message'
+    AND order_id IS NOT NULL
+    AND metadata ? 'disputeId'
+    AND metadata ? 'messagePreview'
+    AND metadata ? 'senderRole';
+
 INSERT INTO public.dispute_conversations (
   dispute_id,
   order_id,
@@ -251,8 +259,10 @@ DECLARE
   v_message_type TEXT := coalesce(nullif(p_message_type, ''), 'message');
   v_text TEXT := nullif(btrim(coalesce(p_message, '')), '');
   v_attachments JSONB := coalesce(p_attachments, '[]'::jsonb);
+  v_order_code TEXT;
   v_notify_body TEXT;
   v_action_target TEXT;
+  v_message_preview TEXT;
 BEGIN
   IF v_actor IS NULL THEN
     RAISE EXCEPTION 'not_authenticated';
@@ -324,7 +334,9 @@ BEGIN
   RETURNING * INTO v_message;
 
   IF v_visibility = 'public' AND v_sender_role <> 'system' THEN
-    v_notify_body := CASE
+    v_order_code := public.get_dropoff_order_code(v_dispute.order_id, NULL);
+    v_notify_body := 'There''s a new update on your dispute for order ' || coalesce(v_order_code, left(v_dispute.order_id::text, 8)) || '.';
+    v_message_preview := CASE
       WHEN length(v_text) > 140 THEN left(v_text, 137) || '...'
       ELSE v_text
     END;
@@ -348,9 +360,10 @@ BEGIN
         v_notify_body,
         v_dispute.order_id,
         v_action_target,
-        jsonb_build_object('disputeId', v_dispute.id, 'conversationId', v_conversation.id, 'senderRole', v_sender_role),
-        jsonb_build_object('disputeId', v_dispute.id, 'conversationId', v_conversation.id, 'senderRole', v_sender_role)
-      );
+        jsonb_build_object('disputeId', v_dispute.id, 'conversationId', v_conversation.id, 'disputeMessageId', v_message.id, 'senderRole', v_sender_role, 'messagePreview', v_message_preview),
+        jsonb_build_object('disputeId', v_dispute.id, 'conversationId', v_conversation.id, 'disputeMessageId', v_message.id, 'senderRole', v_sender_role, 'messagePreview', v_message_preview)
+      )
+      ON CONFLICT DO NOTHING;
     END IF;
 
     IF v_sender_role <> 'seller' AND v_dispute.seller_id IS NOT NULL THEN
@@ -371,9 +384,36 @@ BEGIN
         v_notify_body,
         v_dispute.order_id,
         v_action_target,
-        jsonb_build_object('disputeId', v_dispute.id, 'conversationId', v_conversation.id, 'senderRole', v_sender_role),
-        jsonb_build_object('disputeId', v_dispute.id, 'conversationId', v_conversation.id, 'senderRole', v_sender_role)
-      );
+        jsonb_build_object('disputeId', v_dispute.id, 'conversationId', v_conversation.id, 'disputeMessageId', v_message.id, 'senderRole', v_sender_role, 'messagePreview', v_message_preview),
+        jsonb_build_object('disputeId', v_dispute.id, 'conversationId', v_conversation.id, 'disputeMessageId', v_message.id, 'senderRole', v_sender_role, 'messagePreview', v_message_preview)
+      )
+      ON CONFLICT DO NOTHING;
+    END IF;
+
+    IF v_sender_role IN ('buyer', 'seller') THEN
+      INSERT INTO public.notifications (
+        user_id,
+        type,
+        title,
+        message,
+        order_id,
+        action_target,
+        metadata,
+        data
+      )
+      SELECT
+        p.id,
+        'dispute_message',
+        'New dispute update',
+        v_notify_body,
+        v_dispute.order_id,
+        v_action_target,
+        jsonb_build_object('disputeId', v_dispute.id, 'conversationId', v_conversation.id, 'disputeMessageId', v_message.id, 'senderRole', v_sender_role, 'messagePreview', v_message_preview),
+        jsonb_build_object('disputeId', v_dispute.id, 'conversationId', v_conversation.id, 'disputeMessageId', v_message.id, 'senderRole', v_sender_role, 'messagePreview', v_message_preview)
+      FROM public.profiles p
+      WHERE p.is_admin = true
+        AND p.id <> v_actor
+      ON CONFLICT DO NOTHING;
     END IF;
   END IF;
 
