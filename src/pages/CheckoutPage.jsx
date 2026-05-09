@@ -15,7 +15,7 @@ import useSavedAddress from '../hooks/useSavedAddress'
 import { trackReferralConversion } from '../lib/referral'
 import { supabase } from '../lib/supabase'
 import { isLockerEligible } from '../lib/lockerEligibility'
-import { getPaymentInitializationBlocker, resolveCheckoutDeliveryMethod } from '../lib/checkoutPayment'
+import { getDeliveryPhoneError, getPaymentInitializationBlocker, normalizeMaltaPhoneNumber, resolveCheckoutDeliveryMethod } from '../lib/checkoutPayment'
 
 const TECHNICAL_PATTERNS = [
   /failed to fetch/i,
@@ -325,6 +325,7 @@ export default function CheckoutPage() {
   const [saveAddressChecked, setSaveAddressChecked] = useState(false)
   const [addressPrefilled, setAddressPrefilled] = useState(false)
   const autoIntentAttemptedRef = useRef(false)
+  const phoneInputRef = useRef(null)
 
   const { savedAddress, saveAddress: persistAddress } = useSavedAddress(currentUser?.id)
   const listingLockerEligible = isLockerEligible(listing)
@@ -332,7 +333,7 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (savedAddress && !addressPrefilled && !address && !city && !postcode) {
       setFullName(savedAddress.fullName || '')
-      setPhone(savedAddress.phone || '')
+      setPhone(savedAddress.phone || currentUser?.phone || '')
       setAddress(savedAddress.address || '')
       setCity(savedAddress.city || '')
       setPostcode(savedAddress.postcode || '')
@@ -343,7 +344,13 @@ export default function CheckoutPage() {
       setAddressPrefilled(true)
       setSaveAddressChecked(true)
     }
-  }, [savedAddress, addressPrefilled, address, city, postcode])
+  }, [savedAddress, addressPrefilled, address, city, postcode, currentUser?.phone])
+
+  useEffect(() => {
+    if (!addressPrefilled && !phone && currentUser?.phone) {
+      setPhone(currentUser.phone)
+    }
+  }, [addressPrefilled, phone, currentUser?.phone])
 
   useEffect(() => {
     if (deliveryMethodId === 'locker_collection' && !listingLockerEligible) {
@@ -425,6 +432,8 @@ export default function CheckoutPage() {
     if (isLocker) {
       if (!listingLockerEligible) e.deliveryMethod = 'Sib delivery is not available for this item yet.'
     }
+    const phoneError = getDeliveryPhoneError(phone)
+    if (phoneError) e.phone = phoneError
     if (!address.trim()) e.address = 'Enter your street address'
     if (!city.trim()) e.city = 'Enter your city or town'
     if (!postcode.trim()) e.postcode = 'Enter your postcode'
@@ -449,6 +458,9 @@ export default function CheckoutPage() {
 
     const addrErrors = validateDelivery()
     setErrors(addrErrors)
+    if (addrErrors.phone) {
+      setTimeout(() => phoneInputRef.current?.focus(), 0)
+    }
 
     console.info('[CheckoutPage] payment initialization requested', {
       listingId: listing?.id || null,
@@ -477,6 +489,7 @@ export default function CheckoutPage() {
           address,
           city,
           postcode,
+          phone,
         })
 
     if (blocker) {
@@ -494,11 +507,13 @@ export default function CheckoutPage() {
     setHasAttemptedPaymentIntent(true)
     setClientSecret(null)
     setAddressConfirmed(false)
+    const normalizedPhone = normalizeMaltaPhoneNumber(phone)
+    setPhone(normalizedPhone)
 
     if (saveAddressChecked) {
       persistAddress({
         fullName,
-        phone,
+        phone: normalizedPhone,
         address,
         city,
         postcode,
@@ -562,7 +577,7 @@ export default function CheckoutPage() {
 
     const deliverySnapshot = {
       buyerFullName: fullName,
-      buyerPhone: phone,
+      buyerPhone: normalizeMaltaPhoneNumber(phone),
       buyerCity: city,
       buyerPostcode: postcode,
       deliveryNotes,
@@ -625,6 +640,7 @@ export default function CheckoutPage() {
       address,
       city,
       postcode,
+      phone,
     })
 
     if (blocker) return
@@ -654,6 +670,7 @@ export default function CheckoutPage() {
     address,
     city,
     postcode,
+    phone,
   ]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const stripeAppearance = {
@@ -727,17 +744,25 @@ export default function CheckoutPage() {
 
                   <div className="flex-1">
                     <input
+                      ref={phoneInputRef}
                       type="tel"
                       inputMode="tel"
                       value={phone}
                       onChange={(e) => {
                         setPhone(e.target.value)
+                        clearErr('phone')
                         resetPaymentIntentState()
                       }}
                       placeholder="Phone number"
                       disabled={addressConfirmed}
-                      className="w-full border border-sib-stone dark:border-[rgba(242,238,231,0.10)] rounded-xl px-4 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-white dark:bg-[#26322f] focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20 disabled:bg-sib-sand dark:disabled:bg-[#26322f] disabled:opacity-70"
+                      className={`w-full border rounded-xl px-4 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-white dark:bg-[#26322f] ${
+                        errors.phone ? 'border-red-400' : 'border-sib-stone dark:border-[rgba(242,238,231,0.10)]'
+                      } focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20 disabled:bg-sib-sand dark:disabled:bg-[#26322f] disabled:opacity-70`}
                     />
+                    <p className="mt-1 text-[11px] leading-snug text-sib-muted dark:text-[#aeb8b4]">
+                      Delivery driver may contact you about your delivery. We only use this for delivery purposes.
+                    </p>
+                    {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
                   </div>
                 </div>
 

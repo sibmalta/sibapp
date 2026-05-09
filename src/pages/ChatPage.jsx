@@ -2,13 +2,15 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { Send, ShieldCheck, AlertTriangle, Lock, Ban, Tag, Check, X, ArrowLeftRight, ShoppingBag, Paperclip } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+import { useSupabase } from '../lib/useSupabase'
 import UserAvatar from '../components/UserAvatar'
 import OfficialBadge from '../components/OfficialBadge'
 import TrustedSellerBadge from '../components/TrustedSellerBadge'
 import CounterOfferModal from '../components/CounterOfferModal'
 import { analyseMessage, recordViolation, getRestriction, getViolationCount } from '../utils/circumventionDetector'
 import { moderateContent } from '../lib/moderation'
-import { disputeConversationId } from '../lib/disputes'
+import { buildDisputeThreadConversation, disputeConversationId, rowToDisputeMessage } from '../lib/disputes'
+import { rowToDispute } from '../lib/db/orders'
 
 function isSystemMessage(msg) {
   return msg?.type === 'system' || msg?.type === 'system_event' || msg?.type === 'order_event'
@@ -124,8 +126,12 @@ export default function ChatPage() {
     getOfferById, acceptOffer, declineOffer, counterOffer, recoverOfferConversationFromLink, ensureUserById, showToast,
     addDisputeMessage, authLoading, disputesLoading, disputeMessagesLoading, ordersLoading,
   } = useApp()
+  const { supabase } = useSupabase()
   const [text, setText] = useState('')
   const [warning, setWarning] = useState(null)
+  const [directDisputeThread, setDirectDisputeThread] = useState(null)
+  const [directDisputeLoading, setDirectDisputeLoading] = useState(false)
+  const [directDisputeError, setDirectDisputeError] = useState('')
   const [counterModal, setCounterModal] = useState(null)
   const [restriction, setRestriction] = useState(getRestriction())
   const bottomRef = useRef(null)
@@ -133,7 +139,14 @@ export default function ChatPage() {
   const inputRef = useRef(null)
   const restrictionTimerRef = useRef(null)
 
-  const conv = currentUser ? getConversation(id) : null
+  const appConversation = currentUser ? getConversation(id) : null
+  const directDisputeId = params.disputeId || (String(id || '').startsWith('dispute_') ? String(id).slice('dispute_'.length) : '')
+  const conv = appConversation || directDisputeThread
+
+  useEffect(() => {
+    setDirectDisputeThread(null)
+    setDirectDisputeError('')
+  }, [directDisputeId])
 
   useEffect(() => {
     if (authLoading) return
@@ -163,6 +176,77 @@ export default function ChatPage() {
       itemTitle: searchParams.get('itemTitle'),
     })
   }, [currentUser, conv, id, searchParams, recoverOfferConversationFromLink])
+
+  useEffect(() => {
+    if (!currentUser || appConversation || directDisputeThread || !directDisputeId || directDisputeLoading || directDisputeError) return undefined
+
+    let cancelled = false
+    const loadDirectDisputeThread = async () => {
+      setDirectDisputeLoading(true)
+      setDirectDisputeError('')
+      console.info('[ChatPage] direct dispute thread load start', {
+        disputeId: directDisputeId,
+        userId: currentUser.id,
+      })
+      try {
+        await supabase.rpc('ensure_dispute_conversation', { p_dispute_id: directDisputeId })
+
+        const { data: disputeRow, error: disputeError } = await supabase
+          .from('disputes')
+          .select('*')
+          .eq('id', directDisputeId)
+          .maybeSingle()
+
+        if (disputeError) throw disputeError
+        if (!disputeRow) throw new Error('dispute_not_found')
+
+        const { data: messageRows, error: messagesError } = await supabase
+          .from('dispute_messages')
+          .select('*')
+          .eq('dispute_id', directDisputeId)
+          .order('created_at', { ascending: true })
+
+        if (messagesError) throw messagesError
+
+        const dispute = rowToDispute(disputeRow)
+        const messages = (messageRows || []).map(rowToDisputeMessage).filter(Boolean)
+        const thread = buildDisputeThreadConversation({
+          dispute,
+          messages,
+          currentUserId: currentUser.id,
+          isAdmin: !!currentUser.isAdmin,
+        })
+
+        if (!thread) throw new Error('not_allowed')
+        if (!cancelled) {
+          setDirectDisputeThread(thread)
+          console.info('[ChatPage] direct dispute thread load end', {
+            disputeId: directDisputeId,
+            userId: currentUser.id,
+            messages: thread.messages.length,
+          })
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error('[ChatPage] direct dispute thread load failed', {
+            disputeId: directDisputeId,
+            userId: currentUser.id,
+            message: error.message,
+            code: error.code,
+            status: error.status,
+          })
+          setDirectDisputeError(error.message || 'Unable to load dispute conversation')
+        }
+      } finally {
+        if (!cancelled) setDirectDisputeLoading(false)
+      }
+    }
+
+    loadDirectDisputeThread()
+    return () => {
+      cancelled = true
+    }
+  }, [appConversation, currentUser, directDisputeId, directDisputeLoading, directDisputeError, directDisputeThread, supabase])
 
   const otherId = conv?.participants?.find(p => p !== currentUser?.id)
   const other = otherId ? getUserById(otherId) : null
@@ -568,14 +652,16 @@ export default function ChatPage() {
   if (!currentUser) return null
   if (!conv) {
     const isDisputeReference = Boolean(params.disputeId || String(id || '').startsWith('dispute_'))
-    const isStillLoadingDisputeThread = isDisputeReference && (ordersLoading || disputesLoading || disputeMessagesLoading)
+    const isStillLoadingDisputeThread = isDisputeReference && (ordersLoading || disputesLoading || disputeMessagesLoading || directDisputeLoading)
     if (isStillLoadingDisputeThread) {
       return <div className="text-center py-20 text-sib-muted dark:text-[#aeb8b4]">Loading dispute conversation...</div>
     }
     return (
       <div className="text-center py-20 px-6 text-sib-muted dark:text-[#aeb8b4]">
         {isDisputeReference
-          ? 'Dispute conversation not found. It may still be loading, or you may not have access to this dispute.'
+          ? (directDisputeError
+              ? 'Dispute conversation not found. You may not have access to this dispute, or it could not be loaded right now.'
+              : 'Dispute conversation not found. It may still be loading, or you may not have access to this dispute.')
           : 'Conversation not found.'}
       </div>
     )

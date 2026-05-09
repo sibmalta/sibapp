@@ -159,6 +159,8 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
+  v_actor UUID := auth.uid();
+  v_is_admin BOOLEAN := public.is_admin();
   v_dispute public.disputes%ROWTYPE;
   v_conversation public.dispute_conversations%ROWTYPE;
 BEGIN
@@ -169,6 +171,14 @@ BEGIN
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'dispute_not_found';
+  END IF;
+
+  IF NOT (
+    v_is_admin
+    OR v_actor = v_dispute.buyer_id
+    OR v_actor = v_dispute.seller_id
+  ) THEN
+    RAISE EXCEPTION 'not_allowed';
   END IF;
 
   INSERT INTO public.dispute_conversations (

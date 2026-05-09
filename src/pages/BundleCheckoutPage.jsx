@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { ShieldCheck, Truck, Lock, AlertCircle, Package, CreditCard, RefreshCw } from 'lucide-react'
 import { Elements, ExpressCheckoutElement, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
@@ -12,7 +12,7 @@ import useSavedAddress from '../hooks/useSavedAddress'
 import { useSupabase } from '../lib/useSupabase'
 import { trackReferralConversion, getActiveReferral } from '../lib/referral'
 import { isLockerEligible } from '../lib/lockerEligibility'
-import { resolveCheckoutDeliveryMethod } from '../lib/checkoutPayment'
+import { getDeliveryPhoneError, normalizeMaltaPhoneNumber, resolveCheckoutDeliveryMethod } from '../lib/checkoutPayment'
 
 /* ── Friendly error mapping (mirrors CheckoutPage) ──────── */
 const TECHNICAL_PATTERNS = [
@@ -272,6 +272,7 @@ export default function BundleCheckoutPage() {
   const [intentError, setIntentError] = useState('')
   const [saveAddressChecked, setSaveAddressChecked] = useState(false)
   const [addressPrefilled, setAddressPrefilled] = useState(false)
+  const phoneInputRef = useRef(null)
 
   const { savedAddress, hasSavedAddress, saveAddress: persistAddress } = useSavedAddress(currentUser?.id)
   const bundleItems = useMemo(() => (
@@ -283,7 +284,7 @@ export default function BundleCheckoutPage() {
   useEffect(() => {
     if (savedAddress && !addressPrefilled && !address && !city && !postcode) {
       setFullName(savedAddress.fullName || '')
-      setPhone(savedAddress.phone || '')
+      setPhone(savedAddress.phone || currentUser?.phone || '')
       setAddress(savedAddress.address || '')
       setCity(savedAddress.city || '')
       setPostcode(savedAddress.postcode || '')
@@ -292,7 +293,13 @@ export default function BundleCheckoutPage() {
       setAddressPrefilled(true)
       setSaveAddressChecked(true)
     }
-  }, [savedAddress, addressPrefilled, address, city, postcode])
+  }, [savedAddress, addressPrefilled, address, city, postcode, currentUser?.phone])
+
+  useEffect(() => {
+    if (!addressPrefilled && !phone && currentUser?.phone) {
+      setPhone(currentUser.phone)
+    }
+  }, [addressPrefilled, phone, currentUser?.phone])
 
   useEffect(() => {
     if (deliveryMethodId === 'locker_collection' && !bundleLockerEligible) {
@@ -331,6 +338,8 @@ export default function BundleCheckoutPage() {
     if (isLocker) {
       if (!bundleLockerEligible) e.deliveryMethod = 'Sib delivery is not available for this bundle yet.'
     }
+    const phoneError = getDeliveryPhoneError(phone)
+    if (phoneError) e.phone = phoneError
     if (!address.trim()) e.address = 'Enter your street address'
     if (!city.trim()) e.city = 'Enter your city or town'
     if (!postcode.trim()) e.postcode = 'Enter your postcode'
@@ -354,6 +363,9 @@ export default function BundleCheckoutPage() {
 
     const addrErrors = validateDelivery()
     setErrors(addrErrors)
+    if (addrErrors.phone) {
+      setTimeout(() => phoneInputRef.current?.focus(), 0)
+    }
     if (Object.keys(addrErrors).length > 0) return
     if (!session?.access_token) {
       setIntentError('Please log in again before continuing to payment.')
@@ -361,10 +373,12 @@ export default function BundleCheckoutPage() {
     }
     setCreatingIntent(true)
     setIntentError('')
+    const normalizedPhone = normalizeMaltaPhoneNumber(phone)
+    setPhone(normalizedPhone)
 
     // Save address for next time if checkbox is checked
     if (saveAddressChecked) {
-      persistAddress({ fullName, phone, address, city, postcode, notes: deliveryNotes, deliveryMethod: deliveryMethodId })
+      persistAddress({ fullName, phone: normalizedPhone, address, city, postcode, notes: deliveryNotes, deliveryMethod: deliveryMethodId })
     }
 
     try {
@@ -409,7 +423,7 @@ export default function BundleCheckoutPage() {
     }
     const deliverySnapshot = {
       buyerFullName: fullName,
-      buyerPhone: phone,
+      buyerPhone: normalizeMaltaPhoneNumber(phone),
       buyerCity: city,
       buyerPostcode: postcode,
       deliveryNotes,
@@ -525,8 +539,12 @@ export default function BundleCheckoutPage() {
                       className="w-full border border-sib-stone dark:border-[rgba(242,238,231,0.10)] rounded-xl px-4 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-white dark:bg-[#26322f] focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20 disabled:bg-sib-sand dark:disabled:bg-[#26322f] disabled:opacity-70" />
                   </div>
                   <div className="flex-1">
-                    <input type="tel" inputMode="tel" value={phone} onChange={e => { setPhone(e.target.value); setAddressConfirmed(false); setClientSecret(null) }} placeholder="Phone number" disabled={addressConfirmed}
-                      className="w-full border border-sib-stone dark:border-[rgba(242,238,231,0.10)] rounded-xl px-4 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-white dark:bg-[#26322f] focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20 disabled:bg-sib-sand dark:disabled:bg-[#26322f] disabled:opacity-70" />
+                    <input ref={phoneInputRef} type="tel" inputMode="tel" value={phone} onChange={e => { setPhone(e.target.value); clearErr('phone'); setAddressConfirmed(false); setClientSecret(null) }} placeholder="Phone number" disabled={addressConfirmed}
+                      className={`w-full border rounded-xl px-4 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-white dark:bg-[#26322f] ${errors.phone ? 'border-red-400' : 'border-sib-stone dark:border-[rgba(242,238,231,0.10)]'} focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20 disabled:bg-sib-sand dark:disabled:bg-[#26322f] disabled:opacity-70`} />
+                    <p className="mt-1 text-[11px] leading-snug text-sib-muted dark:text-[#aeb8b4]">
+                      Delivery driver may contact you about your delivery. We only use this for delivery purposes.
+                    </p>
+                    {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
                   </div>
                 </div>
                 <div>

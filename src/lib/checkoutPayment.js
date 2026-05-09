@@ -26,6 +26,26 @@ export function buildPaymentIntentPayload({
   return payload
 }
 
+export function normalizeMaltaPhoneNumber(value = '') {
+  const compact = String(value || '').trim().replace(/[\s()-]/g, '')
+  if (!compact) return ''
+  if (/^00356\d{8}$/.test(compact)) return `+356${compact.slice(5)}`
+  if (/^356\d{8}$/.test(compact)) return `+${compact}`
+  if (/^\d{8}$/.test(compact)) return `+356${compact}`
+  return compact
+}
+
+export function isValidMaltaPhoneNumber(value = '') {
+  const normalized = normalizeMaltaPhoneNumber(value)
+  return /^\+356[279]\d{7}$/.test(normalized)
+}
+
+export function getDeliveryPhoneError(value = '') {
+  if (!String(value || '').trim()) return 'Enter a phone number for delivery.'
+  if (!isValidMaltaPhoneNumber(value)) return 'Enter a valid Malta phone number.'
+  return ''
+}
+
 export function getPaymentInitializationBlocker({
   stripeConfigured = true,
   currentUser = null,
@@ -38,6 +58,7 @@ export function getPaymentInitializationBlocker({
   address = '',
   city = '',
   postcode = '',
+  phone = '',
 } = {}) {
   if (!stripeConfigured) return 'Online payments are still being set up.'
   if (!currentUser?.id) return 'Please log in before continuing to payment.'
@@ -53,6 +74,8 @@ export function getPaymentInitializationBlocker({
   if (isLocker) {
     if (!lockerEligible) return 'Only small parcels are supported right now.'
   }
+  const phoneError = getDeliveryPhoneError(phone)
+  if (phoneError) return `${phoneError.replace(/\.$/, '')} before continuing to payment.`
   if (!String(address).trim()) return 'Enter your street address before continuing to payment.'
   if (!String(city).trim()) return 'Enter your city or town before continuing to payment.'
   if (!String(postcode).trim()) return 'Enter your postcode before continuing to payment.'

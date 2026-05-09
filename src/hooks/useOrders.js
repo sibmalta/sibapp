@@ -21,6 +21,16 @@ import {
   openDisputeCase,
 } from '../lib/disputes'
 
+const ORDERS_FETCH_TIMEOUT_MS = 15000
+
+function withTimeout(promise, timeoutMs, label) {
+  let timeoutId
+  const timeout = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(`${label} timed out`)), timeoutMs)
+  })
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId))
+}
+
 export function useOrders() {
   const { supabase, withAuthRetry } = useSupabase()
 
@@ -220,18 +230,57 @@ export function useOrders() {
   }, [withAuthRetry, requireDb, markDbOk])
 
   const refreshOrders = useCallback(async () => {
-    if (dbAvailable === false) return
+    if (dbAvailable === false) {
+      setOrdersLoading(false)
+      return
+    }
     setOrdersLoading(true)
-    const { data, error } = await fetchAllOrders(supabase)
-    if (error) {
-      console.error('[useOrders] fetchAllOrders failed:', error.message)
+    const startedAt = Date.now()
+    let authUserId = null
+    try {
+      const { data: authData } = await supabase.auth.getUser()
+      authUserId = authData?.user?.id || null
+    } catch (authError) {
+      console.warn('[useOrders] auth user lookup failed before orders fetch:', authError?.message)
+    }
+    console.info('[useOrders] orders fetch start', { authUserId })
+
+    try {
+      const { data, error } = await withTimeout(fetchAllOrders(supabase), ORDERS_FETCH_TIMEOUT_MS, 'orders fetch')
+      if (error) {
+        console.error('[useOrders] fetchAllOrders failed:', {
+          authUserId,
+          message: error.message,
+          code: error.code,
+          status: error.status,
+          statusText: error.statusText,
+        })
+        setDbAvailable(false)
+        setDbError(error.message || 'Database connection failed')
+        return
+      }
+      markDbOk()
+      const nextOrders = data || []
+      setOrders(nextOrders)
+      console.info('[useOrders] orders fetch end', {
+        authUserId,
+        profileId: authUserId,
+        buyerOrders: authUserId ? nextOrders.filter(order => order.buyerId === authUserId).length : 0,
+        sellerOrders: authUserId ? nextOrders.filter(order => order.sellerId === authUserId).length : 0,
+        totalOrders: nextOrders.length,
+        durationMs: Date.now() - startedAt,
+      })
+    } catch (error) {
+      console.error('[useOrders] fetchAllOrders failed:', {
+        authUserId,
+        message: error.message,
+        kind: /timed out/i.test(error.message) ? 'timeout' : 'exception',
+      })
       setDbAvailable(false)
       setDbError(error.message || 'Database connection failed')
-    } else {
-      markDbOk()
-      setOrders(data || [])
+    } finally {
+      setOrdersLoading(false)
     }
-    setOrdersLoading(false)
   }, [supabase, dbAvailable, markDbOk])
 
   const refreshDisputes = useCallback(async () => {

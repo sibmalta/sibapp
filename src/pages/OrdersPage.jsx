@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Package, ShoppingBag, Truck } from 'lucide-react'
+import { Package, RefreshCw, ShoppingBag, Truck } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { useAuth } from '../lib/auth-context'
 import useAuthNav from '../hooks/useAuthNav'
@@ -154,7 +154,7 @@ export function getSellerOrderState(order = {}, shipment = null) {
 export default function OrdersPage() {
   const {
     currentUser, getUserOrders, getUserSales, getListingById, getUserById, getShipmentByOrderId,
-    refreshOrders, refreshShipments, ordersLoading, shipmentsLoading,
+    refreshOrders, refreshShipments, ordersLoading, shipmentsLoading, ordersDbError, ordersDbAvailable, profilesLoading,
   } = useApp()
   const { loading: authLoading } = useAuth()
   const navigate = useNavigate()
@@ -163,6 +163,7 @@ export default function OrdersPage() {
   const loadedOrdersRef = useRef(false)
   const initialTab = searchParams.get('tab') === 'selling' ? 'selling' : 'buying'
   const [tab, setTab] = useState(initialTab)
+  const [loadTimedOut, setLoadTimedOut] = useState(false)
   const shipmentFilter = searchParams.get('shipment')
   const sellerFilter = tab === 'selling' ? (searchParams.get('status') || 'active') : null
 
@@ -184,12 +185,67 @@ export default function OrdersPage() {
   useEffect(() => {
     if (!authLoading && currentUser && !loadedOrdersRef.current) {
       loadedOrdersRef.current = true
+      setLoadTimedOut(false)
+      console.info('[OrdersPage] loading start', { authUserId: currentUser.id, profileId: currentUser.id })
       refreshOrders()
       refreshShipments()
     }
   }, [authLoading, currentUser?.id, refreshOrders, refreshShipments])
 
-  if (authLoading || ordersLoading || shipmentsLoading) {
+  useEffect(() => {
+    if (!(authLoading || profilesLoading || ordersLoading || shipmentsLoading)) {
+      setLoadTimedOut(false)
+      return undefined
+    }
+    const id = setTimeout(() => {
+      console.warn('[OrdersPage] loading timed out', {
+        authLoading,
+        profilesLoading,
+        ordersLoading,
+        shipmentsLoading,
+        authUserId: currentUser?.id || null,
+        ordersDbAvailable,
+        ordersDbError,
+      })
+      setLoadTimedOut(true)
+    }, 16000)
+    return () => clearTimeout(id)
+  }, [authLoading, profilesLoading, ordersLoading, shipmentsLoading, currentUser?.id, ordersDbAvailable, ordersDbError])
+
+  const retryOrdersLoad = () => {
+    loadedOrdersRef.current = false
+    setLoadTimedOut(false)
+    refreshOrders()
+    refreshShipments()
+  }
+
+  if (loadTimedOut || ordersDbAvailable === false || ordersDbError) {
+    return (
+      <div>
+        <PageHeader title="Orders" />
+        <div className="mx-auto flex max-w-sm flex-col items-center justify-center px-6 py-20 text-center">
+          <p className="text-base font-black text-sib-text dark:text-[#f4efe7]">We couldn&apos;t load your orders.</p>
+          <p className="mt-2 text-sm leading-relaxed text-sib-muted dark:text-[#aeb8b4]">
+            Please check your connection and try again. If this keeps happening, Sib support can help.
+          </p>
+          {ordersDbError && (
+            <p className="mt-2 rounded-xl bg-sib-sand px-3 py-2 text-xs text-sib-muted dark:bg-[#26322f] dark:text-[#aeb8b4]">
+              {ordersDbError}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={retryOrdersLoad}
+            className="mt-4 inline-flex items-center gap-2 rounded-full bg-sib-primary px-5 py-2.5 text-sm font-bold text-white"
+          >
+            <RefreshCw size={14} /> Retry
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (authLoading || profilesLoading || ordersLoading || shipmentsLoading) {
     return (
       <div>
         <PageHeader title="Orders" />

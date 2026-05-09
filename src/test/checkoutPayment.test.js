@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildPaymentIntentPayload,
+  getDeliveryPhoneError,
   getPaymentInitializationBlocker,
+  isValidMaltaPhoneNumber,
+  normalizeMaltaPhoneNumber,
   resolveCheckoutDeliveryMethod,
   runPaymentIntentInitialization,
   shouldInitializePaymentIntent,
@@ -54,6 +57,7 @@ describe('checkout payment helpers', () => {
       address: '1 Main Street',
       city: 'Valletta',
       postcode: 'VLT1234',
+      phone: '+35699123456',
     }
 
     expect(getPaymentInitializationBlocker(state)).toBe('')
@@ -72,6 +76,7 @@ describe('checkout payment helpers', () => {
       address: '1 Main Street',
       city: 'Valletta',
       postcode: 'VLT1234',
+      phone: '+35699123456',
     })).toBe('This delivery method is no longer available.')
 
     expect(getPaymentInitializationBlocker({
@@ -85,6 +90,7 @@ describe('checkout payment helpers', () => {
       address: '',
       city: 'Valletta',
       postcode: 'VLT1234',
+      phone: '+35699123456',
     })).toBe('Enter your street address before continuing to payment.')
 
     expect(getPaymentInitializationBlocker({
@@ -99,7 +105,37 @@ describe('checkout payment helpers', () => {
       address: '',
       city: 'Valletta',
       postcode: 'VLT1234',
+      phone: '+35699123456',
     })).toBe('Enter your street address before continuing to payment.')
+  })
+
+  it('requires a valid Malta phone number before payment initialization', () => {
+    const baseState = {
+      stripeConfigured: true,
+      currentUser: { id: 'buyer_123' },
+      sessionAccessToken: 'aaa.bbb.ccc',
+      listing: { id: 'listing_123', sellerId: 'seller_123' },
+      feesTotal: 12.5,
+      isLocker: true,
+      lockerEligible: true,
+      deliveryMethod: 'locker_collection',
+      address: '1 Main Street',
+      city: 'Valletta',
+      postcode: 'VLT1234',
+    }
+
+    expect(getPaymentInitializationBlocker(baseState)).toBe('Enter a phone number for delivery before continuing to payment.')
+    expect(getPaymentInitializationBlocker({ ...baseState, phone: '123' })).toBe('Enter a valid Malta phone number before continuing to payment.')
+    expect(getPaymentInitializationBlocker({ ...baseState, phone: '+356 99 123 456' })).toBe('')
+    expect(getDeliveryPhoneError('+356 99 123 456')).toBe('')
+  })
+
+  it('normalizes and validates Malta-friendly phone numbers', () => {
+    expect(normalizeMaltaPhoneNumber('99 123 456')).toBe('+35699123456')
+    expect(normalizeMaltaPhoneNumber('35699123456')).toBe('+35699123456')
+    expect(normalizeMaltaPhoneNumber('0035699123456')).toBe('+35699123456')
+    expect(isValidMaltaPhoneNumber('+356 99 123 456')).toBe(true)
+    expect(isValidMaltaPhoneNumber('+44 7700 900123')).toBe(false)
   })
 
   it('does not require buyers to select a MYConvenience location for drop-off delivery', () => {
@@ -115,6 +151,7 @@ describe('checkout payment helpers', () => {
       address: '1 Main Street',
       city: 'Valletta',
       postcode: 'VLT1234',
+      phone: '+35699123456',
     })).toBe('')
   })
 
@@ -131,6 +168,7 @@ describe('checkout payment helpers', () => {
       address: '',
       city: 'Valletta',
       postcode: 'VLT1234',
+      phone: '+35699123456',
     }, async () => {
       called = true
       return { clientSecret: 'pi_123_secret_456' }
@@ -159,6 +197,7 @@ describe('checkout payment helpers', () => {
       address: '1 Main Street',
       city: 'Valletta',
       postcode: 'VLT1234',
+      phone: '+35699123456',
     }, async (payload) => {
       receivedPayload = payload
       return { clientSecret: 'pi_123_secret_456' }
@@ -184,6 +223,7 @@ describe('checkout payment helpers', () => {
       address: '1 Main Street',
       city: 'Valletta',
       postcode: 'VLT1234',
+      phone: '+35699123456',
       intentError: 'Enter your street address before continuing to payment.',
       hasAttemptedPaymentIntent: false,
     })).toBe(true)
@@ -200,6 +240,7 @@ describe('checkout payment helpers', () => {
       address: '1 Main Street',
       city: 'Valletta',
       postcode: 'VLT1234',
+      phone: '+35699123456',
       intentError: "We couldn't load payment options right now. Please try again in a moment.",
       hasAttemptedPaymentIntent: true,
     })).toBe(false)
