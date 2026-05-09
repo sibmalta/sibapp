@@ -2,8 +2,10 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
+  buildDisputeThreadConversation,
   canInsertDisputeEvidence,
   canReadDisputeMessage,
+  disputeConversationId,
   disputeMessageToRow,
   getDisputeMessagesForDispute,
   getEvidenceSenderRole,
@@ -90,6 +92,8 @@ describe('dispute handling helpers', () => {
       senderRole: 'buyer',
       message: 'Photo evidence attached',
       attachments: [{ path: 'photo.jpg' }],
+      visibility: 'public',
+      messageType: 'message',
     })
 
     expect(row).toEqual({
@@ -99,12 +103,16 @@ describe('dispute handling helpers', () => {
       sender_role: 'buyer',
       message: 'Photo evidence attached',
       attachments: [{ path: 'photo.jpg' }],
+      visibility: 'public',
+      message_type: 'message',
     })
     expect(rowToDisputeMessage({ id: 'message-1', ...row, created_at: '2026-05-06T10:00:00.000Z' })).toMatchObject({
       id: 'message-1',
       disputeId: 'dispute-1',
       senderRole: 'buyer',
       message: 'Photo evidence attached',
+      visibility: 'public',
+      messageType: 'message',
     })
 
     expect(disputeMessageToRow({ attachments: { path: 'not-an-array' } })).toEqual({ attachments: [] })
@@ -119,6 +127,41 @@ describe('dispute handling helpers', () => {
     ], 'dispute-1')
 
     expect(messages.map(message => message.id)).toEqual(['early', 'late'])
+  })
+
+  it('builds Messages dispute threads and hides internal notes from participants', () => {
+    const dispute = {
+      id: 'dispute-1',
+      orderId: 'order-1',
+      listingId: 'listing-1',
+      buyerId: 'buyer-1',
+      sellerId: 'seller-1',
+      status: 'open',
+    }
+    const messages = [
+      { id: 'public', disputeId: 'dispute-1', senderRole: 'admin', senderProfileId: 'admin-1', message: 'Please add photos', visibility: 'public', createdAt: '2026-05-06T10:00:00.000Z' },
+      { id: 'internal', disputeId: 'dispute-1', senderRole: 'admin', senderProfileId: 'admin-1', message: 'Check refund risk', visibility: 'internal', messageType: 'note', createdAt: '2026-05-06T10:01:00.000Z' },
+    ]
+
+    expect(disputeConversationId('dispute-1')).toBe('dispute_dispute-1')
+
+    const buyerThread = buildDisputeThreadConversation({
+      dispute,
+      messages,
+      currentUserId: 'buyer-1',
+      order: { orderRef: 'SIB-123', listingTitle: 'Dress' },
+    })
+    expect(buyerThread.metadata.type).toBe('dispute')
+    expect(buyerThread.messages.map(message => message.id)).toEqual(['public'])
+
+    const adminThread = buildDisputeThreadConversation({
+      dispute,
+      messages,
+      currentUserId: 'admin-1',
+      isAdmin: true,
+      order: { orderRef: 'SIB-123', listingTitle: 'Dress' },
+    })
+    expect(adminThread.messages.map(message => message.id)).toEqual(['public', 'internal'])
   })
 
   it('allows only participants or admins to read and submit dispute evidence', () => {
@@ -162,10 +205,37 @@ describe('dispute handling helpers', () => {
     expect(appContext).toContain('dbCreateDisputeCase')
     expect(appContext).toContain('dbCreateDisputeMessage')
     expect(appContext).not.toContain('disputes.messages')
-    expect(adminPage).toContain('Dispute timeline / evidence')
-    expect(adminPage).toContain('Add admin message')
+    expect(adminPage).toContain('Dispute conversation / evidence')
+    expect(adminPage).toContain('Send update to buyer/seller')
     expect(orderDetail).toContain('Dispute under review')
     expect(orderDetail).toContain('Provide Evidence')
     expect(orderDetail).toContain('Submit evidence')
+  })
+
+  it('defines dispute conversation threads, internal notes, public replies, and notifications', () => {
+    const root = resolve(__dirname, '..', '..')
+    const migration = readFileSync(resolve(root, 'supabase/migrations/20260509120000_dispute_conversation_threads.sql'), 'utf8')
+    const appContext = readFileSync(resolve(root, 'src/context/AppContext.jsx'), 'utf8')
+    const chatList = readFileSync(resolve(root, 'src/pages/ChatListPage.jsx'), 'utf8')
+    const chatPage = readFileSync(resolve(root, 'src/pages/ChatPage.jsx'), 'utf8')
+    const adminPage = readFileSync(resolve(root, 'src/pages/AdminPage.jsx'), 'utf8')
+    const orderDetail = readFileSync(resolve(root, 'src/pages/OrderDetailPage.jsx'), 'utf8')
+
+    expect(migration).toContain('CREATE TABLE IF NOT EXISTS public.dispute_conversations')
+    expect(migration).toContain("visibility IN ('public', 'internal')")
+    expect(migration).toContain("message_type IN ('message', 'note', 'system')")
+    expect(migration).toContain('CREATE OR REPLACE FUNCTION public.add_dispute_thread_message')
+    expect(migration).toContain("RAISE EXCEPTION 'not_allowed'")
+    expect(migration).toContain("'dispute_message'")
+    expect(migration).toContain("v_action_target := '/messages/dispute_'")
+
+    expect(appContext).toContain('buildDisputeThreadConversation')
+    expect(chatList).toContain('Dispute thread')
+    expect(chatPage).toContain('isDisputeThread')
+    expect(chatPage).toContain('addDisputeMessage')
+    expect(adminPage).toContain('Internal note')
+    expect(adminPage).toContain('Send update to buyer/seller')
+    expect(orderDetail).toContain('Add photos or screenshots')
+    expect(orderDetail).toContain('uploadSupportAttachments')
   })
 })

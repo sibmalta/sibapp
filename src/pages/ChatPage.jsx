@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
-import { Send, ShieldCheck, AlertTriangle, Lock, Ban, Tag, Check, X, ArrowLeftRight, ShoppingBag } from 'lucide-react'
+import { Send, ShieldCheck, AlertTriangle, Lock, Ban, Tag, Check, X, ArrowLeftRight, ShoppingBag, Paperclip } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import UserAvatar from '../components/UserAvatar'
 import OfficialBadge from '../components/OfficialBadge'
@@ -120,6 +120,7 @@ export default function ChatPage() {
   const {
     currentUser, getConversation, getUserById, getListingById, sendMessage, markConversationRead,
     getOfferById, acceptOffer, declineOffer, counterOffer, recoverOfferConversationFromLink, ensureUserById, showToast,
+    addDisputeMessage,
   } = useApp()
   const [text, setText] = useState('')
   const [warning, setWarning] = useState(null)
@@ -160,6 +161,7 @@ export default function ChatPage() {
   const otherId = conv?.participants?.find(p => p !== currentUser?.id)
   const other = otherId ? getUserById(otherId) : null
   const listing = conv?.listingId ? getListingById(conv.listingId) : null
+  const isDisputeThread = conv?.metadata?.type === 'dispute'
 
   const offerMessageMeta = useMemo(() => {
     const latestByThread = new Map()
@@ -241,7 +243,9 @@ export default function ChatPage() {
       return
     }
     try {
-      const result = await sendMessage(conv.id, currentUser.id, msg, false)
+      const result = isDisputeThread
+        ? await addDisputeMessage(conv.metadata.disputeId, msg, { attachments: [] })
+        : await sendMessage(conv.id, currentUser.id, msg, false)
       if (result?.error) {
         setWarning({
           flagged: true,
@@ -261,7 +265,7 @@ export default function ChatPage() {
     requestAnimationFrame(() => {
       inputRef.current?.focus({ preventScroll: true })
     })
-  }, [text, isRestricted, conv?.id, currentUser?.id, sendMessage])
+  }, [addDisputeMessage, text, isRestricted, conv?.id, conv?.metadata?.disputeId, currentUser?.id, isDisputeThread, sendMessage])
 
   const dismissWarning = () => {
     setWarning(null)
@@ -495,6 +499,63 @@ export default function ChatPage() {
     )
   }
 
+  const renderDisputeMessage = (msg) => {
+    if (isSystemMessage(msg)) return renderSystemEvent(msg)
+    const isMe = msg.senderId === currentUser.id
+    const roleLabel = msg.senderRole === 'admin'
+      ? 'Sib Support'
+      : msg.senderRole === 'buyer'
+        ? 'Buyer'
+        : msg.senderRole === 'seller'
+          ? 'Seller'
+          : 'System'
+    const attachments = Array.isArray(msg.attachments) ? msg.attachments : []
+    return (
+      <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+        <div className={`max-w-[82%] rounded-2xl border px-4 py-3 text-sm ${
+          isMe
+            ? 'border-sib-primary bg-sib-primary text-white rounded-br-sm'
+            : msg.senderRole === 'admin'
+              ? 'border-orange-100 bg-orange-50 text-sib-text dark:border-orange-500/20 dark:bg-[#332d20] dark:text-[#f4efe7]'
+              : 'border-sib-stone bg-sib-sand text-sib-text dark:border-[rgba(242,238,231,0.10)] dark:bg-[#26322f] dark:text-[#f4efe7]'
+        }`}>
+          <div className="mb-1 flex items-center gap-2">
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-black uppercase ${
+              isMe ? 'bg-white/20 text-white' : 'bg-white text-sib-primary dark:bg-[#202b28]'
+            }`}>
+              {roleLabel}
+            </span>
+            {msg.visibility === 'internal' && (
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black uppercase text-amber-700">
+                Internal
+              </span>
+            )}
+          </div>
+          <p className="leading-relaxed">{msg.text}</p>
+          {attachments.length > 0 && (
+            <div className="mt-2 space-y-1">
+              {attachments.map((attachment, index) => (
+                <a
+                  key={`${msg.id}_attachment_${index}`}
+                  href={attachment.url || attachment.path || '#'}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={`flex items-center gap-1.5 text-xs font-semibold underline-offset-2 hover:underline ${isMe ? 'text-white/90' : 'text-sib-primary'}`}
+                >
+                  <Paperclip size={12} />
+                  {attachment.name || attachment.filename || `Attachment ${index + 1}`}
+                </a>
+              ))}
+            </div>
+          )}
+          <p className={`mt-2 text-[10px] ${isMe ? 'text-white/70' : 'text-sib-muted dark:text-[#aeb8b4]'}`}>
+            {formatMessageTime(msg.timestamp)}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   if (!currentUser) return null
   if (!conv) return <div className="text-center py-20 text-sib-muted dark:text-[#aeb8b4]">Conversation not found.</div>
 
@@ -510,6 +571,20 @@ export default function ChatPage() {
 
       <div className="flex flex-col h-[calc(100vh-8.5rem)] overflow-hidden">
         {/* Listing preview */}
+        {isDisputeThread && (
+          <div className="border-b border-orange-100 bg-orange-50 px-4 py-3 dark:border-orange-500/20 dark:bg-[#332d20]">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={15} className="text-orange-600" />
+              <p className="text-sm font-black text-orange-800 dark:text-orange-200">Dispute thread</p>
+              <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold uppercase text-orange-700 dark:bg-[#202b28]">
+                {String(conv.metadata.status || 'open').replace(/_/g, ' ')}
+              </span>
+            </div>
+            <p className="mt-0.5 text-xs text-orange-700 dark:text-orange-200/80">
+              Linked to {conv.metadata.orderCode ? `order ${conv.metadata.orderCode}` : 'this order'}. Use this thread for evidence and Sib Support updates.
+            </p>
+          </div>
+        )}
         {listing && (
           <div
             onClick={() => navigate(`/listing/${listing.id}`)}
@@ -549,6 +624,7 @@ export default function ChatPage() {
           )}
           {conv.messages.map(msg => {
             const isMe = msg.senderId === currentUser.id
+            if (isDisputeThread) return renderDisputeMessage(msg)
             if (msg.type === 'offer') return renderOfferMessage(msg)
             if (isSystemMessage(msg)) return renderSystemEvent(msg)
             if (msg.flagged) {
