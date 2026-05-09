@@ -33,7 +33,15 @@ export default function AuthCallbackPage() {
     }
 
     if (user) {
-      navigate('/browse', { replace: true })
+      let redirectPath = '/browse'
+      try {
+        const storedRedirect = sessionStorage.getItem('sib_auth_redirect')
+        if (storedRedirect && storedRedirect.startsWith('/') && !storedRedirect.startsWith('//') && !storedRedirect.startsWith('/auth')) {
+          redirectPath = storedRedirect
+          sessionStorage.removeItem('sib_auth_redirect')
+        }
+      } catch {}
+      navigate(redirectPath, { replace: true })
       return
     }
 

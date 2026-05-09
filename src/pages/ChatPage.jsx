@@ -122,7 +122,7 @@ export default function ChatPage() {
   const {
     currentUser, getConversation, getUserById, getListingById, sendMessage, markConversationRead,
     getOfferById, acceptOffer, declineOffer, counterOffer, recoverOfferConversationFromLink, ensureUserById, showToast,
-    addDisputeMessage,
+    addDisputeMessage, authLoading, disputesLoading, disputeMessagesLoading, ordersLoading,
   } = useApp()
   const [text, setText] = useState('')
   const [warning, setWarning] = useState(null)
@@ -136,14 +136,18 @@ export default function ChatPage() {
   const conv = currentUser ? getConversation(id) : null
 
   useEffect(() => {
+    if (authLoading) return
     if (!currentUser) {
       const redirect = `${location.pathname}${location.search}`
+      try {
+        sessionStorage.setItem('sib_auth_redirect', redirect)
+      } catch {}
       navigate(`/auth?redirect=${encodeURIComponent(redirect)}`, {
         replace: true,
         state: { from: redirect },
       })
     }
-  }, [currentUser, location.pathname, location.search, navigate])
+  }, [authLoading, currentUser, location.pathname, location.search, navigate])
 
   useEffect(() => {
     if (!currentUser || conv || !id) return
@@ -558,9 +562,16 @@ export default function ChatPage() {
     )
   }
 
+  if (authLoading) {
+    return <div className="text-center py-20 text-sib-muted dark:text-[#aeb8b4]">Loading conversation...</div>
+  }
   if (!currentUser) return null
   if (!conv) {
     const isDisputeReference = Boolean(params.disputeId || String(id || '').startsWith('dispute_'))
+    const isStillLoadingDisputeThread = isDisputeReference && (ordersLoading || disputesLoading || disputeMessagesLoading)
+    if (isStillLoadingDisputeThread) {
+      return <div className="text-center py-20 text-sib-muted dark:text-[#aeb8b4]">Loading dispute conversation...</div>
+    }
     return (
       <div className="text-center py-20 px-6 text-sib-muted dark:text-[#aeb8b4]">
         {isDisputeReference

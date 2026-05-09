@@ -40,13 +40,21 @@ export default function AuthPage() {
     if (redirectParam) return redirectParam
     const stateFrom = sanitizeRedirectPath(location.state?.from)
     if (stateFrom) return stateFrom
+    try {
+      const storedRedirect = sanitizeRedirectPath(sessionStorage.getItem('sib_auth_redirect'))
+      if (storedRedirect) return storedRedirect
+    } catch {}
     return '/browse'
   }
 
   // If already logged in, redirect away immediately
   useEffect(() => {
     if (currentUser) {
-      navigate(getRedirectPath(), { replace: true })
+      const redirectPath = getRedirectPath()
+      try {
+        sessionStorage.removeItem('sib_auth_redirect')
+      } catch {}
+      navigate(redirectPath, { replace: true })
     }
   }, [currentUser])
 
