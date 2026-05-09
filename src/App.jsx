@@ -6,7 +6,6 @@ import Layout from './components/Layout'
 import ScrollToTop from './components/ScrollToTop'
 import Toast from './components/Toast'
 import PackagePreparationModal from './components/PackagePreparationModal'
-import MaintenanceGate from './components/MaintenanceGate'
 import { useAuth } from './lib/auth-context'
 
 
@@ -79,7 +78,7 @@ function AppRoutes() {
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
-        <Route path="/" element={<MaintenanceGate><Layout /></MaintenanceGate>}>
+        <Route path="/" element={<Layout />}>
           <Route index element={<HomePage />} />
           <Route path="browse" element={<BrowsePage />} />
           <Route path="listing/:id" element={<ListingPage />} />

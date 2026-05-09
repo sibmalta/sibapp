@@ -66,10 +66,12 @@ describe('MaintenanceGate helpers', () => {
   it('renders login routes outside the maintenance gate', () => {
     const app = readFileSync(resolve(process.cwd(), 'src/App.jsx'), 'utf8')
     const loginRouteIndex = app.indexOf('<Route path="/login" element={<AuthPage />} />')
-    const gatedRouteIndex = app.indexOf('<Route path="/" element={<MaintenanceGate><Layout /></MaintenanceGate>}>')
+    const normalAppRouteIndex = app.indexOf('<Route path="/" element={<Layout />}>')
 
     expect(loginRouteIndex).toBeGreaterThan(-1)
-    expect(gatedRouteIndex).toBeGreaterThan(-1)
-    expect(loginRouteIndex).toBeLessThan(gatedRouteIndex)
+    expect(normalAppRouteIndex).toBeGreaterThan(-1)
+    expect(loginRouteIndex).toBeLessThan(normalAppRouteIndex)
+    expect(app).not.toContain('<MaintenanceGate>')
+    expect(app).not.toContain('MaintenanceGate><Layout')
   })
 })
