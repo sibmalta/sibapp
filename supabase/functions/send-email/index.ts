@@ -350,7 +350,7 @@ function buildEmail(payload: EmailPayload): { subject: string; html: string; pre
           <p style="font-size:13px;color:#6B7280;text-align:center;">
             Your payment is held safely by Sib until you confirm delivery.
           </p>
-          ${btn('View Dispute', disputeThreadUrl(payload.meta?.disputeId || payload.meta?.dispute_id || payload.related_entity_id))}
+          ${btn('View Order', orderUrl(payload.meta?.orderId))}
         `),
       }
     }
@@ -470,7 +470,7 @@ function buildEmail(payload: EmailPayload): { subject: string; html: string; pre
           <p style="font-size:13px;color:#6B7280;text-align:center;">
             ${isSellerNotice ? 'Our team will review and contact both parties as soon as possible.' : 'Our team will review and respond as soon as possible.'}
           </p>
-          ${btn('View Order', orderUrl(payload.meta?.orderId))}
+          ${btn('View Dispute', disputeThreadUrl(payload.meta?.disputeId || payload.meta?.dispute_id || payload.related_entity_id))}
         `),
       }
     }
@@ -950,7 +950,7 @@ case 'item_sold': {
           <p style="font-size:13px;color:#6B7280;text-align:center;">
             Questions? Contact info@sibmalta.com.
           </p>
-          ${btn('View Order', orderUrl(payload.meta?.orderId))}
+          ${btn('View Dispute', disputeThreadUrl(payload.meta?.disputeId || payload.meta?.dispute_id || payload.related_entity_id))}
         `),
       }
     }
