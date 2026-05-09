@@ -7,6 +7,7 @@
  * The AppContext falls back to localStorage/seed data when these calls fail,
  * so the app is safe to use before the migration has been applied.
  */
+import { normalizeSellerBadges } from '../sellerBadges'
 
 // ── Shape helpers ────────────────────────────────────────────────────────────
 
@@ -20,6 +21,7 @@ export function rowToUser(row) {
   const name = row.name || row.display_name || row.full_name || username || ''
   const avatar = row.avatar || row.avatar_url || null
   const isAdmin = row.is_admin || row.admin_role === 'super_admin' || username.toLowerCase() === 'sibadmin'
+  const sellerBadges = normalizeSellerBadges(row.seller_badges, { isTrustedSeller: !!row.is_trusted_seller })
   return {
     id: row.id,
     username,
@@ -41,7 +43,7 @@ export function rowToUser(row) {
     banned: row.status === 'banned',
     status: row.status || 'active',
     // Seller badges & trust tags (admin-managed)
-    sellerBadges: row.seller_badges || [],
+    sellerBadges,
     trustTags: row.trust_tags || [],
     // Admin permission level: 'super_admin' | 'moderator' | null
     adminRole: row.admin_role || null,
@@ -76,7 +78,7 @@ export function userToRow(user) {
   else if (user.suspended === false && user.banned === false) row.status = 'active'
   else if (user.status !== undefined) row.status = user.status
   // Seller badges & trust tags (admin-managed arrays)
-  if (user.sellerBadges !== undefined) row.seller_badges = user.sellerBadges
+  if (user.sellerBadges !== undefined) row.seller_badges = normalizeSellerBadges(user.sellerBadges)
   if (user.trustTags !== undefined) row.trust_tags = user.trustTags
   // Admin permission level
   if (user.adminRole !== undefined) row.admin_role = user.adminRole

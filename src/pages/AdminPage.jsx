@@ -215,6 +215,7 @@ export default function AdminPage() {
   const [adminActionProcessing, setAdminActionProcessing] = useState(false)
   const [refundConfirmationText, setRefundConfirmationText] = useState('')
   const [adminDisputeMessages, setAdminDisputeMessages] = useState({})
+  const [savingSellerBadgeUserIds, setSavingSellerBadgeUserIds] = useState(() => new Set())
 
   // ── Email logs from DB ────────────────────────────────────────
   const [emailLogs, setEmailLogs] = useState([])
@@ -272,6 +273,27 @@ export default function AdminPage() {
   useEffect(() => {
     if (tab === 'support') fetchSupportTickets()
   }, [tab, fetchSupportTickets])
+
+  const saveSellerBadges = useCallback(async (user, badges, label, action) => {
+    if (!user?.id || savingSellerBadgeUserIds.has(user.id)) return
+    setSavingSellerBadgeUserIds(prev => new Set(prev).add(user.id))
+    try {
+      const result = await updateSellerBadges(user.id, badges)
+      if (result?.error) {
+        showToast?.(result.error.message || 'Could not save seller badge.', 'error')
+        return
+      }
+      showToast?.(`${action} "${label}"`)
+    } catch (error) {
+      showToast?.(error?.message || 'Could not save seller badge.', 'error')
+    } finally {
+      setSavingSellerBadgeUserIds(prev => {
+        const next = new Set(prev)
+        next.delete(user.id)
+        return next
+      })
+    }
+  }, [savingSellerBadgeUserIds, showToast, updateSellerBadges])
 
   useEffect(() => {
     if (!currentUser?.isAdmin) return
@@ -875,11 +897,13 @@ export default function AdminPage() {
                           const currentBadges = Array.isArray(u.sellerBadges) ? u.sellerBadges : []
                           const assignedDefs = SELLER_BADGE_DEFS.filter(b => currentBadges.includes(b.id))
                           const availableDefs = SELLER_BADGE_DEFS.filter(b => !currentBadges.includes(b.id))
+                          const badgesSaving = savingSellerBadgeUserIds.has(u.id)
                           return (
                             <div className="pt-1">
                               <div className="flex items-center gap-1.5 mb-1.5">
                                 <Tags size={10} className="text-sib-muted" />
                                 <p className="text-[10px] font-semibold text-sib-muted uppercase tracking-wider">Seller Badges</p>
+                                {badgesSaving && <span className="text-[10px] text-sib-muted">Saving...</span>}
                               </div>
                               {assignedDefs.length > 0 && (
                                 <div className="flex gap-1 flex-wrap mb-1.5">
@@ -890,12 +914,13 @@ export default function AdminPage() {
                                         <Icon size={10} />
                                         {b.label}
                                         <button
+                                          type="button"
+                                          disabled={badgesSaving}
                                           onClick={() => {
                                             const next = currentBadges.filter(id => id !== b.id)
-                                            updateSellerBadges(u.id, next)
-                                            showToast(`Removed "${b.label}"`)
+                                            saveSellerBadges(u, next, b.label, 'Removed')
                                           }}
-                                          className="ml-0.5 hover:text-red-500 transition-colors"
+                                          className="ml-0.5 hover:text-red-500 transition-colors disabled:opacity-50"
                                         >
                                           <X size={9} />
                                         </button>
@@ -914,12 +939,13 @@ export default function AdminPage() {
                                     return (
                                       <button
                                         key={b.id}
+                                        type="button"
+                                        disabled={badgesSaving}
                                         onClick={() => {
                                           const next = [...currentBadges, b.id]
-                                          updateSellerBadges(u.id, next)
-                                          showToast(`Assigned "${b.label}"`)
+                                          saveSellerBadges(u, next, b.label, 'Assigned')
                                         }}
-                                        className="inline-flex items-center gap-0.5 text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-gray-50 text-sib-muted border border-gray-200 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                                        className="inline-flex items-center gap-0.5 text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-gray-50 text-sib-muted border border-gray-200 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors disabled:opacity-50"
                                       >
                                         <Plus size={8} />
                                         <Icon size={9} />

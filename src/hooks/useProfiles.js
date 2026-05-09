@@ -250,8 +250,26 @@ export function useProfiles(localUsers, currentUser) {
 
   // ── Admin: update seller badges ─────────────────────────────────────────────
   const updateSellerBadges = useCallback(async (userId, badges) => {
+    if (dbAvailable) {
+      const { data, error } = await adminUpdateProfile(supabase, userId, { sellerBadges: badges })
+      if (error) {
+        console.error('[useProfiles] updateSellerBadges failed:', {
+          userId,
+          badges,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+        })
+        return { data: null, error }
+      }
+      if (data) {
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...data } : u))
+        return { data, error: null }
+      }
+    }
+
     setUsers(prev => prev.map(u => u.id === userId ? { ...u, sellerBadges: badges } : u))
-    if (dbAvailable) await adminUpdateProfile(supabase, userId, { sellerBadges: badges })
+    return { data: null, error: null }
   }, [supabase, dbAvailable])
 
   // ── Admin: update trust tags ────────────────────────────────────────────────

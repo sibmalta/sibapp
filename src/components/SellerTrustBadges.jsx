@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react'
-import { BadgeCheck, Zap, Star, ShieldCheck, Clock, Gem, Award, Truck, HeartHandshake } from 'lucide-react'
+import { BadgeCheck, Zap, Star, ShieldCheck, Clock, Gem, HeartHandshake } from 'lucide-react'
+import { normalizeSellerBadgeId, normalizeSellerBadges, SELLER_BADGE_ALIASES } from '../lib/sellerBadges'
 
 /**
  * Predefined admin-assignable seller badges.
@@ -7,25 +8,18 @@ import { BadgeCheck, Zap, Star, ShieldCheck, Clock, Gem, Award, Truck, HeartHand
  */
 export const SELLER_BADGE_DEFS = [
   {
-    id: 'verified_vintage',
+    id: 'verified_seller',
+    label: 'Verified Seller',
+    icon: BadgeCheck,
+    color: 'text-blue-600',
+    bg: 'bg-blue-50',
+  },
+  {
+    id: 'verified_vintage_seller',
     label: 'Verified Vintage Seller',
     icon: Gem,
     color: 'text-amber-700',
     bg: 'bg-amber-50',
-  },
-  {
-    id: 'top_seller',
-    label: 'Top Seller',
-    icon: Award,
-    color: 'text-indigo-600',
-    bg: 'bg-indigo-50',
-  },
-  {
-    id: 'fast_shipper',
-    label: 'Fast Shipper',
-    icon: Truck,
-    color: 'text-green-600',
-    bg: 'bg-green-50',
   },
   {
     id: 'trusted_seller',
@@ -36,9 +30,12 @@ export const SELLER_BADGE_DEFS = [
   },
 ]
 
+export { normalizeSellerBadgeId, normalizeSellerBadges, SELLER_BADGE_ALIASES }
+
 /** Look up a badge definition by its id */
 export function getSellerBadgeDef(id) {
-  return SELLER_BADGE_DEFS.find(b => b.id === id) || null
+  const normalizedId = normalizeSellerBadgeId(id)
+  return SELLER_BADGE_DEFS.find(b => b.id === normalizedId) || null
 }
 
 /**
@@ -128,8 +125,16 @@ export default function SellerTrustBadges({ seller, sellerOrders = [], shipments
     return result
   }, [seller, sellerOrders, shipments])
 
-  // Merge: admin badges first, then auto badges
-  const badges = useMemo(() => [...adminBadges, ...autoBadges], [adminBadges, autoBadges])
+  // Merge: admin badges first, then auto badges without duplicate labels.
+  const badges = useMemo(() => {
+    const seen = new Set()
+    return [...adminBadges, ...autoBadges].filter(badge => {
+      const key = badge.label
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  }, [adminBadges, autoBadges])
 
   // Member-since year
   const memberSince = seller?.joinedDate
