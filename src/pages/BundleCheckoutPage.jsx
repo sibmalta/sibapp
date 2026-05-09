@@ -7,7 +7,6 @@ import { useAuth } from '../lib/auth-context'
 import { getStripe, createPaymentIntent, isStripeConfigured } from '../lib/stripe'
 import PageHeader from '../components/PageHeader'
 import DeliveryMethodSelector from '../components/DeliveryMethodSelector'
-import { getLockerById } from '../data/deliveryConfig'
 import { getFulfilmentPrice, normalizeFulfilmentMethod } from '../lib/fulfilment'
 import useSavedAddress from '../hooks/useSavedAddress'
 import { useSupabase } from '../lib/useSupabase'
@@ -259,8 +258,7 @@ export default function BundleCheckoutPage() {
   const { session } = useAuth()
   const { supabase: sbClient } = useSupabase()
 
-  const [deliveryMethodId, setDeliveryMethodId] = useState('home_delivery')
-  const [selectedLockerId, setSelectedLockerId] = useState(null)
+  const [deliveryMethodId, setDeliveryMethodId] = useState('locker_collection')
   const [fullName, setFullName] = useState('')
   const [phone, setPhone] = useState('')
   const [address, setAddress] = useState('')
@@ -299,7 +297,6 @@ export default function BundleCheckoutPage() {
   useEffect(() => {
     if (deliveryMethodId === 'locker_collection' && !bundleLockerEligible) {
       setDeliveryMethodId('home_delivery')
-      setSelectedLockerId(null)
       setAddressConfirmed(false)
       setClientSecret(null)
     }
@@ -315,7 +312,6 @@ export default function BundleCheckoutPage() {
   const fees = calculateBundleFees(subtotal, deliveryFee)
   const amountCents = Math.round(fees.total * 100)
   const isLocker = deliveryMethodId === 'locker_collection'
-  const selectedLocker = isLocker && selectedLockerId ? getLockerById(selectedLockerId) : null
 
   const clearErr = (field) => setErrors(prev => ({ ...prev, [field]: null }))
 
@@ -324,14 +320,8 @@ export default function BundleCheckoutPage() {
       setErrors(prev => ({ ...prev, deliveryMethod: 'Only small parcels are supported right now.' }))
       return
     }
-    setErrors(prev => ({ ...prev, deliveryMethod: null, locker: null }))
+    setErrors(prev => ({ ...prev, deliveryMethod: null }))
     setDeliveryMethodId(methodId)
-    setAddressConfirmed(false)
-    setClientSecret(null)
-    setSelectedLockerId(null)
-  }
-  const handleLockerSelect = (lockerId) => {
-    setSelectedLockerId(lockerId)
     setAddressConfirmed(false)
     setClientSecret(null)
   }
@@ -340,16 +330,13 @@ export default function BundleCheckoutPage() {
     const e = {}
     if (isLocker) {
       if (!bundleLockerEligible) e.deliveryMethod = 'Only small parcels are supported right now.'
-      if (!selectedLockerId) e.locker = 'Please select a MYConvenience location'
-    } else {
-      if (!address.trim()) e.address = 'Enter your street address'
-      if (!city.trim()) e.city = 'Enter your city or town'
-      if (!postcode.trim()) e.postcode = 'Enter your postcode'
     }
+    if (!address.trim()) e.address = 'Enter your street address'
+    if (!city.trim()) e.city = 'Enter your city or town'
+    if (!postcode.trim()) e.postcode = 'Enter your postcode'
     return e
   }
   const getFullAddress = () => {
-    if (isLocker && selectedLocker) return selectedLocker.fullAddress
     return `${address}, ${city} ${postcode}`.trim()
   }
 
@@ -363,7 +350,6 @@ export default function BundleCheckoutPage() {
         lockerEligible: bundleLockerEligible,
       })
       setDeliveryMethodId(safeDeliveryMethod)
-      setSelectedLockerId(null)
     }
 
     const addrErrors = validateDelivery()
@@ -377,7 +363,7 @@ export default function BundleCheckoutPage() {
     setIntentError('')
 
     // Save address for next time if checkbox is checked
-    if (saveAddressChecked && !isLocker) {
+    if (saveAddressChecked) {
       persistAddress({ fullName, phone, address, city, postcode, notes: deliveryNotes, deliveryMethod: deliveryMethodId })
     }
 
@@ -418,8 +404,8 @@ export default function BundleCheckoutPage() {
     const deliveryInfo = {
       type: deliveryMethodId,
       fee: deliveryFee,
-      lockerName: selectedLocker?.locationName || null,
-      lockerAddress: selectedLocker?.fullAddress || null,
+      lockerName: null,
+      lockerAddress: null,
     }
     const deliverySnapshot = {
       buyerFullName: fullName,
@@ -525,17 +511,13 @@ export default function BundleCheckoutPage() {
             <DeliveryMethodSelector
               selected={deliveryMethodId}
               onSelect={handleDeliveryChange}
-              selectedLockerId={selectedLockerId}
-              onLockerSelect={handleLockerSelect}
               disabled={addressConfirmed}
               lockerEligible={bundleLockerEligible}
             />
             {errors.deliveryMethod && <p className="text-red-500 text-xs -mt-3 mb-3 ml-1">{errors.deliveryMethod}</p>}
-            {errors.locker && <p className="text-red-500 text-xs -mt-3 mb-3 ml-1">{errors.locker}</p>}
 
             {/* Address — only for home delivery */}
-            {!isLocker && (
-              <div className="mb-5 space-y-3">
+            <div className="mb-5 space-y-3">
                 <p className="text-xs font-semibold text-sib-text dark:text-[#f4efe7] uppercase tracking-wide">Delivery Address</p>
                 <div className="flex gap-3">
                   <div className="flex-1">
@@ -583,8 +565,7 @@ export default function BundleCheckoutPage() {
                     <span className="text-[13px] text-sib-text dark:text-[#f4efe7]">Save this address for next time</span>
                   </label>
                 )}
-              </div>
-            )}
+            </div>
 
             {addressConfirmed && (
               <button onClick={() => { setAddressConfirmed(false); setClientSecret(null) }} className="text-xs text-sib-primary font-semibold underline underline-offset-2 mb-4 block">Change delivery details</button>

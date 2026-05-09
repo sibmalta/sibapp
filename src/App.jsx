@@ -6,6 +6,7 @@ import Layout from './components/Layout'
 import ScrollToTop from './components/ScrollToTop'
 import Toast from './components/Toast'
 import PackagePreparationModal from './components/PackagePreparationModal'
+import MaintenanceGate from './components/MaintenanceGate'
 import { useAuth } from './lib/auth-context'
 
 
@@ -68,7 +69,7 @@ function RecoveryRedirector() {
 
 function AppRoutes() {
   return (
-    <>
+    <MaintenanceGate>
       <RecoveryRedirector />
       <Routes>
         <Route path="/" element={<Layout />}>
@@ -123,7 +124,7 @@ function AppRoutes() {
       </Routes>
       <PackagePreparationModal />
       <Toast />
-    </>
+    </MaintenanceGate>
   )
 }
 

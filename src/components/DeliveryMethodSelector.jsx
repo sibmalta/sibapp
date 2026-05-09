@@ -1,6 +1,5 @@
-import React, { useState, useMemo } from 'react'
-import { Box, ChevronDown, MapPin, Info } from 'lucide-react'
-import { getActiveLockers } from '../data/deliveryConfig'
+import React from 'react'
+import { Box, Info } from 'lucide-react'
 import { getFulfilmentPrice } from '../lib/fulfilment'
 
 /**
@@ -9,47 +8,24 @@ import { getFulfilmentPrice } from '../lib/fulfilment'
  * Props:
  *  - selected: 'locker_collection' | legacy saved values
  *  - onSelect: (methodId) => void
- *  - selectedLockerId: string | null
- *  - onLockerSelect: (lockerId) => void
  *  - disabled: boolean
  *  - lockerEligible: boolean
  */
 export default function DeliveryMethodSelector({
   selected,
   onSelect,
-  selectedLockerId,
-  onLockerSelect,
   disabled = false,
   lockerEligible = false,
 }) {
-  const lockers = getActiveLockers()
-  const [lockerSearch, setLockerSearch] = useState('')
-  const [lockerDropdownOpen, setLockerDropdownOpen] = useState(false)
-
-  const filteredLockers = useMemo(() => {
-    if (!lockerSearch.trim()) return lockers
-    const q = lockerSearch.toLowerCase()
-    return lockers.filter(l =>
-      l.locationName.toLowerCase().includes(q) ||
-      l.fullAddress.toLowerCase().includes(q) ||
-      l.region.toLowerCase().includes(q)
-    )
-  }, [lockers, lockerSearch])
-
-  const selectedLocker = useMemo(() => {
-    if (!selectedLockerId) return null
-    return lockers.find(l => l.id === selectedLockerId) || null
-  }, [lockers, selectedLockerId])
-
   const methods = [
     ...(lockerEligible ? [{
       id: 'locker_collection',
       name: 'MYConvenience drop-off',
-      description: 'Small parcel courier delivery from MYConvenience',
+      description: 'The seller will drop off your parcel at a MYConvenience location for courier collection.',
       price: getFulfilmentPrice('locker'),
-      estimatedDays: '2-4 working days',
+      estimatedDays: 'same day if the seller drops off before 12pm, or next day if dropped off after 12pm',
       icon: Box,
-      helpText: 'Seller drops off at MYConvenience. Courier collects small parcels by motorcycle.',
+      helpText: "You'll receive updates once the seller drops off the parcel and courier collection begins.",
     }] : []),
   ]
 
@@ -103,69 +79,15 @@ export default function DeliveryMethodSelector({
 
               {method.id === 'locker_collection' && isSelected && (
                 <div className="mt-2 ml-8">
-                  <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mb-1.5">Choose a MYConvenience location</p>
-                  <div className="relative">
-                    <button
-                      type="button"
-                      disabled={disabled}
-                      onClick={() => setLockerDropdownOpen(prev => !prev)}
-                      className={`w-full flex items-center justify-between gap-2 p-3 rounded-xl border text-left text-sm bg-white dark:bg-[#26322f] ${
-                        selectedLocker ? 'border-sib-primary text-sib-text dark:text-[#f4efe7]' : 'border-sib-stone dark:border-[rgba(242,238,231,0.10)] text-sib-muted dark:text-[#aeb8b4]'
-                      } ${disabled ? 'opacity-70' : ''}`}
-                    >
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <MapPin size={14} className="flex-shrink-0 text-sib-muted dark:text-[#aeb8b4]" />
-                        <span className="truncate">
-                          {selectedLocker ? selectedLocker.locationName : 'Select MYConvenience location...'}
-                        </span>
-                      </div>
-                      <ChevronDown size={14} className={`flex-shrink-0 text-sib-muted dark:text-[#aeb8b4] transition-transform ${lockerDropdownOpen ? 'rotate-180' : ''}`} />
-                    </button>
-
-                    {lockerDropdownOpen && (
-                      <div className="absolute z-20 top-full left-0 right-0 mt-1 bg-white dark:bg-[#202b28] border border-sib-stone dark:border-[rgba(242,238,231,0.10)] rounded-xl shadow-lg max-h-60 overflow-hidden">
-                        <div className="p-2 border-b border-sib-stone/50 dark:border-[rgba(242,238,231,0.10)]">
-                          <input
-                            type="text"
-                            placeholder="Search locations..."
-                            value={lockerSearch}
-                            onChange={e => setLockerSearch(e.target.value)}
-                            className="w-full px-3 py-2 text-sm border border-sib-stone dark:border-[rgba(242,238,231,0.10)] rounded-lg outline-none focus:border-sib-primary text-sib-text dark:text-[#f4efe7] bg-white dark:bg-[#26322f] placeholder-sib-muted dark:placeholder:text-[#aeb8b4]"
-                            autoFocus
-                          />
-                        </div>
-                        <div className="overflow-y-auto max-h-44">
-                          {filteredLockers.length === 0 && (
-                            <p className="text-xs text-sib-muted dark:text-[#aeb8b4] p-3 text-center">No matching locations</p>
-                          )}
-                          {filteredLockers.map(locker => (
-                            <button
-                              key={locker.id}
-                              type="button"
-                              onClick={() => {
-                                onLockerSelect(locker.id)
-                                setLockerDropdownOpen(false)
-                                setLockerSearch('')
-                              }}
-                              className={`w-full text-left px-3 py-2.5 text-sm hover:bg-sib-sand dark:hover:bg-[#26322f] transition-colors border-b border-sib-stone/20 dark:border-[rgba(242,238,231,0.10)] last:border-0 ${
-                                selectedLockerId === locker.id ? 'bg-sib-primary/5 font-semibold text-sib-text dark:text-[#f4efe7]' : 'text-sib-text dark:text-[#f4efe7]'
-                              }`}
-                            >
-                              <p className="font-medium text-sm">{locker.locationName}</p>
-                              <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] mt-0.5">{locker.fullAddress}</p>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                  <div className="rounded-xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-white dark:bg-[#26322f] p-3">
+                    <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7]">MYConvenience drop-off</p>
+                    <p className="mt-1 text-xs leading-snug text-sib-muted dark:text-[#aeb8b4]">
+                      The seller will drop off your parcel at a MYConvenience location for courier collection.
+                    </p>
+                    <p className="mt-2 text-xs font-semibold leading-snug text-sib-text dark:text-[#f4efe7]">
+                      Estimated delivery: same day if the seller drops off before 12pm, or next day if dropped off after 12pm.
+                    </p>
                   </div>
-
-                  {selectedLocker && (
-                    <div className="mt-2 p-2.5 rounded-xl bg-blue-50 dark:bg-[#26322f] border border-blue-100 dark:border-[rgba(242,238,231,0.10)]">
-                      <p className="text-xs font-medium text-blue-800 dark:text-[#f4efe7]">{selectedLocker.locationName}</p>
-                      <p className="text-[11px] text-blue-600 dark:text-[#aeb8b4] mt-0.5">{selectedLocker.fullAddress}</p>
-                    </div>
-                  )}
 
                   {method.helpText && (
                     <div className="flex items-start gap-1.5 mt-2 px-0.5">

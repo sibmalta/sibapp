@@ -9,7 +9,6 @@ import FeeBreakdown from '../components/FeeBreakdown'
 import PageHeader from '../components/PageHeader'
 import DeliveryMethodSelector from '../components/DeliveryMethodSelector'
 import SmartBundlePrompt from '../components/SmartBundlePrompt'
-import { getLockerById } from '../data/deliveryConfig'
 import { getDefaultDeliverySize } from '../lib/deliveryPricing'
 import { getFulfilmentMethodLabel, getFulfilmentPrice, normalizeFulfilmentMethod } from '../lib/fulfilment'
 import useSavedAddress from '../hooks/useSavedAddress'
@@ -311,7 +310,6 @@ export default function CheckoutPage() {
 
   const listing = getListingById(id)
   const [deliveryMethodId, setDeliveryMethodId] = useState('locker_collection')
-  const [selectedLockerId, setSelectedLockerId] = useState(null)
   const [fullName, setFullName] = useState('')
   const [phone, setPhone] = useState('')
   const [address, setAddress] = useState('')
@@ -349,7 +347,6 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (deliveryMethodId === 'locker_collection' && !listingLockerEligible) {
-      setSelectedLockerId(null)
       resetPaymentIntentState()
     }
   }, [deliveryMethodId, listingLockerEligible]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -401,7 +398,6 @@ export default function CheckoutPage() {
   const deliveryFee = getFulfilmentPrice(normalizeFulfilmentMethod(deliveryMethodId))
   const fees = calculateFees(checkoutPrice, deliveryFee)
   const isLocker = normalizeFulfilmentMethod(deliveryMethodId) === 'locker'
-  const selectedLocker = isLocker && selectedLockerId ? getLockerById(selectedLockerId) : null
 
   const resetPaymentIntentState = () => {
     autoIntentAttemptedRef.current = false
@@ -418,15 +414,8 @@ export default function CheckoutPage() {
       setErrors(prev => ({ ...prev, deliveryMethod: 'Only small parcels are supported right now.' }))
       return
     }
-    setErrors(prev => ({ ...prev, deliveryMethod: null, locker: null }))
+    setErrors(prev => ({ ...prev, deliveryMethod: null }))
     setDeliveryMethodId(methodId)
-    resetPaymentIntentState()
-    setSelectedLockerId(null)
-    setIntentError('')
-  }
-
-  const handleLockerSelect = (lockerId) => {
-    setSelectedLockerId(lockerId)
     resetPaymentIntentState()
     setIntentError('')
   }
@@ -435,17 +424,14 @@ export default function CheckoutPage() {
     const e = {}
     if (isLocker) {
       if (!listingLockerEligible) e.deliveryMethod = 'Only small parcels are supported right now.'
-      if (!selectedLockerId) e.locker = 'Please select a MYConvenience location'
-    } else {
-      if (!address.trim()) e.address = 'Enter your street address'
-      if (!city.trim()) e.city = 'Enter your city or town'
-      if (!postcode.trim()) e.postcode = 'Enter your postcode'
     }
+    if (!address.trim()) e.address = 'Enter your street address'
+    if (!city.trim()) e.city = 'Enter your city or town'
+    if (!postcode.trim()) e.postcode = 'Enter your postcode'
     return e
   }
 
   const getFullAddress = () => {
-    if (isLocker && selectedLocker) return selectedLocker.fullAddress
     return `${address}, ${city} ${postcode}`.trim()
   }
 
@@ -459,7 +445,6 @@ export default function CheckoutPage() {
         lockerEligible: listingLockerEligible,
       })
       setDeliveryMethodId(safeDeliveryMethod)
-      setSelectedLockerId(null)
     }
 
     const addrErrors = validateDelivery()
@@ -471,7 +456,6 @@ export default function CheckoutPage() {
       deliveryMethod: safeDeliveryMethod,
       isLocker,
       lockerEligible: listingLockerEligible,
-      selectedLockerId,
       hasAddress: Boolean(address.trim()),
       hasCity: Boolean(city.trim()),
       hasPostcode: Boolean(postcode.trim()),
@@ -490,7 +474,6 @@ export default function CheckoutPage() {
           isLocker,
           lockerEligible: listingLockerEligible,
           deliveryMethod: safeDeliveryMethod,
-          selectedLockerId,
           address,
           city,
           postcode,
@@ -512,7 +495,7 @@ export default function CheckoutPage() {
     setClientSecret(null)
     setAddressConfirmed(false)
 
-    if (saveAddressChecked && !isLocker) {
+    if (saveAddressChecked) {
       persistAddress({
         fullName,
         phone,
@@ -573,8 +556,8 @@ export default function CheckoutPage() {
     const deliveryInfo = {
       type: deliveryMethodId,
       fee: deliveryFee,
-      lockerName: selectedLocker?.locationName || null,
-      lockerAddress: selectedLocker?.fullAddress || null,
+      lockerName: null,
+      lockerAddress: null,
     }
 
     const deliverySnapshot = {
@@ -639,7 +622,6 @@ export default function CheckoutPage() {
       isLocker,
       lockerEligible: listingLockerEligible,
       deliveryMethod: deliveryMethodId,
-      selectedLockerId,
       address,
       city,
       postcode,
@@ -669,7 +651,6 @@ export default function CheckoutPage() {
     fees.total,
     isLocker,
     listingLockerEligible,
-    selectedLockerId,
     address,
     city,
     postcode,
@@ -684,11 +665,11 @@ export default function CheckoutPage() {
     },
   }
 
-  const deliveryLabel = isLocker
-    ? `MYConvenience: ${selectedLocker?.locationName || 'Select location'}`
-    : getFulfilmentMethodLabel(deliveryMethodId)
+  const deliveryLabel = isLocker ? 'MYConvenience drop-off' : getFulfilmentMethodLabel(deliveryMethodId)
 
-  const estimatedDays = isLocker ? '2-4 working days' : '2-3 working days'
+  const estimatedDays = isLocker
+    ? 'same day if seller drops off before 12pm, or next day if dropped off after 12pm'
+    : '2-3 working days'
 
 
   return (
@@ -715,13 +696,10 @@ export default function CheckoutPage() {
               deliverySize={deliverySize}
               selected={deliveryMethodId}
               onSelect={handleDeliveryChange}
-              selectedLockerId={selectedLockerId}
-              onLockerSelect={handleLockerSelect}
               disabled={addressConfirmed}
               lockerEligible={listingLockerEligible}
             />
             {errors.deliveryMethod && <p className="text-red-500 text-xs -mt-3 mb-3 ml-1">{errors.deliveryMethod}</p>}
-            {errors.locker && <p className="text-red-500 text-xs -mt-3 mb-3 ml-1">{errors.locker}</p>}
 
             <div className="flex items-center gap-2 mb-5 px-1">
               <ShieldCheck size={12} className="text-green-600 flex-shrink-0" />
@@ -730,8 +708,7 @@ export default function CheckoutPage() {
               </p>
             </div>
 
-            {!isLocker && (
-              <div className="mb-5 space-y-3">
+            <div className="mb-5 space-y-3">
                 <p className="text-xs font-semibold text-sib-text dark:text-[#f4efe7] uppercase tracking-wide">Delivery Address</p>
 
                 <div className="flex gap-3">
@@ -847,8 +824,7 @@ export default function CheckoutPage() {
                     <span className="text-[13px] text-sib-text dark:text-[#f4efe7]">Save this address for next time</span>
                   </label>
                 )}
-              </div>
-            )}
+            </div>
 
             {addressConfirmed && (
               <button

@@ -51,7 +51,9 @@ describe('checkout payment helpers', () => {
       isLocker: true,
       lockerEligible: true,
       deliveryMethod: 'locker_collection',
-      selectedLockerId: 'lk_sliema',
+      address: '1 Main Street',
+      city: 'Valletta',
+      postcode: 'VLT1234',
     }
 
     expect(getPaymentInitializationBlocker(state)).toBe('')
@@ -93,8 +95,27 @@ describe('checkout payment helpers', () => {
       feesTotal: 12.5,
       isLocker: true,
       lockerEligible: true,
-      selectedLockerId: '',
-    })).toBe('Please select a MYConvenience location before continuing to payment.')
+      deliveryMethod: 'locker_collection',
+      address: '',
+      city: 'Valletta',
+      postcode: 'VLT1234',
+    })).toBe('Enter your street address before continuing to payment.')
+  })
+
+  it('does not require buyers to select a MYConvenience location for drop-off delivery', () => {
+    expect(getPaymentInitializationBlocker({
+      stripeConfigured: true,
+      currentUser: { id: 'buyer_123' },
+      sessionAccessToken: 'aaa.bbb.ccc',
+      listing: { id: 'listing_123', sellerId: 'seller_123' },
+      feesTotal: 12.5,
+      isLocker: true,
+      lockerEligible: true,
+      deliveryMethod: 'locker_collection',
+      address: '1 Main Street',
+      city: 'Valletta',
+      postcode: 'VLT1234',
+    })).toBe('')
   })
 
   it('blocked checkout returns a specific blocker and does not call createPaymentIntent', async () => {
@@ -134,8 +155,10 @@ describe('checkout payment helpers', () => {
       feesTotal: 12.5,
       isLocker: true,
       lockerEligible: true,
-      selectedLockerId: 'lk_sliema',
       deliveryMethod: 'locker_collection',
+      address: '1 Main Street',
+      city: 'Valletta',
+      postcode: 'VLT1234',
     }, async (payload) => {
       receivedPayload = payload
       return { clientSecret: 'pi_123_secret_456' }
@@ -158,7 +181,9 @@ describe('checkout payment helpers', () => {
       isLocker: true,
       lockerEligible: true,
       deliveryMethod: 'locker_collection',
-      selectedLockerId: 'lk_sliema',
+      address: '1 Main Street',
+      city: 'Valletta',
+      postcode: 'VLT1234',
       intentError: 'Enter your street address before continuing to payment.',
       hasAttemptedPaymentIntent: false,
     })).toBe(true)
@@ -172,7 +197,9 @@ describe('checkout payment helpers', () => {
       isLocker: true,
       lockerEligible: true,
       deliveryMethod: 'locker_collection',
-      selectedLockerId: 'lk_sliema',
+      address: '1 Main Street',
+      city: 'Valletta',
+      postcode: 'VLT1234',
       intentError: "We couldn't load payment options right now. Please try again in a moment.",
       hasAttemptedPaymentIntent: true,
     })).toBe(false)
