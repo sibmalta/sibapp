@@ -32,6 +32,21 @@ function sortConversations(items) {
   })
 }
 
+export function findExistingOrderConversation(conversations = [], {
+  buyerId,
+  sellerId,
+  listingId = null,
+  orderId = null,
+} = {}) {
+  return conversations.find(c => {
+    const participantsMatch = c.participants?.includes(buyerId) && c.participants?.includes(sellerId)
+    if (!participantsMatch) return false
+    if (orderId && c.metadata?.orderId === orderId) return true
+    if (listingId && c.listingId === listingId) return true
+    return !orderId && !listingId
+  }) || null
+}
+
 export function useConversations(currentUser, seedConversations = []) {
   const { supabase, isAuthenticated, withAuthRetry } = useSupabase()
   const [conversations, setConversations] = useState(() => loadFromStorage('sib_conversations', seedConversations))
@@ -165,6 +180,49 @@ export function useConversations(currentUser, seedConversations = []) {
     return newConversation
   }, [currentUser?.id, conversations, isAuthenticated, mergeConversation, withAuthRetry])
 
+  const createOrderConversationForUsers = useCallback(async ({
+    buyerId,
+    sellerId,
+    listingId = null,
+    orderId = null,
+    orderCode = null,
+    itemTitle = null,
+  } = {}) => {
+    if (!buyerId || !sellerId) {
+      return { conversation: null, error: { message: 'Buyer and seller are required to open chat.' }, created: false }
+    }
+
+    const existing = findExistingOrderConversation(conversations, { buyerId, sellerId, listingId, orderId })
+    if (existing) return { conversation: existing, error: null, created: false }
+
+    const now = new Date().toISOString()
+    const newConversation = {
+      id: `c${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      participants: [buyerId, sellerId],
+      listingId,
+      messages: [],
+      metadata: {
+        type: 'order',
+        orderId: orderId || null,
+        orderCode: orderCode || null,
+        itemTitle: itemTitle || null,
+      },
+      createdAt: now,
+      updatedAt: now,
+    }
+
+    if (isAuthenticated && newConversation.participants.includes(currentUser?.id)) {
+      const { data, error } = await withAuthRetry((client) => upsertConversation(client, newConversation))
+      if (error) return { conversation: null, error, created: false }
+      const savedConversation = { ...newConversation, ...(data || {}), metadata: newConversation.metadata }
+      mergeConversation(savedConversation)
+      return { conversation: savedConversation, error: null, created: true }
+    }
+
+    mergeConversation(newConversation)
+    return { conversation: newConversation, error: null, created: true }
+  }, [currentUser?.id, conversations, isAuthenticated, mergeConversation, withAuthRetry])
+
   const addLocalMessage = useCallback((conversationId, message) => {
     setConversations(prev => sortConversations(prev.map(c => (
       c.id === conversationId
@@ -281,6 +339,7 @@ export function useConversations(currentUser, seedConversations = []) {
     refreshConversations,
     createConversation,
     createConversationForUsers,
+    createOrderConversationForUsers,
     addMessage,
     markConversationRead,
   }

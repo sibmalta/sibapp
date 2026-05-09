@@ -209,6 +209,7 @@ export function AppProvider({ children }) {
     refreshConversations,
     createConversation,
     createConversationForUsers,
+    createOrderConversationForUsers,
     addMessage: dbAddMessage,
     markConversationRead: dbMarkConversationRead,
   } = useConversationsHook(currentUser, SEED_MESSAGES)
@@ -863,6 +864,10 @@ export function AppProvider({ children }) {
   const getOrCreateConversationForUsers = useCallback((userAId, userBId, listingId) => {
     return createConversationForUsers(userAId, userBId, listingId)
   }, [createConversationForUsers])
+
+  const getOrCreateOrderConversationForUsers = useCallback((input) => {
+    return createOrderConversationForUsers(input)
+  }, [createOrderConversationForUsers])
 
   const addConversationEvent = useCallback(async (conversationOrId, event) => {
     const conversationId = typeof conversationOrId === 'string' ? conversationOrId : conversationOrId?.id
@@ -3212,7 +3217,7 @@ export function AppProvider({ children }) {
       PROTECTION_WINDOW_MS, SHIPPING_DEADLINE_MS,
       login, signup, register, logout, requestPasswordReset, validateResetToken, resetPassword, updateProfile,
       createListing, updateListing, deleteListing, boostListing, unboostListing, flagListing, approveListing, hideListing, updateStyleTags, updateCollectionTags, adminUpdateListingMeta, toggleLike, loadMoreListings,
-      placeOrder, getOrCreateConversation, sendMessage, markConversationRead, getUnreadConversationCount, updateOrderStatus,
+      placeOrder, getOrCreateConversation, getOrCreateOrderConversationForUsers, sendMessage, markConversationRead, getUnreadConversationCount, updateOrderStatus,
       confirmDelivery, openDispute, adminOpenDispute, flagOrderOverdue, DISPUTE_REASONS,
       addNotification, markNotificationRead, markAllNotificationsRead, getUserNotifications, refreshNotifications,
       refreshOrders, refreshDisputes, refreshDisputeMessages, refreshPayouts, refreshShipments, refreshLogisticsDeliverySheet,

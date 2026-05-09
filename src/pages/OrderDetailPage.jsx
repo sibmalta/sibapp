@@ -39,6 +39,7 @@ export default function OrderDetailPage() {
     confirmDelivery, openDispute, showToast, PROTECTION_WINDOW_MS,
     getShipmentByOrderId, DISPUTE_REASONS,
     refreshOrders, refreshShipments, refreshDisputeMessages, addDisputeMessage, ordersLoading, shipmentsLoading,
+    getOrCreateOrderConversationForUsers,
   } = useApp()
 
   const BUYER_REASONS = ['not_received', 'not_as_described', 'wrong_item', 'damaged']
@@ -50,6 +51,7 @@ export default function OrderDetailPage() {
   const [evidenceMessage, setEvidenceMessage] = useState('')
   const [evidenceFiles, setEvidenceFiles] = useState([])
   const [evidenceSubmitting, setEvidenceSubmitting] = useState(false)
+  const [openingChat, setOpeningChat] = useState(false)
   const [countdown, setCountdown] = useState(null)
   const loadedOrderRef = useRef(false)
 
@@ -192,6 +194,34 @@ export default function OrderDetailPage() {
     setEvidenceOpen(false)
     refreshDisputeMessages?.()
     showToast('Evidence submitted.')
+  }
+
+  const handleOpenOrderChat = async () => {
+    if (!order?.buyerId || !order?.sellerId) {
+      showToast('Could not open chat for this order.', 'error')
+      return
+    }
+
+    setOpeningChat(true)
+    try {
+      const { conversation, error } = await getOrCreateOrderConversationForUsers?.({
+        buyerId: order.buyerId,
+        sellerId: order.sellerId,
+        listingId: order.listingId || listing?.id || null,
+        orderId: order.id,
+        orderCode: orderCode || order.orderRef || null,
+        itemTitle: listing?.title || order.listingTitle || 'Order item',
+      })
+
+      if (error || !conversation?.id) {
+        showToast(error?.message || 'Could not open chat. Please try again.', 'error')
+        return
+      }
+
+      navigate(`/messages/${conversation.id}`)
+    } finally {
+      setOpeningChat(false)
+    }
   }
 
   return (
@@ -682,12 +712,13 @@ export default function OrderDetailPage() {
 
         {/* Actions */}
         <div className="space-y-2">
-          {isBuyer && other && (
+          {(isBuyer || isSeller) && other && (
             <button
-              onClick={() => navigate(`/messages`)}
-              className="w-full border border-sib-stone dark:border-[rgba(242,238,231,0.10)] text-sib-text dark:text-[#f4efe7] font-semibold py-3 rounded-2xl text-sm flex items-center justify-center gap-2"
+              onClick={handleOpenOrderChat}
+              disabled={openingChat}
+              className="w-full border border-sib-stone dark:border-[rgba(242,238,231,0.10)] text-sib-text dark:text-[#f4efe7] font-semibold py-3 rounded-2xl text-sm flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-wait"
             >
-              <MessageCircle size={15} /> Message seller
+              <MessageCircle size={15} /> {openingChat ? 'Opening chat…' : isBuyer ? 'Message seller' : 'Message buyer'}
             </button>
           )}
           <button
