@@ -28,7 +28,7 @@ import { autoReleaseBuyerProtectionOrders, confirmBuyerProtectionOrder } from '.
 import { getDeliveredOrderPatch } from '../lib/buyerProtection'
 import { isLockerEligible } from '../lib/lockerEligibility'
 import { buildAdminShipmentPayload } from '../lib/adminShipment'
-import { getEvidenceSenderRole, isActiveDisputeStatus } from '../lib/disputes'
+import { buildDisputeThreadConversation, getEvidenceSenderRole, isActiveDisputeStatus } from '../lib/disputes'
 import { buildDeliverySheetRow } from '../lib/logisticsDeliverySheet'
 import { getOrderCode, isDropoffConfirmed } from '../lib/dropoffQr'
 import { calculateMarketplacePaymentSplit } from '../lib/marketplacePayments'
@@ -2709,7 +2709,9 @@ export function AppProvider({ children }) {
       senderProfileId,
       senderRole,
       message: trimmed,
-      attachments: options.attachments || [],
+      attachments: Array.isArray(options.attachments) ? options.attachments : [],
+      visibility: options.visibility || 'public',
+      messageType: options.messageType || (senderRole === 'system' ? 'system' : 'message'),
     })
     if (error) {
       showToast('Failed to add dispute message: ' + error.message, 'error')
@@ -3035,8 +3037,30 @@ export function AppProvider({ children }) {
       .filter(o => o.sellerId === userId)
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
   ), [orders])
-  const getUserConversations = useCallback((userId) => conversations.filter(c => c.participants.includes(userId)), [conversations])
-  const getConversationById = useCallback((id) => conversations.find(c => c.id === id), [conversations])
+  const disputeThreadConversations = useMemo(() => (
+    (disputes || [])
+      .map(dispute => {
+        const order = orders.find(item => item.id === dispute.orderId)
+        const listing = listings.find(item => item.id === (dispute.listingId || order?.listingId))
+        return buildDisputeThreadConversation({
+          dispute,
+          messages: disputeMessages || [],
+          currentUserId: currentUser?.id,
+          isAdmin: !!currentUser?.isAdmin,
+          users,
+          listing,
+          order,
+        })
+      })
+      .filter(Boolean)
+  ), [currentUser?.id, disputes, disputeMessages, listings, orders, users])
+  const allConversations = useMemo(() => {
+    const disputeIds = new Set(disputeThreadConversations.map(conversation => conversation.id))
+    const regular = (conversations || []).filter(conversation => !disputeIds.has(conversation.id))
+    return [...regular, ...disputeThreadConversations]
+  }, [conversations, disputeThreadConversations])
+  const getUserConversations = useCallback((userId) => allConversations.filter(c => c.participants.includes(userId)), [allConversations])
+  const getConversationById = useCallback((id) => allConversations.find(c => c.id === id), [allConversations])
   const getConversation = getConversationById
 
   const calculateFees = useCallback((price, deliveryFeeOverride) => {
@@ -3049,7 +3073,7 @@ export function AppProvider({ children }) {
 
   return (
     <AppContext.Provider value={{
-      currentUser, users, listings, listingsLoading, listingsLoadingMore, hasMoreListings, orders, ordersLoading, ordersDbAvailable, ordersDbError, conversations, reviews, disputes, disputeMessages, disputesLoading, disputeMessagesLoading, likedListings, payoutProfiles, notifications, offers, bundle, bundleOffers, shipments, shipmentsLoading, logisticsDeliverySheet, logisticsDeliverySheetLoading, toast,
+      currentUser, users, listings, listingsLoading, listingsLoadingMore, hasMoreListings, orders, ordersLoading, ordersDbAvailable, ordersDbError, conversations: allConversations, reviews, disputes, disputeMessages, disputesLoading, disputeMessagesLoading, likedListings, payoutProfiles, notifications, offers, bundle, bundleOffers, shipments, shipmentsLoading, logisticsDeliverySheet, logisticsDeliverySheetLoading, toast,
       PROTECTION_WINDOW_MS, SHIPPING_DEADLINE_MS,
       login, signup, register, logout, requestPasswordReset, validateResetToken, resetPassword, updateProfile,
       createListing, updateListing, deleteListing, boostListing, unboostListing, flagListing, approveListing, hideListing, updateStyleTags, updateCollectionTags, adminUpdateListingMeta, toggleLike, loadMoreListings,

@@ -390,21 +390,24 @@ export default function AdminPage() {
     return flags
   }
 
-  const handleAdminDisputeMessage = async (dispute) => {
-    const message = String(adminDisputeMessages[dispute.id] || '').trim()
+  const handleAdminDisputeMessage = async (dispute, visibility = 'public') => {
+    const key = `${dispute.id}:${visibility}`
+    const message = String(adminDisputeMessages[key] || '').trim()
     if (!message) return
     const result = await addDisputeMessage(dispute.id, message, {
       fromAdmin: true,
       senderRole: 'admin',
       senderProfileId: currentUser.id,
+      visibility,
+      messageType: visibility === 'internal' ? 'note' : 'message',
     })
     if (result?.ok === false) {
       showToast(result.error || 'Could not add dispute message.', 'error')
       return
     }
-    setAdminDisputeMessages(prev => ({ ...prev, [dispute.id]: '' }))
+    setAdminDisputeMessages(prev => ({ ...prev, [key]: '' }))
     refreshDisputeMessages?.()
-    showToast('Dispute message added')
+    showToast(visibility === 'internal' ? 'Internal note saved' : 'Update sent to buyer and seller')
   }
 
   const handleCreateShipmentShortcut = async (order, buyer) => {
@@ -1109,36 +1112,61 @@ export default function AdminPage() {
                         </div>
 
                         <div className="p-2.5 rounded-xl bg-white border border-sib-ash">
-                          <p className="text-[10px] font-semibold text-sib-muted mb-2">Dispute timeline / evidence</p>
+                          <p className="text-[10px] font-semibold text-sib-muted mb-2">Dispute conversation / evidence</p>
                           {timeline.length === 0 ? (
                             <p className="text-xs text-sib-muted">No dispute messages yet.</p>
                           ) : (
                             <div className="space-y-2">
-                              {timeline.map(message => (
-                                <div key={message.id} className="rounded-xl bg-sib-sand px-3 py-2">
+                              {timeline.map(message => {
+                                const isInternal = message.visibility === 'internal' || message.messageType === 'note'
+                                return (
+                                <div key={message.id} className={`rounded-xl px-3 py-2 ${isInternal ? 'bg-amber-50 border border-amber-100' : 'bg-sib-sand'}`}>
                                   <div className="flex items-center justify-between gap-2">
-                                    <p className="text-[10px] font-black uppercase text-sib-muted">{message.senderRole}</p>
+                                    <div className="flex items-center gap-1.5">
+                                      <p className="text-[10px] font-black uppercase text-sib-muted">{message.senderRole}</p>
+                                      {isInternal && (
+                                        <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-black uppercase text-amber-700">Internal note</span>
+                                      )}
+                                    </div>
                                     <p className="text-[10px] text-sib-muted">{formatDate(message.createdAt)}</p>
                                   </div>
                                   <p className="mt-1 text-xs text-sib-text leading-snug">{message.message}</p>
+                                  {Array.isArray(message.attachments) && message.attachments.length > 0 && (
+                                    <p className="mt-1 text-[10px] font-semibold text-sib-primary">
+                                      {message.attachments.length} attachment{message.attachments.length === 1 ? '' : 's'}
+                                    </p>
+                                  )}
                                 </div>
-                              ))}
+                              )})}
                             </div>
                           )}
                           {isActiveDisputeStatus(d.status) && (
-                            <div className="mt-2 flex gap-2">
+                            <div className="mt-3 grid gap-2">
                               <input
-                                value={adminDisputeMessages[d.id] || ''}
-                                onChange={event => setAdminDisputeMessages(prev => ({ ...prev, [d.id]: event.target.value }))}
-                                placeholder="Add admin message..."
+                                value={adminDisputeMessages[`${d.id}:internal`] || ''}
+                                onChange={event => setAdminDisputeMessages(prev => ({ ...prev, [`${d.id}:internal`]: event.target.value }))}
+                                placeholder="Internal note - admin only..."
                                 className="min-w-0 flex-1 rounded-xl border border-sib-ash px-3 py-2 text-xs outline-none focus:border-sib-primary"
                               />
                               <button
                                 type="button"
-                                onClick={() => handleAdminDisputeMessage(d)}
+                                onClick={() => handleAdminDisputeMessage(d, 'internal')}
+                                className="rounded-xl bg-sib-sand px-3 py-2 text-[11px] font-bold text-sib-text border border-sib-ash"
+                              >
+                                Save internal note
+                              </button>
+                              <input
+                                value={adminDisputeMessages[`${d.id}:public`] || ''}
+                                onChange={event => setAdminDisputeMessages(prev => ({ ...prev, [`${d.id}:public`]: event.target.value }))}
+                                placeholder="Send update to buyer/seller..."
+                                className="min-w-0 flex-1 rounded-xl border border-sib-ash px-3 py-2 text-xs outline-none focus:border-sib-primary"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleAdminDisputeMessage(d, 'public')}
                                 className="rounded-xl bg-sib-primary px-3 py-2 text-[11px] font-bold text-white"
                               >
-                                Add
+                                Send update to buyer/seller
                               </button>
                             </div>
                           )}

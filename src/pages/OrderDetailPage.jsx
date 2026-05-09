@@ -16,6 +16,7 @@ import { buildDropoffScanUrl, getOrderCode, getQrCodeImageUrl, isDropoffConfirme
 import { isOrderPaidForDropoff, shouldShowSellerDropoffQr } from '../lib/sellerDropoffPrompt'
 import { getParcelLabelDetails } from '../lib/parcelLabel'
 import { getDisputeMessagesForDispute, getEvidenceSenderRole, isActiveDisputeStatus } from '../lib/disputes'
+import { uploadSupportAttachments } from '../lib/supportTickets'
 
 function formatCountdown(ms) {
   if (ms <= 0) return '00:00:00'
@@ -47,6 +48,7 @@ export default function OrderDetailPage() {
   const [disputeType, setDisputeType] = useState('')
   const [evidenceOpen, setEvidenceOpen] = useState(false)
   const [evidenceMessage, setEvidenceMessage] = useState('')
+  const [evidenceFiles, setEvidenceFiles] = useState([])
   const [evidenceSubmitting, setEvidenceSubmitting] = useState(false)
   const [countdown, setCountdown] = useState(null)
   const loadedOrderRef = useRef(false)
@@ -165,9 +167,18 @@ export default function OrderDetailPage() {
     const message = evidenceMessage.trim()
     if (!activeDispute || !evidenceSenderRole || !message || evidenceSubmitting) return
     setEvidenceSubmitting(true)
+    let attachments = []
+    try {
+      attachments = await uploadSupportAttachments(evidenceFiles, currentUser.id)
+    } catch (error) {
+      setEvidenceSubmitting(false)
+      showToast(error.message || 'Could not upload evidence attachments.', 'error')
+      return
+    }
     const result = await addDisputeMessage(activeDispute.id, message, {
       senderRole: evidenceSenderRole,
       senderProfileId: currentUser.id,
+      attachments,
     })
     setEvidenceSubmitting(false)
     if (result?.ok === false) {
@@ -175,6 +186,7 @@ export default function OrderDetailPage() {
       return
     }
     setEvidenceMessage('')
+    setEvidenceFiles([])
     setEvidenceOpen(false)
     refreshDisputeMessages?.()
     showToast('Evidence submitted.')
@@ -442,6 +454,21 @@ export default function OrderDetailPage() {
                   rows={3}
                   className="w-full rounded-xl border border-red-200 bg-white p-3 text-sm text-sib-text outline-none focus:border-red-400"
                 />
+                <label className="block rounded-xl border border-dashed border-red-200 bg-white p-3 text-xs font-semibold text-red-700">
+                  Add photos or screenshots
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*,application/pdf"
+                    onChange={event => setEvidenceFiles(Array.from(event.target.files || []))}
+                    className="mt-2 block w-full text-xs text-sib-muted"
+                  />
+                  {evidenceFiles.length > 0 && (
+                    <span className="mt-1 block text-[11px] text-sib-muted">
+                      {evidenceFiles.length} file{evidenceFiles.length === 1 ? '' : 's'} selected
+                    </span>
+                  )}
+                </label>
                 <button
                   type="button"
                   onClick={handleEvidenceSubmit}

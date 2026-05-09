@@ -124,6 +124,7 @@ export default function ChatListPage() {
           const other = getUserById(otherId)
           const listing = getListingById(conv.listingId)
           const lastMsg = conv.messages[conv.messages.length - 1]
+          const isDisputeThread = conv.metadata?.type === 'dispute'
           const isUnread = lastMsg && lastMsg.senderId !== currentUser.id && !lastMsg.read
           const previewText = (() => {
             if (!lastMsg) return null
@@ -170,9 +171,15 @@ export default function ChatListPage() {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <p className={`text-[14px] truncate ${isUnread ? 'font-bold text-sib-text dark:text-[#f4efe7]' : 'font-semibold text-sib-text dark:text-[#f4efe7]'}`}>
-                      {other?.username || 'User'}
+                      {isDisputeThread ? 'Dispute thread' : (other?.username || 'User')}
                     </p>
-                    <OfficialBadge user={other} size="sm" />
+                    {isDisputeThread ? (
+                      <span className="rounded-full bg-orange-50 px-1.5 py-0.5 text-[9px] font-black uppercase text-orange-700">
+                        Dispute
+                      </span>
+                    ) : (
+                      <OfficialBadge user={other} size="sm" />
+                    )}
                   </div>
                   {lastMsg && (
                     <span className={`text-[11px] flex-shrink-0 ${isUnread ? 'text-sib-primary dark:text-[#e8751a] font-semibold' : 'text-sib-muted dark:text-[#aeb8b4]'}`}>
