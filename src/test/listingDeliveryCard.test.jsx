@@ -7,22 +7,29 @@ describe('ListingDeliveryCard', () => {
   it('shows MYConvenience courier price for eligible small parcel listings', () => {
     render(<ListingDeliveryCard listing={{ lockerEligible: true }} />)
 
-    expect(screen.getByText('MYConvenience drop-off EUR 3.50')).toBeInTheDocument()
-    expect(screen.getByText('Your parcel must be small enough to be carried safely by one motorcycle courier.')).toBeInTheDocument()
+    expect(screen.getByText('Delivery to your door')).toBeInTheDocument()
+    expect(screen.getByText('€3.50')).toBeInTheDocument()
+    expect(screen.getByText('Delivered via MYConvenience')).toBeInTheDocument()
+    expect(screen.getByText('Estimated delivery')).toBeInTheDocument()
+    expect(screen.getByText('Same day if dropped off before 12pm')).toBeInTheDocument()
+    expect(screen.getByText('Next day after 12pm')).toBeInTheDocument()
+    expect(screen.getByText('Tracked delivery, secure checkout, and buyer protection included.')).toBeInTheDocument()
   })
 
   it('hides courier price for non-small parcel listings', () => {
     render(<ListingDeliveryCard listing={{ category: 'sports', subcategory: 'cycling', lockerEligible: false }} />)
 
-    expect(screen.getByText('Only small parcels are supported right now')).toBeInTheDocument()
-    expect(screen.queryByText('MYConvenience drop-off EUR 3.50')).not.toBeInTheDocument()
+    expect(screen.getByText('Sib delivery is not available for this item yet')).toBeInTheDocument()
+    expect(screen.getByText('Unavailable')).toBeInTheDocument()
+    expect(screen.queryByText('€3.50')).not.toBeInTheDocument()
   })
 
   it('shows locker price for legacy fashion listings with unknown locker eligibility', () => {
     render(<ListingDeliveryCard listing={{ category: 'fashion', subcategory: 'tops', lockerEligible: null }} />)
 
-    expect(screen.getByText(/MYConvenience drop-off EUR 3\.50/)).toBeInTheDocument()
-    expect(screen.queryByText('Only small parcels are supported right now')).not.toBeInTheDocument()
+    expect(screen.getByText('€3.50')).toBeInTheDocument()
+    expect(screen.getByText('Delivered via MYConvenience')).toBeInTheDocument()
+    expect(screen.queryByText('Sib delivery is not available for this item yet')).not.toBeInTheDocument()
   })
 
   it('shows locker price for pre-fix default false Fashion > Coats & Jackets listings', () => {
@@ -37,15 +44,15 @@ describe('ListingDeliveryCard', () => {
       />
     )
 
-    expect(screen.getByText(/MYConvenience drop-off EUR 3\.50/)).toBeInTheDocument()
-    expect(screen.queryByText('Only small parcels are supported right now')).not.toBeInTheDocument()
+    expect(screen.getByText('€3.50')).toBeInTheDocument()
+    expect(screen.queryByText('Sib delivery is not available for this item yet')).not.toBeInTheDocument()
   })
 
   it('respects explicit false even for normally locker-fit fashion listings', () => {
     render(<ListingDeliveryCard listing={{ category: 'fashion', subcategory: 'tops', lockerEligible: false }} />)
 
-    expect(screen.getByText('Only small parcels are supported right now')).toBeInTheDocument()
-    expect(screen.queryByText(/MYConvenience drop-off EUR 3\.50/)).not.toBeInTheDocument()
+    expect(screen.getByText('Sib delivery is not available for this item yet')).toBeInTheDocument()
+    expect(screen.queryByText('€3.50')).not.toBeInTheDocument()
   })
 
   it('does not render stale MaltaPost API integration copy', () => {
@@ -54,6 +61,9 @@ describe('ListingDeliveryCard', () => {
     expect(container).not.toHaveTextContent('API integration will be added later')
     expect(container).not.toHaveTextContent('MaltaPost fulfilment')
     expect(container).not.toHaveTextContent('Tracked delivery handled via MaltaPost')
+    expect(container).not.toHaveTextContent('must fit on one motorcycle courier')
+    expect(container).not.toHaveTextContent('motorcycle courier')
+    expect(container).not.toHaveTextContent('MYConvenience drop-off')
   })
 })
 

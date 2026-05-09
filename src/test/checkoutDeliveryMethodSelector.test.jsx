@@ -15,11 +15,13 @@ describe('DeliveryMethodSelector', () => {
       />
     )
 
-    expect(screen.getAllByText('MYConvenience drop-off').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('The seller will drop off your parcel at a MYConvenience location for courier collection.').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Delivery to your door').length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Delivered via MYConvenience/).length).toBeGreaterThan(0)
     expect(screen.getByText('Estimated delivery: same day if the seller drops off before 12pm, or next day if dropped off after 12pm.')).toBeInTheDocument()
-    expect(screen.getByText("You'll receive updates once the seller drops off the parcel and courier collection begins.")).toBeInTheDocument()
+    expect(screen.getByText("You'll receive updates as your order moves through delivery.")).toBeInTheDocument()
     expect(container).not.toHaveTextContent('Choose a MYConvenience location')
     expect(container).not.toHaveTextContent('Select MYConvenience location')
+    expect(container).not.toHaveTextContent('motorcycle courier')
+    expect(container).not.toHaveTextContent('courier collection')
   })
 })

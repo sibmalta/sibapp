@@ -317,7 +317,7 @@ export default function BundleCheckoutPage() {
 
   const handleDeliveryChange = (methodId) => {
     if (methodId === 'locker_collection' && !bundleLockerEligible) {
-      setErrors(prev => ({ ...prev, deliveryMethod: 'Only small parcels are supported right now.' }))
+      setErrors(prev => ({ ...prev, deliveryMethod: 'Sib delivery is not available for this bundle yet.' }))
       return
     }
     setErrors(prev => ({ ...prev, deliveryMethod: null }))
@@ -329,7 +329,7 @@ export default function BundleCheckoutPage() {
   const validateDelivery = () => {
     const e = {}
     if (isLocker) {
-      if (!bundleLockerEligible) e.deliveryMethod = 'Only small parcels are supported right now.'
+      if (!bundleLockerEligible) e.deliveryMethod = 'Sib delivery is not available for this bundle yet.'
     }
     if (!address.trim()) e.address = 'Enter your street address'
     if (!city.trim()) e.city = 'Enter your city or town'

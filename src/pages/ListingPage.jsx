@@ -1,7 +1,6 @@
 ﻿import React, { useState, useEffect, useMemo } from 'react'
 import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { Heart, MessageCircle, Share2, ShieldCheck, Trash2, ChevronLeft, ChevronRight, Truck, Tag, PackagePlus, PackageCheck, Sparkles, ExternalLink } from 'lucide-react'
-import DeliveryGuidance from '../components/DeliveryGuidance'
 import { useApp } from '../context/AppContext'
 import { getDetailSubtitle, getDetailTags } from '../lib/listingMeta'
 import { resolveCategory, isDeliveryEligible } from '../data/categories'
@@ -76,26 +75,42 @@ export function ListingDeliveryCard({ listing }) {
   const lockerEligible = isLockerEligible(listing)
 
   return (
-    <div className="flex items-center gap-3 p-3.5 rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-sib-warm dark:bg-[#202b28] mb-3 transition-colors">
+    <div className="flex items-start gap-3 p-3.5 rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-sib-warm dark:bg-[#202b28] mb-3 transition-colors">
       <Truck size={16} className="text-sib-primary flex-shrink-0" />
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7]">
-          Delivery options
-        </p>
-        <div className="mt-1 flex flex-wrap gap-2 text-xs font-semibold">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7]">
+              Delivery to your door
+            </p>
+            <p className="mt-0.5 text-[11px] font-medium text-sib-muted dark:text-[#aeb8b4]">
+              {lockerEligible ? 'Delivered via MYConvenience' : 'Sib delivery is not available for this item yet'}
+            </p>
+          </div>
           {lockerEligible ? (
-            <span className="rounded-full bg-white/70 dark:bg-[#26322f] px-2.5 py-1 text-sib-primary">
-              MYConvenience drop-off EUR {FULFILMENT_PRICES.locker.toFixed(2)}
+            <span className="rounded-full bg-white/70 dark:bg-[#26322f] px-2.5 py-1 text-sm font-bold text-sib-primary whitespace-nowrap">
+              €{FULFILMENT_PRICES.locker.toFixed(2)}
             </span>
           ) : (
-            <span className="rounded-full bg-sib-sand dark:bg-[#26322f] px-2.5 py-1 text-sib-muted dark:text-[#aeb8b4]">
-              Only small parcels are supported right now
+            <span className="rounded-full bg-sib-sand dark:bg-[#26322f] px-2.5 py-1 text-xs font-semibold text-sib-muted dark:text-[#aeb8b4] whitespace-nowrap">
+              Unavailable
             </span>
           )}
         </div>
-        <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mt-1.5">
-          Your parcel must be small enough to be carried safely by one motorcycle courier.
-        </p>
+        {lockerEligible ? (
+          <div className="mt-2 space-y-1 text-xs text-sib-muted dark:text-[#aeb8b4]">
+            <p className="font-semibold text-sib-text dark:text-[#f4efe7]">Estimated delivery</p>
+            <p>Same day if dropped off before 12pm</p>
+            <p>Next day after 12pm</p>
+            <p className="pt-1 text-[11px] font-medium text-green-700 dark:text-green-300">
+              Tracked delivery, secure checkout, and buyer protection included.
+            </p>
+          </div>
+        ) : (
+          <p className="mt-2 text-xs text-sib-muted dark:text-[#aeb8b4]">
+            You can still save the item or message the seller with questions.
+          </p>
+        )}
       </div>
     </div>
   )
@@ -468,7 +483,7 @@ if (!listing) return (
             </>
           ) : (
             <>
-              <DeliveryGuidance variant="compact" />
+              <ListingDeliveryCard listing={listing} />
               <Link to="/buyer-protection" className="flex items-start gap-2.5 px-3.5 py-3 rounded-2xl bg-green-50 mb-5 active:opacity-80 hover:bg-green-100/70 transition-colors">
                 <ShieldCheck size={16} className="text-green-600 flex-shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">

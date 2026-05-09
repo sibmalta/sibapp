@@ -411,7 +411,7 @@ export default function CheckoutPage() {
 
   const handleDeliveryChange = (methodId) => {
     if (methodId === 'locker_collection' && !listingLockerEligible) {
-      setErrors(prev => ({ ...prev, deliveryMethod: 'Only small parcels are supported right now.' }))
+      setErrors(prev => ({ ...prev, deliveryMethod: 'Sib delivery is not available for this item yet.' }))
       return
     }
     setErrors(prev => ({ ...prev, deliveryMethod: null }))
@@ -423,7 +423,7 @@ export default function CheckoutPage() {
   const validateDelivery = () => {
     const e = {}
     if (isLocker) {
-      if (!listingLockerEligible) e.deliveryMethod = 'Only small parcels are supported right now.'
+      if (!listingLockerEligible) e.deliveryMethod = 'Sib delivery is not available for this item yet.'
     }
     if (!address.trim()) e.address = 'Enter your street address'
     if (!city.trim()) e.city = 'Enter your city or town'
@@ -665,7 +665,7 @@ export default function CheckoutPage() {
     },
   }
 
-  const deliveryLabel = isLocker ? 'MYConvenience drop-off' : getFulfilmentMethodLabel(deliveryMethodId)
+  const deliveryLabel = isLocker ? 'Delivered via MYConvenience' : getFulfilmentMethodLabel(deliveryMethodId)
 
   const estimatedDays = isLocker
     ? 'same day if seller drops off before 12pm, or next day if dropped off after 12pm'

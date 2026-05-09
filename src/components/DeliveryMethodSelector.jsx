@@ -20,12 +20,12 @@ export default function DeliveryMethodSelector({
   const methods = [
     ...(lockerEligible ? [{
       id: 'locker_collection',
-      name: 'MYConvenience drop-off',
-      description: 'The seller will drop off your parcel at a MYConvenience location for courier collection.',
+      name: 'Delivery to your door',
+      description: 'Delivered via MYConvenience with tracking and buyer protection.',
       price: getFulfilmentPrice('locker'),
       estimatedDays: 'same day if the seller drops off before 12pm, or next day if dropped off after 12pm',
       icon: Box,
-      helpText: "You'll receive updates once the seller drops off the parcel and courier collection begins.",
+      helpText: "You'll receive updates as your order moves through delivery.",
     }] : []),
   ]
 
@@ -35,7 +35,7 @@ export default function DeliveryMethodSelector({
       {!lockerEligible && (
         <div className="mb-2 rounded-xl border border-amber-200 dark:border-amber-400/20 bg-amber-50 dark:bg-[#26322f] px-3 py-2">
           <p className="text-xs font-medium text-amber-800 dark:text-amber-200">
-            Only small parcels are supported right now.
+            Sib delivery is not available for this item yet.
           </p>
         </div>
       )}
@@ -80,9 +80,9 @@ export default function DeliveryMethodSelector({
               {method.id === 'locker_collection' && isSelected && (
                 <div className="mt-2 ml-8">
                   <div className="rounded-xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-white dark:bg-[#26322f] p-3">
-                    <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7]">MYConvenience drop-off</p>
+                    <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7]">Delivery to your door</p>
                     <p className="mt-1 text-xs leading-snug text-sib-muted dark:text-[#aeb8b4]">
-                      The seller will drop off your parcel at a MYConvenience location for courier collection.
+                      Delivered via MYConvenience with tracking, secure checkout, and buyer protection.
                     </p>
                     <p className="mt-2 text-xs font-semibold leading-snug text-sib-text dark:text-[#f4efe7]">
                       Estimated delivery: same day if the seller drops off before 12pm, or next day if dropped off after 12pm.
