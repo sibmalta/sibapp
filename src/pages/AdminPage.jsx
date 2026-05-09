@@ -1191,10 +1191,14 @@ export default function AdminPage() {
                           )}
                         </div>
 
-                        {d.status === 'resolved' && d.resolution && (
+                        {d.status === 'resolved' && (
                           <div className="p-2 rounded-xl bg-green-50 border border-green-100 text-xs text-green-700 font-medium flex items-center gap-1.5">
                             <CheckCircle size={12} />
-                            {d.resolution === 'refunded' ? 'Buyer refunded' : d.resolution === 'seller_payout' ? 'Payout released to seller' : 'Dismissed'}
+                            {d.outcome === 'refunded' || d.adminDecision === 'refunded'
+                              ? 'Buyer refunded'
+                              : d.outcome === 'seller_payout' || d.adminDecision === 'seller_payout'
+                                ? 'Payout released to seller'
+                                : d.adminNotes || 'Dispute closed'}
                           </div>
                         )}
 

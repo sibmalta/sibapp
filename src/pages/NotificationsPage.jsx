@@ -43,9 +43,28 @@ function getConversationId(notif) {
   )
 }
 
+function getDisputeId(notif) {
+  return firstValue(
+    notif.disputeId,
+    notif.dispute_id,
+    notif.metadata?.disputeId,
+    notif.metadata?.dispute_id,
+    notif.data?.disputeId,
+    notif.data?.dispute_id,
+    notif.related_entity_type === 'dispute' ? notif.related_entity_id : null,
+    notif.relatedEntityType === 'dispute' ? notif.relatedEntityId : null
+  )
+}
+
 function orderTarget(notif, fallback = '/orders') {
   const orderId = getOrderId(notif)
   return orderId ? `/orders/${orderId}` : fallback
+}
+
+function disputeMessageTarget(notif) {
+  const disputeId = getDisputeId(notif)
+  if (disputeId) return `/messages/dispute/${disputeId}`
+  return messageTarget(notif)
 }
 
 function messageTarget(notif) {
@@ -85,7 +104,7 @@ const NOTIF_CONFIG = {
   auto_confirmed:       { icon: ShieldCheck,    color: 'bg-green-50 text-green-600 dark:bg-[#26322f] dark:text-green-300',  linkFn: (n) => orderTarget(n) },
   dispute_opened:       { icon: AlertTriangle,  color: 'bg-red-50 text-red-600 dark:bg-[#26322f] dark:text-red-300',      linkFn: (n) => orderTarget(n) },
   dispute_opened_buyer: { icon: AlertTriangle,  color: 'bg-red-50 text-red-600 dark:bg-[#26322f] dark:text-red-300', linkFn: (n) => orderTarget(n) },
-  dispute_message:      { icon: MessageSquare,  color: 'bg-orange-50 text-sib-primary dark:bg-[#26322f] dark:text-[#e8751a]', linkFn: (n) => orderTarget(n) },
+  dispute_message:      { icon: MessageSquare,  color: 'bg-orange-50 text-sib-primary dark:bg-[#26322f] dark:text-[#e8751a]', linkFn: disputeMessageTarget },
   shipped:              { icon: Package,         color: 'bg-sib-sand text-sib-muted dark:bg-[#26322f] dark:text-[#aeb8b4]', linkFn: (n) => orderTarget(n) },
   ship_reminder:        { icon: Truck,           color: 'bg-orange-50 text-sib-primary dark:bg-[#26322f] dark:text-[#e8751a]', linkFn: (n) => orderTarget(n, SELLER_SHIPMENT_QUEUE) },
   dropoff_reminder:     { icon: Truck,           color: 'bg-orange-50 text-sib-primary dark:bg-[#26322f] dark:text-[#e8751a]', linkFn: (n) => orderTarget(n, SELLER_SHIPMENT_QUEUE) },

@@ -8,6 +8,7 @@ import TrustedSellerBadge from '../components/TrustedSellerBadge'
 import CounterOfferModal from '../components/CounterOfferModal'
 import { analyseMessage, recordViolation, getRestriction, getViolationCount } from '../utils/circumventionDetector'
 import { moderateContent } from '../lib/moderation'
+import { disputeConversationId } from '../lib/disputes'
 
 function isSystemMessage(msg) {
   return msg?.type === 'system' || msg?.type === 'system_event' || msg?.type === 'order_event'
@@ -113,7 +114,8 @@ function RestrictionBanner({ restriction }) {
 
 // ─── Main page ──────────────────────────────────────────────────────────────
 export default function ChatPage() {
-  const { id } = useParams()
+  const params = useParams()
+  const id = params.id || (params.disputeId ? disputeConversationId(params.disputeId) : '')
   const navigate = useNavigate()
   const location = useLocation()
   const [searchParams] = useSearchParams()
@@ -557,7 +559,16 @@ export default function ChatPage() {
   }
 
   if (!currentUser) return null
-  if (!conv) return <div className="text-center py-20 text-sib-muted dark:text-[#aeb8b4]">Conversation not found.</div>
+  if (!conv) {
+    const isDisputeReference = Boolean(params.disputeId || String(id || '').startsWith('dispute_'))
+    return (
+      <div className="text-center py-20 px-6 text-sib-muted dark:text-[#aeb8b4]">
+        {isDisputeReference
+          ? 'Dispute conversation not found. It may still be loading, or you may not have access to this dispute.'
+          : 'Conversation not found.'}
+      </div>
+    )
+  }
 
   return (
     <>

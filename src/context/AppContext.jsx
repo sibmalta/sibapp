@@ -28,7 +28,7 @@ import { autoReleaseBuyerProtectionOrders, confirmBuyerProtectionOrder } from '.
 import { getDeliveredOrderPatch } from '../lib/buyerProtection'
 import { isLockerEligible } from '../lib/lockerEligibility'
 import { buildAdminShipmentPayload } from '../lib/adminShipment'
-import { buildDisputeThreadConversation, getEvidenceSenderRole, isActiveDisputeStatus } from '../lib/disputes'
+import { buildDisputeThreadConversation, getEvidenceSenderRole, isActiveDisputeStatus, resolveMessageThreadReference } from '../lib/disputes'
 import { buildDeliverySheetRow } from '../lib/logisticsDeliverySheet'
 import { getOrderCode, isDropoffConfirmed } from '../lib/dropoffQr'
 import { calculateMarketplacePaymentSplit } from '../lib/marketplacePayments'
@@ -2617,8 +2617,20 @@ export function AppProvider({ children }) {
     return { ok: true }
   }, [orders, users, listings, authSession, refreshOrders, showToast])
 
-  const resolveDispute = useCallback(async (disputeId, resolution) => {
-    const { error } = await dbPatchDispute(disputeId, { status: 'resolved', resolution })
+  const resolveDispute = useCallback(async (disputeId, outcome) => {
+    const now = new Date().toISOString()
+    const outcomeLabels = {
+      refunded: 'Buyer refunded.',
+      seller_payout: 'Funds released to seller.',
+      dismissed: 'Dispute dismissed.',
+      closed: 'Dispute closed.',
+    }
+    const decisionNote = outcomeLabels[outcome] || 'Dispute closed.'
+    const { error } = await dbPatchDispute(disputeId, {
+      status: 'resolved',
+      resolvedAt: now,
+      adminNotes: decisionNote,
+    })
     if (error) {
       console.error('[resolveDispute] DB write failed:', error.message)
       showToast('Failed to resolve dispute: ' + error.message, 'error')
@@ -2632,14 +2644,9 @@ export function AppProvider({ children }) {
       const buyer = users.find(u => u.id === dispute.buyerId)
       const seller = users.find(u => u.id === dispute.sellerId)
       const orderRef = order?.orderRef || order?.id || 'N/A'
-      const outcome = resolution === 'refunded'
-        ? 'Buyer refunded.'
-        : resolution === 'seller_payout'
-          ? 'Funds released to seller.'
-          : 'Dispute closed.'
-      addNotification({ userId: dispute.buyerId, orderId: order?.id, type: 'dispute_resolved', title: 'Dispute resolved', message: outcome })
-      addNotification({ userId: dispute.sellerId, orderId: order?.id, type: 'dispute_resolved', title: 'Dispute resolved', message: outcome })
-      if (buyer?.email) sendDisputeResolvedEmail(buyer.email, buyer.name, orderRef, resolution, {
+      addNotification({ userId: dispute.buyerId, orderId: order?.id, type: 'dispute_resolved', title: 'Dispute resolved', message: decisionNote })
+      addNotification({ userId: dispute.sellerId, orderId: order?.id, type: 'dispute_resolved', title: 'Dispute resolved', message: decisionNote })
+      if (buyer?.email) sendDisputeResolvedEmail(buyer.email, buyer.name, orderRef, outcome, {
         related_entity_type: 'dispute',
         related_entity_id: dispute.id,
         disputeId: dispute.id,
@@ -2648,7 +2655,7 @@ export function AppProvider({ children }) {
         sellerId: dispute.sellerId,
         buyerId: dispute.buyerId,
       })
-      if (seller?.email) sendDisputeResolvedEmail(seller.email, seller.name, orderRef, resolution, {
+      if (seller?.email) sendDisputeResolvedEmail(seller.email, seller.name, orderRef, outcome, {
         related_entity_type: 'dispute',
         related_entity_id: dispute.id,
         disputeId: dispute.id,
@@ -2727,7 +2734,7 @@ export function AppProvider({ children }) {
         related_entity_id: dispute.id,
         disputeId: dispute.id,
         orderId: dispute.orderId,
-        actionTarget: `/messages/dispute_${dispute.id}`,
+        actionTarget: `/messages/dispute/${dispute.id}`,
       }
 
       if (senderRole === 'admin') {
@@ -3097,7 +3104,9 @@ export function AppProvider({ children }) {
     return [...regular, ...disputeThreadConversations]
   }, [conversations, disputeThreadConversations])
   const getUserConversations = useCallback((userId) => allConversations.filter(c => c.participants.includes(userId)), [allConversations])
-  const getConversationById = useCallback((id) => allConversations.find(c => c.id === id), [allConversations])
+  const getConversationById = useCallback((id) => (
+    resolveMessageThreadReference(id, { conversations: allConversations, disputes }).conversation
+  ), [allConversations, disputes])
   const getConversation = getConversationById
 
   const calculateFees = useCallback((price, deliveryFeeOverride) => {

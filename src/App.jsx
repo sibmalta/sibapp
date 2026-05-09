@@ -83,6 +83,7 @@ function AppRoutes() {
           <Route path="orders/:id" element={<OrderDetailPage />} />
           <Route path="dropoff" element={<SellerDropoffPage />} />
           <Route path="messages" element={<ChatListPage />} />
+          <Route path="messages/dispute/:disputeId" element={<ChatPage />} />
           <Route path="messages/:id" element={<ChatPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="profile/:username" element={<ProfilePage />} />

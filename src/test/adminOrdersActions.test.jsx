@@ -311,4 +311,20 @@ describe('Admin Orders financial action guardrails', () => {
     expect(mockApp.resolveDispute).not.toHaveBeenCalled()
     expect(mockApp.showToast).not.toHaveBeenCalledWith('Dispute resolved - seller paid')
   })
+
+  it('close dispute uses the dismiss outcome without refunding or releasing funds', async () => {
+    const dispute = makeDispute()
+    renderPage(makeOrder(), { disputes: [dispute] })
+    openDisputeDetail()
+
+    fireEvent.click(screen.getByRole('button', { name: /Close Dispute/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Confirm dismissal/i }))
+
+    await waitFor(() => {
+      expect(mockApp.resolveDispute).toHaveBeenCalledWith('dispute-1', 'dismissed')
+    })
+    expect(mockApp.refundOrder).not.toHaveBeenCalled()
+    expect(mockApp.releasePayout).not.toHaveBeenCalled()
+    expect(mockApp.showToast).toHaveBeenCalledWith('Dispute dismissed')
+  })
 })

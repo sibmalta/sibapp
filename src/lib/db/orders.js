@@ -523,7 +523,9 @@ export function rowToDispute(row) {
     details: row.details || row.description || '',
     status: row.status || 'open',
     source: row.source || 'buyer',
-    resolution: row.resolution || null,
+    outcome: row.outcome || row.admin_decision || null,
+    resolutionNote: row.resolution_note || row.admin_notes || null,
+    adminDecision: row.admin_decision || row.outcome || null,
     resolvedAt: row.resolved_at || null,
     adminNotes: row.admin_notes || null,
     evidenceUrls: row.evidence_urls || [],
@@ -546,7 +548,6 @@ export function disputeToRow(dispute) {
   else if (dispute.description !== undefined) row.details = dispute.description
   if (dispute.status !== undefined) row.status = dispute.status
   if (dispute.source !== undefined) row.source = dispute.source
-  if (dispute.resolution !== undefined) row.resolution = dispute.resolution
   if (dispute.resolvedAt !== undefined) row.resolved_at = dispute.resolvedAt
   if (dispute.adminNotes !== undefined) row.admin_notes = dispute.adminNotes
   if (dispute.evidenceUrls !== undefined) row.evidence_urls = dispute.evidenceUrls

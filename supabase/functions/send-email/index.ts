@@ -226,6 +226,8 @@ function buildEmail(payload: EmailPayload): { subject: string; html: string; pre
   const orderUrl = (id?: string | null) => id ? buildAppUrl(`/orders/${id}`) : buildAppUrl('/orders')
   const messageUrl = (conversationId?: string | null) =>
     conversationId ? buildAppUrl(`/messages/${conversationId}`) : buildAppUrl('/messages')
+  const disputeThreadUrl = (disputeId?: string | null) =>
+    disputeId ? buildAppUrl(`/messages/dispute/${disputeId}`) : buildAppUrl('/messages')
   const conversationUrl = () => messageUrl(payload.meta?.conversationId || payload.meta?.conversation_id || payload.related_entity_id)
   const offerThreadUrl = () => {
     const conversationId = payload.meta?.conversationId || payload.meta?.conversation_id
@@ -348,7 +350,7 @@ function buildEmail(payload: EmailPayload): { subject: string; html: string; pre
           <p style="font-size:13px;color:#6B7280;text-align:center;">
             Your payment is held safely by Sib until you confirm delivery.
           </p>
-          ${btn('View Order', orderUrl(payload.meta?.orderId))}
+          ${btn('View Dispute', disputeThreadUrl(payload.meta?.disputeId || payload.meta?.dispute_id || payload.related_entity_id))}
         `),
       }
     }
@@ -970,7 +972,7 @@ case 'item_sold': {
           <p style="font-size:13px;color:#6B7280;text-align:center;">
             View the full message and respond in the app.
           </p>
-          ${btn('View Dispute', orderUrl(payload.meta?.orderId))}
+          ${btn('View Dispute', disputeThreadUrl(payload.meta?.disputeId || payload.meta?.dispute_id || payload.related_entity_id))}
         `),
       }
     }

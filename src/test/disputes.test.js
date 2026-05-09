@@ -10,6 +10,7 @@ import {
   getDisputeMessagesForDispute,
   getEvidenceSenderRole,
   isActiveDisputeStatus,
+  resolveMessageThreadReference,
   rowToDisputeMessage,
   sortDisputesForAdmin,
 } from '../lib/disputes'
@@ -65,6 +66,36 @@ describe('dispute handling helpers', () => {
       details: 'Item arrived damaged',
       adminNotes: 'Needs photos',
     })
+  })
+
+  it('does not map the removed disputes.resolution column', () => {
+    const row = disputeToRow({
+      status: 'resolved',
+      resolvedAt: '2026-05-09T10:00:00.000Z',
+      adminNotes: 'Buyer refunded.',
+    })
+
+    expect(row).toMatchObject({
+      status: 'resolved',
+      resolved_at: '2026-05-09T10:00:00.000Z',
+      admin_notes: 'Buyer refunded.',
+    })
+    expect(row).not.toHaveProperty('resolution')
+
+    const dispute = rowToDispute({
+      id: 'dispute-1',
+      status: 'resolved',
+      admin_notes: 'Buyer refunded.',
+      resolved_at: '2026-05-09T10:00:00.000Z',
+    })
+
+    expect(dispute).toMatchObject({
+      id: 'dispute-1',
+      status: 'resolved',
+      adminNotes: 'Buyer refunded.',
+      resolvedAt: '2026-05-09T10:00:00.000Z',
+    })
+    expect(dispute).not.toHaveProperty('resolution')
   })
 
   it('maps legacy dispute description to details without writing a description column', () => {
@@ -164,6 +195,37 @@ describe('dispute handling helpers', () => {
     expect(adminThread.messages.map(message => message.id)).toEqual(['public', 'internal'])
   })
 
+  it('resolves dispute message deep links from clean, legacy, and raw references', () => {
+    const dispute = { id: 'dispute-1', orderId: 'order-1', buyerId: 'buyer-1', sellerId: 'seller-1' }
+    const conversation = buildDisputeThreadConversation({
+      dispute,
+      currentUserId: 'buyer-1',
+      order: { orderRef: 'SIB-123', listingTitle: 'Dress' },
+    })
+    const context = { conversations: [conversation], disputes: [dispute] }
+
+    expect(resolveMessageThreadReference('dispute_dispute-1', context)).toMatchObject({
+      type: 'dispute',
+      conversationId: 'dispute_dispute-1',
+      disputeId: 'dispute-1',
+      orderId: 'order-1',
+    })
+    expect(resolveMessageThreadReference('dispute-1', context)).toMatchObject({
+      type: 'dispute',
+      conversationId: 'dispute_dispute-1',
+      disputeId: 'dispute-1',
+    })
+    expect(resolveMessageThreadReference('/messages/dispute/dispute-1', context)).toMatchObject({
+      type: 'dispute',
+      conversationId: 'dispute_dispute-1',
+      disputeId: 'dispute-1',
+    })
+    expect(resolveMessageThreadReference('missing-dispute', context)).toMatchObject({
+      type: 'unknown',
+      conversationId: 'missing-dispute',
+    })
+  })
+
   it('allows only participants or admins to read and submit dispute evidence', () => {
     const dispute = { buyerId: 'buyer-1', sellerId: 'seller-1' }
 
@@ -218,8 +280,10 @@ describe('dispute handling helpers', () => {
     const appContext = readFileSync(resolve(root, 'src/context/AppContext.jsx'), 'utf8')
     const chatList = readFileSync(resolve(root, 'src/pages/ChatListPage.jsx'), 'utf8')
     const chatPage = readFileSync(resolve(root, 'src/pages/ChatPage.jsx'), 'utf8')
+    const notificationsPage = readFileSync(resolve(root, 'src/pages/NotificationsPage.jsx'), 'utf8')
     const adminPage = readFileSync(resolve(root, 'src/pages/AdminPage.jsx'), 'utf8')
     const orderDetail = readFileSync(resolve(root, 'src/pages/OrderDetailPage.jsx'), 'utf8')
+    const sendEmail = readFileSync(resolve(root, 'supabase/functions/send-email/index.ts'), 'utf8')
 
     expect(migration).toContain('CREATE TABLE IF NOT EXISTS public.dispute_conversations')
     expect(migration).toContain("visibility IN ('public', 'internal')")
@@ -229,19 +293,26 @@ describe('dispute handling helpers', () => {
     expect(migration).toContain('idx_notifications_dispute_message_dedupe')
     expect(migration).toContain("ON CONFLICT DO NOTHING")
     expect(migration).toContain("'dispute_message'")
-    expect(migration).toContain("v_action_target := '/messages/dispute_'")
+    expect(migration).toContain("v_action_target := '/messages/dispute/'")
     expect(migration).toContain("There''s a new update on your dispute for order")
     expect(migration).toContain("FROM public.profiles p")
     expect(migration).toContain("p.is_admin = true")
 
     expect(appContext).toContain('buildDisputeThreadConversation')
     expect(appContext).toContain('sendDisputeMessageEmail')
+    expect(appContext).toContain("actionTarget: `/messages/dispute/${dispute.id}`")
     expect(appContext).toContain("visibility === 'public'")
     expect(appContext).toContain("senderRole === 'admin'")
     expect(appContext).toContain("info@sibmalta.com")
     expect(chatList).toContain('Dispute thread')
+    expect(notificationsPage).toContain('disputeMessageTarget')
     expect(chatPage).toContain('isDisputeThread')
+    expect(chatPage).toContain('Dispute conversation not found')
     expect(chatPage).toContain('addDisputeMessage')
+    expect(sendEmail).toContain('const disputeThreadUrl')
+    expect(sendEmail).toContain("buildAppUrl(`/messages/dispute/${disputeId}`)")
+    expect(sendEmail).toContain("btn('View Dispute', disputeThreadUrl")
+    expect(sendEmail).not.toContain("btn('View Dispute', orderUrl(payload.meta?.orderId))")
     expect(adminPage).toContain('Internal note')
     expect(adminPage).toContain('Send update to buyer/seller')
     expect(orderDetail).toContain('Add photos or screenshots')

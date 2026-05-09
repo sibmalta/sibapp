@@ -340,7 +340,7 @@ BEGIN
       WHEN length(v_text) > 140 THEN left(v_text, 137) || '...'
       ELSE v_text
     END;
-    v_action_target := '/messages/dispute_' || v_dispute.id::text;
+    v_action_target := '/messages/dispute/' || v_dispute.id::text;
 
     IF v_sender_role <> 'buyer' AND v_dispute.buyer_id IS NOT NULL THEN
       INSERT INTO public.notifications (

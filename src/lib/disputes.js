@@ -59,6 +59,48 @@ export function disputeConversationId(disputeId) {
   return disputeId ? `dispute_${disputeId}` : ''
 }
 
+export function resolveMessageThreadReference(ref, { conversations = [], disputes = [] } = {}) {
+  const value = String(ref || '').trim()
+  if (!value) {
+    return { type: 'unknown', conversationId: null, disputeId: null, orderId: null, conversation: null, dispute: null }
+  }
+
+  const directConversation = conversations.find(conversation => conversation.id === value)
+  if (directConversation) {
+    const disputeId = directConversation.metadata?.disputeId || null
+    return {
+      type: directConversation.metadata?.type === 'dispute' ? 'dispute' : 'conversation',
+      conversationId: directConversation.id,
+      disputeId,
+      orderId: directConversation.orderId || directConversation.metadata?.orderId || null,
+      conversation: directConversation,
+      dispute: disputeId ? disputes.find(dispute => dispute.id === disputeId) || null : null,
+    }
+  }
+
+  const normalizedDisputeId = value.startsWith('dispute_')
+    ? value.slice('dispute_'.length)
+    : value.startsWith('/messages/dispute/')
+      ? value.split('/messages/dispute/')[1]?.split(/[/?#]/)[0]
+      : value
+
+  const dispute = disputes.find(item => item.id === normalizedDisputeId)
+  if (dispute) {
+    const conversationId = disputeConversationId(dispute.id)
+    const conversation = conversations.find(item => item.id === conversationId) || null
+    return {
+      type: 'dispute',
+      conversationId,
+      disputeId: dispute.id,
+      orderId: dispute.orderId || dispute.order_id || null,
+      conversation,
+      dispute,
+    }
+  }
+
+  return { type: 'unknown', conversationId: value, disputeId: normalizedDisputeId, orderId: null, conversation: null, dispute: null }
+}
+
 export function buildDisputeThreadConversation({ dispute, messages = [], currentUserId, isAdmin = false, users = [], listing = null, order = null } = {}) {
   if (!dispute?.id) return null
   const isParticipant = currentUserId && [dispute.buyerId, dispute.buyer_id, dispute.sellerId, dispute.seller_id].includes(currentUserId)
