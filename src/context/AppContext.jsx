@@ -34,7 +34,14 @@ import { getOrderCode, isDropoffConfirmed } from '../lib/dropoffQr'
 import { calculateMarketplacePaymentSplit } from '../lib/marketplacePayments'
 import { getCourierDeliveryTiming } from '../lib/courierDeliveryTiming'
 import { getOverdueOrderIdsToFlag } from '../lib/overdueNotifications'
-import { shouldSkipDropoffReminder } from '../lib/dropoffReminderGuard'
+import {
+  buildGroupedDropoffReminder,
+  getGroupedDropoffReminderKey,
+  GROUPED_DROPOFF_REMINDER_TYPE,
+  shouldSkipDropoffReminder,
+  shouldGroupDropoffReminders,
+  shouldSkipGroupedDropoffReminder,
+} from '../lib/dropoffReminderGuard'
 import {
   buildCourierCollectedSystemMessage,
   buildDeliveredSystemMessage,
@@ -363,6 +370,7 @@ export function AppProvider({ children }) {
           orderCount: orders.length,
         })
       }
+      const readyBySeller = new Map()
       for (const s of awaitingShipments) {
         const order = orders.find(o => o.id === s.orderId)
         if (isDropoffConfirmed({ order, shipment: s })) {
@@ -392,7 +400,75 @@ export function AppProvider({ children }) {
           continue
         }
 
-        dropoffReminderInFlightRef.current.add(reminderDecision.key)
+        const sellerId = reminderDecision.sellerId || s.sellerId
+        if (!readyBySeller.has(sellerId)) readyBySeller.set(sellerId, [])
+        readyBySeller.get(sellerId).push({ shipment: s, order, decision: reminderDecision })
+      }
+
+      for (const [sellerId, readyItems] of readyBySeller.entries()) {
+        if (shouldGroupDropoffReminders(readyItems)) {
+          const orderIds = readyItems.map(item => item.shipment.orderId).filter(Boolean)
+          const groupDecision = shouldSkipGroupedDropoffReminder({
+            sellerId,
+            orderIds,
+            notifications,
+            inFlightKeys: dropoffReminderInFlightRef.current,
+            now,
+          })
+          if (groupDecision.skip) {
+            console.info('[dropoff-reminder] dedupe skipped', {
+              userId: sellerId,
+              orderIds,
+              notificationId: groupDecision.notificationId,
+              reason: groupDecision.reason,
+            })
+            continue
+          }
+
+          dropoffReminderInFlightRef.current.add(groupDecision.key)
+          try {
+            const ts = new Date().toISOString()
+            const notification = await addNotification(buildGroupedDropoffReminder({
+              sellerId,
+              items: readyItems,
+            }))
+
+            if (!notification) {
+              console.warn('[dropoff-reminder] retry reason', {
+                userId: sellerId,
+                orderIds,
+                reason: 'grouped_notification_insert_failed',
+              })
+              continue
+            }
+
+            await Promise.all(readyItems.map(({ shipment }) => (
+              dbPatchShipmentByOrderId(shipment.orderId, {
+                reminderSentAt: ts,
+                reminderCount: (shipment.reminderCount || 0) + 1,
+              })
+            )))
+
+            console.info('[dropoff-reminder] notification inserted', {
+              userId: sellerId,
+              orderIds,
+              notificationId: notification.id,
+              type: GROUPED_DROPOFF_REMINDER_TYPE,
+            })
+          } catch (error) {
+            console.warn('[dropoff-reminder] retry reason', {
+              userId: sellerId,
+              orderIds,
+              reason: error?.message || 'unknown_grouped_error',
+            })
+          } finally {
+            dropoffReminderInFlightRef.current.delete(groupDecision.key)
+          }
+          continue
+        }
+
+        for (const { shipment: s, order, decision: reminderDecision } of readyItems) {
+          dropoffReminderInFlightRef.current.add(reminderDecision.key)
         try {
           const ts = new Date().toISOString()
           const listing = order ? listings.find(l => l.id === order.listingId) : null
@@ -442,11 +518,12 @@ export function AppProvider({ children }) {
           dropoffReminderInFlightRef.current.delete(reminderDecision.key)
         }
       }
+      }
     }
     checkReminders()
     const interval = setInterval(checkReminders, 60000)
     return () => clearInterval(interval)
-  }, [users, listings, orders, shipments, dbPatchShipmentByOrderId, addNotification, sendSellerDropoffReminder])
+  }, [users, listings, orders, shipments, notifications, dbPatchShipmentByOrderId, addNotification, sendSellerDropoffReminder])
 
   // No longer persist currentUser to localStorage — derived from Supabase auth
   // Only persist users/likes to localStorage when DB is NOT available (fallback mode).

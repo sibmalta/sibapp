@@ -2,7 +2,15 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { insertNotification } from '../lib/db/notifications'
-import { getDropoffReminderKey, shouldSkipDropoffReminder } from '../lib/dropoffReminderGuard'
+import {
+  buildGroupedDropoffReminder,
+  getDropoffReminderKey,
+  GROUPED_DROPOFF_REMINDER_ROUTE,
+  GROUPED_DROPOFF_REMINDER_TYPE,
+  shouldSkipDropoffReminder,
+  shouldGroupDropoffReminders,
+  shouldSkipGroupedDropoffReminder,
+} from '../lib/dropoffReminderGuard'
 import { getOverdueOrderIdsToFlag } from '../lib/overdueNotifications'
 
 function createDuplicateNotificationSupabaseMock(existing) {
@@ -219,6 +227,36 @@ describe('notification idempotency', () => {
     expect(supabase.insertCalled).toBe(true)
   })
 
+  it('returns an existing grouped drop-off reminder when no new orders were added', async () => {
+    const existing = {
+      ...existingNotification(GROUPED_DROPOFF_REMINDER_TYPE, null),
+      user_id: 'seller-1',
+      type: GROUPED_DROPOFF_REMINDER_TYPE,
+      metadata: { orderIds: ['order-1', 'order-2', 'order-3', 'order-4'] },
+    }
+    const supabase = createRecentDropoffReminderSupabaseMock(existing)
+
+    const { data, error, skipped } = await insertNotification(supabase, {
+      userId: 'seller-1',
+      type: GROUPED_DROPOFF_REMINDER_TYPE,
+      title: 'Multiple Sib parcels ready for drop-off',
+      message: 'You have 4 orders awaiting MYConvenience drop-off.',
+      metadata: { orderIds: ['order-1', 'order-2', 'order-3', 'order-4'] },
+    })
+
+    expect(error).toBeNull()
+    expect(skipped).toBe(true)
+    expect(data.id).toBe(`${GROUPED_DROPOFF_REMINDER_TYPE}-notification-1`)
+    expect(supabase.insertCalled).toBe(false)
+    expect(supabase.calls).toEqual([
+      ['eq', 'user_id', 'seller-1'],
+      ['eq', 'type', GROUPED_DROPOFF_REMINDER_TYPE],
+      ['gte', 'created_at', expect.any(String)],
+      ['order', 'created_at', { ascending: false }],
+      ['limit', 1],
+    ])
+  })
+
   it('prevents repeated reminder jobs while an order is in flight or already flagged', () => {
     const now = new Date('2026-05-07T12:00:00.000Z').getTime()
     const shipment = {
@@ -240,6 +278,81 @@ describe('notification idempotency', () => {
     })).toMatchObject({
       skip: true,
       reason: 'recent_reminder_sent_at',
+    })
+  })
+
+  it('builds a grouped drop-off reminder for 4+ pending orders', () => {
+    const items = ['SIB-ABC123', 'SIB-DEF456', 'SIB-GHI789', 'SIB-JKL111'].map((orderRef, index) => ({
+      shipment: { orderId: `order-${index + 1}`, orderRef },
+      order: { id: `order-${index + 1}` },
+    }))
+
+    const notification = buildGroupedDropoffReminder({ sellerId: 'seller-1', items })
+
+    expect(notification).toMatchObject({
+      userId: 'seller-1',
+      type: GROUPED_DROPOFF_REMINDER_TYPE,
+      title: 'Multiple Sib parcels ready for drop-off',
+      actionTarget: GROUPED_DROPOFF_REMINDER_ROUTE,
+    })
+    expect(notification.message).toContain('You have 4 orders awaiting MYConvenience drop-off:')
+    expect(notification.message).toContain('SIB-ABC123')
+    expect(notification.message).toContain('SIB-DEF456')
+    expect(notification.message).toContain('SIB-GHI789')
+    expect(notification.message).toContain('+1 more')
+    expect(notification.metadata.orderIds).toEqual(['order-1', 'order-2', 'order-3', 'order-4'])
+  })
+
+  it('keeps 1-3 pending drop-off orders as individual reminders', () => {
+    expect(shouldGroupDropoffReminders([{}])).toBe(false)
+    expect(shouldGroupDropoffReminders([{}, {}])).toBe(false)
+    expect(shouldGroupDropoffReminders([{}, {}, {}])).toBe(false)
+  })
+
+  it('groups more than 3 pending drop-off orders', () => {
+    expect(shouldGroupDropoffReminders([{}, {}, {}, {}])).toBe(true)
+  })
+
+  it('dedupes grouped drop-off reminders for 6 hours when no new orders were added', () => {
+    const now = new Date('2026-05-07T12:00:00.000Z').getTime()
+    const decision = shouldSkipGroupedDropoffReminder({
+      sellerId: 'seller-1',
+      orderIds: ['order-1', 'order-2', 'order-3', 'order-4'],
+      now,
+      notifications: [{
+        id: 'group-1',
+        userId: 'seller-1',
+        type: GROUPED_DROPOFF_REMINDER_TYPE,
+        createdAt: '2026-05-07T10:00:00.000Z',
+        metadata: { orderIds: ['order-1', 'order-2', 'order-3', 'order-4'] },
+      }],
+    })
+
+    expect(decision).toMatchObject({
+      skip: true,
+      reason: 'recent_grouped_reminder',
+      notificationId: 'group-1',
+    })
+  })
+
+  it('allows a new grouped drop-off reminder when new orders were added', () => {
+    const now = new Date('2026-05-07T12:00:00.000Z').getTime()
+    const decision = shouldSkipGroupedDropoffReminder({
+      sellerId: 'seller-1',
+      orderIds: ['order-1', 'order-2', 'order-3', 'order-4', 'order-5'],
+      now,
+      notifications: [{
+        id: 'group-1',
+        userId: 'seller-1',
+        type: GROUPED_DROPOFF_REMINDER_TYPE,
+        createdAt: '2026-05-07T10:00:00.000Z',
+        metadata: { orderIds: ['order-1', 'order-2', 'order-3', 'order-4'] },
+      }],
+    })
+
+    expect(decision).toMatchObject({
+      skip: false,
+      reason: 'new_orders_since_grouped_reminder',
     })
   })
 

@@ -91,6 +91,9 @@ function AppRoutes() {
           <Route path="profile/edit" element={<EditProfilePage />} />
           <Route path="reviews/:username" element={<ReviewsPage />} />
           <Route path="auth" element={<AuthPage />} />
+          <Route path="login" element={<AuthPage />} />
+          <Route path="signin" element={<AuthPage />} />
+          <Route path="signup" element={<AuthPage />} />
           <Route path="auth/callback" element={<AuthCallbackPage />} />
           <Route path="forgot-password" element={<ForgotPasswordPage />} />
           <Route path="reset-password" element={<ResetPasswordPage />} />

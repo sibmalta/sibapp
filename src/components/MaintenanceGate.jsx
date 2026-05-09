@@ -4,6 +4,9 @@ import { ShieldCheck } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 
 const DEFAULT_ALLOWED_PATH_PREFIXES = [
+  '/login',
+  '/signin',
+  '/signup',
   '/auth',
   '/forgot-password',
   '/reset-password',

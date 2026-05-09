@@ -46,8 +46,10 @@ export function notificationToRow(notification) {
 }
 
 const DROPOFF_REMINDER_TYPES = new Set(['ship_reminder', 'dropoff_reminder'])
+const GROUPED_DROPOFF_REMINDER_TYPE = 'dropoff_reminder_group'
 const ORDER_SCOPED_DEDUPE_TYPES = new Set(['new_sale', 'bundle_sold', 'overdue_warning', ...DROPOFF_REMINDER_TYPES])
 const DROPOFF_REMINDER_WINDOW_MS = 24 * 60 * 60 * 1000
+const GROUPED_DROPOFF_REMINDER_WINDOW_MS = 6 * 60 * 60 * 1000
 
 async function findRecentDropoffReminder(supabase, row, now = new Date()) {
   if (!row?.user_id || !row?.order_id || !DROPOFF_REMINDER_TYPES.has(row.type)) return { data: null, error: null }
@@ -58,6 +60,22 @@ async function findRecentDropoffReminder(supabase, row, now = new Date()) {
     .eq('user_id', row.user_id)
     .eq('order_id', row.order_id)
     .in('type', [...DROPOFF_REMINDER_TYPES])
+    .gte('created_at', since)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  return { data, error }
+}
+
+async function findRecentGroupedDropoffReminder(supabase, row, now = new Date()) {
+  if (!row?.user_id || row.type !== GROUPED_DROPOFF_REMINDER_TYPE) return { data: null, error: null }
+  const since = new Date(now.getTime() - GROUPED_DROPOFF_REMINDER_WINDOW_MS).toISOString()
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .eq('user_id', row.user_id)
+    .eq('type', GROUPED_DROPOFF_REMINDER_TYPE)
     .gte('created_at', since)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -97,6 +115,24 @@ export async function insertNotification(supabase, notification) {
           existingId: existing.id,
         })
         return { data: rowToNotification(existing), error: null, skipped: true }
+      }
+    }
+
+    if (row.type === GROUPED_DROPOFF_REMINDER_TYPE && row.user_id) {
+      const { data: existing, error: existingError } = await findRecentGroupedDropoffReminder(supabase, row)
+      if (existingError) return { data: null, error: existingError }
+      if (existing) {
+        const currentOrderIds = new Set(row.metadata?.orderIds || row.data?.orderIds || [])
+        const existingOrderIds = new Set(existing.metadata?.orderIds || existing.data?.orderIds || [])
+        const hasNewOrders = [...currentOrderIds].some(orderId => !existingOrderIds.has(orderId))
+        if (!hasNewOrders) {
+          console.info('[notifications] grouped dropoff reminder dedupe skipped', {
+            userId: row.user_id,
+            type: row.type,
+            existingId: existing.id,
+          })
+          return { data: rowToNotification(existing), error: null, skipped: true }
+        }
       }
     }
 

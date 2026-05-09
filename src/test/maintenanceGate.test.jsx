@@ -11,6 +11,7 @@ describe('MaintenanceGate helpers', () => {
     expect(isMaintenanceModeEnabled('true')).toBe(true)
     expect(isMaintenanceBypassUser(null, [])).toBe(false)
     expect(isMaintenanceAllowedPath('/browse')).toBe(false)
+    expect(isMaintenanceAllowedPath('/')).toBe(false)
   })
 
   it('allows admin bypass access', () => {
@@ -26,6 +27,12 @@ describe('MaintenanceGate helpers', () => {
     expect(isMaintenanceBypassUser({ email: 'public@sibmalta.com' }, whitelist)).toBe(false)
   })
 
+  it('blocks standard signed-in users after login', () => {
+    const whitelist = parseMaintenanceEmails('tester@sibmalta.com')
+
+    expect(isMaintenanceBypassUser({ email: 'buyer@sibmalta.com', role: 'user' }, whitelist)).toBe(false)
+  })
+
   it('restores normal app access when maintenance mode is disabled', () => {
     expect(isMaintenanceModeEnabled('false')).toBe(false)
     expect(isMaintenanceModeEnabled('')).toBe(false)
@@ -33,6 +40,9 @@ describe('MaintenanceGate helpers', () => {
   })
 
   it('preserves auth, callback, scan, and dispute deep-link routes', () => {
+    expect(isMaintenanceAllowedPath('/login')).toBe(true)
+    expect(isMaintenanceAllowedPath('/signin')).toBe(true)
+    expect(isMaintenanceAllowedPath('/signup')).toBe(true)
     expect(isMaintenanceAllowedPath('/auth')).toBe(true)
     expect(isMaintenanceAllowedPath('/auth/callback')).toBe(true)
     expect(isMaintenanceAllowedPath('/forgot-password')).toBe(true)
