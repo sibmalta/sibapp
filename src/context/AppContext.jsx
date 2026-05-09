@@ -1165,12 +1165,17 @@ export function AppProvider({ children }) {
     if (source === 'buyer') await refreshNotifications()
 
     if (source !== 'buyer') {
+      const disputeTarget = `/messages/dispute/${newDispute.id}`
       addNotification({
         userId: order.sellerId,
         orderId: disputeOrderId,
         type: 'dispute_opened',
         title: source === 'admin' ? 'Admin opened a dispute' : 'Buyer reported an issue',
         message: `${source === 'admin' ? 'An admin has opened a dispute' : 'The buyer has reported an issue'}: "${description}". Your payout is on hold until this is resolved.`,
+        actionTarget: disputeTarget,
+        targetPath: disputeTarget,
+        metadata: { disputeId: newDispute.id },
+        data: { disputeId: newDispute.id },
       })
       addNotification({
         userId: order.buyerId,
@@ -1180,6 +1185,10 @@ export function AppProvider({ children }) {
         message: source === 'admin'
           ? 'An admin has opened a review on your order. Your payment is protected until it is resolved.'
           : 'We have received your report. Our team will review and get back to you shortly.',
+        actionTarget: disputeTarget,
+        targetPath: disputeTarget,
+        metadata: { disputeId: newDispute.id },
+        data: { disputeId: newDispute.id },
       })
     }
 
@@ -2644,8 +2653,10 @@ export function AppProvider({ children }) {
       const buyer = users.find(u => u.id === dispute.buyerId)
       const seller = users.find(u => u.id === dispute.sellerId)
       const orderRef = order?.orderRef || order?.id || 'N/A'
-      addNotification({ userId: dispute.buyerId, orderId: order?.id, type: 'dispute_resolved', title: 'Dispute resolved', message: decisionNote })
-      addNotification({ userId: dispute.sellerId, orderId: order?.id, type: 'dispute_resolved', title: 'Dispute resolved', message: decisionNote })
+      const disputeTarget = `/messages/dispute/${dispute.id}`
+      const disputeLinkMeta = { disputeId: dispute.id }
+      addNotification({ userId: dispute.buyerId, orderId: order?.id, type: 'dispute_resolved', title: 'Dispute resolved', message: decisionNote, actionTarget: disputeTarget, targetPath: disputeTarget, metadata: disputeLinkMeta, data: disputeLinkMeta })
+      addNotification({ userId: dispute.sellerId, orderId: order?.id, type: 'dispute_resolved', title: 'Dispute resolved', message: decisionNote, actionTarget: disputeTarget, targetPath: disputeTarget, metadata: disputeLinkMeta, data: disputeLinkMeta })
       if (buyer?.email) sendDisputeResolvedEmail(buyer.email, buyer.name, orderRef, outcome, {
         related_entity_type: 'dispute',
         related_entity_id: dispute.id,

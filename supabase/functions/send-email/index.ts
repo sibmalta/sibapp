@@ -54,7 +54,7 @@ interface EmailPayload {
 
 type EmailLogStatus = 'sent' | 'failed'
 
-const PRODUCTION_APP_URL = 'https://sibmalta.com'
+const PRODUCTION_APP_URL = 'https://www.sibmalta.com'
 const LOGO_URL = 'https://sibmalta.com/assets/sib-3.png'
 
 function getAppOrigin() {
@@ -226,6 +226,11 @@ function buildEmail(payload: EmailPayload): { subject: string; html: string; pre
   const orderUrl = (id?: string | null) => id ? buildAppUrl(`/orders/${id}`) : buildAppUrl('/orders')
   const messageUrl = (conversationId?: string | null) =>
     conversationId ? buildAppUrl(`/messages/${conversationId}`) : buildAppUrl('/messages')
+  const disputeIdFromPayload = () => (
+    payload.meta?.disputeId ||
+    payload.meta?.dispute_id ||
+    (payload.related_entity_type === 'dispute' ? payload.related_entity_id : null)
+  )
   const disputeThreadUrl = (disputeId?: string | null) =>
     disputeId ? buildAppUrl(`/messages/dispute/${disputeId}`) : buildAppUrl('/messages')
   const conversationUrl = () => messageUrl(payload.meta?.conversationId || payload.meta?.conversation_id || payload.related_entity_id)
@@ -470,7 +475,7 @@ function buildEmail(payload: EmailPayload): { subject: string; html: string; pre
           <p style="font-size:13px;color:#6B7280;text-align:center;">
             ${isSellerNotice ? 'Our team will review and contact both parties as soon as possible.' : 'Our team will review and respond as soon as possible.'}
           </p>
-          ${btn('View Dispute', disputeThreadUrl(payload.meta?.disputeId || payload.meta?.dispute_id || payload.related_entity_id))}
+          ${btn('View Dispute', disputeThreadUrl(disputeIdFromPayload()))}
         `),
       }
     }
@@ -950,7 +955,7 @@ case 'item_sold': {
           <p style="font-size:13px;color:#6B7280;text-align:center;">
             Questions? Contact info@sibmalta.com.
           </p>
-          ${btn('View Dispute', disputeThreadUrl(payload.meta?.disputeId || payload.meta?.dispute_id || payload.related_entity_id))}
+          ${btn('View Dispute', disputeThreadUrl(disputeIdFromPayload()))}
         `),
       }
     }
@@ -972,7 +977,7 @@ case 'item_sold': {
           <p style="font-size:13px;color:#6B7280;text-align:center;">
             View the full message and respond in the app.
           </p>
-          ${btn('View Dispute', disputeThreadUrl(payload.meta?.disputeId || payload.meta?.dispute_id || payload.related_entity_id))}
+          ${btn('View Dispute', disputeThreadUrl(disputeIdFromPayload()))}
         `),
       }
     }

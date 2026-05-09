@@ -625,6 +625,8 @@ Deno.serve(async (req) => {
         type: 'dispute_opened',
         title: 'Buyer reported an issue',
         message: 'A dispute has been raised on this order. Sib is investigating and may contact you for more details. The payout for this order is temporarily held until the dispute is resolved.',
+        target_path: `/messages/dispute/${dispute.id}`,
+        action_target: `/messages/dispute/${dispute.id}`,
         metadata: { disputeId: dispute.id, reason, details },
       })
       await notify(supabase, {
@@ -634,6 +636,8 @@ Deno.serve(async (req) => {
         type: 'dispute_opened_buyer',
         title: 'Dispute raised',
         message: 'Your dispute has been raised. Sib is investigating and may contact you for more details. Funds will remain held while we review the issue.',
+        target_path: `/messages/dispute/${dispute.id}`,
+        action_target: `/messages/dispute/${dispute.id}`,
         metadata: { disputeId: dispute.id, reason, details },
       })
 

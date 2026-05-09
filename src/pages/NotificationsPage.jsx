@@ -102,8 +102,9 @@ const NOTIF_CONFIG = {
   confirmed:            { icon: CheckCircle,    color: 'bg-green-50 text-green-600 dark:bg-[#26322f] dark:text-green-300',  linkFn: (n) => orderTarget(n, '/seller') },
   buyer_confirmed:      { icon: CheckCircle,    color: 'bg-green-50 text-green-600 dark:bg-[#26322f] dark:text-green-300',  linkFn: (n) => orderTarget(n) },
   auto_confirmed:       { icon: ShieldCheck,    color: 'bg-green-50 text-green-600 dark:bg-[#26322f] dark:text-green-300',  linkFn: (n) => orderTarget(n) },
-  dispute_opened:       { icon: AlertTriangle,  color: 'bg-red-50 text-red-600 dark:bg-[#26322f] dark:text-red-300',      linkFn: (n) => orderTarget(n) },
-  dispute_opened_buyer: { icon: AlertTriangle,  color: 'bg-red-50 text-red-600 dark:bg-[#26322f] dark:text-red-300', linkFn: (n) => orderTarget(n) },
+  dispute_opened:       { icon: AlertTriangle,  color: 'bg-red-50 text-red-600 dark:bg-[#26322f] dark:text-red-300',      linkFn: disputeMessageTarget },
+  dispute_opened_buyer: { icon: AlertTriangle,  color: 'bg-red-50 text-red-600 dark:bg-[#26322f] dark:text-red-300', linkFn: disputeMessageTarget },
+  dispute_resolved:     { icon: AlertTriangle,  color: 'bg-green-50 text-green-600 dark:bg-[#26322f] dark:text-green-300', linkFn: disputeMessageTarget },
   dispute_message:      { icon: MessageSquare,  color: 'bg-orange-50 text-sib-primary dark:bg-[#26322f] dark:text-[#e8751a]', linkFn: disputeMessageTarget },
   shipped:              { icon: Package,         color: 'bg-sib-sand text-sib-muted dark:bg-[#26322f] dark:text-[#aeb8b4]', linkFn: (n) => orderTarget(n) },
   ship_reminder:        { icon: Truck,           color: 'bg-orange-50 text-sib-primary dark:bg-[#26322f] dark:text-[#e8751a]', linkFn: (n) => orderTarget(n, SELLER_SHIPMENT_QUEUE) },
@@ -122,11 +123,14 @@ const DEFAULT_CONFIG = { icon: Bell, color: 'bg-sib-sand text-sib-muted', link: 
 function resolveNotificationTarget(notif) {
   if (notif.actionTarget && notif.actionTarget !== '/') return notif.actionTarget
   if (notif.targetPath && notif.targetPath !== '/') return notif.targetPath
+  const cfg = NOTIF_CONFIG[notif.type] || DEFAULT_CONFIG
+  if (String(notif.type || '').startsWith('dispute_')) {
+    return cfg.linkFn ? cfg.linkFn(notif) : cfg.link
+  }
   const orderId = getOrderId(notif)
   if (orderId) return `/orders/${orderId}`
   if (getConversationId(notif)) return messageTarget(notif)
   if (isOperationalShippingNotification(notif)) return SELLER_SHIPMENT_QUEUE
-  const cfg = NOTIF_CONFIG[notif.type] || DEFAULT_CONFIG
   return cfg.linkFn ? cfg.linkFn(notif) : cfg.link
 }
 
