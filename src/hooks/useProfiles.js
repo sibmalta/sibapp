@@ -55,6 +55,7 @@ export function useProfiles(localUsers, currentUser) {
 
   const [users, setUsers] = useState(localUsers)
   const [dbAvailable, setDbAvailable] = useState(false)
+  const [loading, setLoading] = useState(true)
   const fetchedRef = useRef(false)
 
   // ── Initial load ───────────────────────────────────────────────────────────
@@ -73,6 +74,7 @@ export function useProfiles(localUsers, currentUser) {
         setDbAvailable(false)
         setUsers(localUsers)
       }
+      setLoading(false)
     }
     load()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -309,6 +311,7 @@ export function useProfiles(localUsers, currentUser) {
 
   return {
     users,
+    loading,
     dbAvailable,
     refreshCurrentProfile,
     ensureUserById,

@@ -1,5 +1,5 @@
 import React from 'react'
-import { useLocation } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { ShieldCheck } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 
@@ -14,6 +14,8 @@ const DEFAULT_ALLOWED_PATH_PREFIXES = [
   '/admin/scan-dropoff',
   '/messages/dispute',
 ]
+
+const AUTH_ONLY_BYPASS_PATHS = new Set(['/login', '/signin', '/signup', '/auth'])
 
 export function isMaintenanceModeEnabled(value = import.meta.env.VITE_MAINTENANCE_MODE) {
   return String(value || '').trim().toLowerCase() === 'true'
@@ -38,6 +40,12 @@ export function isMaintenanceAllowedPath(pathname = '', allowedPrefixes = DEFAUL
   return allowedPrefixes.some(prefix => path === prefix || path.startsWith(`${prefix}/`))
 }
 
+export function isMaintenanceAuthBypass(pathname = '', search = '') {
+  const path = pathname || '/'
+  if (!AUTH_ONLY_BYPASS_PATHS.has(path)) return false
+  return new URLSearchParams(search || '').get('maintenanceBypass') === '1'
+}
+
 function MaintenancePage() {
   return (
     <main className="min-h-screen bg-sib-cream dark:bg-[#18211f] text-sib-text dark:text-[#f4efe7] flex items-center justify-center px-5 py-10">
@@ -52,6 +60,12 @@ function MaintenancePage() {
         <p className="mt-4 text-sm leading-6 text-sib-muted dark:text-[#aeb8b4]">
           We&apos;re improving delivery and marketplace systems and will be back shortly.
         </p>
+        <Link
+          to="/login?maintenanceBypass=1"
+          className="mt-6 inline-flex items-center justify-center rounded-2xl bg-sib-secondary px-5 py-3 text-sm font-bold text-white shadow-sm active:scale-[0.98] transition"
+        >
+          Admin / tester login
+        </Link>
       </section>
     </main>
   )
@@ -59,18 +73,19 @@ function MaintenancePage() {
 
 export default function MaintenanceGate({ children }) {
   const location = useLocation()
-  const { currentUser, authLoading } = useApp()
+  const { currentUser, authLoading, profilesLoading } = useApp()
 
   if (!isMaintenanceModeEnabled()) return children
   if (isMaintenanceAllowedPath(location.pathname)) return children
-  if (authLoading) {
+  const whitelistEmails = parseMaintenanceEmails()
+  if (isMaintenanceBypassUser(currentUser, whitelistEmails)) return children
+  if (authLoading || (currentUser && profilesLoading)) {
     return (
       <main className="min-h-screen bg-sib-cream dark:bg-[#18211f] flex items-center justify-center px-5">
         <p className="text-sm font-semibold text-sib-muted dark:text-[#aeb8b4]">Checking access...</p>
       </main>
     )
   }
-  if (isMaintenanceBypassUser(currentUser, parseMaintenanceEmails())) return children
 
   return <MaintenancePage />
 }

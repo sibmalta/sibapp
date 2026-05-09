@@ -69,10 +69,17 @@ function RecoveryRedirector() {
 
 function AppRoutes() {
   return (
-    <MaintenanceGate>
+    <>
       <RecoveryRedirector />
       <Routes>
-        <Route path="/" element={<Layout />}>
+        <Route path="/auth" element={<AuthPage />} />
+        <Route path="/login" element={<AuthPage />} />
+        <Route path="/signin" element={<AuthPage />} />
+        <Route path="/signup" element={<AuthPage />} />
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/" element={<MaintenanceGate><Layout /></MaintenanceGate>}>
           <Route index element={<HomePage />} />
           <Route path="browse" element={<BrowsePage />} />
           <Route path="listing/:id" element={<ListingPage />} />
@@ -90,13 +97,6 @@ function AppRoutes() {
           <Route path="profile/:username" element={<ProfilePage />} />
           <Route path="profile/edit" element={<EditProfilePage />} />
           <Route path="reviews/:username" element={<ReviewsPage />} />
-          <Route path="auth" element={<AuthPage />} />
-          <Route path="login" element={<AuthPage />} />
-          <Route path="signin" element={<AuthPage />} />
-          <Route path="signup" element={<AuthPage />} />
-          <Route path="auth/callback" element={<AuthCallbackPage />} />
-          <Route path="forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="reset-password" element={<ResetPasswordPage />} />
           <Route path="seller" element={<SellerDashboardPage />} />
           <Route path="seller/payout-settings" element={<PayoutSettingsPage />} />
           <Route path="admin" element={<AdminPage />} />
@@ -127,7 +127,7 @@ function AppRoutes() {
       </Routes>
       <PackagePreparationModal />
       <Toast />
-    </MaintenanceGate>
+    </>
   )
 }
 

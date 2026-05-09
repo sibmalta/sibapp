@@ -181,6 +181,7 @@ export function AppProvider({ children }) {
   // ── Supabase-backed profiles hook ──────────────────────────
   const {
     users,
+    loading: profilesLoading,
     dbAvailable: profilesDbAvailable,
     refreshCurrentProfile,
     updateProfile: dbUpdateProfile,
@@ -3207,7 +3208,7 @@ export function AppProvider({ children }) {
 
   return (
     <AppContext.Provider value={{
-      currentUser, authLoading, users, listings, listingsLoading, listingsLoadingMore, hasMoreListings, orders, ordersLoading, ordersDbAvailable, ordersDbError, conversations: allConversations, reviews, disputes, disputeMessages, disputesLoading, disputeMessagesLoading, likedListings, payoutProfiles, notifications, offers, bundle, bundleOffers, shipments, shipmentsLoading, logisticsDeliverySheet, logisticsDeliverySheetLoading, toast,
+      currentUser, authLoading, profilesLoading, users, listings, listingsLoading, listingsLoadingMore, hasMoreListings, orders, ordersLoading, ordersDbAvailable, ordersDbError, conversations: allConversations, reviews, disputes, disputeMessages, disputesLoading, disputeMessagesLoading, likedListings, payoutProfiles, notifications, offers, bundle, bundleOffers, shipments, shipmentsLoading, logisticsDeliverySheet, logisticsDeliverySheetLoading, toast,
       PROTECTION_WINDOW_MS, SHIPPING_DEADLINE_MS,
       login, signup, register, logout, requestPasswordReset, validateResetToken, resetPassword, updateProfile,
       createListing, updateListing, deleteListing, boostListing, unboostListing, flagListing, approveListing, hideListing, updateStyleTags, updateCollectionTags, adminUpdateListingMeta, toggleLike, loadMoreListings,

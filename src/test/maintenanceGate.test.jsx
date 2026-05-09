@@ -1,6 +1,9 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   isMaintenanceAllowedPath,
+  isMaintenanceAuthBypass,
   isMaintenanceBypassUser,
   isMaintenanceModeEnabled,
   parseMaintenanceEmails,
@@ -49,5 +52,24 @@ describe('MaintenanceGate helpers', () => {
     expect(isMaintenanceAllowedPath('/reset-password')).toBe(true)
     expect(isMaintenanceAllowedPath('/scan-dropoff')).toBe(true)
     expect(isMaintenanceAllowedPath('/messages/dispute/fa230f1b-1eae-4311-b25d-fb93435a6602')).toBe(true)
+  })
+
+  it('supports emergency auth-page-only bypass query', () => {
+    expect(isMaintenanceAuthBypass('/login', '?maintenanceBypass=1')).toBe(true)
+    expect(isMaintenanceAuthBypass('/signin', '?maintenanceBypass=1')).toBe(true)
+    expect(isMaintenanceAuthBypass('/signup', '?maintenanceBypass=1')).toBe(true)
+    expect(isMaintenanceAuthBypass('/auth', '?maintenanceBypass=1')).toBe(true)
+    expect(isMaintenanceAuthBypass('/', '?maintenanceBypass=1')).toBe(false)
+    expect(isMaintenanceAuthBypass('/browse', '?maintenanceBypass=1')).toBe(false)
+  })
+
+  it('renders login routes outside the maintenance gate', () => {
+    const app = readFileSync(resolve(process.cwd(), 'src/App.jsx'), 'utf8')
+    const loginRouteIndex = app.indexOf('<Route path="/login" element={<AuthPage />} />')
+    const gatedRouteIndex = app.indexOf('<Route path="/" element={<MaintenanceGate><Layout /></MaintenanceGate>}>')
+
+    expect(loginRouteIndex).toBeGreaterThan(-1)
+    expect(gatedRouteIndex).toBeGreaterThan(-1)
+    expect(loginRouteIndex).toBeLessThan(gatedRouteIndex)
   })
 })
