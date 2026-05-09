@@ -704,7 +704,7 @@ export default function CheckoutPage() {
             <div className="flex items-center gap-2 mb-5 px-1">
               <ShieldCheck size={12} className="text-green-600 flex-shrink-0" />
               <p className="text-[11px] text-green-700 dark:text-green-300 font-medium">
-                Secure fulfilment with buyer protection.
+                Secure delivery with buyer protection.
               </p>
             </div>
 

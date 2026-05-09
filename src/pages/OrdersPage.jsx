@@ -128,9 +128,9 @@ export function getSellerOrderState(order = {}, shipment = null) {
   if (shipmentStatus === 'awaiting_collection') {
     return {
       filter: 'active',
-      label: 'Awaiting collection',
+      label: 'Awaiting drop-off',
       style: 'bg-blue-50 text-blue-700 dark:bg-[#26322f] dark:text-blue-300',
-      nextStep: 'Waiting for collection/drop-off processing.',
+      nextStep: 'Seller needs to drop off the parcel at MYConvenience.',
     }
   }
 
@@ -145,7 +145,7 @@ export function getSellerOrderState(order = {}, shipment = null) {
 
   return {
     filter: 'active',
-    label: 'Preparing for fulfilment',
+    label: 'Preparing for delivery',
     style: 'bg-yellow-50 text-yellow-700 dark:bg-[#332d20] dark:text-amber-300',
     nextStep: 'Drop off your parcel at MYConvenience. Your parcel will be confirmed once the store scans your QR code.',
   }
@@ -353,8 +353,8 @@ export default function OrdersPage() {
                     <div className="mt-2 grid gap-1.5 text-[11px]">
                       <p className="text-sib-muted dark:text-[#aeb8b4]">Order date: {formatOrderDate(order.createdAt)}</p>
                       <p className="text-sib-text dark:text-[#f4efe7] font-semibold">Sale price: €{formatMoney(order.itemPrice)}</p>
-                      <p className="text-sib-text dark:text-[#f4efe7] font-semibold">Fulfilment method: {titleCaseFulfilment(fulfilmentMethod)}</p>
-                      <p className="text-sib-muted dark:text-[#aeb8b4]">Fulfilment fee: €{formatMoney(fulfilmentFee)}</p>
+                      <p className="text-sib-text dark:text-[#f4efe7] font-semibold">Delivery method: {titleCaseFulfilment(fulfilmentMethod)}</p>
+                      <p className="text-sib-muted dark:text-[#aeb8b4]">Delivery fee: €{formatMoney(fulfilmentFee)}</p>
                       {sellerState.nextStepVariant === 'dropoff_confirmed' ? (
                         <div className="mt-2 rounded-2xl border border-green-100 bg-green-50/80 p-3 text-green-800 dark:border-green-500/20 dark:bg-[#20322b] dark:text-green-100">
                           <p className="text-xs font-bold">Next step</p>

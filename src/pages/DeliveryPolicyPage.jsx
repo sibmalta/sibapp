@@ -31,7 +31,7 @@ export default function DeliveryPolicyPage() {
       <PolicySection number={3} title="Collection from sellers">
         <PolicyBullets items={[
           'Once an item is sold, Sib schedules collection from the seller',
-          'Sellers must ensure the item is packed and ready for collection at the agreed time',
+          'Sellers must ensure the item is packed and ready for drop-off or courier handover at the agreed time',
           'Collection windows are assigned by Sib based on operational routes and zones',
           'Sellers may be asked to confirm their availability for collection',
           'Missed or failed collections may be rescheduled, and repeated missed collections may result in fees or account restrictions',

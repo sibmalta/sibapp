@@ -67,7 +67,7 @@ function GuidanceBody() {
       <div className="flex gap-2.5">
         <Truck size={14} className="text-amber-600 flex-shrink-0 mt-0.5" />
         <div>
-          <p className="text-xs font-bold text-sib-text dark:text-[#f4efe7] mb-0.5">Fulfilment</p>
+          <p className="text-xs font-bold text-sib-text dark:text-[#f4efe7] mb-0.5">Delivery</p>
           <ul className="text-[11px] text-sib-muted dark:text-[#aeb8b4] leading-relaxed space-y-0.5">
             <li>Couriers collect small parcels from MYConvenience by motorcycle.</li>
           </ul>

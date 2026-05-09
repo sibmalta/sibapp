@@ -39,7 +39,7 @@ export default function TermsPage() {
         <PolicyBullets items={[
           'Provide accurate and honest item descriptions, including condition, defects, and sizing',
           'Disclose all known faults, damage, or defects',
-          'Ensure items are available and ready for collection when purchased',
+          'Ensure items are packed and ready for drop-off or courier handover when purchased',
           'Pack items appropriately for safe transit',
           'Not attempt to arrange transactions outside the Sib platform',
         ]} />

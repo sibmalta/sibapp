@@ -9,7 +9,7 @@ import { useApp } from '../context/AppContext'
 import UserAvatar from '../components/UserAvatar'
 import FeeBreakdown from '../components/FeeBreakdown'
 import PageHeader from '../components/PageHeader'
-import ShipmentTracker, { ShipByDeadline } from '../components/ShipmentTracker'
+import ShipmentTracker, { ShipByDeadline, getCustomerDeliveryStatusLabel, getMyConvenienceDeliveryEstimateLabel } from '../components/ShipmentTracker'
 import { getTrackingUrl, estimateDeliveryDate } from '../lib/maltapost'
 import { getDropoffPendingConfirmationCopy, getOrderFulfilmentMethodLabel, getOrderFulfilmentProviderLabel } from '../lib/fulfilment'
 import { buildDropoffScanUrl, getOrderCode, getQrCodeImageUrl, isDropoffConfirmed } from '../lib/dropoffQr'
@@ -133,11 +133,13 @@ export default function OrderDetailPage() {
   const isDisputed = order.trackingStatus === 'disputed' || order.trackingStatus === 'under_review'
   const dropoffConfirmed = isDropoffConfirmed({ order, shipment })
   const fulfilmentMethod = order?.fulfilmentMethod || shipment?.fulfilmentMethod || order?.deliveryMethod || ''
-  const fulfilmentProviderLabel = getOrderFulfilmentProviderLabel(order, shipment)
-  const fulfilmentMethodLabel = getOrderFulfilmentMethodLabel(order, shipment)
+  const deliveryProviderLabel = getOrderFulfilmentProviderLabel(order, shipment)
+  const deliveryMethodLabel = getOrderFulfilmentMethodLabel(order, shipment)
   const pendingDropoffConfirmationCopy = getDropoffPendingConfirmationCopy({ order, shipment, fulfilmentMethod })
-  const fulfilmentStatusLabel = (order.fulfilmentStatus || shipment?.fulfilmentStatus || shipment?.status || order.trackingStatus || order.status || 'pending').replace(/_/g, ' ')
-  const fulfilmentPrice = order.fulfilmentPrice ?? shipment?.fulfilmentPrice ?? order.deliveryFee ?? 3.00
+  const deliveryStatusLabel = getCustomerDeliveryStatusLabel(order.fulfilmentStatus || shipment?.fulfilmentStatus || shipment?.status || order.trackingStatus || order.status || 'pending')
+  const deliveryFee = order.fulfilmentPrice ?? shipment?.fulfilmentPrice ?? order.deliveryFee ?? 3.00
+  const dropoffConfirmedAt = order.dropoffConfirmedAt || shipment?.dropoffConfirmedAt || shipment?.droppedOffAt
+  const myConvenienceDeliveryEstimate = getMyConvenienceDeliveryEstimateLabel(dropoffConfirmedAt)
   const orderCode = getOrderCode(order)
   const parcelLabelDetails = getParcelLabelDetails(order, buyer, orderCode)
   const dropoffScanUrl = buildDropoffScanUrl(order, typeof window !== 'undefined' ? window.location.origin : 'https://sibmalta.com')
@@ -576,9 +578,9 @@ export default function OrderDetailPage() {
                   <p className="text-xs font-bold">Parcel confirmed.</p>
                   <div className="mt-1.5 space-y-1 text-xs leading-snug">
                     <p>We&apos;ll handle delivery from here.</p>
-                    {(order.dropoffConfirmedAt || shipment?.dropoffConfirmedAt || shipment?.droppedOffAt) && (
+                    {dropoffConfirmedAt && (
                       <p className="text-[11px] opacity-80">
-                        Confirmed {new Date(order.dropoffConfirmedAt || shipment?.dropoffConfirmedAt || shipment?.droppedOffAt).toLocaleString('en-MT')}
+                        Confirmed {new Date(dropoffConfirmedAt).toLocaleString('en-MT')}
                       </p>
                     )}
                   </div>
@@ -591,7 +593,7 @@ export default function OrderDetailPage() {
         {/* ── Shipment Tracker ── */}
         {shipment && (
           <div>
-            <p className="text-xs font-semibold text-sib-text dark:text-[#f4efe7] uppercase tracking-wide mb-4">Fulfilment</p>
+            <p className="text-xs font-semibold text-sib-text dark:text-[#f4efe7] uppercase tracking-wide mb-4">Delivery</p>
             <ShipmentTracker shipment={shipment} />
             {trackingUrl && (
               <a
@@ -605,7 +607,7 @@ export default function OrderDetailPage() {
             )}
             {estDelivery && shipment.status !== 'delivered' && shipment.status !== 'failed_delivery' && shipment.status !== 'returned' && (
               <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mt-2 text-center">
-                Estimated delivery: {estDelivery.toLocaleDateString('en-MT', { weekday: 'short', day: 'numeric', month: 'short' })}
+                {myConvenienceDeliveryEstimate || `Estimated delivery: ${estDelivery.toLocaleDateString('en-MT', { weekday: 'short', day: 'numeric', month: 'short' })}`}
               </p>
             )}
           </div>
@@ -627,27 +629,27 @@ export default function OrderDetailPage() {
             </div>
             <div className="space-y-1">
               <div>
-                <p className="text-xs text-sib-muted dark:text-[#aeb8b4]">Fulfilment provider</p>
+                <p className="text-xs text-sib-muted dark:text-[#aeb8b4]">Delivery partner</p>
                 <p className="text-sm font-medium text-sib-text dark:text-[#f4efe7]">
-                  {fulfilmentProviderLabel}
+                  {deliveryProviderLabel}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-sib-muted dark:text-[#aeb8b4]">Fulfilment method</p>
+                <p className="text-xs text-sib-muted dark:text-[#aeb8b4]">Delivery method</p>
                 <p className="text-sm font-medium text-sib-text dark:text-[#f4efe7]">
-                  {fulfilmentMethodLabel}
+                  {deliveryMethodLabel}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-sib-muted dark:text-[#aeb8b4]">Fulfilment price</p>
+                <p className="text-xs text-sib-muted dark:text-[#aeb8b4]">Delivery fee</p>
                 <p className="text-sm font-medium text-sib-text dark:text-[#f4efe7]">
-                  €{fulfilmentPrice.toFixed(2)}
+                  €{deliveryFee.toFixed(2)}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-sib-muted dark:text-[#aeb8b4]">Current fulfilment status</p>
-                <p className="text-sm font-medium text-sib-text dark:text-[#f4efe7] capitalize">
-                  {fulfilmentStatusLabel}
+                <p className="text-xs text-sib-muted dark:text-[#aeb8b4]">Current delivery status</p>
+                <p className="text-sm font-medium text-sib-text dark:text-[#f4efe7]">
+                  {deliveryStatusLabel}
                 </p>
               </div>
               {!showSellerDropoffQr && (
@@ -667,10 +669,10 @@ export default function OrderDetailPage() {
               <span>Item</span><span>€{order.itemPrice?.toFixed(2)}</span>
             </div>
             <FeeBreakdown
-              buyerProtectionFee={(order.bundledFee ?? (order.platformFee + fulfilmentPrice)) - fulfilmentPrice}
+              buyerProtectionFee={(order.bundledFee ?? (order.platformFee + deliveryFee)) - deliveryFee}
             />
             <div className="flex justify-between text-sib-muted dark:text-[#aeb8b4]">
-              <span>Fulfilment</span><span>€{fulfilmentPrice.toFixed(2)}</span>
+              <span>Delivery fee</span><span>€{deliveryFee.toFixed(2)}</span>
             </div>
             <div className="flex justify-between font-bold text-sib-text dark:text-[#f4efe7] pt-2 border-t border-sib-stone dark:border-[rgba(242,238,231,0.10)]">
               <span>Total paid</span><span className="text-sib-primary">€{order.totalPrice?.toFixed(2)}</span>

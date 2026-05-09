@@ -106,7 +106,7 @@ export function getLockerById(id) {
  */
 export const STATUS_FLOW = {
   home_delivery: ['paid', 'ready_for_shipment', 'shipped', 'out_for_delivery', 'delivered'],
-  locker_collection: ['paid', 'ready_for_shipment', 'shipped', 'ready_for_collection', 'collected'],
+  locker_collection: ['paid', 'ready_for_shipment', 'dropped_off', 'out_for_delivery', 'delivered'],
 }
 
 /**
@@ -114,10 +114,11 @@ export const STATUS_FLOW = {
  */
 export const DELIVERY_STATUS_LABELS = {
   paid: 'Order placed',
-  ready_for_shipment: 'Ready for shipment',
+  ready_for_shipment: 'Awaiting drop-off',
   shipped: 'Shipped',
   out_for_delivery: 'Out for delivery',
   delivered: 'Delivered',
-  ready_for_collection: 'Ready for collection',
-  collected: 'Collected',
+  ready_for_collection: 'In transit',
+  collected: 'In transit',
+  dropped_off: 'Dropped off',
 }

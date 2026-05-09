@@ -1,51 +1,111 @@
 import React from 'react'
 import {
-  Clock, Package, Truck, MapPin, CheckCircle, XCircle, RotateCcw, Box,
+  Clock, Package, Truck, CheckCircle, XCircle, RotateCcw,
 } from 'lucide-react'
 
-const HOME_DELIVERY_STEPS = [
-  { key: 'awaiting_shipment', label: 'Awaiting collection', icon: Clock },
-  { key: 'shipped', label: 'Collected', icon: Package },
-  { key: 'in_transit', label: 'In transit', icon: Truck },
-  { key: 'delivered', label: 'Delivered', icon: MapPin },
-]
-
-const LOCKER_COLLECTION_STEPS = [
-  { key: 'awaiting_shipment', label: 'Awaiting collection', icon: Clock },
-  { key: 'shipped', label: 'Collected', icon: Package },
-  { key: 'in_transit', label: 'In transit', icon: Truck },
-  { key: 'ready_for_collection', label: 'Ready for collection', icon: Box },
-  { key: 'collected', label: 'Collected', icon: CheckCircle },
+const MYCONVENIENCE_DELIVERY_STEPS = [
+  {
+    key: 'awaiting_dropoff',
+    label: 'Awaiting drop-off',
+    description: 'Seller needs to drop off the parcel at MYConvenience.',
+    icon: Clock,
+  },
+  {
+    key: 'dropped_off',
+    label: 'Dropped off',
+    description: 'Parcel has been dropped off and is awaiting courier pickup.',
+    icon: Package,
+  },
+  {
+    key: 'in_transit',
+    label: 'In transit',
+    description: 'Courier is delivering your parcel.',
+    icon: Truck,
+  },
+  {
+    key: 'delivery_attempted',
+    label: 'Delivery attempted',
+    description: 'Courier attempted delivery.',
+    icon: XCircle,
+  },
+  {
+    key: 'delivered',
+    label: 'Delivered',
+    description: 'Parcel delivered successfully.',
+    icon: CheckCircle,
+  },
 ]
 
 const TERMINAL_STATES = {
-  failed_delivery: { label: 'Failed delivery', icon: XCircle, color: 'bg-red-500' },
+  failed_delivery: { label: 'Delivery attempted', icon: XCircle, color: 'bg-red-500' },
   returned: { label: 'Returned', icon: RotateCcw, color: 'bg-orange-500' },
 }
 
 export const SHIPMENT_STATUS_CONFIG = {
-  awaiting_shipment: { label: 'Awaiting collection', color: 'bg-yellow-50 text-yellow-700 dark:bg-[#332d20] dark:text-amber-300', dotColor: 'bg-yellow-500' },
-  dropped_off: { label: 'Drop-off confirmed', color: 'bg-green-50 text-green-700 dark:bg-[#20322b] dark:text-green-300', dotColor: 'bg-green-500' },
-  shipped: { label: 'Collected', color: 'bg-blue-50 text-blue-700 dark:bg-[#21303a] dark:text-blue-300', dotColor: 'bg-blue-500' },
+  awaiting_shipment: { label: 'Awaiting drop-off', color: 'bg-yellow-50 text-yellow-700 dark:bg-[#332d20] dark:text-amber-300', dotColor: 'bg-yellow-500' },
+  awaiting_fulfilment: { label: 'Awaiting drop-off', color: 'bg-yellow-50 text-yellow-700 dark:bg-[#332d20] dark:text-amber-300', dotColor: 'bg-yellow-500' },
+  awaiting_dropoff: { label: 'Awaiting drop-off', color: 'bg-yellow-50 text-yellow-700 dark:bg-[#332d20] dark:text-amber-300', dotColor: 'bg-yellow-500' },
+  awaiting_delivery: { label: 'Awaiting drop-off', color: 'bg-yellow-50 text-yellow-700 dark:bg-[#332d20] dark:text-amber-300', dotColor: 'bg-yellow-500' },
+  awaiting_collection: { label: 'Awaiting drop-off', color: 'bg-yellow-50 text-yellow-700 dark:bg-[#332d20] dark:text-amber-300', dotColor: 'bg-yellow-500' },
+  ready_for_shipment: { label: 'Awaiting drop-off', color: 'bg-yellow-50 text-yellow-700 dark:bg-[#332d20] dark:text-amber-300', dotColor: 'bg-yellow-500' },
+  paid: { label: 'Awaiting drop-off', color: 'bg-yellow-50 text-yellow-700 dark:bg-[#332d20] dark:text-amber-300', dotColor: 'bg-yellow-500' },
+  label_created: { label: 'Drop-off QR ready', color: 'bg-yellow-50 text-yellow-700 dark:bg-[#332d20] dark:text-amber-300', dotColor: 'bg-yellow-500' },
+  dropped_off: { label: 'Dropped off', color: 'bg-green-50 text-green-700 dark:bg-[#20322b] dark:text-green-300', dotColor: 'bg-green-500' },
+  shipped: { label: 'In transit', color: 'bg-blue-50 text-blue-700 dark:bg-[#21303a] dark:text-blue-300', dotColor: 'bg-blue-500' },
+  collected: { label: 'In transit', color: 'bg-blue-50 text-blue-700 dark:bg-[#21303a] dark:text-blue-300', dotColor: 'bg-blue-500' },
   in_transit: { label: 'In transit', color: 'bg-indigo-50 text-indigo-700 dark:bg-[#252b3f] dark:text-indigo-300', dotColor: 'bg-indigo-500' },
+  out_for_delivery: { label: 'In transit', color: 'bg-indigo-50 text-indigo-700 dark:bg-[#252b3f] dark:text-indigo-300', dotColor: 'bg-indigo-500' },
+  delivery_attempted: { label: 'Delivery attempted', color: 'bg-amber-50 text-amber-700 dark:bg-[#332d20] dark:text-amber-300', dotColor: 'bg-amber-500' },
   delivered: { label: 'Delivered', color: 'bg-green-50 text-green-700 dark:bg-[#20322b] dark:text-green-300', dotColor: 'bg-green-500' },
-  ready_for_collection: { label: 'Ready for collection', color: 'bg-teal-50 text-teal-700 dark:bg-[#203632] dark:text-teal-300', dotColor: 'bg-teal-500' },
-  collected: { label: 'Collected', color: 'bg-green-50 text-green-700 dark:bg-[#20322b] dark:text-green-300', dotColor: 'bg-green-500' },
-  failed_delivery: { label: 'Failed delivery', color: 'bg-red-50 text-red-600 dark:bg-[#362322] dark:text-red-300', dotColor: 'bg-red-500' },
+  confirmed: { label: 'Delivered', color: 'bg-green-50 text-green-700 dark:bg-[#20322b] dark:text-green-300', dotColor: 'bg-green-500' },
+  completed: { label: 'Delivered', color: 'bg-green-50 text-green-700 dark:bg-[#20322b] dark:text-green-300', dotColor: 'bg-green-500' },
+  ready_for_collection: { label: 'In transit', color: 'bg-indigo-50 text-indigo-700 dark:bg-[#252b3f] dark:text-indigo-300', dotColor: 'bg-indigo-500' },
+  failed_delivery: { label: 'Delivery attempted', color: 'bg-red-50 text-red-600 dark:bg-[#362322] dark:text-red-300', dotColor: 'bg-red-500' },
   returned: { label: 'Returned', color: 'bg-orange-50 text-orange-700 dark:bg-[#352a21] dark:text-orange-300', dotColor: 'bg-orange-500' },
 }
 
-function getStepsForShipment(shipment) {
-  if (shipment.deliveryType === 'locker_collection') return LOCKER_COLLECTION_STEPS
-  return HOME_DELIVERY_STEPS
+export function getCustomerDeliveryStatusLabel(status) {
+  if (!status) return 'Awaiting drop-off'
+  return SHIPMENT_STATUS_CONFIG[status]?.label || String(status).replace(/_/g, ' ')
+}
+
+function getDeliveryStepKey(status) {
+  if (['awaiting_shipment', 'awaiting_fulfilment', 'awaiting_dropoff', 'awaiting_delivery', 'awaiting_collection', 'ready_for_shipment', 'paid', 'pending', 'label_created'].includes(status)) {
+    return 'awaiting_dropoff'
+  }
+  if (status === 'dropped_off') return 'dropped_off'
+  if (['shipped', 'collected', 'in_transit', 'out_for_delivery', 'ready_for_collection'].includes(status)) return 'in_transit'
+  if (['delivery_attempted', 'failed_delivery', 'delivery_failed', 'failed', 'exception'].includes(status)) return 'delivery_attempted'
+  if (['delivered', 'confirmed', 'completed'].includes(status)) return 'delivered'
+  return status
+}
+
+export function getMyConvenienceDeliveryEstimateLabel(value) {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Malta',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(date)
+  const hour = Number(parts.find(part => part.type === 'hour')?.value)
+  if (Number.isNaN(hour)) return null
+  return `Estimated delivery: ${hour < 12 ? 'same day' : 'next day'}`
 }
 
 export default function ShipmentTracker({ shipment }) {
   if (!shipment) return null
 
   const isTerminal = !!TERMINAL_STATES[shipment.status]
-  const steps = getStepsForShipment(shipment)
-  const currentIdx = steps.findIndex(s => s.key === shipment.status)
+  const currentStepKey = getDeliveryStepKey(shipment.status)
+  const currentStep = MYCONVENIENCE_DELIVERY_STEPS.find(step => step.key === currentStepKey)
+  const currentIdx = MYCONVENIENCE_DELIVERY_STEPS.findIndex(s => s.key === currentStepKey)
+  const deliveryEstimate = getMyConvenienceDeliveryEstimateLabel(
+    shipment.dropoffConfirmedAt || shipment.droppedOffAt || shipment.dropped_off_at
+  )
 
   return (
     <div className="space-y-4">
@@ -59,31 +119,38 @@ export default function ShipmentTracker({ shipment }) {
 
       {/* Step tracker (normal flow) */}
       {!isTerminal && (
-        <div className="flex items-center gap-0">
-          {steps.map((step, i) => {
-            const done = i <= currentIdx
-            const active = i === currentIdx
-            return (
-              <React.Fragment key={step.key}>
-                <div className="flex flex-col items-center flex-shrink-0">
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
-                    done ? 'bg-sib-primary' : 'bg-sib-stone dark:bg-[#30403c]'
-                  }`}>
-                    <step.icon size={16} className={done ? 'text-white' : 'text-sib-muted dark:text-[#aeb8b4]'} />
+        <>
+          <div className="flex items-center gap-0">
+            {MYCONVENIENCE_DELIVERY_STEPS.map((step, i) => {
+              const done = i <= currentIdx
+              const active = i === currentIdx
+              return (
+                <React.Fragment key={step.key}>
+                  <div className="flex flex-col items-center flex-shrink-0">
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
+                      done ? 'bg-sib-primary' : 'bg-sib-stone dark:bg-[#30403c]'
+                    }`}>
+                      <step.icon size={16} className={done ? 'text-white' : 'text-sib-muted dark:text-[#aeb8b4]'} />
+                    </div>
+                    <p className={`text-[10px] font-medium mt-1.5 text-center max-w-[64px] leading-tight ${
+                      active ? 'text-sib-primary dark:text-[#e8751a]' : done ? 'text-sib-text dark:text-[#f4efe7]' : 'text-sib-muted dark:text-[#aeb8b4]'
+                    }`}>
+                      {step.label}
+                    </p>
                   </div>
-                  <p className={`text-[10px] font-medium mt-1.5 text-center max-w-[64px] leading-tight ${
-                    active ? 'text-sib-primary dark:text-[#e8751a]' : done ? 'text-sib-text dark:text-[#f4efe7]' : 'text-sib-muted dark:text-[#aeb8b4]'
-                  }`}>
-                    {step.label}
-                  </p>
-                </div>
-                {i < steps.length - 1 && (
-                  <div className={`flex-1 h-0.5 mx-1 mb-5 rounded-full ${i < currentIdx ? 'bg-sib-primary' : 'bg-sib-stone dark:bg-[#30403c]'}`} />
-                )}
-              </React.Fragment>
-            )
-          })}
-        </div>
+                  {i < MYCONVENIENCE_DELIVERY_STEPS.length - 1 && (
+                    <div className={`flex-1 h-0.5 mx-1 mb-5 rounded-full ${i < currentIdx ? 'bg-sib-primary' : 'bg-sib-stone dark:bg-[#30403c]'}`} />
+                  )}
+                </React.Fragment>
+              )
+            })}
+          </div>
+          {currentStep?.description && (
+            <p className="text-xs text-sib-muted dark:text-[#aeb8b4] leading-relaxed">
+              {currentStep.description}
+            </p>
+          )}
+        </>
       )}
 
       {/* Terminal state display */}
@@ -101,7 +168,7 @@ export default function ShipmentTracker({ shipment }) {
             </p>
             <p className={`text-xs mt-0.5 ${shipment.status === 'failed_delivery' ? 'text-red-600 dark:text-red-300' : 'text-orange-600 dark:text-orange-300'}`}>
               {shipment.status === 'failed_delivery'
-                ? 'Delivery attempt was unsuccessful. The courier will retry or return the item.'
+                ? 'Courier attempted delivery.'
                 : 'The item has been returned to the sender.'
               }
             </p>
@@ -127,8 +194,14 @@ export default function ShipmentTracker({ shipment }) {
         {!shipment.trackingNumber && shipment.status === 'awaiting_shipment' && (
           <div className="p-3 rounded-xl bg-yellow-50 dark:bg-[#332d20] border border-yellow-100 dark:border-amber-500/20 transition-colors">
             <p className="text-xs text-yellow-700 dark:text-amber-300">
-              Tracking number will appear once the shipment is confirmed.
+              Delivery updates will appear once the parcel is dropped off.
             </p>
+          </div>
+        )}
+
+        {deliveryEstimate && (
+          <div className="p-3 rounded-xl bg-sib-sand dark:bg-[#26322f] transition-colors">
+            <p className="text-xs font-semibold text-sib-text dark:text-[#f4efe7]">{deliveryEstimate}</p>
           </div>
         )}
 
@@ -180,7 +253,7 @@ export default function ShipmentTracker({ shipment }) {
           </div>
         )}
 
-        {/* Collection deadline for awaiting_shipment */}
+        {/* Drop-off deadline for awaiting_shipment */}
         {shipment.status === 'awaiting_shipment' && shipment.shipByDeadline && (
           <ShipByDeadline deadline={shipment.shipByDeadline} />
         )}
@@ -211,8 +284,8 @@ export function ShipByDeadline({ deadline }) {
             isOverdue ? 'text-red-700 dark:text-red-300' : isUrgent ? 'text-amber-700 dark:text-amber-300' : 'text-blue-700 dark:text-blue-300'
           }`}>
             {isOverdue
-              ? 'Collection deadline passed'
-              : `Collect by ${new Date(deadline).toLocaleDateString('en-MT', { weekday: 'short', day: 'numeric', month: 'short' })}`
+              ? 'Drop-off deadline passed'
+              : `Drop off by ${new Date(deadline).toLocaleDateString('en-MT', { weekday: 'short', day: 'numeric', month: 'short' })}`
             }
           </p>
           <p className={`text-[11px] mt-0.5 ${

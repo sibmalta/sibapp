@@ -807,8 +807,8 @@ export function AppProvider({ children }) {
       status: 'awaiting_shipment',
       actionTarget: `/orders/${savedOrder.id}`,
       type: 'new_sale',
-      title: 'New sale — ship within 3 days',
-      message: `You have a new order (${orderRef}) — ${deliveryLabel}. Please prepare it for fulfilment within 3 business days.`,
+      title: 'New sale — drop off within 3 days',
+      message: `You have a new order (${orderRef}) — ${deliveryLabel}. Please prepare it for delivery within 3 business days.`,
     })
 
     if (!sellerPayoutReady) {
@@ -2204,8 +2204,8 @@ export function AppProvider({ children }) {
       status: 'awaiting_shipment',
       actionTarget: `/orders/${savedOrder.id}`,
       type: 'bundle_sold',
-      title: `${items.length}-item bundle sold — ship within 3 days`,
-      message: `@${currentUser.username} purchased ${items.length} items for €${fees.total.toFixed(2)} — ${deliveryLabel}. Please prepare them for fulfilment within 3 business days.`,
+      title: `${items.length}-item bundle sold — drop off within 3 days`,
+      message: `@${currentUser.username} purchased ${items.length} items for €${fees.total.toFixed(2)} — ${deliveryLabel}. Please prepare them for delivery within 3 business days.`,
     })
 
     if (!sellerPayoutReady) {
@@ -2549,8 +2549,8 @@ export function AppProvider({ children }) {
       status: 'awaiting_shipment',
       actionTarget: `/orders/${savedOrder.id}`,
       type: 'bundle_sold',
-      title: `${items.length}-item bundle sold — ship within 3 days`,
-      message: `@${users.find(u => u.id === offer.buyerId)?.username || 'buyer'} purchased ${items.length} items for €${fees.total.toFixed(2)} — ${deliveryLabel}. Please prepare them for fulfilment within 3 business days.`,
+      title: `${items.length}-item bundle sold — drop off within 3 days`,
+      message: `@${users.find(u => u.id === offer.buyerId)?.username || 'buyer'} purchased ${items.length} items for €${fees.total.toFixed(2)} — ${deliveryLabel}. Please prepare them for delivery within 3 business days.`,
     })
 
     if (!sellerPayoutReady) {
