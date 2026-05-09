@@ -21,7 +21,7 @@ export default function DeliveryMethodSelector({
     ...(lockerEligible ? [{
       id: 'locker_collection',
       name: 'Delivery to your door',
-      description: 'Delivered via MYConvenience with tracking and buyer protection.',
+      description: 'Seller drops off at MYConvenience. Sib arranges delivery to your door.',
       price: getFulfilmentPrice('locker'),
       estimatedDays: 'same day if the seller drops off before 12pm, or next day if dropped off after 12pm',
       icon: Box,
@@ -72,8 +72,8 @@ export default function DeliveryMethodSelector({
                   <p className={`text-sm font-semibold ${isSelected ? 'text-sib-text dark:text-[#f4efe7]' : 'text-sib-muted dark:text-[#aeb8b4]'}`}>{method.name}</p>
                   <p className="text-xs text-sib-muted dark:text-[#aeb8b4]">{method.description}</p>
                 </div>
-                <span className={`text-sm font-bold flex-shrink-0 ${isSelected ? 'text-sib-primary' : 'text-sib-muted dark:text-[#aeb8b4]'}`}>
-                  €{method.price.toFixed(2)}
+                <span className="text-[11px] font-semibold text-sib-muted dark:text-[#aeb8b4] flex-shrink-0">
+                  Delivery fee €{method.price.toFixed(2)}
                 </span>
               </button>
 
@@ -82,7 +82,7 @@ export default function DeliveryMethodSelector({
                   <div className="rounded-xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-white dark:bg-[#26322f] p-3">
                     <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7]">Delivery to your door</p>
                     <p className="mt-1 text-xs leading-snug text-sib-muted dark:text-[#aeb8b4]">
-                      Delivered via MYConvenience with tracking, secure checkout, and buyer protection.
+                      Seller drops off at MYConvenience. Sib arranges delivery to your door with tracking, secure checkout, and buyer protection.
                     </p>
                     <p className="mt-2 text-xs font-semibold leading-snug text-sib-text dark:text-[#f4efe7]">
                       Estimated delivery: same day if the seller drops off before 12pm, or next day if dropped off after 12pm.

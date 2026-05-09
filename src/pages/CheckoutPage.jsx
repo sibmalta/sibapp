@@ -665,7 +665,7 @@ export default function CheckoutPage() {
     },
   }
 
-  const deliveryLabel = isLocker ? 'Delivered via MYConvenience' : getFulfilmentMethodLabel(deliveryMethodId)
+  const deliveryLabel = isLocker ? 'Delivery to your door' : getFulfilmentMethodLabel(deliveryMethodId)
 
   const estimatedDays = isLocker
     ? 'same day if seller drops off before 12pm, or next day if dropped off after 12pm'

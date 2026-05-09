@@ -83,13 +83,15 @@ export function ListingDeliveryCard({ listing }) {
             <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7]">
               Delivery to your door
             </p>
-            <p className="mt-0.5 text-[11px] font-medium text-sib-muted dark:text-[#aeb8b4]">
-              {lockerEligible ? 'Delivered via MYConvenience' : 'Sib delivery is not available for this item yet'}
+            <p className="mt-0.5 text-[11px] leading-snug font-medium text-sib-muted dark:text-[#aeb8b4]">
+              {lockerEligible
+                ? 'Seller drops off at MYConvenience. Sib arranges delivery to your door.'
+                : 'Sib delivery is not available for this item yet'}
             </p>
           </div>
           {lockerEligible ? (
-            <span className="rounded-full bg-white/70 dark:bg-[#26322f] px-2.5 py-1 text-sm font-bold text-sib-primary whitespace-nowrap">
-              €{FULFILMENT_PRICES.locker.toFixed(2)}
+            <span className="rounded-full border border-sib-stone bg-white/70 px-2.5 py-1 text-[11px] font-semibold text-sib-muted dark:border-[rgba(242,238,231,0.10)] dark:bg-[#26322f] dark:text-[#aeb8b4] whitespace-nowrap">
+              Delivery fee €{FULFILMENT_PRICES.locker.toFixed(2)}
             </span>
           ) : (
             <span className="rounded-full bg-sib-sand dark:bg-[#26322f] px-2.5 py-1 text-xs font-semibold text-sib-muted dark:text-[#aeb8b4] whitespace-nowrap">
