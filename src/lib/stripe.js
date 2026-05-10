@@ -63,12 +63,6 @@ function getHeaders(accessToken) {
   }
 }
 
-function getPayoutSettingsUrl() {
-  const base = import.meta.env.BASE_URL || '/'
-  const normalizedBase = base.endsWith('/') ? base : `${base}/`
-  return new URL('seller/payout-settings', window.location.origin + normalizedBase).toString()
-}
-
 async function callEdgeFunction(fnName, body, accessToken) {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     throw new Error('Supabase frontend environment variables are missing.')
@@ -228,7 +222,7 @@ export async function createStripeConnectAccountSession(accessToken, component =
     throw new Error('Not authenticated. Please log in to set up payouts.')
   }
 
-  return callEdgeFunction(
+  const data = await callEdgeFunction(
     'stripe-connect',
     {
       mode: 'embedded_account_session',
@@ -236,60 +230,10 @@ export async function createStripeConnectAccountSession(accessToken, component =
     },
     accessToken
   )
-}
 
-export async function startStripeConnect(accessToken, returnUrl) {
-  if (!isValidSupabaseAccessToken(accessToken)) {
-    throw new Error('Not authenticated. Please log in to set up payouts.')
+  return {
+    clientSecret: data?.clientSecret || data?.client_secret || null,
   }
-
-  const url = `${SUPABASE_URL}/functions/v1/stripe-connect`
-  const headers = getHeaders(accessToken)
-  const safeReturnUrl = returnUrl || getPayoutSettingsUrl()
-
-  const body = JSON.stringify({
-    mode: 'start',
-    returnUrl: safeReturnUrl,
-    refreshUrl: safeReturnUrl,
-  })
-
-  console.log('[stripe-connect] POST', url)
-  console.log('[stripe-connect] headers', {
-    'Content-Type': headers['Content-Type'],
-    apikey: '***',
-    Authorization: 'Bearer <user-jwt>',
-  })
-  console.log('[stripe-connect] body', body)
-
-  let res
-  try {
-    res = await fetch(url, { method: 'POST', headers, body })
-  } catch (fetchErr) {
-    console.error('[stripe-connect] network error:', fetchErr)
-    throw new Error('Failed to fetch: Network error connecting to payment service.')
-  }
-
-  console.log('[stripe-connect] status', res.status)
-
-  let data
-  try {
-    data = await res.json()
-  } catch {
-    console.error('[stripe-connect] non-JSON response, status:', res.status)
-    throw new Error(`stripe-connect returned non-JSON response (${res.status})`)
-  }
-
-  console.log('[stripe-connect] response', data)
-
-  if (!res.ok) {
-    throw new Error(data.error || `stripe-connect failed (${res.status})`)
-  }
-
-  if (data.url) {
-    console.log('[stripe-connect] redirect URL:', data.url)
-  }
-
-  return data
 }
 
 export async function resetInvalidStripeConnectAccount(accessToken) {

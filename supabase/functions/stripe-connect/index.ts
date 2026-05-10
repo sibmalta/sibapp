@@ -459,12 +459,6 @@ Deno.serve(async (req) => {
 
       return jsonResponse({
         clientSecret: accountSession.client_secret,
-        accountId,
-        component: requestedComponent,
-        detailsSubmitted,
-        chargesEnabled,
-        payoutsEnabled,
-        accountReset: recreatedAccount,
       })
     }
 
