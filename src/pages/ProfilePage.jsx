@@ -191,7 +191,12 @@ const activeListings = userListings.filter(l => l.status === 'active')
             {isOwnProfile ? (
               <>
                 <button
-                  onClick={() => navigate('/seller')}
+                  type="button"
+                  aria-label="Withdraw earnings"
+                  onClick={() => {
+                    console.info('routing_to_payout_setup')
+                    navigate('/payout-setup')
+                  }}
                   className="w-9 h-9 rounded-full border border-white/60 dark:border-[rgba(242,238,231,0.10)] bg-white/70 dark:bg-[#26322f]/90 backdrop-blur-sm flex items-center justify-center shadow-sm hover:bg-white dark:hover:bg-[#30403c] transition-colors"
                 >
                   <Wallet size={16} className="text-sib-primary" />

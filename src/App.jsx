@@ -6,6 +6,7 @@ import Layout from './components/Layout'
 import ScrollToTop from './components/ScrollToTop'
 import Toast from './components/Toast'
 import PackagePreparationModal from './components/PackagePreparationModal'
+import { PayoutErrorBoundary } from './components/AppErrorBoundary'
 import { useAuth } from './lib/auth-context'
 
 
@@ -98,8 +99,8 @@ function AppRoutes() {
           <Route path="profile/edit" element={<EditProfilePage />} />
           <Route path="reviews/:username" element={<ReviewsPage />} />
           <Route path="seller" element={<SellerDashboardPage />} />
-          <Route path="payout-setup" element={<PayoutSetupPage />} />
-          <Route path="seller/payout-settings" element={<PayoutSettingsPage />} />
+          <Route path="payout-setup" element={<PayoutErrorBoundary><PayoutSetupPage /></PayoutErrorBoundary>} />
+          <Route path="seller/payout-settings" element={<PayoutErrorBoundary><PayoutSettingsPage /></PayoutErrorBoundary>} />
           <Route path="admin" element={<AdminPage />} />
           <Route path="admin/scan-dropoff" element={<AdminScanDropoffPage />} />
           <Route path="scan-dropoff" element={<AdminScanDropoffPage />} />
