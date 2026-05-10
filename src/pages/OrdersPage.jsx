@@ -21,6 +21,8 @@ const SELLER_FILTERS = [
   { id: 'cancelled', label: 'Cancelled' },
 ]
 
+const ORDERS_PAGE_TIMEOUT_MS = 8000
+
 const BUYER_STATUS_STYLES = {
   paid: 'bg-yellow-50 text-yellow-700 dark:bg-[#332d20] dark:text-amber-300',
   pending: 'bg-yellow-50 text-yellow-700 dark:bg-[#332d20] dark:text-amber-300',
@@ -186,6 +188,7 @@ export default function OrdersPage() {
     if (!authLoading && currentUser && !loadedOrdersRef.current) {
       loadedOrdersRef.current = true
       setLoadTimedOut(false)
+      console.info('orders_load_start', { source: 'OrdersPage', authUserId: currentUser.id, profileId: currentUser.id })
       console.info('[OrdersPage] loading start', { authUserId: currentUser.id, profileId: currentUser.id })
       refreshOrders()
       refreshShipments()
@@ -198,6 +201,16 @@ export default function OrdersPage() {
       return undefined
     }
     const id = setTimeout(() => {
+      console.warn('orders_load_timeout', {
+        source: 'OrdersPage',
+        authLoading,
+        profilesLoading,
+        ordersLoading,
+        shipmentsLoading,
+        authUserId: currentUser?.id || null,
+        ordersDbAvailable,
+        ordersDbError,
+      })
       console.warn('[OrdersPage] loading timed out', {
         authLoading,
         profilesLoading,
@@ -208,13 +221,14 @@ export default function OrdersPage() {
         ordersDbError,
       })
       setLoadTimedOut(true)
-    }, 16000)
+    }, ORDERS_PAGE_TIMEOUT_MS)
     return () => clearTimeout(id)
   }, [authLoading, profilesLoading, ordersLoading, shipmentsLoading, currentUser?.id, ordersDbAvailable, ordersDbError])
 
   const retryOrdersLoad = () => {
     loadedOrdersRef.current = false
     setLoadTimedOut(false)
+    console.info('orders_load_start', { source: 'OrdersPageRetry', authUserId: currentUser?.id || null })
     refreshOrders()
     refreshShipments()
   }
@@ -224,7 +238,7 @@ export default function OrdersPage() {
       <div>
         <PageHeader title="Orders" />
         <div className="mx-auto flex max-w-sm flex-col items-center justify-center px-6 py-20 text-center">
-          <p className="text-base font-black text-sib-text dark:text-[#f4efe7]">We couldn&apos;t load your orders.</p>
+          <p className="text-base font-black text-sib-text dark:text-[#f4efe7]">We couldn’t load your orders. Try again.</p>
           <p className="mt-2 text-sm leading-relaxed text-sib-muted dark:text-[#aeb8b4]">
             Please check your connection and try again. If this keeps happening, Sib support can help.
           </p>

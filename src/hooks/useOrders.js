@@ -21,7 +21,8 @@ import {
   openDisputeCase,
 } from '../lib/disputes'
 
-const ORDERS_FETCH_TIMEOUT_MS = 15000
+const ORDERS_FETCH_TIMEOUT_MS = 8000
+const AUTH_LOOKUP_TIMEOUT_MS = 3000
 
 function withTimeout(promise, timeoutMs, label) {
   let timeoutId
@@ -231,6 +232,7 @@ export function useOrders() {
 
   const refreshOrders = useCallback(async () => {
     if (dbAvailable === false) {
+      console.info('orders_loading_false', { reason: 'db_unavailable' })
       setOrdersLoading(false)
       return
     }
@@ -238,16 +240,24 @@ export function useOrders() {
     const startedAt = Date.now()
     let authUserId = null
     try {
-      const { data: authData } = await supabase.auth.getUser()
+      const { data: authData } = await withTimeout(supabase.auth.getUser(), AUTH_LOOKUP_TIMEOUT_MS, 'orders auth lookup')
       authUserId = authData?.user?.id || null
     } catch (authError) {
       console.warn('[useOrders] auth user lookup failed before orders fetch:', authError?.message)
     }
+    console.info('orders_load_start', { authUserId })
     console.info('[useOrders] orders fetch start', { authUserId })
 
     try {
       const { data, error } = await withTimeout(fetchAllOrders(supabase), ORDERS_FETCH_TIMEOUT_MS, 'orders fetch')
       if (error) {
+        console.error('orders_load_error', {
+          authUserId,
+          message: error.message,
+          code: error.code,
+          status: error.status,
+          statusText: error.statusText,
+        })
         console.error('[useOrders] fetchAllOrders failed:', {
           authUserId,
           message: error.message,
@@ -262,6 +272,11 @@ export function useOrders() {
       markDbOk()
       const nextOrders = data || []
       setOrders(nextOrders)
+      console.info('orders_load_success', {
+        authUserId,
+        totalOrders: nextOrders.length,
+        durationMs: Date.now() - startedAt,
+      })
       console.info('[useOrders] orders fetch end', {
         authUserId,
         profileId: authUserId,
@@ -271,14 +286,23 @@ export function useOrders() {
         durationMs: Date.now() - startedAt,
       })
     } catch (error) {
+      const isTimeout = /timed out/i.test(error.message || '')
+      console.error(isTimeout ? 'orders_load_timeout' : 'orders_load_error', {
+        authUserId,
+        message: error.message,
+      })
       console.error('[useOrders] fetchAllOrders failed:', {
         authUserId,
         message: error.message,
-        kind: /timed out/i.test(error.message) ? 'timeout' : 'exception',
+        kind: isTimeout ? 'timeout' : 'exception',
       })
       setDbAvailable(false)
-      setDbError(error.message || 'Database connection failed')
+      setDbError(isTimeout ? 'Orders request timed out' : (error.message || 'Database connection failed'))
     } finally {
+      console.info('orders_loading_false', {
+        authUserId,
+        durationMs: Date.now() - startedAt,
+      })
       setOrdersLoading(false)
     }
   }, [supabase, dbAvailable, markDbOk])
@@ -286,27 +310,33 @@ export function useOrders() {
   const refreshDisputes = useCallback(async () => {
     if (dbAvailable === false) return
     setDisputesLoading(true)
-    const { data, error } = await fetchAllDisputes(supabase)
-    if (error) {
-      console.error('[useOrders] fetchAllDisputes failed:', error.message)
-    } else {
-      markDbOk()
-      setDisputes(data || [])
+    try {
+      const { data, error } = await fetchAllDisputes(supabase)
+      if (error) {
+        console.error('[useOrders] fetchAllDisputes failed:', error.message)
+      } else {
+        markDbOk()
+        setDisputes(data || [])
+      }
+    } finally {
+      setDisputesLoading(false)
     }
-    setDisputesLoading(false)
   }, [supabase, dbAvailable, markDbOk])
 
   const refreshDisputeMessages = useCallback(async () => {
     if (dbAvailable === false) return
     setDisputeMessagesLoading(true)
-    const { data, error } = await fetchDisputeMessages(supabase)
-    if (error) {
-      console.error('[useOrders] fetchDisputeMessages failed:', error.message)
-    } else {
-      markDbOk()
-      setDisputeMessages(data || [])
+    try {
+      const { data, error } = await fetchDisputeMessages(supabase)
+      if (error) {
+        console.error('[useOrders] fetchDisputeMessages failed:', error.message)
+      } else {
+        markDbOk()
+        setDisputeMessages(data || [])
+      }
+    } finally {
+      setDisputeMessagesLoading(false)
     }
-    setDisputeMessagesLoading(false)
   }, [supabase, dbAvailable, markDbOk])
 
   const createDisputeCase = useCallback(async (payload) => {
@@ -327,40 +357,49 @@ export function useOrders() {
   const refreshPayouts = useCallback(async () => {
     if (dbAvailable === false) return
     setPayoutsLoading(true)
-    const { data, error } = await fetchAllPayouts(supabase)
-    if (error) {
-      console.error('[useOrders] fetchAllPayouts failed:', error.message)
-    } else {
-      markDbOk()
-      setPayouts(data || [])
+    try {
+      const { data, error } = await fetchAllPayouts(supabase)
+      if (error) {
+        console.error('[useOrders] fetchAllPayouts failed:', error.message)
+      } else {
+        markDbOk()
+        setPayouts(data || [])
+      }
+    } finally {
+      setPayoutsLoading(false)
     }
-    setPayoutsLoading(false)
   }, [supabase, dbAvailable, markDbOk])
 
   const refreshShipments = useCallback(async () => {
     if (dbAvailable === false) return
     setShipmentsLoading(true)
-    const { data, error } = await fetchAllShipments(supabase)
-    if (error) {
-      console.error('[useOrders] fetchAllShipments failed:', error.message)
-    } else {
-      markDbOk()
-      setShipments(data || [])
+    try {
+      const { data, error } = await fetchAllShipments(supabase)
+      if (error) {
+        console.error('[useOrders] fetchAllShipments failed:', error.message)
+      } else {
+        markDbOk()
+        setShipments(data || [])
+      }
+    } finally {
+      setShipmentsLoading(false)
     }
-    setShipmentsLoading(false)
   }, [supabase, dbAvailable, markDbOk])
 
   const refreshLogisticsDeliverySheet = useCallback(async () => {
     if (dbAvailable === false) return
     setLogisticsDeliverySheetLoading(true)
-    const { data, error } = await fetchLogisticsDeliverySheet(supabase)
-    if (error) {
-      console.error('[useOrders] fetchLogisticsDeliverySheet failed:', error.message)
-    } else {
-      markDbOk()
-      setLogisticsDeliverySheet(data || [])
+    try {
+      const { data, error } = await fetchLogisticsDeliverySheet(supabase)
+      if (error) {
+        console.error('[useOrders] fetchLogisticsDeliverySheet failed:', error.message)
+      } else {
+        markDbOk()
+        setLogisticsDeliverySheet(data || [])
+      }
+    } finally {
+      setLogisticsDeliverySheetLoading(false)
     }
-    setLogisticsDeliverySheetLoading(false)
   }, [supabase, dbAvailable, markDbOk])
 
   return {
