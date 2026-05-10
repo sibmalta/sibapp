@@ -223,6 +223,21 @@ export async function getStripeConnectStatus(accessToken) {
   )
 }
 
+export async function createStripeConnectAccountSession(accessToken, component = 'account_onboarding') {
+  if (!isValidSupabaseAccessToken(accessToken)) {
+    throw new Error('Not authenticated. Please log in to set up payouts.')
+  }
+
+  return callEdgeFunction(
+    'stripe-connect',
+    {
+      mode: 'embedded_account_session',
+      component,
+    },
+    accessToken
+  )
+}
+
 export async function startStripeConnect(accessToken, returnUrl) {
   if (!isValidSupabaseAccessToken(accessToken)) {
     throw new Error('Not authenticated. Please log in to set up payouts.')

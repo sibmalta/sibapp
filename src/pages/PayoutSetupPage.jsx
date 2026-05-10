@@ -1,10 +1,14 @@
 import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Banknote, CheckCircle, Loader2, ShieldCheck, Sparkles } from 'lucide-react'
+import { loadConnectAndInitialize } from '@stripe/connect-js'
+import { ConnectAccountOnboarding, ConnectComponentsProvider } from '@stripe/react-connect-js'
 import { useApp } from '../context/AppContext'
 import { useAuth } from '../lib/auth-context'
-import { startStripeConnect } from '../lib/stripe'
+import { createStripeConnectAccountSession, startStripeConnect } from '../lib/stripe'
 import { getSellerPendingPayoutSummary } from '../lib/pendingPayouts'
+
+const STRIPE_PK = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
 
 function formatMoney(value = 0) {
   return `€${Number(value || 0).toFixed(2)}`
@@ -37,6 +41,9 @@ export default function PayoutSetupPage() {
   const { session } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [embeddedStarted, setEmbeddedStarted] = useState(false)
+  const [connectInstance, setConnectInstance] = useState(null)
+  const [embeddedFallbackReady, setEmbeddedFallbackReady] = useState(false)
 
   const pendingSummary = useMemo(() => {
     if (!currentUser?.id || !getUserSales) return null
@@ -46,6 +53,54 @@ export default function PayoutSetupPage() {
   const waitingAmount = pendingSummary?.totalAmount || 0
 
   const handleContinue = async () => {
+    if (!session?.access_token) {
+      navigate('/auth', { state: { from: '/payout-setup' } })
+      return
+    }
+
+    if (!STRIPE_PK) {
+      setError('Embedded payout setup is not configured yet. You can still continue with secure Stripe setup.')
+      setEmbeddedFallbackReady(true)
+      return
+    }
+
+    setLoading(true)
+    setError('')
+    try {
+      console.info('starting_stripe_onboarding')
+      const instance = loadConnectAndInitialize({
+        publishableKey: STRIPE_PK,
+        fetchClientSecret: async () => {
+          const sessionResult = await createStripeConnectAccountSession(session.access_token, 'account_onboarding')
+          if (!sessionResult?.clientSecret) {
+            throw new Error('No embedded setup session returned.')
+          }
+          return sessionResult.clientSecret
+        },
+        appearance: {
+          overlays: 'drawer',
+          variables: {
+            colorPrimary: '#e8751a',
+            colorText: '#1f2926',
+            borderRadius: '14px',
+            fontFamily: 'Inter, system-ui, sans-serif',
+          },
+        },
+      })
+      setConnectInstance(instance)
+      setEmbeddedStarted(true)
+    } catch (err) {
+      console.error('[payout-setup] failed to start embedded Stripe flow:', err)
+      const message = friendlyPayoutSetupError(err?.message)
+      setError(message)
+      setEmbeddedFallbackReady(true)
+      showToast?.('Could not open embedded setup. Hosted secure setup is still available.', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleHostedFallback = async () => {
     if (!session?.access_token) {
       navigate('/auth', { state: { from: '/payout-setup' } })
       return
@@ -61,7 +116,7 @@ export default function PayoutSetupPage() {
         onRedirect: (url) => window.location.assign(url),
       })
     } catch (err) {
-      console.error('[payout-setup] failed to start Stripe flow:', err)
+      console.error('[payout-setup] failed to start hosted Stripe flow:', err)
       const message = friendlyPayoutSetupError(err?.message)
       setError(message)
       showToast?.('Could not open secure setup. Please try again.', 'error')
@@ -93,6 +148,29 @@ export default function PayoutSetupPage() {
       </header>
 
       <main className="mx-auto max-w-xl px-4 pt-5">
+        {embeddedStarted && connectInstance ? (
+          <section className="rounded-3xl bg-white p-3 shadow-sm ring-1 ring-sib-stone/70 dark:bg-[#202b28] dark:ring-[rgba(242,238,231,0.10)]">
+            <div className="px-2 pb-3 pt-2">
+              <h1 className="text-xl font-black tracking-tight text-sib-text dark:text-[#f4efe7]">Connect your bank account</h1>
+              <p className="mt-1 text-xs leading-relaxed text-sib-muted dark:text-[#aeb8b4]">
+                Complete the secure Stripe step here in Sib. Stripe may ask for verification details required for payouts.
+              </p>
+            </div>
+            <ConnectComponentsProvider connectInstance={connectInstance}>
+              <ConnectAccountOnboarding
+                onExit={async () => {
+                  await refreshCurrentProfile?.()
+                  navigate('/seller/payout-settings')
+                }}
+                onLoadError={({ error: loadError }) => {
+                  console.error('[payout-setup] embedded onboarding load error:', loadError)
+                  setError('Embedded setup could not load. Use the secure hosted setup instead.')
+                  setEmbeddedFallbackReady(true)
+                }}
+              />
+            </ConnectComponentsProvider>
+          </section>
+        ) : (
         <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-sib-stone/70 dark:bg-[#202b28] dark:ring-[rgba(242,238,231,0.10)]">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sib-primary/10 text-sib-primary">
             <Banknote size={23} />
@@ -157,6 +235,19 @@ export default function PayoutSetupPage() {
             </button>
           </div>
         </section>
+        )}
+
+        {embeddedFallbackReady && (
+          <button
+            type="button"
+            onClick={handleHostedFallback}
+            disabled={loading}
+            className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-sib-stone bg-white px-5 py-2.5 text-sm font-bold text-sib-text shadow-sm dark:border-[rgba(242,238,231,0.10)] dark:bg-[#202b28] dark:text-[#f4efe7]"
+          >
+            {loading ? <Loader2 size={15} className="animate-spin" /> : <ShieldCheck size={15} />}
+            Open secure Stripe setup
+          </button>
+        )}
 
         <p className="mt-4 px-2 text-center text-[11px] leading-relaxed text-sib-muted dark:text-[#aeb8b4]">
           Stripe handles the secure bank connection. Sib never stores your banking details.

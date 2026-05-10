@@ -9,7 +9,8 @@ import Stripe from 'npm:stripe@14.14.0'
 import { createClient } from 'npm:@supabase/supabase-js@2.45.0'
 
 type StripeConnectBody = {
-  mode?: 'start' | 'status' | 'reset_invalid_account'
+  mode?: 'start' | 'status' | 'embedded_account_session' | 'reset_invalid_account'
+  component?: 'account_onboarding' | 'account_management'
   returnUrl?: string
   refreshUrl?: string
   confirmation?: string
@@ -417,6 +418,42 @@ Deno.serve(async (req) => {
         chargesEnabled,
         payoutsEnabled,
         onboardingRequired: !fullyOnboarded,
+        accountReset: recreatedAccount,
+      })
+    }
+
+    if (mode === 'embedded_account_session') {
+      const requestedComponent = body.component || (fullyOnboarded ? 'account_management' : 'account_onboarding')
+      const components = requestedComponent === 'account_management'
+        ? {
+            account_management: {
+              enabled: true,
+              features: {
+                external_account_collection: true,
+              },
+            },
+          }
+        : {
+            account_onboarding: {
+              enabled: true,
+              features: {
+                external_account_collection: true,
+              },
+            },
+          }
+
+      const accountSession = await (stripe as any).accountSessions.create({
+        account: accountId,
+        components,
+      })
+
+      return jsonResponse({
+        clientSecret: accountSession.client_secret,
+        accountId,
+        component: requestedComponent,
+        detailsSubmitted,
+        chargesEnabled,
+        payoutsEnabled,
         accountReset: recreatedAccount,
       })
     }

@@ -20,7 +20,17 @@ vi.mock('../lib/auth-context', () => ({
 }))
 
 vi.mock('../lib/stripe', () => ({
+  createStripeConnectAccountSession: vi.fn(),
   startStripeConnect: vi.fn(),
+}))
+
+vi.mock('@stripe/connect-js', () => ({
+  loadConnectAndInitialize: vi.fn(() => ({ create: vi.fn(), update: vi.fn(), logout: vi.fn() })),
+}))
+
+vi.mock('@stripe/react-connect-js', () => ({
+  ConnectAccountOnboarding: () => <div data-testid="embedded-onboarding" />,
+  ConnectComponentsProvider: ({ children }) => <div>{children}</div>,
 }))
 
 vi.mock('react-router-dom', async () => {
@@ -109,6 +119,8 @@ describe('PayoutSetupPage', () => {
     const sell = readFileSync(resolve(root, 'src/pages/SellPage.jsx'), 'utf8')
     const widget = readFileSync(resolve(root, 'src/components/PendingPayoutsWidget.jsx'), 'utf8')
     const payoutSettings = readFileSync(resolve(root, 'src/pages/PayoutSettingsPage.jsx'), 'utf8')
+    const payoutSetup = readFileSync(resolve(root, 'src/pages/PayoutSetupPage.jsx'), 'utf8')
+    const stripeClient = readFileSync(resolve(root, 'src/lib/stripe.js'), 'utf8')
 
     expect(app).toContain('path="payout-setup"')
     expect(app).toContain('PayoutSetupPage')
@@ -119,6 +131,10 @@ describe('PayoutSetupPage', () => {
     expect(payoutSettings).not.toContain('startStripeConnect')
     expect(payoutSettings).not.toContain('window.location.assign')
     expect(payoutSettings).not.toContain('window.open')
+    expect(payoutSetup).toContain('loadConnectAndInitialize')
+    expect(payoutSetup).toContain('ConnectAccountOnboarding')
+    expect(payoutSetup).toContain('createStripeConnectAccountSession')
+    expect(stripeClient).toContain("mode: 'embedded_account_session'")
     expect(dashboard).toContain("console.info('routing_to_payout_setup')")
     expect(sell).toContain("console.info('routing_to_payout_setup')")
     expect(widget).toContain("console.info('routing_to_payout_setup')")
