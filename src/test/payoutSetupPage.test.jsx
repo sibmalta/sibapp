@@ -5,7 +5,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import PayoutSetupPage from '../pages/PayoutSetupPage'
-import { createStripeConnectAccountSession } from '../lib/stripe'
+import { createStripeConnectAccountSession, startStripeConnect } from '../lib/stripe'
 import { loadConnectAndInitialize } from '@stripe/connect-js'
 
 let mockApp
@@ -22,6 +22,7 @@ vi.mock('../lib/auth-context', () => ({
 
 vi.mock('../lib/stripe', () => ({
   createStripeConnectAccountSession: vi.fn(),
+  startStripeConnect: vi.fn(),
 }))
 
 vi.mock('@stripe/connect-js', () => ({
@@ -75,7 +76,9 @@ describe('PayoutSetupPage', () => {
 
     expect(screen.getByText('Receive your earnings securely')).toBeInTheDocument()
     expect(screen.getByText('Sib uses Stripe to securely send money from your sales directly to your bank account.')).toBeInTheDocument()
-    expect(screen.getByText('Connect your bank account to receive earnings.')).toBeInTheDocument()
+    expect(screen.getByText("To withdraw your earnings, complete Stripe's secure payout setup.")).toBeInTheDocument()
+    expect(screen.getByText("This is only needed when you're ready to receive money.")).toBeInTheDocument()
+    expect(screen.getByText('Stripe may open a secure window to verify your details.')).toBeInTheDocument()
     expect(screen.queryByText(/Individual \/ Sole proprietor/)).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Continue securely/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Maybe later/i })).toBeInTheDocument()
@@ -137,7 +140,7 @@ describe('PayoutSetupPage', () => {
     await expect(fetchClientSecret()).rejects.toThrow('No embedded setup session returned.')
 
     expect(await screen.findByText(/Debug reason: account_session_missing_client_secret/)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Open secure Stripe setup/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Open secure Stripe setup/i })).toBeInTheDocument()
   })
 
   it('shows embedded failure state without automatically opening hosted Stripe', async () => {
@@ -152,11 +155,25 @@ describe('PayoutSetupPage', () => {
 
     expect(await screen.findByText('Secure embedded setup could not load.')).toBeInTheDocument()
     expect(screen.getByText(/Debug reason: stripe_connect_js_load_failure/)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Open secure Stripe setup/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Open secure Stripe setup/i })).toBeInTheDocument()
     expect(openSpy).not.toHaveBeenCalled()
+    expect(startStripeConnect).not.toHaveBeenCalled()
     expect(window.location.href).toBe(originalHref)
     expect(window.location.href).not.toContain('connect.stripe.com')
     openSpy.mockRestore()
+  })
+
+  it('opens hosted Stripe only after the user clicks the fallback button', async () => {
+    loadConnectAndInitialize.mockImplementation(() => {
+      throw new Error('connect-js failed')
+    })
+    startStripeConnect.mockResolvedValue({})
+    renderPage()
+
+    fireEvent.click(screen.getByRole('button', { name: /Continue securely/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /Open secure Stripe setup/i }))
+
+    expect(startStripeConnect).toHaveBeenCalledWith('header.payload.signature', expect.stringContaining('/seller/payout-settings'))
   })
 
   it('labels missing embedded configuration clearly', async () => {
@@ -167,7 +184,7 @@ describe('PayoutSetupPage', () => {
 
     expect(await screen.findByText('Secure embedded setup could not load.')).toBeInTheDocument()
     expect(screen.getByText(/Debug reason: missing_publishable_key/)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Open secure Stripe setup/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Open secure Stripe setup/i })).toBeInTheDocument()
     expect(loadConnectAndInitialize).not.toHaveBeenCalled()
   })
 
@@ -208,11 +225,14 @@ describe('PayoutSetupPage', () => {
     expect(payoutSetup).toContain('embedded_onboarding_render_start')
     expect(payoutSetup).toContain('embedded_onboarding_render_success')
     expect(payoutSetup).toContain('embedded_onboarding_render_failed')
-    expect(payoutSetup).not.toContain('window.location.assign')
+    expect(payoutSetup).toContain('window.location.assign')
     expect(payoutSetup).not.toContain('window.open')
-    expect(payoutSetup).not.toContain('startStripeConnect')
+    expect(payoutSetup).toContain('startStripeConnect')
     expect(payoutSetup).not.toContain('connect.stripe.com')
-    expect(payoutSetup).not.toContain('Open secure Stripe setup')
+    expect(payoutSetup).toContain('Open secure Stripe setup')
+    expect(payoutSetup).toContain("To withdraw your earnings, complete Stripe's secure payout setup.")
+    expect(payoutSetup).toContain("This is only needed when you're ready to receive money.")
+    expect(payoutSetup).toContain('Stripe may open a secure window to verify your details.')
     expect(payoutSetup).toContain('Secure embedded setup could not load.')
     expect(payoutSetup).toContain('missing_publishable_key')
     expect(payoutSetup).toContain('account_session_creation_failed')

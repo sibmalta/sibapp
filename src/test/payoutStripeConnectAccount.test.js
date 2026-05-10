@@ -58,6 +58,6 @@ describe('Stripe Connect seller account setup', () => {
     expect(payoutSetup).not.toContain('accounts.create')
     expect(payoutSetup).not.toContain('business_type')
     expect(payoutSetup).not.toContain('Individual / Sole proprietor')
-    expect(payoutSetup).toContain('Connect your bank account to receive earnings.')
+    expect(payoutSetup).toContain("To withdraw your earnings, complete Stripe's secure payout setup.")
   })
 })

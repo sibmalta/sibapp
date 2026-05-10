@@ -63,6 +63,12 @@ function getHeaders(accessToken) {
   }
 }
 
+function getPayoutSettingsUrl() {
+  const base = import.meta.env.BASE_URL || '/'
+  const normalizedBase = base.endsWith('/') ? base : `${base}/`
+  return new URL('seller/payout-settings', window.location.origin + normalizedBase).toString()
+}
+
 async function callEdgeFunction(fnName, body, accessToken) {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     throw new Error('Supabase frontend environment variables are missing.')
@@ -234,6 +240,22 @@ export async function createStripeConnectAccountSession(accessToken, component =
   return {
     clientSecret: data?.clientSecret || data?.client_secret || null,
   }
+}
+
+export async function startStripeConnect(accessToken, returnUrl) {
+  if (!isValidSupabaseAccessToken(accessToken)) {
+    throw new Error('Not authenticated. Please log in to set up payouts.')
+  }
+
+  return callEdgeFunction(
+    'stripe-connect',
+    {
+      mode: 'start',
+      returnUrl: returnUrl || getPayoutSettingsUrl(),
+      refreshUrl: returnUrl || getPayoutSettingsUrl(),
+    },
+    accessToken
+  )
 }
 
 export async function resetInvalidStripeConnectAccount(accessToken) {

@@ -5,7 +5,7 @@ import { loadConnectAndInitialize } from '@stripe/connect-js'
 import { ConnectAccountOnboarding, ConnectComponentsProvider } from '@stripe/react-connect-js'
 import { useApp } from '../context/AppContext'
 import { useAuth } from '../lib/auth-context'
-import { createStripeConnectAccountSession } from '../lib/stripe'
+import { createStripeConnectAccountSession, startStripeConnect } from '../lib/stripe'
 import { getSellerPendingPayoutSummary } from '../lib/pendingPayouts'
 
 function formatMoney(value = 0) {
@@ -22,6 +22,10 @@ function friendlyPayoutSetupError(raw) {
 
 function getStripePublishableKey() {
   return import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
+}
+
+function getReturnUrl() {
+  return `${window.location.origin}/seller/payout-settings`
 }
 
 function getEmbeddedFailureReason(error, fallbackReason = 'account_session_creation_failed') {
@@ -52,6 +56,7 @@ export default function PayoutSetupPage() {
   const [error, setError] = useState('')
   const [embeddedStarted, setEmbeddedStarted] = useState(false)
   const [connectInstance, setConnectInstance] = useState(null)
+  const [hostedFallbackReady, setHostedFallbackReady] = useState(false)
   const [embeddedFailure, setEmbeddedFailure] = useState(null)
 
   const pendingSummary = useMemo(() => {
@@ -79,12 +84,14 @@ export default function PayoutSetupPage() {
       console.error('embedded_onboarding_render_failed', failure)
       setEmbeddedFailure(failure)
       setError(formatEmbeddedFailure(failure.reason))
+      setHostedFallbackReady(true)
       return
     }
 
     setLoading(true)
     setError('')
     setEmbeddedFailure(null)
+    setHostedFallbackReady(false)
     try {
       console.info('starting_stripe_onboarding')
       console.info('embedded_onboarding_render_start')
@@ -105,6 +112,7 @@ export default function PayoutSetupPage() {
             console.error('embedded_onboarding_render_failed', failure)
             setEmbeddedFailure(failure)
             setError(formatEmbeddedFailure(reason, failure.detail))
+            setHostedFallbackReady(true)
             throw err
           }
 
@@ -121,6 +129,7 @@ export default function PayoutSetupPage() {
             console.error('embedded_onboarding_render_failed', failure)
             setEmbeddedFailure(failure)
             setError(formatEmbeddedFailure(failure.reason))
+            setHostedFallbackReady(true)
             throw new Error('No embedded setup session returned.')
           }
           return sessionResult.clientSecret
@@ -148,7 +157,32 @@ export default function PayoutSetupPage() {
       console.error('embedded_onboarding_render_failed', failure)
       setEmbeddedFailure(failure)
       setError(formatEmbeddedFailure(failure.reason, failure.detail))
-      showToast?.('Could not open embedded setup. Please try again.', 'error')
+      setHostedFallbackReady(true)
+      showToast?.('Could not open embedded setup. Secure Stripe setup is still available.', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleHostedFallback = async () => {
+    if (!session?.access_token) {
+      navigate('/auth', { state: { from: '/payout-setup' } })
+      return
+    }
+
+    setLoading(true)
+    setError('')
+    try {
+      console.info('starting_stripe_onboarding')
+      const result = await startStripeConnect(session.access_token, getReturnUrl())
+      await refreshCurrentProfile?.()
+      if (!result?.url) throw new Error('No secure setup URL returned.')
+      window.location.assign(result.url)
+    } catch (err) {
+      console.error('[payout-setup] failed to start hosted Stripe flow:', err)
+      const message = friendlyPayoutSetupError(err?.message)
+      setError(message)
+      showToast?.('Could not open secure setup. Please try again.', 'error')
     } finally {
       setLoading(false)
     }
@@ -180,9 +214,9 @@ export default function PayoutSetupPage() {
         {embeddedStarted && connectInstance ? (
           <section className="rounded-3xl bg-white p-3 shadow-sm ring-1 ring-sib-stone/70 dark:bg-[#202b28] dark:ring-[rgba(242,238,231,0.10)]">
             <div className="px-2 pb-3 pt-2">
-              <h1 className="text-xl font-black tracking-tight text-sib-text dark:text-[#f4efe7]">Connect your bank account</h1>
+              <h1 className="text-xl font-black tracking-tight text-sib-text dark:text-[#f4efe7]">Complete payout setup</h1>
               <p className="mt-1 text-xs leading-relaxed text-sib-muted dark:text-[#aeb8b4]">
-                Complete the secure Stripe step here in Sib. Stripe may ask for verification details required for payouts.
+                To withdraw your earnings, complete Stripe's secure payout setup. Stripe may open a secure window to verify your details.
               </p>
             </div>
             <div id="sib-embedded-onboarding">
@@ -227,9 +261,12 @@ export default function PayoutSetupPage() {
           </p>
 
           <div className="mt-5 rounded-2xl border border-orange-100 bg-orange-50/70 p-4 dark:border-sib-primary/20 dark:bg-[#26322f]">
-            <p className="text-sm font-black text-sib-text dark:text-[#f4efe7]">Connect your bank account to receive earnings.</p>
+            <p className="text-sm font-black text-sib-text dark:text-[#f4efe7]">To withdraw your earnings, complete Stripe's secure payout setup.</p>
             <p className="mt-3 text-xs font-semibold text-sib-muted dark:text-[#aeb8b4]">
-              Setup usually takes around 2 minutes.
+              This is only needed when you're ready to receive money.
+            </p>
+            <p className="mt-2 text-xs font-semibold text-sib-muted dark:text-[#aeb8b4]">
+              Stripe may open a secure window to verify your details.
             </p>
           </div>
 
@@ -287,6 +324,18 @@ export default function PayoutSetupPage() {
             <p className="mt-1">{error}</p>
             <p className="mt-1 text-[11px] opacity-80">Debug reason: {embeddedFailure.reason}</p>
           </div>
+        )}
+
+        {hostedFallbackReady && (
+          <button
+            type="button"
+            onClick={handleHostedFallback}
+            disabled={loading}
+            className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-sib-stone bg-white px-5 py-2.5 text-sm font-bold text-sib-text shadow-sm dark:border-[rgba(242,238,231,0.10)] dark:bg-[#202b28] dark:text-[#f4efe7]"
+          >
+            {loading ? <Loader2 size={15} className="animate-spin" /> : <ShieldCheck size={15} />}
+            Open secure Stripe setup
+          </button>
         )}
 
         <p className="mt-4 px-2 text-center text-[11px] leading-relaxed text-sib-muted dark:text-[#aeb8b4]">
