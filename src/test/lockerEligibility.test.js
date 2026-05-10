@@ -15,6 +15,18 @@ describe('isLockerEligible', () => {
     expect(isLockerEligible({ category: 'books', lockerEligible: undefined })).toBe(true)
   })
 
+  it('defaults normal Kids & Baby listings to locker eligible', () => {
+    expect(isLockerEligible({ category: 'kids', subcategory: 'kids_clothing', lockerEligible: null })).toBe(true)
+    expect(isLockerEligible({ category: 'kids-baby', subcategory: 'baby_clothing', lockerEligible: undefined })).toBe(true)
+    expect(isLockerEligible({ category: 'Kids', subcategory: 'other_kids', lockerEligible: null })).toBe(true)
+  })
+
+  it('keeps oversized Kids & Baby listings ineligible', () => {
+    expect(isLockerEligible({ category: 'kids', subcategory: 'pushchairs', lockerEligible: null })).toBe(false)
+    expect(isLockerEligible({ category: 'kids-baby', subcategory: 'nursery', lockerEligible: null })).toBe(false)
+    expect(isLockerEligible({ category: 'kids', subcategory: 'kids_clothing', deliverySize: 'bulky', lockerEligible: null })).toBe(false)
+  })
+
   it('treats pre-fix default false fashion coats as unknown and locker eligible', () => {
     expect(isLockerEligible({
       category: 'fashion',

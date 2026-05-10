@@ -32,6 +32,21 @@ describe('ListingDeliveryCard', () => {
     expect(screen.queryByText('Sib delivery is not available for this item yet')).not.toBeInTheDocument()
   })
 
+  it('shows delivery availability for normal Kids & Baby listings', () => {
+    render(<ListingDeliveryCard listing={{ category: 'kids-baby', subcategory: 'baby_clothing', lockerEligible: null }} />)
+
+    expect(screen.getByText('Delivery fee €3.50')).toBeInTheDocument()
+    expect(screen.getByText('Seller drops off at MYConvenience. Sib arranges delivery to your door.')).toBeInTheDocument()
+    expect(screen.queryByText('Sib delivery is not available for this item yet')).not.toBeInTheDocument()
+  })
+
+  it('keeps oversized Kids & Baby listings unavailable', () => {
+    render(<ListingDeliveryCard listing={{ category: 'kids', subcategory: 'pushchairs', lockerEligible: null }} />)
+
+    expect(screen.getByText('Sib delivery is not available for this item yet')).toBeInTheDocument()
+    expect(screen.queryByText('Delivery fee €3.50')).not.toBeInTheDocument()
+  })
+
   it('shows locker price for pre-fix default false Fashion > Coats & Jackets listings', () => {
     render(
       <ListingDeliveryCard

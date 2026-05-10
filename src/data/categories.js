@@ -50,6 +50,25 @@ const CATEGORY_TREE = [
     filters: ['size', 'shoe_size', 'brand', 'condition', 'colour', 'price'],
   },
   {
+    id: 'kids',
+    label: 'Kids & Baby',
+    slug: 'kids-baby',
+    icon: 'baby',
+    deliveryEligible: true,
+    subcategories: [
+      { id: 'baby_clothing', label: 'Baby Clothing (0-2)' },
+      { id: 'kids_clothing', label: 'Kids Clothing (3-14)' },
+      { id: 'pushchairs', label: 'Pushchairs & Prams' },
+      { id: 'car_seats', label: 'Car Seats' },
+      { id: 'nursery', label: 'Nursery & Cots' },
+      { id: 'feeding', label: 'Feeding & Highchairs' },
+      { id: 'maternity', label: 'Maternity' },
+      { id: 'other_kids', label: 'Other' },
+    ],
+    attributes: ['brand', 'kids_size', 'condition', 'age_group', 'kids_gender'],
+    filters: ['condition', 'price', 'kids_size', 'age_group', 'kids_gender'],
+  },
+  {
     id: 'electronics',
     label: 'Electronics',
     slug: 'electronics',
@@ -174,25 +193,6 @@ const CATEGORY_TREE = [
     attributes: ['brand', 'condition', 'age_group'],
     filters: ['condition', 'price', 'age_group'],
   },
-  {
-    id: 'kids',
-    label: 'Kids & Baby',
-    slug: 'kids-baby',
-    icon: 'baby',
-    deliveryEligible: true,
-    subcategories: [
-      { id: 'baby_clothing', label: 'Baby Clothing (0-2)' },
-      { id: 'kids_clothing', label: 'Kids Clothing (3-14)' },
-      { id: 'pushchairs', label: 'Pushchairs & Prams' },
-      { id: 'car_seats', label: 'Car Seats' },
-      { id: 'nursery', label: 'Nursery & Cots' },
-      { id: 'feeding', label: 'Feeding & Highchairs' },
-      { id: 'maternity', label: 'Maternity' },
-      { id: 'other_kids', label: 'Other' },
-    ],
-    attributes: ['brand', 'kids_size', 'condition', 'age_group', 'kids_gender'],
-    filters: ['condition', 'price', 'kids_size', 'age_group', 'kids_gender'],
-  },
 ]
 
 /* ── Derived helpers ─────────────────────────────────────────── */
@@ -237,6 +237,10 @@ const SUBCATEGORY_TO_CATEGORY = Object.fromEntries(
  */
 const CATEGORY_MAP = Object.fromEntries(
   CATEGORY_TREE.map(c => [c.id, c]),
+)
+
+const CATEGORY_SLUG_MAP = Object.fromEntries(
+  CATEGORY_TREE.map(c => [c.slug.toLowerCase(), c.id]),
 )
 
 /**
@@ -363,6 +367,7 @@ function resolveCategory(rawCategory) {
   if (!rawCategory) return ''
   const lower = rawCategory.toLowerCase()
   if (CATEGORY_MAP[lower]) return lower
+  if (CATEGORY_SLUG_MAP[lower]) return CATEGORY_SLUG_MAP[lower]
   return LEGACY_CATEGORY_MAP[lower] || lower
 }
 

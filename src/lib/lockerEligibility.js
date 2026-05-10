@@ -1,8 +1,10 @@
-import { resolveCategory } from '../data/categories'
+import { isDeliveryEligible, resolveCategory } from '../data/categories'
+import { isForceBulky } from './deliveryPricing'
 
 const ALWAYS_LOCKER_ELIGIBLE_CATEGORIES = new Set([
   'fashion',
   'books',
+  'kids',
 ])
 
 const LOCKER_ELIGIBLE_SUBCATEGORIES = {
@@ -22,7 +24,11 @@ function isBeforeLockerEligibilityFix(value) {
 export function getDefaultLockerEligibility(listing) {
   const category = resolveCategory(listing?.category || '')
   const subcategory = listing?.subcategory || listing?.type || listing?.categoryType || ''
+  const deliverySize = listing?.deliverySize || listing?.delivery_size || ''
 
+  if (!isDeliveryEligible(category)) return false
+  if (isForceBulky(category, subcategory)) return false
+  if (deliverySize && deliverySize !== 'small') return false
   if (ALWAYS_LOCKER_ELIGIBLE_CATEGORIES.has(category)) return true
   if (LOCKER_ELIGIBLE_SUBCATEGORIES[category]?.has(subcategory)) return true
 

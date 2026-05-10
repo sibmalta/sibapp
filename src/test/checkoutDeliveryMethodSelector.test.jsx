@@ -2,6 +2,7 @@ import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import DeliveryMethodSelector from '../components/DeliveryMethodSelector'
+import { isLockerEligible } from '../lib/lockerEligibility'
 
 describe('DeliveryMethodSelector', () => {
   it('explains MYConvenience delivery without asking buyers to choose a store', () => {
@@ -25,5 +26,45 @@ describe('DeliveryMethodSelector', () => {
     expect(container).not.toHaveTextContent('motorcycle courier')
     expect(container).not.toHaveTextContent('courier collection')
     expect(container).not.toHaveTextContent('Delivered via MYConvenience')
+  })
+
+  it('shows Sib delivery for normal Kids & Baby listings', () => {
+    const onSelect = vi.fn()
+    const lockerEligible = isLockerEligible({
+      category: 'kids-baby',
+      subcategory: 'baby_clothing',
+      lockerEligible: null,
+    })
+
+    render(
+      <DeliveryMethodSelector
+        selected="locker_collection"
+        onSelect={onSelect}
+        lockerEligible={lockerEligible}
+      />
+    )
+
+    expect(screen.getAllByText('Delivery to your door').length).toBeGreaterThan(0)
+    expect(screen.queryByText('Sib delivery is not available for this item yet.')).not.toBeInTheDocument()
+  })
+
+  it('keeps unsupported categories blocked in checkout delivery selection', () => {
+    const onSelect = vi.fn()
+    const lockerEligible = isLockerEligible({
+      category: 'furniture',
+      subcategory: 'tables',
+      lockerEligible: null,
+    })
+
+    render(
+      <DeliveryMethodSelector
+        selected="locker_collection"
+        onSelect={onSelect}
+        lockerEligible={lockerEligible}
+      />
+    )
+
+    expect(screen.getByText('Sib delivery is not available for this item yet.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /delivery to your door/i })).not.toBeInTheDocument()
   })
 })
