@@ -14,7 +14,16 @@ function getReturnUrl() {
   return `${window.location.origin}/seller/payout-settings`
 }
 
+function friendlyPayoutSetupError(raw) {
+  if (!raw || typeof raw !== 'string') return 'We could not open secure setup. Please try again.'
+  if (/test mode/i.test(raw) || /testmode/i.test(raw) || /stripe_account_mode_mismatch/i.test(raw)) {
+    return 'This payout account was created in Stripe test mode. Please restart payout setup with a live account.'
+  }
+  return raw
+}
+
 export async function startPayoutSetup({ accessToken, returnUrl, refreshCurrentProfile, onRedirect }) {
+  console.info('starting_stripe_onboarding')
   const result = await startStripeConnect(accessToken, returnUrl)
   await refreshCurrentProfile?.()
   if (!result?.url) throw new Error('No secure setup URL returned.')
@@ -53,7 +62,7 @@ export default function PayoutSetupPage() {
       })
     } catch (err) {
       console.error('[payout-setup] failed to start Stripe flow:', err)
-      const message = err?.message || 'We could not open secure setup. Please try again.'
+      const message = friendlyPayoutSetupError(err?.message)
       setError(message)
       showToast?.('Could not open secure setup. Please try again.', 'error')
     } finally {

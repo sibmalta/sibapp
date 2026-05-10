@@ -1321,7 +1321,10 @@ useEffect(() => {
                   <p className="text-sm font-semibold text-sib-text">Connect your bank account to receive money from your sales.</p>
                   <button
                     type="button"
-                    onClick={() => navigate('/payout-setup')}
+                    onClick={() => {
+                      console.info('routing_to_payout_setup')
+                      navigate('/payout-setup')
+                    }}
                     className="mt-2 rounded-full bg-sib-primary px-4 py-2 text-xs font-bold text-white"
                   >
                     Connect bank account

@@ -1,39 +1,20 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, AlertCircle, CheckCircle, Loader2 } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Loader2 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { useAuth } from '../lib/auth-context'
-import { getStripeConnectStatus, startStripeConnect } from '../lib/stripe'
-
-function friendlyPayoutError(raw) {
-  if (!raw || typeof raw !== 'string') return null
-  if (/not configured/i.test(raw) || /add it in/i.test(raw) || /STRIPE_SECRET_KEY/i.test(raw)) {
-    return '__CONFIG_MISSING__'
-  }
-  if (/Stripe Connect is not enabled/i.test(raw) || /Only Stripe Connect platforms/i.test(raw)) {
-    return '__CONFIG_MISSING__'
-  }
-  if (/test mode/i.test(raw) || /testmode/i.test(raw) || /stripe_account_mode_mismatch/i.test(raw)) {
-    return 'This payout account was created in Stripe test mode. Please restart payout setup with a live account.'
-  }
-  if (/failed to fetch/i.test(raw) || /network/i.test(raw) || /timeout/i.test(raw) || /500|502|503|504/.test(raw) || /edge function/i.test(raw)) {
-    return "We couldn't connect to our payment provider right now. Please try again in a moment."
-  }
-  return raw
-}
+import { getStripeConnectStatus } from '../lib/stripe'
 
 export default function PayoutSettingsPage() {
   const navigate = useNavigate()
-  const { currentUser, showToast, refreshCurrentProfile } = useApp()
+  const { currentUser, refreshCurrentProfile } = useApp()
   const { session } = useAuth()
 
-  const [loading, setLoading] = useState(false)
   const [checking, setChecking] = useState(true)
   const [stripeAccountId, setStripeAccountId] = useState(currentUser?.stripeAccountId || null)
   const [detailsSubmitted, setDetailsSubmitted] = useState(!!currentUser?.detailsSubmitted)
   const [chargesEnabled, setChargesEnabled] = useState(!!currentUser?.chargesEnabled)
   const [payoutsEnabled, setPayoutsEnabled] = useState(!!currentUser?.payoutsEnabled)
-  const [error, setError] = useState('')
 
   useEffect(() => {
     if (!currentUser) navigate('/auth')
@@ -81,66 +62,15 @@ export default function PayoutSettingsPage() {
     return () => { cancelled = true }
   }, [session?.access_token, refreshCurrentProfile])
 
-  const handleStartOnboarding = async () => {
-    setLoading(true)
-    setError('')
-    try {
-      const returnUrl = window.location.href
-      const result = await startStripeConnect(session.access_token, returnUrl)
-
-      if (!result.url) {
-        throw new Error('No secure setup URL returned.')
-      }
-
-      if (result.accountId) {
-        setStripeAccountId(result.accountId)
-      }
-
-      setDetailsSubmitted(!!result.detailsSubmitted)
-      setChargesEnabled(!!result.chargesEnabled)
-      setPayoutsEnabled(!!result.payoutsEnabled)
-      await refreshCurrentProfile?.()
-
-      if (result.alreadyOnboarded) {
-        window.open(result.url, '_blank')
-      } else {
-        window.location.assign(result.url)
-      }
-    } catch (err) {
-      console.error('Stripe Connect setup error:', err)
-      const friendly = friendlyPayoutError(err.message)
-      if (friendly === '__CONFIG_MISSING__') {
-        setError('__CONFIG_MISSING__')
-      } else {
-        setError(friendly || 'Failed to start secure setup. Please try again.')
-        showToast(friendly || 'Failed to start secure setup', 'error')
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleOpenDashboard = async () => {
-    setLoading(true)
-    try {
-      const result = await startStripeConnect(session.access_token, window.location.href)
-      if (result.url) {
-        window.open(result.url, '_blank')
-      } else {
-        throw new Error('No dashboard URL returned.')
-      }
-    } catch (err) {
-      console.error('Failed to open Stripe dashboard:', err)
-      showToast('Failed to open earnings settings', 'error')
-    } finally {
-      setLoading(false)
-    }
+  const routeToPayoutSetup = () => {
+    console.info('routing_to_payout_setup')
+    navigate('/payout-setup')
   }
 
   if (!currentUser) return null
 
   const isActive = detailsSubmitted && chargesEnabled && payoutsEnabled
-  const setupButtonDisabled = loading || error === '__CONFIG_MISSING__' || !session?.access_token
+  const setupButtonDisabled = !session?.access_token
 
   return (
     <div className="pb-10 bg-white dark:bg-[#18211f] min-h-screen transition-colors">
@@ -169,11 +99,10 @@ export default function PayoutSettingsPage() {
             </div>
 
             <button
-              onClick={handleOpenDashboard}
-              disabled={loading}
+              onClick={routeToPayoutSetup}
               className="mt-4 w-full py-3 rounded-xl text-sm font-medium border border-green-200 dark:border-green-500/20 text-green-700 dark:text-green-300 bg-white dark:bg-[#26322f] hover:bg-green-50 dark:hover:bg-[#30403c] active:bg-green-100 flex items-center justify-center gap-2 disabled:opacity-60 transition-colors"
             >
-              {loading ? <Loader2 size={15} className="animate-spin" /> : 'Manage earnings settings'}
+              Receive earnings
             </button>
           </div>
         ) : (
@@ -185,27 +114,12 @@ export default function PayoutSettingsPage() {
               </p>
             </div>
 
-            {error === '__CONFIG_MISSING__' ? (
-              <p className="text-[13px] text-gray-500 dark:text-[#aeb8b4] leading-relaxed">
-                Payment setup is being configured. You&apos;ll be able to continue verification shortly.
-              </p>
-            ) : error ? (
-              <p className="text-[13px] text-red-500 flex items-center gap-1.5">
-                <AlertCircle size={13} className="flex-shrink-0" />
-                Something went wrong. Please try again.
-              </p>
-            ) : null}
-
             <button
-              onClick={handleStartOnboarding}
+              onClick={routeToPayoutSetup}
               disabled={setupButtonDisabled}
               className="w-full py-3 rounded-xl text-sm font-medium bg-gray-900 text-white active:bg-gray-800 flex items-center justify-center gap-2 disabled:opacity-60 transition-colors"
             >
-              {loading ? (
-                <><Loader2 size={15} className="animate-spin" /> Redirecting...</>
-              ) : (
-                'Continue securely'
-              )}
+              Continue securely
             </button>
           </div>
         )}

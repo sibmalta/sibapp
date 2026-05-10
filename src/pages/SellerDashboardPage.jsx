@@ -108,6 +108,11 @@ export default function SellerDashboardPage() {
     { id: 'blocked_seller_setup', label: 'Blocked' },
   ]
 
+  const routeToPayoutSetup = () => {
+    console.info('routing_to_payout_setup')
+    navigate('/payout-setup')
+  }
+
   return (
     <div className="pb-10 bg-white dark:bg-[#18211f] min-h-screen transition-colors">
       <SellerDropoffPrompt />
@@ -119,7 +124,7 @@ export default function SellerDashboardPage() {
             <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mt-0.5">Earnings &amp; payouts</p>
           </div>
           <button
-            onClick={() => navigate(hasStripeAccount ? '/seller/payout-settings' : '/payout-setup')}
+            onClick={routeToPayoutSetup}
             className={`text-xs px-3.5 py-1.5 rounded-full font-semibold transition-all ${
               hasStripeAccount
                 ? 'text-sib-muted dark:text-[#aeb8b4] bg-sib-sand dark:bg-[#26322f] border border-sib-stone dark:border-[rgba(242,238,231,0.10)] hover:border-sib-muted dark:hover:border-[rgba(242,238,231,0.18)]'
@@ -187,7 +192,7 @@ export default function SellerDashboardPage() {
       ) : !stripeReady && (
         <div className="px-4 mt-3">
           <button
-            onClick={() => navigate('/payout-setup')}
+            onClick={routeToPayoutSetup}
             className="w-full flex items-center gap-3 p-3.5 rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-white dark:bg-[#202b28] hover:bg-sib-sand dark:hover:bg-[#26322f] transition-colors group"
           >
             <div className="w-9 h-9 rounded-xl bg-sib-secondary/10 flex items-center justify-center flex-shrink-0">

@@ -78,6 +78,7 @@ describe('PayoutSetupPage', () => {
   it('continues into the existing Stripe flow', async () => {
     const onRedirect = vi.fn()
     const refreshCurrentProfile = vi.fn()
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {})
     startStripeConnect.mockResolvedValue({ url: 'https://connect.stripe.test/onboard' })
 
     await startPayoutSetup({
@@ -88,8 +89,10 @@ describe('PayoutSetupPage', () => {
     })
 
     expect(startStripeConnect).toHaveBeenCalledWith('header.payload.signature', 'https://sib.test/seller/payout-settings')
+    expect(infoSpy).toHaveBeenCalledWith('starting_stripe_onboarding')
     expect(refreshCurrentProfile).toHaveBeenCalled()
     expect(onRedirect).toHaveBeenCalledWith('https://connect.stripe.test/onboard', { url: 'https://connect.stripe.test/onboard' })
+    infoSpy.mockRestore()
   })
 
   it('maybe later returns to the previous page', () => {
@@ -105,12 +108,21 @@ describe('PayoutSetupPage', () => {
     const dashboard = readFileSync(resolve(root, 'src/pages/SellerDashboardPage.jsx'), 'utf8')
     const sell = readFileSync(resolve(root, 'src/pages/SellPage.jsx'), 'utf8')
     const widget = readFileSync(resolve(root, 'src/components/PendingPayoutsWidget.jsx'), 'utf8')
+    const payoutSettings = readFileSync(resolve(root, 'src/pages/PayoutSettingsPage.jsx'), 'utf8')
 
     expect(app).toContain('path="payout-setup"')
     expect(app).toContain('PayoutSetupPage')
     expect(dashboard).toContain("navigate('/payout-setup')")
     expect(sell).toContain("navigate('/payout-setup')")
     expect(widget).toContain("navigate('/payout-setup')")
+    expect(payoutSettings).toContain("navigate('/payout-setup')")
+    expect(payoutSettings).not.toContain('startStripeConnect')
+    expect(payoutSettings).not.toContain('window.location.assign')
+    expect(payoutSettings).not.toContain('window.open')
+    expect(dashboard).toContain("console.info('routing_to_payout_setup')")
+    expect(sell).toContain("console.info('routing_to_payout_setup')")
+    expect(widget).toContain("console.info('routing_to_payout_setup')")
+    expect(payoutSettings).toContain("console.info('routing_to_payout_setup')")
     expect(sell).not.toContain('Set up payouts')
     expect(widget).not.toContain('Complete payout setup')
   })

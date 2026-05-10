@@ -13,6 +13,7 @@ export default function PendingPayoutsWidget({ summary, className = '' }) {
   if (!summary?.count) return null
 
   const handleConnectBank = () => {
+    console.info('routing_to_payout_setup')
     navigate('/payout-setup')
   }
 
