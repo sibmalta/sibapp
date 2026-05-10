@@ -11,6 +11,7 @@ import BrandInput from '../components/BrandInput'
 import { normalizeBrand } from '../lib/brands'
 import { moderateContent } from '../lib/moderation'
 import { DELIVERY_TIERS, getDefaultDeliverySize, getAllowedTiers, getDeliveryFee, BULKY_DELIVERY_NOTES, isForceBulky, SIZE_ACCURACY_WARNING, titleSuggestsBulky } from '../lib/deliveryPricing'
+import { getDeliveryEligibility, SIB_EXPRESS_SELLER_LIMIT_MESSAGE } from '../lib/deliveryEligibility'
 import { SHOE_SIZES } from '../utils/sizeConfig'
 
 /* ── Static data ────────────────────────────────────────────── */
@@ -556,8 +557,9 @@ useEffect(() => {
       power_info: nextAttributes.includes('power_info') ? prev.power_info : '',
       assembly_required: nextAttributes.includes('assembly_required') ? prev.assembly_required : '',
       colors: nextAttributes.includes('colour') ? prev.colors : [],
-      deliverySize: getDefaultDeliverySize(catId, ''),
+      deliverySize: forceBulky || !isDeliveryEligible(catId) ? 'bulky' : getDefaultDeliverySize(catId, ''),
       onePersonCarry: forceBulky ? false : prev.onePersonCarry,
+      lockerEligible: forceBulky || !isDeliveryEligible(catId) ? false : prev.lockerEligible,
     }))
     setErrors(prev => ({ ...prev, category: null, subcategory: null, images: null }))
   }
@@ -573,14 +575,31 @@ useEffect(() => {
       subcategory: subId,
       size: '',
       trouser_length: '',
-      deliverySize: newDefault,
+      deliverySize: forceBulky ? 'bulky' : newDefault,
       onePersonCarry: forceBulky ? false : prev.onePersonCarry,
+      lockerEligible: forceBulky ? false : prev.lockerEligible,
     }))
   }
 
   const subcategories = form.category ? getSubcategories(form.category) : []
   const attributes = form.category ? getCategoryAttributes(form.category) : []
   const deliveryEligible = form.category ? isDeliveryEligible(form.category) : true
+  const expressEligibility = getDeliveryEligibility(
+    {
+      ...form,
+      title: form.title,
+      deliverySize: form.deliverySize,
+      lockerEligible: form.lockerEligible,
+    },
+    { requireExplicitParcelSize: true },
+  )
+  const categoryDefaultEligibility = getDeliveryEligibility({
+    ...form,
+    title: form.title,
+    deliverySize: '',
+    lockerEligible: null,
+  })
+  const categoryBlocksExpress = form.category && categoryDefaultEligibility.reason === 'bulky_category'
 
   const isKidsCategory = form.category === 'kids'
   const isFashionCategory = form.category === 'fashion'
@@ -656,8 +675,7 @@ useEffect(() => {
   const validateStep1 = () => {
     const e = {}
     if (!form.price || isNaN(form.price) || Number(form.price) < 1) e.price = 'Enter a valid price'
-    if (deliveryEligible && form.lockerEligible === null) e.lockerEligible = 'Confirm this is a small parcel'
-    if (deliveryEligible && form.lockerEligible === false) e.lockerEligible = 'Only small parcels are supported right now.'
+    if (deliveryEligible && form.lockerEligible === null && !categoryBlocksExpress) e.lockerEligible = 'Select a parcel size'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -697,8 +715,8 @@ useEffect(() => {
         condition: form.condition,
         colors: form.colors,
         images: form.images,
-        deliverySize: form.deliverySize || getDefaultDeliverySize(form.category, form.subcategory),
-        lockerEligible: form.lockerEligible === true,
+        deliverySize: form.lockerEligible === true ? 'small' : 'bulky',
+        lockerEligible: form.lockerEligible === true && expressEligibility.eligible,
         clientCreateToken: isEditMode ? undefined : `listing-create:${currentUser.id}:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`,
       }
       console.log('[SellPage] submit listing payload', {
@@ -1197,7 +1215,7 @@ useEffect(() => {
       {step === 1 && (
         <>
           <h2 className="text-xl font-bold text-sib-text mb-1">Price & Delivery</h2>
-          <p className="text-xs text-sib-muted mb-5">Set your price and confirm this is a small parcel.</p>
+          <p className="text-xs text-sib-muted mb-5">Set your price and confirm whether this is a Sib Express parcel.</p>
 
           {deliveryEligible && (
             <div className="mb-5">
@@ -1205,43 +1223,49 @@ useEffect(() => {
                   Parcel size
                 </label>
                 <p className="text-[11px] text-sib-muted mb-2 leading-relaxed">
-                  Only small parcels are supported right now.
+                  {SIB_EXPRESS_SELLER_LIMIT_MESSAGE}
                 </p>
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => {
+                    if (categoryBlocksExpress) return
                     set('lockerEligible', true)
                     set('onePersonCarry', true)
                     set('deliverySize', 'small')
                   }}
+                  disabled={categoryBlocksExpress}
                   className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                     form.lockerEligible === true ? 'bg-sib-primary text-white' : 'bg-sib-sand text-sib-muted'
-                  }`}
+                  } ${categoryBlocksExpress ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  Yes
+                  Small parcel, under 5kg
                 </button>
                 <button
                   type="button"
-                  onClick={() => set('lockerEligible', false)}
+                  onClick={() => {
+                    set('lockerEligible', false)
+                    set('onePersonCarry', false)
+                    set('deliverySize', 'bulky')
+                  }}
                   className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                     form.lockerEligible === false ? 'bg-sib-primary text-white' : 'bg-sib-sand text-sib-muted'
                   }`}
                 >
-                  No
+                  Large/bulky item, over 5kg
                 </button>
               </div>
                 {errors.lockerEligible && <p className="text-red-500 text-xs mt-1">{errors.lockerEligible}</p>}
-                {form.lockerEligible === false && (
+                {(form.lockerEligible === false || categoryBlocksExpress) && (
                   <p className="text-[11px] text-sib-muted mt-2">
-                    Your parcel must be small enough to be carried safely by one motorcycle courier.
+                    Sib delivery for larger items is coming soon. You can still publish this listing without Sib Express delivery.
                   </p>
                 )}
               </div>
           )}
 
           {/* ── Delivery Size Picker — with 1-person-carry toggle ── */}
-          {deliveryEligible && (() => {
+          {deliveryEligible && form.lockerEligible === true && !categoryBlocksExpress && (() => {
             const allowed = getAllowedTiers(form.category, form.subcategory, form.onePersonCarry)
             const selectedSize = 'small'
             const TIER_ICONS = { small: Package }
@@ -1286,7 +1310,7 @@ useEffect(() => {
 
                 {/* Guidance text */}
                 <p className="text-[11px] text-sib-muted mb-2 leading-relaxed">
-                  Your parcel must be small enough to be carried safely by one motorcycle courier.
+                  {SIB_EXPRESS_SELLER_LIMIT_MESSAGE}
                 </p>
 
                 {/* Tier buttons */}
@@ -1367,7 +1391,7 @@ useEffect(() => {
                 <div className="flex justify-between text-sib-muted text-xs">
                   <span>Listing price</span><span>EUR {parseFloat(form.price).toFixed(2)}</span>
                 </div>
-                <FeeBreakdown buyerProtectionFee={fees.buyerProtectionFee} deliveryFee={getDeliveryFee(form.deliverySize || getDefaultDeliverySize(form.category, form.subcategory))} size="sm" />
+                <FeeBreakdown buyerProtectionFee={fees.buyerProtectionFee} deliveryFee={form.lockerEligible === true && expressEligibility.eligible ? getDeliveryFee('small') : undefined} size="sm" />
                 <div className="flex justify-between text-sib-text font-bold pt-2 border-t border-sib-stone">
                   <span>You receive</span><span className="text-sib-primary">EUR {parseFloat(form.price).toFixed(2)}</span>
                 </div>

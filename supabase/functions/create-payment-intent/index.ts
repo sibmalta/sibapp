@@ -18,6 +18,8 @@ type ListingRow = {
   subcategory: string | null
   created_at: string | null
   locker_eligible: boolean | null
+  delivery_size?: string | null
+  weight_kg?: number | string | null
 }
 
 type OfferRow = {
@@ -59,12 +61,25 @@ const LEGACY_CATEGORY_MAP: Record<string, string> = {
   vintage: 'fashion',
 }
 
-const ALWAYS_LOCKER_ELIGIBLE_CATEGORIES = new Set(['fashion', 'books'])
+const CATEGORY_SLUG_MAP: Record<string, string> = {
+  'kids-baby': 'kids',
+  'home-living': 'home',
+  'toys-games': 'toys',
+  'sporting-equipment': 'sports',
+}
+
+const ALWAYS_LOCKER_ELIGIBLE_CATEGORIES = new Set(['fashion', 'books', 'kids', 'electronics', 'toys'])
 const LOCKER_ELIGIBLE_SUBCATEGORIES: Record<string, Set<string>> = {
   home: new Set(['decor', 'kitchenware', 'bedding', 'bathroom', 'lighting', 'storage', 'other_home']),
   toys: new Set(['action_figures', 'board_games', 'lego', 'educational', 'plush', 'collectibles']),
   kids: new Set(['baby_clothing', 'kids_clothing', 'maternity']),
 }
+const FORCE_BULKY_CATEGORIES = new Set(['furniture'])
+const FORCE_BULKY_SUBCATEGORIES = new Set([
+  'sofas', 'beds', 'wardrobes', 'tables',
+  'outdoor_furniture', 'office_furniture', 'shelving',
+  'pushchairs', 'nursery',
+])
 const LOCKER_ELIGIBILITY_FIX_TIME = Date.parse('2026-04-27T00:00:00.000Z')
 
 function jsonResponse(body: JsonObject, status = 200) {
@@ -138,12 +153,21 @@ function getMarketplaceSplit(subtotalCents: number, deliveryFeeCents: number, bu
 
 function resolveCategory(category: string | null) {
   const normalized = (category || '').toLowerCase()
-  return LEGACY_CATEGORY_MAP[normalized] || normalized
+  return CATEGORY_SLUG_MAP[normalized] || LEGACY_CATEGORY_MAP[normalized] || normalized
 }
 
 function isLockerEligible(listing: ListingRow) {
   const category = resolveCategory(listing.category)
   const subcategory = listing.subcategory || ''
+  const deliverySize = listing.delivery_size || ''
+  const weightKg = listing.weight_kg === null || listing.weight_kg === undefined || listing.weight_kg === ''
+    ? null
+    : Number(listing.weight_kg)
+
+  if (FORCE_BULKY_CATEGORIES.has(category) || FORCE_BULKY_SUBCATEGORIES.has(subcategory)) return false
+  if (Number.isFinite(weightKg) && Number(weightKg) > 5) return false
+  if (deliverySize && deliverySize !== 'small') return false
+
   const defaultEligible =
     ALWAYS_LOCKER_ELIGIBLE_CATEGORIES.has(category) ||
     Boolean(LOCKER_ELIGIBLE_SUBCATEGORIES[category]?.has(subcategory))
@@ -263,7 +287,7 @@ async function loadListings(supabase: ReturnType<typeof createClient>, ids: stri
   logStep('listing_lookup', 'started', { listingCount: ids.length, listingIds: ids })
   const { data, error } = await supabase
     .from('listings')
-    .select('id, seller_id, title, price, status, category, subcategory, created_at, locker_eligible')
+    .select('id, seller_id, title, price, status, category, subcategory, created_at, locker_eligible, delivery_size')
     .in('id', ids)
 
   if (error) {
@@ -434,7 +458,7 @@ function validateLockerEligibility(listings: ListingRow[], deliveryMethod: strin
   if (!ineligible) return
 
   throw new CheckoutError(
-    'Only small parcels are supported right now.',
+    'Sib delivery for larger items is coming soon.',
     400,
     'locker_not_available',
     'delivery_method_validation',

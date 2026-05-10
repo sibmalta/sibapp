@@ -1,4 +1,5 @@
 export const LEGACY_HOME_DELIVERY_UNAVAILABLE_MESSAGE = 'This delivery method is no longer available.'
+export const SIB_EXPRESS_UNAVAILABLE_MESSAGE = 'Sib delivery for larger items is coming soon.'
 
 export function resolveCheckoutDeliveryMethod(requestedMethod, lockerEligible) {
   if (requestedMethod === 'locker_collection' && lockerEligible) return 'locker_collection'
@@ -72,7 +73,7 @@ export function getPaymentInitializationBlocker({
   }
   if (deliveryMethod === 'home_delivery') return LEGACY_HOME_DELIVERY_UNAVAILABLE_MESSAGE
   if (isLocker) {
-    if (!lockerEligible) return 'Only small parcels are supported right now.'
+    if (!lockerEligible) return SIB_EXPRESS_UNAVAILABLE_MESSAGE
   }
   const phoneError = getDeliveryPhoneError(phone)
   if (phoneError) return `${phoneError.replace(/\.$/, '')} before continuing to payment.`

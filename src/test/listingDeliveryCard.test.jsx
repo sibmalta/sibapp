@@ -19,7 +19,7 @@ describe('ListingDeliveryCard', () => {
   it('hides courier price for non-small parcel listings', () => {
     render(<ListingDeliveryCard listing={{ category: 'sports', subcategory: 'cycling', lockerEligible: false }} />)
 
-    expect(screen.getByText('Sib delivery is not available for this item yet')).toBeInTheDocument()
+    expect(screen.getByText('Sib delivery for larger items is coming soon.')).toBeInTheDocument()
     expect(screen.getByText('Unavailable')).toBeInTheDocument()
     expect(screen.queryByText('Delivery fee €3.50')).not.toBeInTheDocument()
   })
@@ -29,7 +29,7 @@ describe('ListingDeliveryCard', () => {
 
     expect(screen.getByText('Delivery fee €3.50')).toBeInTheDocument()
     expect(screen.getByText('Seller drops off at MYConvenience. Sib arranges delivery to your door.')).toBeInTheDocument()
-    expect(screen.queryByText('Sib delivery is not available for this item yet')).not.toBeInTheDocument()
+    expect(screen.queryByText('Sib delivery for larger items is coming soon.')).not.toBeInTheDocument()
   })
 
   it('shows delivery availability for normal Kids & Baby listings', () => {
@@ -37,13 +37,13 @@ describe('ListingDeliveryCard', () => {
 
     expect(screen.getByText('Delivery fee €3.50')).toBeInTheDocument()
     expect(screen.getByText('Seller drops off at MYConvenience. Sib arranges delivery to your door.')).toBeInTheDocument()
-    expect(screen.queryByText('Sib delivery is not available for this item yet')).not.toBeInTheDocument()
+    expect(screen.queryByText('Sib delivery for larger items is coming soon.')).not.toBeInTheDocument()
   })
 
   it('keeps oversized Kids & Baby listings unavailable', () => {
     render(<ListingDeliveryCard listing={{ category: 'kids', subcategory: 'pushchairs', lockerEligible: null }} />)
 
-    expect(screen.getByText('Sib delivery is not available for this item yet')).toBeInTheDocument()
+    expect(screen.getByText('Sib delivery for larger items is coming soon.')).toBeInTheDocument()
     expect(screen.queryByText('Delivery fee €3.50')).not.toBeInTheDocument()
   })
 
@@ -60,13 +60,13 @@ describe('ListingDeliveryCard', () => {
     )
 
     expect(screen.getByText('Delivery fee €3.50')).toBeInTheDocument()
-    expect(screen.queryByText('Sib delivery is not available for this item yet')).not.toBeInTheDocument()
+    expect(screen.queryByText('Sib delivery for larger items is coming soon.')).not.toBeInTheDocument()
   })
 
   it('respects explicit false even for normally locker-fit fashion listings', () => {
     render(<ListingDeliveryCard listing={{ category: 'fashion', subcategory: 'tops', lockerEligible: false }} />)
 
-    expect(screen.getByText('Sib delivery is not available for this item yet')).toBeInTheDocument()
+    expect(screen.getByText('Sib delivery for larger items is coming soon.')).toBeInTheDocument()
     expect(screen.queryByText('Delivery fee €3.50')).not.toBeInTheDocument()
   })
 

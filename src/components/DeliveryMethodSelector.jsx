@@ -10,12 +10,14 @@ import { getFulfilmentPrice } from '../lib/fulfilment'
  *  - onSelect: (methodId) => void
  *  - disabled: boolean
  *  - lockerEligible: boolean
+ *  - unavailableMessage: string
  */
 export default function DeliveryMethodSelector({
   selected,
   onSelect,
   disabled = false,
   lockerEligible = false,
+  unavailableMessage = 'Sib delivery for larger items is coming soon.',
 }) {
   const methods = [
     ...(lockerEligible ? [{
@@ -35,7 +37,7 @@ export default function DeliveryMethodSelector({
       {!lockerEligible && (
         <div className="mb-2 rounded-xl border border-amber-200 dark:border-amber-400/20 bg-amber-50 dark:bg-[#26322f] px-3 py-2">
           <p className="text-xs font-medium text-amber-800 dark:text-amber-200">
-            Sib delivery is not available for this item yet.
+            {unavailableMessage}
           </p>
         </div>
       )}

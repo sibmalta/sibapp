@@ -11,16 +11,16 @@ export const DELIVERY_TIERS = [
     label: 'Small parcel',
     price: 3.50,
     priceLabel: 'EUR 3.50',
-    description: 'Only small parcels are supported right now.',
+    description: 'Small parcel, under 5kg.',
     examples: 'Your parcel must be small enough to be carried safely by one motorcycle courier.',
-    weight: 'Small motorcycle courier parcel',
+    weight: 'Up to 5kg',
   },
 ]
 
 export const TIER_MAP = Object.fromEntries(DELIVERY_TIERS.map(t => [t.id, t]))
 
 export const BULKY_DELIVERY_NOTES = [
-  'Only small parcels are supported right now.',
+  'Small parcels up to 5kg are supported right now.',
   'Your parcel must be small enough to be carried safely by one motorcycle courier.',
 ]
 
@@ -28,7 +28,7 @@ export const BULKY_DELIVERY_NOTES = [
 export const LARGE_DELIVERY_NOTES = BULKY_DELIVERY_NOTES
 
 export const SIZE_ACCURACY_WARNING =
-  'Your parcel must be small enough to be carried safely by one motorcycle courier.'
+  'Your parcel must be under 5kg and small enough to be carried safely by one motorcycle courier.'
 
 export function getDeliveryFee(tierId) {
   return TIER_MAP[tierId]?.price ?? TIER_MAP.small.price

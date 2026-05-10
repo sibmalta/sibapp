@@ -27,6 +27,7 @@ import { createShippingProvider } from '../lib/shippingProvider'
 import { autoReleaseBuyerProtectionOrders, confirmBuyerProtectionOrder } from '../lib/buyerProtectionApi'
 import { getDeliveredOrderPatch } from '../lib/buyerProtection'
 import { isLockerEligible } from '../lib/lockerEligibility'
+import { getDeliveryEligibility } from '../lib/deliveryEligibility'
 import { buildAdminShipmentPayload } from '../lib/adminShipment'
 import { buildDisputeThreadConversation, getEvidenceSenderRole, isActiveDisputeStatus, resolveMessageThreadReference } from '../lib/disputes'
 import { buildDeliverySheetRow } from '../lib/logisticsDeliverySheet'
@@ -705,7 +706,7 @@ export function AppProvider({ children }) {
     const deliveryType = deliveryInfo?.type || 'home_delivery'
     const fulfilmentMethod = normalizeFulfilmentMethod(deliveryType)
     if (fulfilmentMethod === 'locker' && !isLockerEligible(listing)) {
-      showToast('Only small parcels are supported right now.', 'error')
+      showToast(getDeliveryEligibility(listing).buyerMessage, 'error')
       return null
     }
     const dFee = getFulfilmentPrice(fulfilmentMethod)

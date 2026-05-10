@@ -45,7 +45,7 @@ describe('DeliveryMethodSelector', () => {
     )
 
     expect(screen.getAllByText('Delivery to your door').length).toBeGreaterThan(0)
-    expect(screen.queryByText('Sib delivery is not available for this item yet.')).not.toBeInTheDocument()
+    expect(screen.queryByText('Sib delivery for larger items is coming soon.')).not.toBeInTheDocument()
   })
 
   it('keeps unsupported categories blocked in checkout delivery selection', () => {
@@ -64,7 +64,7 @@ describe('DeliveryMethodSelector', () => {
       />
     )
 
-    expect(screen.getByText('Sib delivery is not available for this item yet.')).toBeInTheDocument()
+    expect(screen.getByText('Sib delivery for larger items is coming soon.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /delivery to your door/i })).not.toBeInTheDocument()
   })
 })

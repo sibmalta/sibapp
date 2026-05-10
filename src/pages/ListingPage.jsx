@@ -17,6 +17,7 @@ import { useSupabase } from '../lib/useSupabase'
 import { logActivity } from '../lib/activityTracker'
 import { trackReferralClick, setActiveReferral, getActiveReferral, buildShareableLink } from '../lib/referral'
 import { isLockerEligible } from '../lib/lockerEligibility'
+import { getDeliveryEligibility } from '../lib/deliveryEligibility'
 
 const NEW_SELLER_RECENT_DAYS = 90
 
@@ -73,6 +74,7 @@ export function ListingSellerBadges({ seller, listing, now }) {
 
 export function ListingDeliveryCard({ listing }) {
   const lockerEligible = isLockerEligible(listing)
+  const deliveryEligibility = getDeliveryEligibility(listing)
 
   return (
     <div className="flex items-start gap-3 p-3.5 rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-sib-warm dark:bg-[#202b28] mb-3 transition-colors">
@@ -86,7 +88,7 @@ export function ListingDeliveryCard({ listing }) {
             <p className="mt-0.5 text-[11px] leading-snug font-medium text-sib-muted dark:text-[#aeb8b4]">
               {lockerEligible
                 ? 'Seller drops off at MYConvenience. Sib arranges delivery to your door.'
-                : 'Sib delivery is not available for this item yet'}
+                : deliveryEligibility.buyerMessage}
             </p>
           </div>
           {lockerEligible ? (
@@ -110,7 +112,7 @@ export function ListingDeliveryCard({ listing }) {
           </div>
         ) : (
           <p className="mt-2 text-xs text-sib-muted dark:text-[#aeb8b4]">
-            You can still save the item or message the seller with questions.
+            Message the seller to arrange collection or ask questions.
           </p>
         )}
       </div>

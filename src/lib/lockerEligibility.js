@@ -1,17 +1,4 @@
-import { isDeliveryEligible, resolveCategory } from '../data/categories'
-import { isForceBulky } from './deliveryPricing'
-
-const ALWAYS_LOCKER_ELIGIBLE_CATEGORIES = new Set([
-  'fashion',
-  'books',
-  'kids',
-])
-
-const LOCKER_ELIGIBLE_SUBCATEGORIES = {
-  home: new Set(['decor', 'kitchenware', 'bedding', 'bathroom', 'lighting', 'storage', 'other_home']),
-  toys: new Set(['action_figures', 'board_games', 'lego', 'educational', 'plush', 'collectibles']),
-  kids: new Set(['baby_clothing', 'kids_clothing', 'maternity']),
-}
+import { DELIVERY_ELIGIBILITY_REASONS, getDeliveryEligibility } from './deliveryEligibility'
 
 const LOCKER_ELIGIBILITY_FIX_DATE = new Date('2026-04-27T00:00:00.000Z')
 
@@ -22,23 +9,22 @@ function isBeforeLockerEligibilityFix(value) {
 }
 
 export function getDefaultLockerEligibility(listing) {
-  const category = resolveCategory(listing?.category || '')
-  const subcategory = listing?.subcategory || listing?.type || listing?.categoryType || ''
-  const deliverySize = listing?.deliverySize || listing?.delivery_size || ''
-
-  if (!isDeliveryEligible(category)) return false
-  if (isForceBulky(category, subcategory)) return false
-  if (deliverySize && deliverySize !== 'small') return false
-  if (ALWAYS_LOCKER_ELIGIBLE_CATEGORIES.has(category)) return true
-  if (LOCKER_ELIGIBLE_SUBCATEGORIES[category]?.has(subcategory)) return true
-
-  return false
+  return getDeliveryEligibility(listing, { ignoreExplicitLockerEligible: true }).eligible
 }
 
 function readExplicitLockerEligibility(listing) {
   if (!listing || typeof listing !== 'object') return null
   const value = listing.lockerEligible ?? listing.locker_eligible
   if (typeof value !== 'boolean') return null
+  if (value === true) {
+    const baseline = getDeliveryEligibility(listing, { ignoreExplicitLockerEligible: true })
+    if (
+      !baseline.eligible &&
+      baseline.reason !== DELIVERY_ELIGIBILITY_REASONS.MISSING_WEIGHT
+    ) {
+      return false
+    }
+  }
 
   // A short-lived migration defaulted legacy rows to false. For older rows that
   // belong to locker-friendly categories, treat that false as unknown so the

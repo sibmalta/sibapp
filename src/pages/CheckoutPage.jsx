@@ -15,6 +15,7 @@ import useSavedAddress from '../hooks/useSavedAddress'
 import { trackReferralConversion } from '../lib/referral'
 import { supabase } from '../lib/supabase'
 import { isLockerEligible } from '../lib/lockerEligibility'
+import { getDeliveryEligibility } from '../lib/deliveryEligibility'
 import { getDeliveryPhoneError, getPaymentInitializationBlocker, normalizeMaltaPhoneNumber, resolveCheckoutDeliveryMethod } from '../lib/checkoutPayment'
 
 const TECHNICAL_PATTERNS = [
@@ -329,6 +330,7 @@ export default function CheckoutPage() {
 
   const { savedAddress, saveAddress: persistAddress } = useSavedAddress(currentUser?.id)
   const listingLockerEligible = isLockerEligible(listing)
+  const deliveryEligibility = getDeliveryEligibility(listing)
 
   useEffect(() => {
     if (savedAddress && !addressPrefilled && !address && !city && !postcode) {
@@ -418,7 +420,7 @@ export default function CheckoutPage() {
 
   const handleDeliveryChange = (methodId) => {
     if (methodId === 'locker_collection' && !listingLockerEligible) {
-      setErrors(prev => ({ ...prev, deliveryMethod: 'Sib delivery is not available for this item yet.' }))
+      setErrors(prev => ({ ...prev, deliveryMethod: deliveryEligibility.buyerMessage }))
       return
     }
     setErrors(prev => ({ ...prev, deliveryMethod: null }))
@@ -430,7 +432,7 @@ export default function CheckoutPage() {
   const validateDelivery = () => {
     const e = {}
     if (isLocker) {
-      if (!listingLockerEligible) e.deliveryMethod = 'Sib delivery is not available for this item yet.'
+      if (!listingLockerEligible) e.deliveryMethod = deliveryEligibility.buyerMessage
     }
     const phoneError = getDeliveryPhoneError(phone)
     if (phoneError) e.phone = phoneError
@@ -715,6 +717,7 @@ export default function CheckoutPage() {
               onSelect={handleDeliveryChange}
               disabled={addressConfirmed}
               lockerEligible={listingLockerEligible}
+              unavailableMessage={deliveryEligibility.buyerMessage}
             />
             {errors.deliveryMethod && <p className="text-red-500 text-xs -mt-3 mb-3 ml-1">{errors.deliveryMethod}</p>}
 

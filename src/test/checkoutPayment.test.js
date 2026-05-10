@@ -155,6 +155,23 @@ describe('checkout payment helpers', () => {
     })).toBe('')
   })
 
+  it('blocks payment initialization for ineligible Sib Express delivery', () => {
+    expect(getPaymentInitializationBlocker({
+      stripeConfigured: true,
+      currentUser: { id: 'buyer_123' },
+      sessionAccessToken: 'aaa.bbb.ccc',
+      listing: { id: 'listing_123', sellerId: 'seller_123' },
+      feesTotal: 12.5,
+      isLocker: true,
+      lockerEligible: false,
+      deliveryMethod: 'locker_collection',
+      address: '1 Main Street',
+      city: 'Valletta',
+      postcode: 'VLT1234',
+      phone: '+35699123456',
+    })).toBe('Sib delivery for larger items is coming soon.')
+  })
+
   it('blocked checkout returns a specific blocker and does not call createPaymentIntent', async () => {
     let called = false
     const response = await runPaymentIntentInitialization({
