@@ -26,6 +26,30 @@ function friendlyPayoutSetupError(raw) {
   return raw
 }
 
+function getStripePublishableKey() {
+  return import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
+}
+
+function getEmbeddedFailureReason(error, fallbackReason = 'account_session_creation_failed') {
+  const message = error?.message || String(error || '')
+  if (/incompatible|cannot create account session|not eligible|account_invalid|resource_missing/i.test(message)) {
+    return 'existing_connected_account_incompatible'
+  }
+  return fallbackReason
+}
+
+function formatEmbeddedFailure(reason, detail) {
+  const labels = {
+    missing_publishable_key: 'Missing VITE_STRIPE_PUBLISHABLE_KEY.',
+    account_session_creation_failed: 'Stripe account session creation failed.',
+    account_session_missing_client_secret: 'Stripe account session returned no client secret.',
+    stripe_connect_js_load_failure: 'Stripe embedded onboarding could not start.',
+    embedded_component_render_error: 'Stripe embedded onboarding component failed to load.',
+    existing_connected_account_incompatible: 'The existing Stripe connected account is incompatible with embedded onboarding.',
+  }
+  return [labels[reason] || 'Embedded onboarding failed.', detail].filter(Boolean).join(' ')
+}
+
 export async function startPayoutSetup({ accessToken, returnUrl, refreshCurrentProfile, onRedirect }) {
   console.info('starting_stripe_onboarding')
   const result = await startStripeConnect(accessToken, returnUrl)
@@ -44,6 +68,7 @@ export default function PayoutSetupPage() {
   const [embeddedStarted, setEmbeddedStarted] = useState(false)
   const [connectInstance, setConnectInstance] = useState(null)
   const [embeddedFallbackReady, setEmbeddedFallbackReady] = useState(false)
+  const [embeddedFailure, setEmbeddedFailure] = useState(null)
 
   const pendingSummary = useMemo(() => {
     if (!currentUser?.id || !getUserSales) return null
@@ -58,21 +83,59 @@ export default function PayoutSetupPage() {
       return
     }
 
-    if (!STRIPE_PK) {
-      setError('Embedded payout setup is not configured yet. You can still continue with secure Stripe setup.')
+    const stripePublishableKey = getStripePublishableKey()
+
+    if (!stripePublishableKey) {
+      const failure = {
+        reason: 'missing_publishable_key',
+        message: 'Secure embedded setup could not load.',
+        detail: 'Missing VITE_STRIPE_PUBLISHABLE_KEY.',
+      }
+      console.error('[payout-setup] embedded_fallback_triggered', failure)
+      setEmbeddedFailure(failure)
+      setError(formatEmbeddedFailure(failure.reason))
       setEmbeddedFallbackReady(true)
       return
     }
 
     setLoading(true)
     setError('')
+    setEmbeddedFailure(null)
     try {
       console.info('starting_stripe_onboarding')
       const instance = loadConnectAndInitialize({
-        publishableKey: STRIPE_PK,
+        publishableKey: stripePublishableKey,
         fetchClientSecret: async () => {
-          const sessionResult = await createStripeConnectAccountSession(session.access_token, 'account_onboarding')
+          let sessionResult
+          try {
+            sessionResult = await createStripeConnectAccountSession(session.access_token, 'account_onboarding')
+          } catch (err) {
+            const reason = getEmbeddedFailureReason(err, 'account_session_creation_failed')
+            const failure = {
+              reason,
+              message: 'Secure embedded setup could not load.',
+              detail: friendlyPayoutSetupError(err?.message),
+            }
+            console.error('[payout-setup] embedded_fallback_triggered', failure)
+            setEmbeddedFailure(failure)
+            setError(formatEmbeddedFailure(reason, failure.detail))
+            setEmbeddedFallbackReady(true)
+            throw err
+          }
+
           if (!sessionResult?.clientSecret) {
+            const failure = {
+              reason: 'account_session_missing_client_secret',
+              message: 'Secure embedded setup could not load.',
+              detail: 'The stripe-connect function did not return clientSecret.',
+            }
+            console.error('[payout-setup] embedded_fallback_triggered', {
+              ...failure,
+              responseKeys: sessionResult ? Object.keys(sessionResult) : [],
+            })
+            setEmbeddedFailure(failure)
+            setError(formatEmbeddedFailure(failure.reason))
+            setEmbeddedFallbackReady(true)
             throw new Error('No embedded setup session returned.')
           }
           return sessionResult.clientSecret
@@ -90,9 +153,14 @@ export default function PayoutSetupPage() {
       setConnectInstance(instance)
       setEmbeddedStarted(true)
     } catch (err) {
-      console.error('[payout-setup] failed to start embedded Stripe flow:', err)
-      const message = friendlyPayoutSetupError(err?.message)
-      setError(message)
+      const failure = {
+        reason: getEmbeddedFailureReason(err, 'stripe_connect_js_load_failure'),
+        message: 'Secure embedded setup could not load.',
+        detail: friendlyPayoutSetupError(err?.message),
+      }
+      console.error('[payout-setup] embedded_fallback_triggered', failure)
+      setEmbeddedFailure(failure)
+      setError(formatEmbeddedFailure(failure.reason, failure.detail))
       setEmbeddedFallbackReady(true)
       showToast?.('Could not open embedded setup. Hosted secure setup is still available.', 'error')
     } finally {
@@ -163,8 +231,14 @@ export default function PayoutSetupPage() {
                   navigate('/seller/payout-settings')
                 }}
                 onLoadError={({ error: loadError }) => {
-                  console.error('[payout-setup] embedded onboarding load error:', loadError)
-                  setError('Embedded setup could not load. Use the secure hosted setup instead.')
+                  const failure = {
+                    reason: getEmbeddedFailureReason(loadError, 'embedded_component_render_error'),
+                    message: 'Secure embedded setup could not load.',
+                    detail: friendlyPayoutSetupError(loadError?.message),
+                  }
+                  console.error('[payout-setup] embedded_fallback_triggered', failure)
+                  setEmbeddedFailure(failure)
+                  setError(formatEmbeddedFailure(failure.reason, failure.detail))
                   setEmbeddedFallbackReady(true)
                 }}
               />
@@ -209,10 +283,18 @@ export default function PayoutSetupPage() {
             ))}
           </div>
 
-          {error && (
-            <p className="mt-4 rounded-2xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 dark:bg-[#362322] dark:text-red-300">
-              {error}
-            </p>
+          {(error || embeddedFailure) && (
+            <div role="alert" className="mt-4 rounded-2xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 dark:bg-[#362322] dark:text-red-300">
+              {embeddedFailure ? (
+                <>
+                  <p className="font-black">Secure embedded setup could not load.</p>
+                  <p className="mt-1">{error}</p>
+                  <p className="mt-1 text-[11px] opacity-80">Debug reason: {embeddedFailure.reason}</p>
+                </>
+              ) : (
+                <p>{error}</p>
+              )}
+            </div>
           )}
 
           <div className="mt-6 grid gap-2.5">
@@ -234,6 +316,14 @@ export default function PayoutSetupPage() {
             </button>
           </div>
         </section>
+        )}
+
+        {embeddedStarted && embeddedFailure && (
+          <div role="alert" className="mt-3 rounded-2xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 dark:bg-[#362322] dark:text-red-300">
+            <p className="font-black">Secure embedded setup could not load.</p>
+            <p className="mt-1">{error}</p>
+            <p className="mt-1 text-[11px] opacity-80">Debug reason: {embeddedFailure.reason}</p>
+          </div>
         )}
 
         {embeddedFallbackReady && (
