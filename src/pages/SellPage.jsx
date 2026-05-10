@@ -11,7 +11,12 @@ import BrandInput from '../components/BrandInput'
 import { normalizeBrand } from '../lib/brands'
 import { moderateContent } from '../lib/moderation'
 import { DELIVERY_TIERS, getDefaultDeliverySize, getAllowedTiers, getDeliveryFee, BULKY_DELIVERY_NOTES, isForceBulky, SIZE_ACCURACY_WARNING, titleSuggestsBulky } from '../lib/deliveryPricing'
-import { getDeliveryEligibility, SIB_EXPRESS_SELLER_LIMIT_MESSAGE } from '../lib/deliveryEligibility'
+import {
+  getDeliveryEligibility,
+  SIB_EXPRESS_LARGER_ITEMS_COMING_SOON_MESSAGE,
+  SIB_EXPRESS_LISTING_BLOCKED_MESSAGE,
+  SIB_EXPRESS_SELLER_LIMIT_MESSAGE,
+} from '../lib/deliveryEligibility'
 import { SHOE_SIZES } from '../utils/sizeConfig'
 
 /* ── Static data ────────────────────────────────────────────── */
@@ -675,6 +680,7 @@ useEffect(() => {
   const validateStep1 = () => {
     const e = {}
     if (!form.price || isNaN(form.price) || Number(form.price) < 1) e.price = 'Enter a valid price'
+    if (categoryBlocksExpress || form.lockerEligible === false) e.lockerEligible = SIB_EXPRESS_LISTING_BLOCKED_MESSAGE
     if (deliveryEligible && form.lockerEligible === null && !categoryBlocksExpress) e.lockerEligible = 'Select a parcel size'
     setErrors(e)
     return Object.keys(e).length === 0
@@ -1243,22 +1249,19 @@ useEffect(() => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    set('lockerEligible', false)
-                    set('onePersonCarry', false)
-                    set('deliverySize', 'bulky')
-                  }}
+                  disabled
                   className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                    form.lockerEligible === false ? 'bg-sib-primary text-white' : 'bg-sib-sand text-sib-muted'
-                  }`}
+                    form.lockerEligible === false ? 'bg-gray-200 text-gray-500' : 'bg-gray-100 text-gray-400'
+                  } cursor-not-allowed opacity-70`}
                 >
                   Large/bulky item, over 5kg
+                  <span className="block text-[10px] font-semibold mt-0.5">Coming soon</span>
                 </button>
               </div>
                 {errors.lockerEligible && <p className="text-red-500 text-xs mt-1">{errors.lockerEligible}</p>}
                 {(form.lockerEligible === false || categoryBlocksExpress) && (
                   <p className="text-[11px] text-sib-muted mt-2">
-                    Sib delivery for larger items is coming soon. You can still publish this listing without Sib Express delivery.
+                    {SIB_EXPRESS_LARGER_ITEMS_COMING_SOON_MESSAGE}
                   </p>
                 )}
               </div>

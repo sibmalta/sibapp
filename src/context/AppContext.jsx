@@ -2104,8 +2104,9 @@ export function AppProvider({ children }) {
     const subtotal = overrideSubtotal != null ? overrideSubtotal : items.reduce((sum, l) => sum + l.price, 0)
     const deliveryType = deliveryInfo?.type || 'home_delivery'
     const fulfilmentMethod = normalizeFulfilmentMethod(deliveryType)
-    if (fulfilmentMethod === 'locker' && items.some(item => !isLockerEligible(item))) {
-      showToast('Only small parcels are supported right now.', 'error')
+    const ineligibleItem = fulfilmentMethod === 'locker' ? items.find(item => !isLockerEligible(item)) : null
+    if (ineligibleItem) {
+      showToast(getDeliveryEligibility(ineligibleItem).buyerMessage, 'error')
       return null
     }
     const dFee = getFulfilmentPrice(fulfilmentMethod)
@@ -2449,8 +2450,9 @@ export function AppProvider({ children }) {
 
     const deliveryType = deliveryInfo?.type || 'home_delivery'
     const fulfilmentMethod = normalizeFulfilmentMethod(deliveryType)
-    if (fulfilmentMethod === 'locker' && items.some(item => !isLockerEligible(item))) {
-      showToast('Only small parcels are supported right now.', 'error')
+    const ineligibleItem = fulfilmentMethod === 'locker' ? items.find(item => !isLockerEligible(item)) : null
+    if (ineligibleItem) {
+      showToast(getDeliveryEligibility(ineligibleItem).buyerMessage, 'error')
       return null
     }
     const dFee = getFulfilmentPrice(fulfilmentMethod)

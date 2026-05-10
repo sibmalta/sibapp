@@ -11,7 +11,9 @@ export const DELIVERY_ELIGIBILITY_REASONS = {
 
 export const SIB_EXPRESS_BUYER_UNAVAILABLE_MESSAGE = 'Sib delivery for larger items is coming soon.'
 export const SIB_EXPRESS_SELLER_LIMIT_MESSAGE =
-  'Sib Express delivery currently supports lightweight parcels up to 5kg that can be safely transported by motorcycle courier.'
+  'Sib Express currently supports lightweight parcels under 5kg that can safely fit inside a motorcycle courier delivery bag.'
+export const SIB_EXPRESS_LARGER_ITEMS_COMING_SOON_MESSAGE = 'Delivery for larger items is coming soon.'
+export const SIB_EXPRESS_LISTING_BLOCKED_MESSAGE = 'Large and bulky item delivery is not available yet on Sib.'
 
 function readDeliverySize(listing) {
   return listing?.deliverySize || listing?.delivery_size || listing?.parcelSize || listing?.parcel_size || ''
@@ -60,4 +62,10 @@ export function getDeliveryEligibility(listing, { requireExplicitParcelSize = fa
   }
 
   return result(DELIVERY_ELIGIBILITY_REASONS.MISSING_WEIGHT)
+}
+
+export function getListingLaunchSupport(listing) {
+  const eligibility = getDeliveryEligibility(listing, { requireExplicitParcelSize: true })
+  if (eligibility.eligible) return { supported: true, error: '' }
+  return { supported: false, error: SIB_EXPRESS_LISTING_BLOCKED_MESSAGE, eligibility }
 }

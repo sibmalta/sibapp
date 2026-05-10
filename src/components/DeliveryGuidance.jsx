@@ -58,7 +58,7 @@ function GuidanceBody() {
           <p className="text-xs font-bold text-sib-text dark:text-[#f4efe7] mb-0.5">Delivery options</p>
           <ul className="text-[11px] text-sib-muted dark:text-[#aeb8b4] leading-relaxed space-y-0.5">
             <li>MYConvenience drop-off courier delivery: EUR 3.50</li>
-            <li>Only small parcels are supported right now.</li>
+            <li>Sib Express currently supports lightweight parcels under 5kg.</li>
           </ul>
         </div>
       </div>
@@ -80,7 +80,7 @@ function GuidanceBody() {
         <div>
           <p className="text-xs font-bold text-sib-text dark:text-[#f4efe7] mb-0.5">Limits</p>
           <ul className="text-[11px] text-sib-muted dark:text-[#aeb8b4] leading-relaxed space-y-0.5">
-            <li>Your parcel must be small enough to be carried safely by one motorcycle courier.</li>
+            <li>Your parcel must fit safely inside a motorcycle courier delivery bag.</li>
           </ul>
         </div>
       </div>

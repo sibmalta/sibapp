@@ -6,6 +6,7 @@
  */
 
 import { normalizeSubcategoryValue } from '../../data/categories'
+import { getListingLaunchSupport } from '../deliveryEligibility'
 
 export const ACTIVE_INVENTORY_STATUSES = ['active', 'available', 'published', 'approved', 'live']
 export const UNAVAILABLE_INVENTORY_STATUSES = ['sold', 'reserved', 'pending_payment', 'inactive', 'deleted', 'removed', 'hidden']
@@ -144,6 +145,16 @@ export function listingToRow(listing) {
   if (listing.locker_eligible !== undefined) row.locker_eligible = listing.locker_eligible == null ? null : listing.locker_eligible === true
   row.updated_at = new Date().toISOString()
   return row
+}
+
+function assertListingSupportedForLaunch(listing) {
+  const support = getListingLaunchSupport(listing)
+  if (!support.supported) {
+    const error = new Error(support.error)
+    error.code = 'unsupported_delivery_size'
+    error.reason = support.eligibility?.reason
+    throw error
+  }
 }
 
 /**
@@ -304,6 +315,7 @@ export async function fetchAllListings(supabase) {
  * `attributes` values are preserved on the returned in-memory object regardless.
  */
 export async function createListing(supabase, sellerId, listing) {
+  assertListingSupportedForLaunch(listing)
   const row = listingToRow({ ...listing, sellerId })
   delete row.updated_at // let DB default handle created_at & updated_at on insert
   const insertRow = { ...row, seller_id: sellerId }
@@ -365,6 +377,7 @@ export async function createListing(supabase, sellerId, listing) {
 
 /** Update an existing listing. */
 export async function updateListing(supabase, id, listing) {
+  assertListingSupportedForLaunch(listing)
   const row = listingToRow(listing)
 
   console.log('[listings] updateListing payload', {
