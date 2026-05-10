@@ -1,10 +1,13 @@
 import React from 'react'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import SellerDropoffPage from '../pages/SellerDropoffPage'
 
 let mockApp
+const root = resolve(__dirname, '..', '..')
 
 vi.mock('../context/AppContext', () => ({
   useApp: () => mockApp,
@@ -202,5 +205,19 @@ describe('SellerDropoffPage', () => {
     expect(screen.getByText('No parcels waiting for drop-off.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('tab', { name: /Confirmed/ }))
     expect(screen.getByText('No confirmed drop-offs yet.')).toBeInTheDocument()
+  })
+
+  it('keeps mobile drop-off cards compact without removing required fields', () => {
+    const source = readFileSync(resolve(root, 'src/pages/SellerDropoffPage.jsx'), 'utf8')
+
+    expect(source).toContain('<PageHeader title="Drop-off QRs" compact />')
+    expect(source).toContain('pb-28')
+    expect(source).toContain('space-y-2 pb-2 sm:space-y-3')
+    expect(source).toContain('rounded-xl border p-3 shadow-sm sm:rounded-2xl sm:p-4')
+    expect(source).toContain('text-base font-black leading-tight')
+    expect(source).toContain('min-h-11')
+    expect(source).toContain('Show QR')
+    expect(source).toContain('Order code')
+    expect(source).toContain('Buyer locality')
   })
 })

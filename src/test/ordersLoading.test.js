@@ -37,7 +37,8 @@ describe('orders loading reliability', () => {
     const page = readFileSync(resolve(root, 'src/pages/OrdersPage.jsx'), 'utf8')
 
     expect(page).toContain('displayed.length === 0')
-    expect(page).toContain("No {tab === 'buying' ? 'purchases' : 'sales'} yet")
+    expect(page).toContain("No ${tab === 'buying' ? 'purchases' : 'sales'} yet")
+    expect(page).toContain('No parcels awaiting drop-off')
     expect(page).toContain('Browse and buy something you love.')
     expect(page).toContain('Seller sales will appear here after checkout.')
   })

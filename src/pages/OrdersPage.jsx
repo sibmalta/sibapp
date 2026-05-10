@@ -11,7 +11,7 @@ import SellerDropoffPrompt from '../components/SellerDropoffPrompt'
 import { getDropoffPendingConfirmationCopy, getFulfilmentMethodLabel } from '../lib/fulfilment'
 import { getSellerPendingPayoutSummary } from '../lib/pendingPayouts'
 import { isDropoffConfirmed } from '../lib/dropoffQr'
-import { isOrderPaidForDropoff } from '../lib/sellerDropoffPrompt'
+import { getPendingSellerDropoffOrders, isOrderPaidForDropoff } from '../lib/sellerDropoffPrompt'
 
 const SELLER_FILTERS = [
   { id: 'active', label: 'Active' },
@@ -163,18 +163,19 @@ export default function OrdersPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const authNav = useAuthNav()
   const loadedOrdersRef = useRef(false)
-  const initialTab = searchParams.get('tab') === 'selling' ? 'selling' : 'buying'
+  const sellerDropoffFilter = searchParams.get('sellerDropoff') === 'pending' ? 'pending' : null
+  const initialTab = searchParams.get('tab') === 'selling' || sellerDropoffFilter === 'pending' ? 'selling' : 'buying'
   const [tab, setTab] = useState(initialTab)
   const [loadTimedOut, setLoadTimedOut] = useState(false)
   const shipmentFilter = searchParams.get('shipment')
-  const sellerFilter = tab === 'selling' ? (searchParams.get('status') || 'active') : null
+  const sellerFilter = tab === 'selling' && !sellerDropoffFilter ? (searchParams.get('status') || 'active') : null
 
   useEffect(() => {
     document.title = 'Your orders | Sib'
   }, [])
 
   useEffect(() => {
-    const nextTab = searchParams.get('tab') === 'selling' ? 'selling' : 'buying'
+    const nextTab = searchParams.get('tab') === 'selling' || searchParams.get('sellerDropoff') === 'pending' ? 'selling' : 'buying'
     setTab(nextTab)
   }, [searchParams])
 
@@ -234,11 +235,15 @@ export default function OrdersPage() {
   }
 
   if (loadTimedOut || ordersDbAvailable === false || ordersDbError) {
+    const errorTitle = sellerDropoffFilter === 'pending'
+      ? 'We couldn’t load your drop-off orders. Try again.'
+      : 'We couldn’t load your orders. Try again.'
+
     return (
       <div>
         <PageHeader title="Orders" />
         <div className="mx-auto flex max-w-sm flex-col items-center justify-center px-6 py-20 text-center">
-          <p className="text-base font-black text-sib-text dark:text-[#f4efe7]">We couldn’t load your orders. Try again.</p>
+          <p className="text-base font-black text-sib-text dark:text-[#f4efe7]">{errorTitle}</p>
           <p className="mt-2 text-sm leading-relaxed text-sib-muted dark:text-[#aeb8b4]">
             Please check your connection and try again. If this keeps happening, Sib support can help.
           </p>
@@ -276,14 +281,24 @@ export default function OrdersPage() {
 
   const buyingOrders = getUserOrders(currentUser.id)
   const sellingOrders = getUserSales(currentUser.id).filter(isOrderPaidForDropoff)
+  const sellingShipments = sellingOrders.map(order => getShipmentByOrderId(order?.id)).filter(Boolean)
+  const pendingDropoffOrders = sellerDropoffFilter === 'pending'
+    ? getPendingSellerDropoffOrders({
+      orders: sellingOrders,
+      shipments: sellingShipments,
+      currentUserId: currentUser.id,
+    })
+    : []
   const pendingPayoutSummary = getSellerPendingPayoutSummary(sellingOrders, currentUser.id)
-  const displayed = (tab === 'buying' ? buyingOrders : sellingOrders)
+  const displayed = (tab === 'buying' ? buyingOrders : (sellerDropoffFilter === 'pending' ? pendingDropoffOrders : sellingOrders))
     .filter(Boolean)
     .filter(order => {
+      if (sellerDropoffFilter === 'pending') return true
       if (!shipmentFilter) return true
       return getShipmentByOrderId(order?.id)?.status === shipmentFilter
     })
     .filter(order => {
+      if (sellerDropoffFilter === 'pending') return true
       if (tab !== 'selling') return true
       const shipment = getShipmentByOrderId(order?.id)
       return getSellerOrderState(order, shipment).filter === sellerFilter
@@ -299,6 +314,7 @@ export default function OrdersPage() {
       next.delete('shipment')
       next.delete('status')
     }
+    next.delete('sellerDropoff')
     setSearchParams(next, { replace: true })
   }
 
@@ -307,6 +323,7 @@ export default function OrdersPage() {
     next.set('tab', 'selling')
     next.set('status', nextFilter)
     next.delete('shipment')
+    next.delete('sellerDropoff')
     setSearchParams(next, { replace: true })
   }
 
@@ -332,7 +349,7 @@ export default function OrdersPage() {
         ))}
       </div>
 
-      {tab === 'selling' && (
+      {tab === 'selling' && !sellerDropoffFilter && (
         <div className="px-4 py-3 border-b border-sib-stone dark:border-[rgba(242,238,231,0.10)]">
           {pendingPayoutSummary.count > 0 && (
             <PendingPayoutsWidget summary={pendingPayoutSummary} className="mb-3" />
@@ -360,9 +377,13 @@ export default function OrdersPage() {
       {displayed.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-3">
           <p className="text-5xl">{tab === 'buying' ? '🛍️' : '📦'}</p>
-          <p className="font-semibold text-sib-text dark:text-[#f4efe7]">No {tab === 'buying' ? 'purchases' : 'sales'} yet</p>
+          <p className="font-semibold text-sib-text dark:text-[#f4efe7]">
+            {sellerDropoffFilter === 'pending' ? 'No parcels awaiting drop-off' : `No ${tab === 'buying' ? 'purchases' : 'sales'} yet`}
+          </p>
           <p className="text-sm text-sib-muted dark:text-[#aeb8b4] text-center px-8">
-            {shipmentFilter === 'awaiting_shipment'
+            {sellerDropoffFilter === 'pending'
+              ? 'You have no paid MYConvenience parcels waiting for seller drop-off.'
+              : shipmentFilter === 'awaiting_shipment'
               ? 'No sales are currently awaiting shipment.'
               : tab === 'buying' ? 'Browse and buy something you love.' : 'Seller sales will appear here after checkout.'}
           </p>

@@ -93,25 +93,25 @@ export default function SellerDropoffPage() {
   const activeParcel = activeQrOrder ? buildParcel(activeQrOrder) : null
 
   return (
-    <div className="min-h-screen bg-sib-bg pb-10 text-sib-text dark:bg-[#1f2926] dark:text-[#f4efe7]">
-      <PageHeader title="Drop-off QRs" />
+    <div className="min-h-screen bg-sib-bg pb-28 text-sib-text dark:bg-[#1f2926] dark:text-[#f4efe7]">
+      <PageHeader title="Drop-off QRs" compact />
 
-      <main className="px-4 py-5">
-        <div className="mb-4 rounded-2xl border border-blue-100 bg-blue-50 p-4 dark:border-blue-500/20 dark:bg-[#21303a]">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white">
-              <QrCode size={19} />
+      <main className="px-3 pb-2 pt-3 sm:px-4 sm:py-5">
+        <div className="mb-3 rounded-xl border border-blue-100 bg-blue-50 p-3 dark:border-blue-500/20 dark:bg-[#21303a] sm:mb-4 sm:rounded-2xl sm:p-4">
+          <div className="flex items-start gap-2.5 sm:gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white sm:h-10 sm:w-10 sm:rounded-2xl">
+              <QrCode size={17} />
             </div>
             <div className="min-w-0">
-              <h1 className="text-base font-black text-blue-950 dark:text-blue-50">Drop off your parcel at MYConvenience.</h1>
-              <p className="mt-1 text-sm font-semibold leading-relaxed text-blue-800 dark:text-blue-100">
+              <h1 className="text-sm font-black text-blue-950 dark:text-blue-50 sm:text-base">Drop off your parcel at MYConvenience.</h1>
+              <p className="mt-0.5 text-xs font-semibold leading-snug text-blue-800 dark:text-blue-100 sm:mt-1 sm:text-sm sm:leading-relaxed">
                 Your parcel will be confirmed once the store scans your QR code.
               </p>
             </div>
           </div>
         </div>
 
-        <div className="mb-4 grid grid-cols-2 gap-2 rounded-2xl bg-sib-stone/70 p-1 dark:bg-[#202b28]" role="tablist" aria-label="Drop-off status">
+        <div className="mb-3 grid grid-cols-2 gap-1.5 rounded-xl bg-sib-stone/70 p-1 dark:bg-[#202b28] sm:mb-4 sm:gap-2 sm:rounded-2xl" role="tablist" aria-label="Drop-off status">
           {[
             { id: 'pending', label: 'Pending', count: pendingOrders.length },
             { id: 'confirmed', label: 'Confirmed', count: confirmedOrders.length },
@@ -122,13 +122,13 @@ export default function SellerDropoffPage() {
               role="tab"
               aria-selected={activeTab === tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`rounded-xl px-3 py-2 text-sm font-black transition ${
+              className={`rounded-lg px-3 py-1.5 text-xs font-black transition sm:rounded-xl sm:py-2 sm:text-sm ${
                 activeTab === tab.id
                   ? 'bg-white text-sib-text shadow-sm dark:bg-[#26322f] dark:text-[#f4efe7]'
                   : 'text-sib-muted dark:text-[#aeb8b4]'
               }`}
             >
-              {tab.label} <span className="font-mono text-xs opacity-70">{tab.count}</span>
+              {tab.label} <span className="font-mono text-[11px] opacity-70 sm:text-xs">{tab.count}</span>
             </button>
           ))}
         </div>
@@ -137,7 +137,7 @@ export default function SellerDropoffPage() {
           pendingOrders.length === 0 ? (
             <EmptyState message="No parcels waiting for drop-off." />
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2 pb-2 sm:space-y-3">
               {pendingOrders.map((order) => {
                 const parcel = buildParcel(order)
                 return (
@@ -155,7 +155,7 @@ export default function SellerDropoffPage() {
         ) : confirmedOrders.length === 0 ? (
           <EmptyState message="No confirmed drop-offs yet." />
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2 pb-2 sm:space-y-3">
             {confirmedOrders.map((order) => {
               const parcel = buildParcel(order)
               return <ParcelCard key={order.id} parcel={parcel} status="confirmed" />
@@ -173,9 +173,9 @@ export default function SellerDropoffPage() {
 
 function EmptyState({ message }) {
   return (
-    <div className="rounded-2xl border border-sib-stone bg-white p-6 text-center shadow-sm dark:border-[rgba(242,238,231,0.10)] dark:bg-[#26322f]">
+    <div className="rounded-xl border border-sib-stone bg-white p-4 text-center shadow-sm dark:border-[rgba(242,238,231,0.10)] dark:bg-[#26322f] sm:rounded-2xl sm:p-6">
       <Package size={28} className="mx-auto text-sib-muted dark:text-[#aeb8b4]" />
-      <p className="mt-3 text-sm font-bold text-sib-text dark:text-[#f4efe7]">{message}</p>
+      <p className="mt-2 text-xs font-bold text-sib-text dark:text-[#f4efe7] sm:mt-3 sm:text-sm">{message}</p>
     </div>
   )
 }
@@ -184,19 +184,19 @@ function ParcelCard({ parcel, status, actionLabel, onAction }) {
   const confirmed = status === 'confirmed'
   return (
     <article
-      className={`rounded-2xl border p-4 shadow-sm ${
+      className={`rounded-xl border p-3 shadow-sm sm:rounded-2xl sm:p-4 ${
         confirmed
           ? 'border-green-100 bg-green-50/80 dark:border-green-500/20 dark:bg-[#20322b]'
           : 'border-sib-stone bg-white dark:border-[rgba(242,238,231,0.10)] dark:bg-[#26322f]'
       }`}
       data-testid={confirmed ? 'confirmed-dropoff-card' : 'pending-dropoff-card'}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start justify-between gap-2 sm:gap-3">
         <div className="min-w-0">
-          <p className="text-[11px] font-bold uppercase text-sib-muted dark:text-[#aeb8b4]">Order code</p>
-          <p className="break-all font-mono text-xl font-black text-sib-text dark:text-[#f4efe7]">{parcel.orderCode}</p>
+          <p className="text-[10px] font-bold uppercase text-sib-muted dark:text-[#aeb8b4] sm:text-[11px]">Order code</p>
+          <p className="break-all font-mono text-base font-black leading-tight text-sib-text dark:text-[#f4efe7] sm:text-xl sm:leading-normal">{parcel.orderCode}</p>
         </div>
-        <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-black ${
+        <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black sm:px-3 sm:py-1 sm:text-xs ${
           confirmed
             ? 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-100'
             : 'bg-blue-50 text-blue-800 ring-1 ring-blue-100 dark:bg-[#21303a] dark:text-blue-100 dark:ring-blue-500/20'
@@ -206,13 +206,13 @@ function ParcelCard({ parcel, status, actionLabel, onAction }) {
         </span>
       </div>
 
-      <div className="mt-3 grid gap-1 text-sm">
-        <p className="font-black text-sib-text dark:text-[#f4efe7]">{parcel.buyerDisplayName}</p>
-        <p className="font-semibold text-sib-muted dark:text-[#aeb8b4]">{parcel.itemTitle}</p>
+      <div className="mt-2 grid gap-0.5 text-xs sm:mt-3 sm:gap-1 sm:text-sm">
+        <p className="font-black leading-snug text-sib-text dark:text-[#f4efe7]">{parcel.buyerDisplayName}</p>
+        <p className="font-semibold leading-snug text-sib-muted dark:text-[#aeb8b4]">{parcel.itemTitle}</p>
       </div>
 
       {confirmed && (
-        <div className="mt-3 space-y-1 text-xs font-semibold text-green-800 dark:text-green-100">
+        <div className="mt-2 space-y-1 text-[11px] font-semibold text-green-800 dark:text-green-100 sm:mt-3 sm:text-xs">
           {parcel.confirmedTime && <p>Confirmed {formatConfirmedTime(parcel.confirmedTime)}</p>}
           {parcel.dropoffLocation && (
             <p className="flex items-start gap-1.5">
@@ -227,9 +227,9 @@ function ParcelCard({ parcel, status, actionLabel, onAction }) {
         <button
           type="button"
           onClick={onAction}
-          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-sib-primary px-4 py-3 text-sm font-black text-white transition hover:bg-sib-primary/90"
+          className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-sib-primary px-4 py-2.5 text-xs font-black text-white transition hover:bg-sib-primary/90 sm:mt-4 sm:rounded-2xl sm:py-3 sm:text-sm"
         >
-          <QrCode size={16} /> {actionLabel}
+          <QrCode size={15} /> {actionLabel}
         </button>
       )}
     </article>

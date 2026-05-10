@@ -1,21 +1,19 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  Camera, X, Info, Check, ChevronDown, Search, Package, Truck, Wallet,
+  Camera, X, Check, ChevronDown, Search, Wallet,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { CATEGORY_TREE, getSubcategories, getCategoryAttributes, isDeliveryEligible } from '../data/categories'
-import FeeBreakdown from '../components/FeeBreakdown'
 import DeliveryGuidance from '../components/DeliveryGuidance'
 import BrandInput from '../components/BrandInput'
 import { normalizeBrand } from '../lib/brands'
 import { moderateContent } from '../lib/moderation'
-import { DELIVERY_TIERS, getDefaultDeliverySize, getAllowedTiers, getDeliveryFee, BULKY_DELIVERY_NOTES, isForceBulky, SIZE_ACCURACY_WARNING, titleSuggestsBulky } from '../lib/deliveryPricing'
+import { getDefaultDeliverySize, isForceBulky } from '../lib/deliveryPricing'
 import {
   getDeliveryEligibility,
   SIB_EXPRESS_LARGER_ITEMS_COMING_SOON_MESSAGE,
   SIB_EXPRESS_LISTING_BLOCKED_MESSAGE,
-  SIB_EXPRESS_SELLER_LIMIT_MESSAGE,
 } from '../lib/deliveryEligibility'
 import { SHOE_SIZES } from '../utils/sizeConfig'
 
@@ -1224,14 +1222,14 @@ useEffect(() => {
           <p className="text-xs text-sib-muted mb-5">Set your price and confirm whether this is a Sib Express parcel.</p>
 
           {deliveryEligible && (
-            <div className="mb-5">
-                <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">
-                  Parcel size
-                </label>
-                <p className="text-[11px] text-sib-muted mb-2 leading-relaxed">
-                  {SIB_EXPRESS_SELLER_LIMIT_MESSAGE}
-                </p>
-              <div className="flex gap-2">
+            <div className="mb-4">
+              <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1.5 block">
+                Parcel size
+              </label>
+              <p className="text-[11px] text-sib-muted mb-2 leading-snug">
+                Sib Express supports small parcels under 5kg that fit in a courier delivery bag.
+              </p>
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -1241,136 +1239,34 @@ useEffect(() => {
                     set('deliverySize', 'small')
                   }}
                   disabled={categoryBlocksExpress}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                    form.lockerEligible === true ? 'bg-sib-primary text-white' : 'bg-sib-sand text-sib-muted'
+                  className={`rounded-xl border px-3 py-2 text-left text-xs font-semibold leading-tight transition-colors ${
+                    form.lockerEligible === true ? 'border-sib-primary bg-sib-primary text-white' : 'border-sib-stone bg-white text-sib-text'
                   } ${categoryBlocksExpress ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  Small parcel, under 5kg
+                  Small parcel
+                  <span className="block text-[10px] font-medium opacity-80">under 5kg</span>
                 </button>
                 <button
                   type="button"
                   disabled
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                    form.lockerEligible === false ? 'bg-gray-200 text-gray-500' : 'bg-gray-100 text-gray-400'
-                  } cursor-not-allowed opacity-70`}
+                  className="rounded-xl border border-gray-200 bg-gray-100 px-3 py-2 text-left text-xs font-semibold leading-tight text-gray-400 opacity-75 cursor-not-allowed"
                 >
-                  Large/bulky item, over 5kg
-                  <span className="block text-[10px] font-semibold mt-0.5">Coming soon</span>
+                  Large/bulky
+                  <span className="block text-[10px] font-medium mt-0.5">Coming soon</span>
                 </button>
               </div>
-                {errors.lockerEligible && <p className="text-red-500 text-xs mt-1">{errors.lockerEligible}</p>}
-                {(form.lockerEligible === false || categoryBlocksExpress) && (
-                  <p className="text-[11px] text-sib-muted mt-2">
-                    {SIB_EXPRESS_LARGER_ITEMS_COMING_SOON_MESSAGE}
-                  </p>
-                )}
-              </div>
+              {errors.lockerEligible && <p className="text-red-500 text-xs mt-1">{errors.lockerEligible}</p>}
+              {(form.lockerEligible === false || categoryBlocksExpress) && (
+                <p className="text-[11px] text-sib-muted mt-2 leading-snug">
+                  {SIB_EXPRESS_LARGER_ITEMS_COMING_SOON_MESSAGE}
+                </p>
+              )}
+              <p className="text-[11px] text-sib-muted mt-2 leading-snug">
+                Your parcel must fit safely inside a courier delivery bag.
+              </p>
+            </div>
           )}
 
-          {/* ── Delivery Size Picker — with 1-person-carry toggle ── */}
-          {deliveryEligible && form.lockerEligible === true && !categoryBlocksExpress && (() => {
-            const allowed = getAllowedTiers(form.category, form.subcategory, form.onePersonCarry)
-            const selectedSize = 'small'
-            const TIER_ICONS = { small: Package }
-
-            return (
-              <div className="mb-5">
-                <label className="text-xs font-semibold text-sib-text uppercase tracking-wide mb-1 block">
-                  Delivery size
-                </label>
-
-                {/* 1-person-carry toggle — not shown for force-bulky categories */}
-                {false && (
-                  <div className="mb-3">
-                    <p className="text-[11px] text-sib-muted mb-2 leading-relaxed">
-                      Can this item be safely carried by 1 person?
-                    </p>
-                    <div className="flex gap-2">
-                      <button type="button" onClick={() => {
-                        set('onePersonCarry', true)
-                        // If currently bulky, switch to heavy
-                        if (form.deliverySize === 'bulky') set('deliverySize', 'heavy')
-                      }}
-                        className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                          form.onePersonCarry === true ? 'bg-sib-primary text-white' : 'bg-sib-sand text-sib-muted'
-                        }`}>Yes</button>
-                      <button type="button" onClick={() => {
-                        set('onePersonCarry', false)
-                        set('deliverySize', 'bulky')
-                      }}
-                        className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                          form.onePersonCarry === false ? 'bg-sib-primary text-white' : 'bg-sib-sand text-sib-muted'
-                        }`}>No</button>
-                    </div>
-                    {bulkyHint && (
-                      <p className="text-[11px] text-amber-700 mt-1.5 flex items-start gap-1">
-                        <Info size={11} className="flex-shrink-0 mt-0.5" />
-                        <span>This looks like it might be a bulky item. If it cannot be carried by 1 person, select "No".</span>
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Guidance text */}
-                <p className="text-[11px] text-sib-muted mb-2 leading-relaxed">
-                  {SIB_EXPRESS_SELLER_LIMIT_MESSAGE}
-                </p>
-
-                {/* Tier buttons */}
-                <div className="flex flex-col gap-2">
-                  {DELIVERY_TIERS.filter(t => allowed.includes(t.id)).map(tier => {
-                    const TierIcon = TIER_ICONS[tier.id] || Package
-                    const isSelected = selectedSize === tier.id
-                    return (
-                      <button
-                        key={tier.id}
-                        type="button"
-                        onClick={() => set('deliverySize', tier.id)}
-                        className={`flex items-start gap-3 px-4 py-3 rounded-xl border transition-colors text-left ${
-                          isSelected ? 'border-sib-primary bg-sib-primary/5' : 'border-sib-stone'
-                        }`}
-                      >
-                        <div className={`mt-0.5 w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${
-                          isSelected ? 'border-sib-primary bg-sib-primary' : 'border-sib-stone'
-                        }`}>
-                          {isSelected && <Check size={11} className="text-white" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <TierIcon size={14} className={isSelected ? 'text-sib-primary' : 'text-sib-muted'} />
-                            <span className="text-sm font-semibold text-sib-text">{tier.label}</span>
-                            <span className={`ml-auto text-sm font-bold ${isSelected ? 'text-sib-primary' : 'text-sib-text/60'}`}>{tier.priceLabel}</span>
-                          </div>
-                          <p className="text-xs text-sib-muted mt-0.5">{tier.description}</p>
-                          {tier.weight && <p className="text-[11px] text-sib-muted/70 mt-0.5">{tier.weight}</p>}
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-
-                {/* Bulky delivery notes */}
-                {false && (
-                  <div className="mt-2 p-3 rounded-xl bg-amber-50 border border-amber-200">
-                    <p className="text-xs font-semibold text-amber-800 mb-1">Bulky delivery — please note</p>
-                    <ul className="space-y-0.5">
-                      {BULKY_DELIVERY_NOTES.map((note, i) => (
-                        <li key={i} className="text-[11px] text-amber-700 flex items-start gap-1.5">
-                          <span className="mt-0.5">•</span><span>{note}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* Size accuracy warning */}
-                <p className="text-[11px] text-sib-muted/80 mt-2 flex items-start gap-1">
-                  <Info size={10} className="flex-shrink-0 mt-0.5" />
-                  <span>{SIZE_ACCURACY_WARNING}</span>
-                </p>
-              </div>
-            )
-          })()}
 
           {/* ── Price input ────────────────────────────── */}
           <div className="mb-4">
@@ -1385,16 +1281,23 @@ useEffect(() => {
 
           {/* ── Fee preview (shown only when price is entered) ── */}
           {fees && (
-            <div className="p-4 rounded-2xl bg-sib-warm mb-5 text-sm">
-              <div className="flex items-center gap-1.5 mb-3">
-                <Info size={13} className="text-sib-muted" />
-                <p className="text-xs font-semibold text-sib-muted">What the buyer pays</p>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sib-muted text-xs">
+            <div className="mb-4 rounded-xl border border-sib-stone bg-white px-3 py-2.5 text-xs">
+              {form.lockerEligible === true && expressEligibility.eligible && (
+                <div className="mb-2 flex items-center justify-between gap-3 rounded-lg bg-orange-50/70 px-2.5 py-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-sib-text">Sib Express delivery</p>
+                    <p className="text-[11px] text-sib-muted">Small parcel · under 5kg</p>
+                  </div>
+                  <p className="shrink-0 font-bold text-sib-primary">Delivery fee €3.50</p>
+                </div>
+              )}
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-sib-muted">
                   <span>Listing price</span><span>EUR {parseFloat(form.price).toFixed(2)}</span>
                 </div>
-                <FeeBreakdown buyerProtectionFee={fees.buyerProtectionFee} deliveryFee={form.lockerEligible === true && expressEligibility.eligible ? getDeliveryFee('small') : undefined} size="sm" />
+                <div className="flex justify-between text-sib-muted">
+                  <span>Sib Buyer Protection</span><span>EUR {fees.buyerProtectionFee.toFixed(2)}</span>
+                </div>
                 <div className="flex justify-between text-sib-text font-bold pt-2 border-t border-sib-stone">
                   <span>You receive</span><span className="text-sib-primary">EUR {parseFloat(form.price).toFixed(2)}</span>
                 </div>
@@ -1411,15 +1314,15 @@ useEffect(() => {
           )}
 
           {currentUser && !(currentUser.stripeAccountId && currentUser.detailsSubmitted && currentUser.payoutsEnabled) && (
-            <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-              <div className="flex items-start gap-3">
-                <Wallet size={17} className="mt-0.5 text-amber-700" />
+            <div className="mb-4 rounded-xl border border-orange-200 bg-orange-50/70 p-3">
+              <div className="flex items-start gap-2.5">
+                <Wallet size={16} className="mt-0.5 text-sib-primary" />
                 <div className="flex-1">
-                  <p className="text-sm font-bold text-amber-900">You have funds waiting. Complete payout setup to receive money from your sales.</p>
+                  <p className="text-sm font-semibold text-sib-text">Set up payouts to receive money from your sales.</p>
                   <button
                     type="button"
                     onClick={() => navigate('/seller/payout-settings')}
-                    className="mt-2 rounded-full bg-sib-secondary px-4 py-2 text-xs font-bold text-white"
+                    className="mt-2 rounded-full bg-sib-primary px-4 py-2 text-xs font-bold text-white"
                   >
                     Set up payouts
                   </button>

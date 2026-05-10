@@ -2,7 +2,7 @@ import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 
-export default function PageHeader({ title, right, onBack }) {
+export default function PageHeader({ title, right, onBack, compact = false }) {
   const navigate = useNavigate()
 
   const handleBack = () => {
@@ -28,7 +28,7 @@ export default function PageHeader({ title, right, onBack }) {
         {/* Center: title */}
         <div className="flex-1 text-center">
           {title && (
-            <h1 className="text-[15px] font-bold text-sib-text dark:text-[#f4efe7] truncate px-2">{title}</h1>
+            <h1 className={`${compact ? 'text-sm sm:text-[15px]' : 'text-[15px]'} font-bold text-sib-text dark:text-[#f4efe7] truncate px-2`}>{title}</h1>
           )}
         </div>
 

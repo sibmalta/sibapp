@@ -122,7 +122,7 @@ const NOTIF_CONFIG = {
 
 const DEFAULT_CONFIG = { icon: Bell, color: 'bg-sib-sand text-sib-muted', link: '/notifications' }
 
-function resolveNotificationTarget(notif) {
+export function resolveNotificationTarget(notif) {
   if (notif.actionTarget && notif.actionTarget !== '/') return notif.actionTarget
   if (notif.targetPath && notif.targetPath !== '/') return notif.targetPath
   const cfg = NOTIF_CONFIG[notif.type] || DEFAULT_CONFIG
@@ -132,8 +132,9 @@ function resolveNotificationTarget(notif) {
   const orderId = getOrderId(notif)
   if (orderId) return `/orders/${orderId}`
   if (getConversationId(notif)) return messageTarget(notif)
+  if (cfg !== DEFAULT_CONFIG && (cfg.link || cfg.linkFn)) return cfg.linkFn ? cfg.linkFn(notif) : cfg.link
   if (isOperationalShippingNotification(notif)) return SELLER_SHIPMENT_QUEUE
-  return cfg.linkFn ? cfg.linkFn(notif) : cfg.link
+  return DEFAULT_CONFIG.link
 }
 
 function timeAgo(dateStr) {

@@ -12,6 +12,7 @@ import {
   shouldSkipGroupedDropoffReminder,
 } from '../lib/dropoffReminderGuard'
 import { getOverdueOrderIdsToFlag } from '../lib/overdueNotifications'
+import { resolveNotificationTarget } from '../pages/NotificationsPage'
 
 function createDuplicateNotificationSupabaseMock(existing) {
   const eqCalls = []
@@ -301,6 +302,15 @@ describe('notification idempotency', () => {
     expect(notification.message).toContain('SIB-GHI789')
     expect(notification.message).toContain('+1 more')
     expect(notification.metadata.orderIds).toEqual(['order-1', 'order-2', 'order-3', 'order-4'])
+  })
+
+  it('routes grouped drop-off notification clicks to the pending seller drop-off orders view', () => {
+    expect(resolveNotificationTarget({
+      id: 'grouped-dropoff-1',
+      type: GROUPED_DROPOFF_REMINDER_TYPE,
+      title: 'Multiple Sib parcels ready for drop-off',
+      message: 'You have 4 orders awaiting MYConvenience drop-off.',
+    })).toBe(GROUPED_DROPOFF_REMINDER_ROUTE)
   })
 
   it('keeps 1-3 pending drop-off orders as individual reminders', () => {
