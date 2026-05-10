@@ -36,9 +36,12 @@ async function clearStoredStripeAccount(supabase: ReturnType<typeof createClient
 }
 
 async function createConnectedAccount(stripe: Stripe, userId: string, userEmail: string) {
+  // Legacy fallback only. The main payout flow uses stripe-connect, but this
+  // remains individual-only so casual Sib sellers do not enter company onboarding.
   return await stripe.accounts.create({
     type: 'express',
     country: 'MT', // Malta
+    business_type: 'individual',
     email: userEmail,
     capabilities: {
       card_payments: { requested: true },
@@ -95,7 +98,12 @@ Deno.serve(async (req) => {
 
     if (accountId) {
       try {
-        await stripe.accounts.retrieve(accountId)
+        const account = await stripe.accounts.retrieve(accountId)
+        console.info('[create-connected-account] Reusing connected account', {
+          userId,
+          accountId: account.id,
+          businessType: account.business_type || null,
+        })
       } catch (error) {
         if (!isInvalidConnectedAccountError(error)) throw error
         await clearStoredStripeAccount(supabase, userId, error instanceof Error ? error.message : 'invalid connected account')

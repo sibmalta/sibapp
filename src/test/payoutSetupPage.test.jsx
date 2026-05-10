@@ -67,7 +67,8 @@ describe('PayoutSetupPage', () => {
 
     expect(screen.getByText('Receive your earnings securely')).toBeInTheDocument()
     expect(screen.getByText('Sib uses Stripe to securely send money from your sales directly to your bank account.')).toBeInTheDocument()
-    expect(screen.getByText(/Individual \/ Sole proprietor/)).toBeInTheDocument()
+    expect(screen.getByText('Connect your bank account to receive earnings.')).toBeInTheDocument()
+    expect(screen.queryByText(/Individual \/ Sole proprietor/)).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Continue securely/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Maybe later/i })).toBeInTheDocument()
   })
@@ -135,6 +136,7 @@ describe('PayoutSetupPage', () => {
     expect(payoutSetup).toContain('loadConnectAndInitialize')
     expect(payoutSetup).toContain('ConnectAccountOnboarding')
     expect(payoutSetup).toContain('createStripeConnectAccountSession')
+    expect(payoutSetup).not.toContain('Individual / Sole proprietor')
     expect(stripeClient).toContain("mode: 'embedded_account_session'")
     expect(dashboard).toContain("console.info('routing_to_payout_setup')")
     expect(sell).not.toContain("console.info('routing_to_payout_setup')")

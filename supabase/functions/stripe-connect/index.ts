@@ -207,6 +207,11 @@ async function syncStripeAccountStatus(
   accountId: string,
 ) {
   const account = await stripe.accounts.retrieve(accountId)
+  console.info('[stripe-connect] Reusing connected account', {
+    userId,
+    accountId: account.id,
+    businessType: account.business_type || null,
+  })
   const updates = {
     stripe_account_id: account.id,
     details_submitted: account.details_submitted || false,
@@ -252,9 +257,14 @@ async function createConnectedAccountForUser(
   userId: string,
   userEmail: string,
 ) {
+  // Sib is a casual second-hand marketplace. New seller payout accounts must be
+  // individual accounts so Stripe asks for personal payout details, not company setup.
+  // Existing test accounts created without business_type may need to be deleted and
+  // recreated in Stripe if they already entered the wrong onboarding flow.
   const account = await stripe.accounts.create({
     type: 'express',
     country: 'MT',
+    business_type: 'individual',
     email: userEmail,
     capabilities: {
       card_payments: { requested: true },

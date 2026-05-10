@@ -190,8 +190,7 @@ export default function PayoutSetupPage() {
           </p>
 
           <div className="mt-5 rounded-2xl border border-orange-100 bg-orange-50/70 p-4 dark:border-sib-primary/20 dark:bg-[#26322f]">
-            <p className="text-sm font-black text-sib-text dark:text-[#f4efe7]">Most Sib sellers should choose:</p>
-            <p className="mt-2 text-sm font-semibold text-sib-text dark:text-[#f4efe7]">• Individual / Sole proprietor</p>
+            <p className="text-sm font-black text-sib-text dark:text-[#f4efe7]">Connect your bank account to receive earnings.</p>
             <p className="mt-3 text-xs font-semibold text-sib-muted dark:text-[#aeb8b4]">
               Setup usually takes around 2 minutes.
             </p>

@@ -126,9 +126,12 @@ async function createConnectedAccount(
   userId: string,
   userEmail: string,
 ) {
+  // Keep legacy account-link fallback aligned with the primary stripe-connect
+  // function: Sib sellers are casual individual sellers, not companies.
   const account = await stripe.accounts.create({
     type: 'express',
     country: 'MT',
+    business_type: 'individual',
     email: userEmail,
     capabilities: {
       card_payments: { requested: true },
@@ -206,6 +209,11 @@ Deno.serve(async (req) => {
     let accountReset = false
     try {
       account = await stripe.accounts.retrieve(accountId)
+      console.info('[create-account-link] Reusing connected account', {
+        userId,
+        accountId: account.id,
+        businessType: account.business_type || null,
+      })
     } catch (error) {
       if (!isInvalidConnectedAccountError(error)) throw error
       await clearStoredStripeAccount(supabase, userId, error instanceof Error ? error.message : 'invalid connected account')
