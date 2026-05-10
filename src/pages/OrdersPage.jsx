@@ -86,7 +86,7 @@ export function getSellerOrderState(order = {}, shipment = null) {
       filter: 'blocked_payouts',
       label: 'Payout setup needed',
       style: 'bg-amber-50 text-amber-800 dark:bg-[#332d20] dark:text-amber-200',
-      nextStep: 'Complete payout setup to receive money from this sale.',
+      nextStep: 'Connect your bank account to receive money from this sale.',
     }
   }
 

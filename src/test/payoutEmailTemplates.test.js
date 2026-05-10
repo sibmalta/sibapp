@@ -10,7 +10,7 @@ describe('payout email wiring', () => {
 
     expect(sendEmail).toContain("| 'payout_setup_required'")
     expect(sendEmail).toContain("subject: 'Action needed: receive your Sib payout'")
-    expect(sendEmail).toContain("btn('Complete payout setup', buildAppUrl('/seller/payout-settings'))")
+    expect(sendEmail).toContain("btn('Connect bank account', buildAppUrl('/payout-setup'))")
   })
 
   it('sends payout emails from buyer-protection with per-order dedupe', () => {

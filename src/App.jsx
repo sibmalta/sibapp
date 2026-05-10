@@ -26,6 +26,7 @@ import AdminPage from './pages/AdminPage'
 import AdminScanDropoffPage from './pages/AdminScanDropoffPage'
 import SellerDropoffPage from './pages/SellerDropoffPage'
 import SellerDashboardPage from './pages/SellerDashboardPage'
+import PayoutSetupPage from './pages/PayoutSetupPage'
 import PayoutSettingsPage from './pages/PayoutSettingsPage'
 import TermsPage from './pages/TermsPage'
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
@@ -97,6 +98,7 @@ function AppRoutes() {
           <Route path="profile/edit" element={<EditProfilePage />} />
           <Route path="reviews/:username" element={<ReviewsPage />} />
           <Route path="seller" element={<SellerDashboardPage />} />
+          <Route path="payout-setup" element={<PayoutSetupPage />} />
           <Route path="seller/payout-settings" element={<PayoutSettingsPage />} />
           <Route path="admin" element={<AdminPage />} />
           <Route path="admin/scan-dropoff" element={<AdminScanDropoffPage />} />

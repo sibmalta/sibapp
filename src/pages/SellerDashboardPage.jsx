@@ -17,7 +17,7 @@ const PAYOUT_STATUS_MAP = {
   available: { label: 'Available', desc: 'Ready for next payout', color: 'bg-emerald-50 text-emerald-700 dark:bg-[#20322b] dark:text-emerald-300', dot: 'bg-emerald-400', icon: CheckCircle },
   released: { label: 'Paid out', desc: 'Sent to your bank', color: 'bg-sky-50 text-sky-700 dark:bg-[#21303a] dark:text-sky-300', dot: 'bg-sky-400', icon: Banknote },
   disputed: { label: 'Issue reported', desc: 'Funds held while the issue is reviewed', color: 'bg-red-50 text-red-600 dark:bg-[#362322] dark:text-red-300', dot: 'bg-red-400', icon: AlertCircle },
-  blocked_seller_setup: { label: 'Payout setup needed', desc: 'Complete payout setup to receive these funds', color: 'bg-amber-50 text-amber-800 dark:bg-[#332d20] dark:text-amber-200', dot: 'bg-amber-500', icon: AlertCircle },
+  blocked_seller_setup: { label: 'Connect bank account', desc: 'Receive these earnings securely', color: 'bg-amber-50 text-amber-800 dark:bg-[#332d20] dark:text-amber-200', dot: 'bg-amber-500', icon: AlertCircle },
   transfer_failed: { label: 'Payout needs review', desc: 'Sib will retry or review this payout', color: 'bg-red-50 text-red-600 dark:bg-[#362322] dark:text-red-300', dot: 'bg-red-400', icon: AlertCircle },
   refunded: { label: 'Refunded', desc: 'Returned to buyer', color: 'bg-red-50 text-red-500 dark:bg-[#362322] dark:text-red-300', dot: 'bg-red-400', icon: AlertCircle },
 }
@@ -119,14 +119,14 @@ export default function SellerDashboardPage() {
             <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mt-0.5">Earnings &amp; payouts</p>
           </div>
           <button
-            onClick={() => navigate('/seller/payout-settings')}
+            onClick={() => navigate(hasStripeAccount ? '/seller/payout-settings' : '/payout-setup')}
             className={`text-xs px-3.5 py-1.5 rounded-full font-semibold transition-all ${
               hasStripeAccount
                 ? 'text-sib-muted dark:text-[#aeb8b4] bg-sib-sand dark:bg-[#26322f] border border-sib-stone dark:border-[rgba(242,238,231,0.10)] hover:border-sib-muted dark:hover:border-[rgba(242,238,231,0.18)]'
                 : 'text-white bg-sib-secondary shadow-sm hover:opacity-90'
             }`}
           >
-            {needsStripeVerification ? 'Continue Stripe verification' : hasStripeAccount ? 'Payout settings' : 'Set up payouts'}
+            {needsStripeVerification ? 'Continue securely' : hasStripeAccount ? 'Receive earnings' : 'Connect bank account'}
           </button>
         </div>
       </div>
@@ -187,7 +187,7 @@ export default function SellerDashboardPage() {
       ) : !stripeReady && (
         <div className="px-4 mt-3">
           <button
-            onClick={() => navigate('/seller/payout-settings')}
+            onClick={() => navigate('/payout-setup')}
             className="w-full flex items-center gap-3 p-3.5 rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-white dark:bg-[#202b28] hover:bg-sib-sand dark:hover:bg-[#26322f] transition-colors group"
           >
             <div className="w-9 h-9 rounded-xl bg-sib-secondary/10 flex items-center justify-center flex-shrink-0">
@@ -195,10 +195,10 @@ export default function SellerDashboardPage() {
             </div>
             <div className="flex-1 text-left">
               <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7]">
-                {needsStripeVerification ? 'Continue Stripe verification' : 'Set up payouts'}
+                {needsStripeVerification ? 'Continue securely' : 'Connect bank account'}
               </p>
               <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] mt-0.5">
-                {needsStripeVerification ? 'Finish onboarding to unlock payouts' : 'Connect your bank to receive earnings'}
+                {needsStripeVerification ? 'Finish setup to receive earnings' : 'Connect your bank to receive earnings'}
               </p>
             </div>
             <ArrowUpRight size={16} className="text-sib-muted dark:text-[#aeb8b4] group-hover:text-sib-secondary transition-colors flex-shrink-0" />

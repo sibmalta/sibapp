@@ -750,9 +750,9 @@ Deno.serve(async (req) => {
             listing_id: order.listing_id || null,
             type: 'seller_payout_setup_required',
             title: 'Funds waiting for payout',
-            message: 'You have a sale waiting for payout. Complete payout setup to receive your funds.',
-            target_path: '/seller/payout-settings',
-            action_target: '/seller/payout-settings',
+            message: 'You have a sale waiting for payout. Connect your bank account to receive your earnings.',
+            target_path: '/payout-setup',
+            action_target: '/payout-setup',
             metadata: { source: 'auto_release_due', payoutStatus: SELLER_SETUP_BLOCKED_STATUS },
           })
           await sendTransactionalEmailOnce(supabase, 'payout_setup_required', sellerProfile?.email, {
@@ -895,9 +895,9 @@ Deno.serve(async (req) => {
                 listing_id: order.listing_id || null,
                 type: 'seller_payout_setup_required',
                 title: 'Funds waiting for payout',
-                message: 'You have a sale waiting for payout. Complete payout setup to receive your funds.',
-                target_path: '/seller/payout-settings',
-                action_target: '/seller/payout-settings',
+                message: 'You have a sale waiting for payout. Connect your bank account to receive your earnings.',
+                target_path: '/payout-setup',
+                action_target: '/payout-setup',
                 metadata: { source: 'auto_release_due', payoutStatus: SELLER_SETUP_BLOCKED_STATUS },
               })
               await sendTransactionalEmailOnce(supabase, 'payout_setup_required', sellerProfile?.email, {

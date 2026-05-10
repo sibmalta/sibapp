@@ -1318,13 +1318,13 @@ useEffect(() => {
               <div className="flex items-start gap-2.5">
                 <Wallet size={16} className="mt-0.5 text-sib-primary" />
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-sib-text">Set up payouts to receive money from your sales.</p>
+                  <p className="text-sm font-semibold text-sib-text">Connect your bank account to receive money from your sales.</p>
                   <button
                     type="button"
-                    onClick={() => navigate('/seller/payout-settings')}
+                    onClick={() => navigate('/payout-setup')}
                     className="mt-2 rounded-full bg-sib-primary px-4 py-2 text-xs font-bold text-white"
                   >
-                    Set up payouts
+                    Connect bank account
                   </button>
                 </div>
               </div>

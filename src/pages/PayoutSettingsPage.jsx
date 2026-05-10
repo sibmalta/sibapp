@@ -89,7 +89,7 @@ export default function PayoutSettingsPage() {
       const result = await startStripeConnect(session.access_token, returnUrl)
 
       if (!result.url) {
-        throw new Error('No onboarding URL returned from Stripe Connect.')
+        throw new Error('No secure setup URL returned.')
       }
 
       if (result.accountId) {
@@ -107,13 +107,13 @@ export default function PayoutSettingsPage() {
         window.location.assign(result.url)
       }
     } catch (err) {
-      console.error('Stripe Connect onboarding error:', err)
+      console.error('Stripe Connect setup error:', err)
       const friendly = friendlyPayoutError(err.message)
       if (friendly === '__CONFIG_MISSING__') {
         setError('__CONFIG_MISSING__')
       } else {
-        setError(friendly || 'Failed to start onboarding. Please try again.')
-        showToast(friendly || 'Failed to start Stripe onboarding', 'error')
+        setError(friendly || 'Failed to start secure setup. Please try again.')
+        showToast(friendly || 'Failed to start secure setup', 'error')
       }
     } finally {
       setLoading(false)
@@ -131,7 +131,7 @@ export default function PayoutSettingsPage() {
       }
     } catch (err) {
       console.error('Failed to open Stripe dashboard:', err)
-      showToast('Failed to open payout account', 'error')
+      showToast('Failed to open earnings settings', 'error')
     } finally {
       setLoading(false)
     }
@@ -173,7 +173,7 @@ export default function PayoutSettingsPage() {
               disabled={loading}
               className="mt-4 w-full py-3 rounded-xl text-sm font-medium border border-green-200 dark:border-green-500/20 text-green-700 dark:text-green-300 bg-white dark:bg-[#26322f] hover:bg-green-50 dark:hover:bg-[#30403c] active:bg-green-100 flex items-center justify-center gap-2 disabled:opacity-60 transition-colors"
             >
-              {loading ? <Loader2 size={15} className="animate-spin" /> : 'Manage payout account'}
+              {loading ? <Loader2 size={15} className="animate-spin" /> : 'Manage earnings settings'}
             </button>
           </div>
         ) : (
@@ -204,7 +204,7 @@ export default function PayoutSettingsPage() {
               {loading ? (
                 <><Loader2 size={15} className="animate-spin" /> Redirecting...</>
               ) : (
-                'Continue verification'
+                'Continue securely'
               )}
             </button>
           </div>

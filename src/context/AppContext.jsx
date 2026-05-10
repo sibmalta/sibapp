@@ -818,10 +818,10 @@ export function AppProvider({ children }) {
         userId: listing.sellerId,
         orderId: savedOrder.id,
         listingId: listing.id,
-        actionTarget: '/seller/payout-settings',
+        actionTarget: '/payout-setup',
         type: 'seller_payout_setup_required',
-        title: 'Complete payout setup',
-        message: 'You made a sale. Please complete payout setup to receive your funds.',
+        title: 'Receive your earnings',
+        message: 'You made a sale. Connect your bank account to receive your earnings.',
       })
     }
 
@@ -2220,10 +2220,10 @@ export function AppProvider({ children }) {
         userId: bundle.sellerId,
         orderId: savedOrder.id,
         listingId: savedOrder.listingId,
-        actionTarget: '/seller/payout-settings',
+        actionTarget: '/payout-setup',
         type: 'seller_payout_setup_required',
-        title: 'Complete payout setup',
-        message: 'You made a sale. Please complete payout setup to receive your funds.',
+        title: 'Receive your earnings',
+        message: 'You made a sale. Connect your bank account to receive your earnings.',
       })
     }
 
@@ -2566,10 +2566,10 @@ export function AppProvider({ children }) {
         userId: offer.sellerId,
         orderId: savedOrder.id,
         listingId: savedOrder.listingId,
-        actionTarget: '/seller/payout-settings',
+        actionTarget: '/payout-setup',
         type: 'seller_payout_setup_required',
-        title: 'Complete payout setup',
-        message: 'You made a sale. Please complete payout setup to receive your funds.',
+        title: 'Receive your earnings',
+        message: 'You made a sale. Connect your bank account to receive your earnings.',
       })
     }
 

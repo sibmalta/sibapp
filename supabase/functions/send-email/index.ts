@@ -663,7 +663,7 @@ case 'item_sold': {
 
     case 'payout_setup_required': {
       const { sellerName, orderRef, payoutAmount, itemTitle } = data
-      const ph = `You have EUR ${payoutAmount} waiting from a sale on Sib, but your payout setup is not complete.`
+      const ph = `You have EUR ${payoutAmount} waiting from a sale on Sib, but your bank account is not connected yet.`
       return {
         subject: 'Action needed: receive your Sib payout',
         preheader: ph,
@@ -673,7 +673,7 @@ case 'item_sold': {
             Hi ${sellerName || 'there'},
           </p>
           <p style="font-size:14px;color:#4B5563;text-align:center;margin:0 0 14px;">
-            You have EUR ${payoutAmount} waiting from a sale on Sib, but your payout setup is not complete.
+            You have EUR ${payoutAmount} waiting from a sale on Sib, but your bank account is not connected yet.
           </p>
           ${infoBox('#FFF7ED', `
             <p style="font-size:14px;color:#4B5563;margin:0 0 4px;"><strong>Item:</strong> ${itemTitle || 'Sold item'}</p>
@@ -681,9 +681,9 @@ case 'item_sold': {
             ${priceTag(payoutAmount, '#C75B2A')}
           `)}
           <p style="font-size:13px;color:#6B7280;text-align:center;">
-            Please complete your payout setup so we can send your money. Once your setup is complete, Sib will automatically retry your payout.
+            Please connect your bank account so we can send your money. Once your account is connected, Sib will automatically retry your payout.
           </p>
-          ${btn('Complete payout setup', buildAppUrl('/seller/payout-settings'))}
+          ${btn('Connect bank account', buildAppUrl('/payout-setup'))}
         `),
       }
     }

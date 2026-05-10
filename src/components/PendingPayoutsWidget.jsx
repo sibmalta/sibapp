@@ -1,8 +1,6 @@
-import React, { useState } from 'react'
-import { AlertCircle, Banknote, Clock, Loader2 } from 'lucide-react'
+import React from 'react'
+import { AlertCircle, Banknote, Clock } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../lib/auth-context'
-import { startStripeConnect } from '../lib/stripe'
 import { PENDING_PAYOUT_STATUSES } from '../lib/pendingPayouts'
 
 function formatMoney(value = 0) {
@@ -11,31 +9,11 @@ function formatMoney(value = 0) {
 
 export default function PendingPayoutsWidget({ summary, className = '' }) {
   const navigate = useNavigate()
-  const { session } = useAuth()
-  const [loading, setLoading] = useState(false)
 
   if (!summary?.count) return null
 
-  const handleSetupPayouts = async () => {
-    if (!session?.access_token) {
-      navigate('/seller/payout-settings')
-      return
-    }
-
-    setLoading(true)
-    try {
-      const result = await startStripeConnect(session.access_token, window.location.href)
-      if (result?.url) {
-        window.location.assign(result.url)
-        return
-      }
-      navigate('/seller/payout-settings')
-    } catch (error) {
-      console.error('[pending-payouts] failed to open payout setup:', error)
-      navigate('/seller/payout-settings')
-    } finally {
-      setLoading(false)
-    }
+  const handleConnectBank = () => {
+    navigate('/payout-setup')
   }
 
   return (
@@ -63,7 +41,7 @@ export default function PendingPayoutsWidget({ summary, className = '' }) {
           </p>
           {summary.hasBlockedSetup && (
             <p className="mt-2 text-xs font-semibold text-amber-900 dark:text-amber-200">
-              Complete payout setup to receive money from your sales.
+              Connect your bank account to receive money from your sales.
             </p>
           )}
         </div>
@@ -93,12 +71,10 @@ export default function PendingPayoutsWidget({ summary, className = '' }) {
       {summary.hasBlockedSetup && (
         <button
           type="button"
-          onClick={handleSetupPayouts}
-          disabled={loading}
+          onClick={handleConnectBank}
           className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-sib-secondary px-4 py-2.5 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
         >
-          {loading && <Loader2 size={13} className="animate-spin" />}
-          Complete payout setup
+          Connect bank account
         </button>
       )}
     </section>
