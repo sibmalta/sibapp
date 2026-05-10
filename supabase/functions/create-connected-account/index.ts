@@ -44,7 +44,6 @@ async function createConnectedAccount(stripe: Stripe, userId: string, userEmail:
     business_type: 'individual',
     email: userEmail,
     capabilities: {
-      card_payments: { requested: true },
       transfers: { requested: true },
     },
     metadata: {
@@ -103,6 +102,8 @@ Deno.serve(async (req) => {
           userId,
           accountId: account.id,
           businessType: account.business_type || null,
+          capabilities: account.capabilities || {},
+          requirementsCurrentlyDue: account.requirements?.currently_due || [],
         })
       } catch (error) {
         if (!isInvalidConnectedAccountError(error)) throw error
@@ -114,6 +115,13 @@ Deno.serve(async (req) => {
     if (!accountId) {
       // Create new Stripe Connect Express account
       const account = await createConnectedAccount(stripe, userId, userEmail)
+      console.info('[create-connected-account] Created connected account', {
+        userId,
+        accountId: account.id,
+        businessType: account.business_type || null,
+        capabilities: account.capabilities || {},
+        requirementsCurrentlyDue: account.requirements?.currently_due || [],
+      })
       accountId = account.id
 
       // Save to profile

@@ -134,12 +134,18 @@ async function createConnectedAccount(
     business_type: 'individual',
     email: userEmail,
     capabilities: {
-      card_payments: { requested: true },
       transfers: { requested: true },
     },
     metadata: {
       user_id: userId,
     },
+  })
+  console.info('[create-account-link] Created connected account', {
+    userId,
+    accountId: account.id,
+    businessType: account.business_type || null,
+    capabilities: account.capabilities || {},
+    requirementsCurrentlyDue: account.requirements?.currently_due || [],
   })
 
   await supabase
@@ -213,6 +219,8 @@ Deno.serve(async (req) => {
         userId,
         accountId: account.id,
         businessType: account.business_type || null,
+        capabilities: account.capabilities || {},
+        requirementsCurrentlyDue: account.requirements?.currently_due || [],
       })
     } catch (error) {
       if (!isInvalidConnectedAccountError(error)) throw error

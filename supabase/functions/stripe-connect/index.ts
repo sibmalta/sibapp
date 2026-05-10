@@ -211,6 +211,8 @@ async function syncStripeAccountStatus(
     userId,
     accountId: account.id,
     businessType: account.business_type || null,
+    capabilities: account.capabilities || {},
+    requirementsCurrentlyDue: account.requirements?.currently_due || [],
   })
   const updates = {
     stripe_account_id: account.id,
@@ -267,12 +269,18 @@ async function createConnectedAccountForUser(
     business_type: 'individual',
     email: userEmail,
     capabilities: {
-      card_payments: { requested: true },
       transfers: { requested: true },
     },
     metadata: {
       user_id: userId,
     },
+  })
+  console.info('[stripe-connect] Created connected account', {
+    userId,
+    accountId: account.id,
+    businessType: account.business_type || null,
+    capabilities: account.capabilities || {},
+    requirementsCurrentlyDue: account.requirements?.currently_due || [],
   })
 
   await supabase
