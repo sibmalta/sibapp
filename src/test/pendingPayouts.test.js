@@ -17,6 +17,8 @@ describe('seller pending payout summary', () => {
     expect(summary.blockedCount).toBe(1)
     expect(summary.failedCount).toBe(1)
     expect(summary.hasBlockedSetup).toBe(true)
+    expect(summary.byStatus.blocked_seller_setup.label).toBe('Waiting to withdraw')
+    expect(summary.byStatus.releasable.label).toBe('Ready to withdraw')
   })
 
   it('uses snake_case order fields from Supabase rows', () => {
@@ -32,5 +34,23 @@ describe('seller pending payout summary', () => {
     expect(summary.count).toBe(1)
     expect(summary.releasableCount).toBe(1)
     expect(summary.totalAmount).toBe(14.25)
+  })
+
+  it('tracks earnings for sellers who have not connected payouts yet', () => {
+    const summary = getSellerPendingPayoutSummary([
+      {
+        id: 'withdrawal-1',
+        sellerId: 'seller-1',
+        status: 'paid',
+        payoutStatus: 'blocked_seller_setup',
+        sellerPayoutStatus: 'held',
+        sellerPayout: 24,
+      },
+    ], 'seller-1')
+
+    expect(summary.count).toBe(1)
+    expect(summary.totalAmount).toBe(24)
+    expect(summary.hasBlockedSetup).toBe(true)
+    expect(summary.byStatus.blocked_seller_setup.label).toBe('Waiting to withdraw')
   })
 })

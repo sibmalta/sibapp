@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Wallet, Package, Clock, CheckCircle, AlertCircle,
   ChevronRight, ShieldCheck, Banknote, Calendar, Truck, Send,
-  ChevronDown, ChevronUp, ArrowUpRight, TrendingUp, ImageIcon,
+  ChevronDown, ChevronUp, TrendingUp, ImageIcon,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { ShipmentStatusBadge } from '../components/ShipmentTracker'
@@ -17,7 +17,7 @@ const PAYOUT_STATUS_MAP = {
   available: { label: 'Available', desc: 'Ready for next payout', color: 'bg-emerald-50 text-emerald-700 dark:bg-[#20322b] dark:text-emerald-300', dot: 'bg-emerald-400', icon: CheckCircle },
   released: { label: 'Paid out', desc: 'Sent to your bank', color: 'bg-sky-50 text-sky-700 dark:bg-[#21303a] dark:text-sky-300', dot: 'bg-sky-400', icon: Banknote },
   disputed: { label: 'Issue reported', desc: 'Funds held while the issue is reviewed', color: 'bg-red-50 text-red-600 dark:bg-[#362322] dark:text-red-300', dot: 'bg-red-400', icon: AlertCircle },
-  blocked_seller_setup: { label: 'Connect bank account', desc: 'Receive these earnings securely', color: 'bg-amber-50 text-amber-800 dark:bg-[#332d20] dark:text-amber-200', dot: 'bg-amber-500', icon: AlertCircle },
+  blocked_seller_setup: { label: 'Waiting to withdraw', desc: 'Ready when you set up payouts', color: 'bg-amber-50 text-amber-800 dark:bg-[#332d20] dark:text-amber-200', dot: 'bg-amber-500', icon: Banknote },
   transfer_failed: { label: 'Payout needs review', desc: 'Sib will retry or review this payout', color: 'bg-red-50 text-red-600 dark:bg-[#362322] dark:text-red-300', dot: 'bg-red-400', icon: AlertCircle },
   refunded: { label: 'Refunded', desc: 'Returned to buyer', color: 'bg-red-50 text-red-500 dark:bg-[#362322] dark:text-red-300', dot: 'bg-red-400', icon: AlertCircle },
 }
@@ -78,7 +78,6 @@ export default function SellerDashboardPage() {
   const nextPayout = useMemo(() => getNextPayoutDay(), [])
   const hasStripeAccount = !!currentUser?.stripeAccountId
   const stripeReady = !!currentUser?.detailsSubmitted && !!currentUser?.chargesEnabled && !!currentUser?.payoutsEnabled
-  const needsStripeVerification = hasStripeAccount && !stripeReady
 
   // Compute totals
   const totalEarnings = sales.reduce((sum, o) => sum + (o.sellerPayout || o.itemPrice || 0), 0)
@@ -89,6 +88,7 @@ export default function SellerDashboardPage() {
     () => getSellerPendingPayoutSummary(sales, currentUser.id),
     [sales, currentUser.id],
   )
+  const canWithdraw = pendingPayoutSummary.totalAmount > 0 || availableAmount > 0
   const availableAmount = sales
     .filter(o => o.payoutStatus === 'available')
     .reduce((sum, o) => sum + (o.sellerPayout || o.itemPrice || 0), 0)
@@ -126,12 +126,12 @@ export default function SellerDashboardPage() {
           <button
             onClick={routeToPayoutSetup}
             className={`text-xs px-3.5 py-1.5 rounded-full font-semibold transition-all ${
-              hasStripeAccount
+              !canWithdraw || hasStripeAccount
                 ? 'text-sib-muted dark:text-[#aeb8b4] bg-sib-sand dark:bg-[#26322f] border border-sib-stone dark:border-[rgba(242,238,231,0.10)] hover:border-sib-muted dark:hover:border-[rgba(242,238,231,0.18)]'
                 : 'text-white bg-sib-secondary shadow-sm hover:opacity-90'
             }`}
           >
-            {needsStripeVerification ? 'Continue securely' : hasStripeAccount ? 'Receive earnings' : 'Connect bank account'}
+            {canWithdraw ? 'Withdraw earnings' : 'Earnings'}
           </button>
         </div>
       </div>
@@ -191,23 +191,19 @@ export default function SellerDashboardPage() {
         </div>
       ) : !stripeReady && (
         <div className="px-4 mt-3">
-          <button
-            onClick={routeToPayoutSetup}
-            className="w-full flex items-center gap-3 p-3.5 rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-white dark:bg-[#202b28] hover:bg-sib-sand dark:hover:bg-[#26322f] transition-colors group"
-          >
+          <div className="w-full flex items-center gap-3 p-3.5 rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-white dark:bg-[#202b28] transition-colors">
             <div className="w-9 h-9 rounded-xl bg-sib-secondary/10 flex items-center justify-center flex-shrink-0">
               <Banknote size={16} className="text-sib-secondary" />
             </div>
             <div className="flex-1 text-left">
               <p className="text-sm font-semibold text-sib-text dark:text-[#f4efe7]">
-                {needsStripeVerification ? 'Continue securely' : 'Connect bank account'}
+                Receive earnings later
               </p>
               <p className="text-[11px] text-sib-muted dark:text-[#aeb8b4] mt-0.5">
-                {needsStripeVerification ? 'Finish setup to receive earnings' : 'Connect your bank to receive earnings'}
+                Sell first. When you have earnings to withdraw, we&apos;ll help you connect your bank securely.
               </p>
             </div>
-            <ArrowUpRight size={16} className="text-sib-muted dark:text-[#aeb8b4] group-hover:text-sib-secondary transition-colors flex-shrink-0" />
-          </button>
+          </div>
         </div>
       )}
 

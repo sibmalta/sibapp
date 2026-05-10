@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  Camera, X, Check, ChevronDown, Search, Wallet,
+  Camera, X, Check, ChevronDown, Search,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { CATEGORY_TREE, getSubcategories, getCategoryAttributes, isDeliveryEligible } from '../data/categories'
@@ -1311,27 +1311,6 @@ useEffect(() => {
             </div>
           ) : (
             <DeliveryGuidance variant="full" />
-          )}
-
-          {currentUser && !(currentUser.stripeAccountId && currentUser.detailsSubmitted && currentUser.payoutsEnabled) && (
-            <div className="mb-4 rounded-xl border border-orange-200 bg-orange-50/70 p-3">
-              <div className="flex items-start gap-2.5">
-                <Wallet size={16} className="mt-0.5 text-sib-primary" />
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-sib-text">Connect your bank account to receive money from your sales.</p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      console.info('routing_to_payout_setup')
-                      navigate('/payout-setup')
-                    }}
-                    className="mt-2 rounded-full bg-sib-primary px-4 py-2 text-xs font-bold text-white"
-                  >
-                    Connect bank account
-                  </button>
-                </div>
-              </div>
-            </div>
           )}
 
           <div className="flex gap-3">

@@ -114,7 +114,7 @@ function getAdminOrderWarning(order) {
     return null
   }
   if (order?.payoutStatus === 'blocked_seller_setup' || order?.payoutStatus === 'seller_setup_blocked') {
-    return { label: 'Payout blocked', status: 'seller_setup_blocked' }
+    return { label: 'Withdrawal pending setup', status: 'seller_setup_blocked' }
   }
   if (order?.payoutStatus === 'transfer_failed' || order?.sellerPayoutStatus === 'transfer_failed') {
     return { label: 'Transfer failed', status: 'transfer_failed' }
@@ -639,7 +639,7 @@ export default function AdminPage() {
 
                         {order.payoutStatus === 'blocked_seller_setup' && (
                           <div className="p-2 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-800">
-                            <p className="font-bold">Payout blocked: seller setup</p>
+                            <p className="font-bold">Withdrawal pending payout setup</p>
                             <p>Seller: {seller?.name || seller?.username || order.sellerId} {seller?.email ? `Â· ${seller.email}` : ''}</p>
                             <p>Order amount: â‚¬{Number(order.totalPrice || order.itemPrice || 0).toFixed(2)}</p>
                             <p>Created: {formatDate(order.createdAt)}</p>

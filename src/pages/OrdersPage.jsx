@@ -84,9 +84,9 @@ export function getSellerOrderState(order = {}, shipment = null) {
   if (safeOrder?.payoutStatus === 'blocked_seller_setup') {
     return {
       filter: 'blocked_payouts',
-      label: 'Payout setup needed',
+      label: 'Waiting to withdraw',
       style: 'bg-amber-50 text-amber-800 dark:bg-[#332d20] dark:text-amber-200',
-      nextStep: 'Connect your bank account to receive money from this sale.',
+      nextStep: 'Your earnings are tracked. Connect your bank when you are ready to withdraw.',
     }
   }
 
@@ -478,7 +478,7 @@ export default function OrdersPage() {
                     )}
                     {tab === 'selling' && order.payoutStatus === 'blocked_seller_setup' && (
                       <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 dark:bg-[#332d20] dark:text-amber-200">
-                        Payout blocked: seller setup
+                        Waiting to withdraw
                       </span>
                     )}
 

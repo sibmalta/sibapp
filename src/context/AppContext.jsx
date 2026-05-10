@@ -56,12 +56,7 @@ const PROTECTION_WINDOW_MS = 48 * 60 * 60 * 1000 // 48 hours
 const SHIPPING_DEADLINE_MS = 3 * 24 * 60 * 60 * 1000 // 3 business days
 const SHIPPING_REMINDER_MS = 24 * 60 * 60 * 1000 // Remind after 24 hours
 const COUNTER_OFFER_DEDUPE_MS = 30 * 1000
-const SELLER_PAYOUT_PENDING_STATUS = 'payment_received_seller_payout_pending'
-const SOLD_ORDER_STATUSES = new Set(['paid', SELLER_PAYOUT_PENDING_STATUS, 'shipped', 'delivered', 'confirmed', 'completed'])
-
-function canSellerReceivePayouts(seller) {
-  return Boolean(seller?.stripeAccountId && seller?.detailsSubmitted && seller?.payoutsEnabled)
-}
+const SOLD_ORDER_STATUSES = new Set(['paid', 'payment_received_seller_payout_pending', 'shipped', 'delivered', 'confirmed', 'completed'])
 
 function hasBlockingOrderForListings(orders, listingIds) {
   const ids = new Set(listingIds.filter(Boolean))
@@ -718,8 +713,7 @@ export function AppProvider({ children }) {
     const now = new Date().toISOString()
     const deliveryLabel = getFulfilmentMethodLabel(fulfilmentMethod)
     const seller = users.find(u => u.id === listing.sellerId)
-    const sellerPayoutReady = canSellerReceivePayouts(seller)
-    const orderStatus = sellerPayoutReady ? 'paid' : SELLER_PAYOUT_PENDING_STATUS
+    const orderStatus = 'paid'
     const lockerLocation = fulfilmentMethod === 'locker' ? {
       name: deliveryInfo?.lockerName || null,
       address: deliveryInfo?.lockerAddress || address || null,
@@ -781,7 +775,7 @@ export function AppProvider({ children }) {
       deliveryAddressSnapshot,
       trackingStatus: 'awaiting_delivery',
       payoutStatus: 'held',
-      sellerPayoutStatus: sellerPayoutReady ? 'held' : 'setup_pending',
+      sellerPayoutStatus: 'held',
       paidAt: now,
       shippingAddress,
     }
@@ -812,18 +806,6 @@ export function AppProvider({ children }) {
       title: 'New sale — drop off within 3 days',
       message: `You have a new order (${orderRef}) — ${deliveryLabel}. Please prepare it for delivery within 3 business days.`,
     })
-
-    if (!sellerPayoutReady) {
-      addNotification({
-        userId: listing.sellerId,
-        orderId: savedOrder.id,
-        listingId: listing.id,
-        actionTarget: '/payout-setup',
-        type: 'seller_payout_setup_required',
-        title: 'Receive your earnings',
-        message: 'You made a sale. Connect your bank account to receive your earnings.',
-      })
-    }
 
     // Email: order confirmation + payment confirmation to buyer
     if (currentUser?.email) {
@@ -2116,8 +2098,7 @@ export function AppProvider({ children }) {
     const orderRef = `SIB-B${Date.now().toString(36).toUpperCase()}`
     const now = new Date().toISOString()
     const seller = users.find(u => u.id === bundle.sellerId)
-    const sellerPayoutReady = canSellerReceivePayouts(seller)
-    const orderStatus = sellerPayoutReady ? 'paid' : SELLER_PAYOUT_PENDING_STATUS
+    const orderStatus = 'paid'
     const lockerLocation = fulfilmentMethod === 'locker' ? {
       name: deliveryInfo?.lockerName || null,
       address: deliveryInfo?.lockerAddress || address || null,
@@ -2180,7 +2161,7 @@ export function AppProvider({ children }) {
       deliveryAddressSnapshot,
       trackingStatus: 'awaiting_delivery',
       payoutStatus: 'held',
-      sellerPayoutStatus: sellerPayoutReady ? 'held' : 'setup_pending',
+      sellerPayoutStatus: 'held',
       paidAt: now,
       shippingAddress,
     }
@@ -2214,18 +2195,6 @@ export function AppProvider({ children }) {
       title: `${items.length}-item bundle sold — drop off within 3 days`,
       message: `@${currentUser.username} purchased ${items.length} items for €${fees.total.toFixed(2)} — ${deliveryLabel}. Please prepare them for delivery within 3 business days.`,
     })
-
-    if (!sellerPayoutReady) {
-      addNotification({
-        userId: bundle.sellerId,
-        orderId: savedOrder.id,
-        listingId: savedOrder.listingId,
-        actionTarget: '/payout-setup',
-        type: 'seller_payout_setup_required',
-        title: 'Receive your earnings',
-        message: 'You made a sale. Connect your bank account to receive your earnings.',
-      })
-    }
 
     // Email buyer order confirmation + payment confirmation
     if (currentUser?.email) {
@@ -2462,8 +2431,7 @@ export function AppProvider({ children }) {
     const orderRef = `SIB-B${Date.now().toString(36).toUpperCase()}`
     const now = new Date().toISOString()
     const sellerUser = users.find(u => u.id === offer.sellerId)
-    const sellerPayoutReady = canSellerReceivePayouts(sellerUser)
-    const orderStatus = sellerPayoutReady ? 'paid' : SELLER_PAYOUT_PENDING_STATUS
+    const orderStatus = 'paid'
     const lockerLocation = fulfilmentMethod === 'locker' ? {
       name: deliveryInfo?.lockerName || null,
       address: deliveryInfo?.lockerAddress || address || null,
@@ -2526,7 +2494,7 @@ export function AppProvider({ children }) {
       deliveryAddressSnapshot,
       trackingStatus: 'awaiting_delivery',
       payoutStatus: 'held',
-      sellerPayoutStatus: sellerPayoutReady ? 'held' : 'setup_pending',
+      sellerPayoutStatus: 'held',
       paidAt: now,
       shippingAddress,
       bundleOfferId: offerId,
@@ -2560,18 +2528,6 @@ export function AppProvider({ children }) {
       title: `${items.length}-item bundle sold — drop off within 3 days`,
       message: `@${users.find(u => u.id === offer.buyerId)?.username || 'buyer'} purchased ${items.length} items for €${fees.total.toFixed(2)} — ${deliveryLabel}. Please prepare them for delivery within 3 business days.`,
     })
-
-    if (!sellerPayoutReady) {
-      addNotification({
-        userId: offer.sellerId,
-        orderId: savedOrder.id,
-        listingId: savedOrder.listingId,
-        actionTarget: '/payout-setup',
-        type: 'seller_payout_setup_required',
-        title: 'Receive your earnings',
-        message: 'You made a sale. Connect your bank account to receive your earnings.',
-      })
-    }
 
     // Email buyer order confirmation
     const buyer = users.find(u => u.id === offer.buyerId)

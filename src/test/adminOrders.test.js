@@ -30,7 +30,7 @@ describe('admin order visibility', () => {
     expect(filterAdminOrders([paidHeldOrder], { status: 'awaiting_delivery' })).toEqual([paidHeldOrder])
   })
 
-  it('shows blocked seller setup orders in the blocked payouts filter', () => {
+  it('shows withdrawal-gated orders in the blocked payouts filter', () => {
     const blockedOrder = {
       ...paidHeldOrder,
       id: 'order-blocked',

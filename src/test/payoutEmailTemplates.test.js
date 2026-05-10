@@ -9,8 +9,8 @@ describe('payout email wiring', () => {
     const sendEmail = readFileSync(resolve(root, 'supabase/functions/send-email/index.ts'), 'utf8')
 
     expect(sendEmail).toContain("| 'payout_setup_required'")
-    expect(sendEmail).toContain("subject: 'Action needed: receive your Sib payout'")
-    expect(sendEmail).toContain("btn('Connect bank account', buildAppUrl('/payout-setup'))")
+    expect(sendEmail).toContain("subject: 'You have earnings waiting on Sib'")
+    expect(sendEmail).toContain("btn('Withdraw earnings', buildAppUrl('/payout-setup'))")
   })
 
   it('sends payout emails from buyer-protection with per-order dedupe', () => {

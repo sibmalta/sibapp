@@ -7,8 +7,8 @@ export const PENDING_PAYOUT_STATUSES = [
 
 export const PENDING_PAYOUT_LABELS = {
   buyer_protection_hold: 'In buyer protection period',
-  blocked_seller_setup: 'Action required: connect bank account',
-  releasable: 'Processing soon',
+  blocked_seller_setup: 'Waiting to withdraw',
+  releasable: 'Ready to withdraw',
   transfer_failed: 'Payout issue — Sib is reviewing',
 }
 

@@ -663,17 +663,17 @@ case 'item_sold': {
 
     case 'payout_setup_required': {
       const { sellerName, orderRef, payoutAmount, itemTitle } = data
-      const ph = `You have EUR ${payoutAmount} waiting from a sale on Sib, but your bank account is not connected yet.`
+      const ph = `You have EUR ${payoutAmount} waiting to withdraw from a sale on Sib.`
       return {
-        subject: 'Action needed: receive your Sib payout',
+        subject: 'You have earnings waiting on Sib',
         preheader: ph,
         html: wrap(ph, `
-          <h2 style="font-size:18px;color:#1F2937;text-align:center;margin:14px 0 8px;">Action needed: receive your Sib payout</h2>
+          <h2 style="font-size:18px;color:#1F2937;text-align:center;margin:14px 0 8px;">You have earnings waiting on Sib</h2>
           <p style="font-size:14px;color:#4B5563;text-align:center;margin:0 0 14px;">
             Hi ${sellerName || 'there'},
           </p>
           <p style="font-size:14px;color:#4B5563;text-align:center;margin:0 0 14px;">
-            You have EUR ${payoutAmount} waiting from a sale on Sib, but your bank account is not connected yet.
+            You have EUR ${payoutAmount} waiting to withdraw from a sale on Sib.
           </p>
           ${infoBox('#FFF7ED', `
             <p style="font-size:14px;color:#4B5563;margin:0 0 4px;"><strong>Item:</strong> ${itemTitle || 'Sold item'}</p>
@@ -681,9 +681,9 @@ case 'item_sold': {
             ${priceTag(payoutAmount, '#C75B2A')}
           `)}
           <p style="font-size:13px;color:#6B7280;text-align:center;">
-            Please connect your bank account so we can send your money. Once your account is connected, Sib will automatically retry your payout.
+            When you are ready to withdraw, connect your bank securely and Sib will send your earnings.
           </p>
-          ${btn('Connect bank account', buildAppUrl('/payout-setup'))}
+          ${btn('Withdraw earnings', buildAppUrl('/payout-setup'))}
         `),
       }
     }
