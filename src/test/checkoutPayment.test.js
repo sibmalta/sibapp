@@ -127,7 +127,8 @@ describe('checkout payment helpers', () => {
     expect(getPaymentInitializationBlocker(baseState)).toBe('Enter a phone number for delivery before continuing to payment.')
     expect(getPaymentInitializationBlocker({ ...baseState, phone: '123' })).toBe('Enter a valid phone number before continuing to payment.')
     expect(getPaymentInitializationBlocker({ ...baseState, phone: '+356 99 123 456' })).toBe('')
-    expect(getPaymentInitializationBlocker({ ...baseState, phone: '+44 7700 900123' })).toBe('')
+    expect(getPaymentInitializationBlocker({ ...baseState, phone: '07960 729294', phoneCountryCode: '+44' })).toBe('')
+    expect(getPaymentInitializationBlocker({ ...baseState, phone: '+44 7960 729294', phoneCountryCode: '+356' })).toBe('')
     expect(getDeliveryPhoneError('+356 99 123 456')).toBe('')
   })
 
@@ -136,6 +137,8 @@ describe('checkout payment helpers', () => {
     expect(normalizePhoneNumber('35699123456')).toBe('+35699123456')
     expect(normalizePhoneNumber('0035699123456')).toBe('+35699123456')
     expect(normalizePhoneNumber('+44 (7700) 900-123')).toBe('+447700900123')
+    expect(normalizePhoneNumber('07960 729294', '+44')).toBe('+447960729294')
+    expect(normalizePhoneNumber('+44 7960 729294', '+356')).toBe('+447960729294')
     expect(normalizePhoneNumber('+39 06 6988 1')).toBe('+390669881')
     expect(isValidPhoneNumber('+356 99 123 456')).toBe(true)
     expect(isValidPhoneNumber('+44 7700 900123')).toBe(true)

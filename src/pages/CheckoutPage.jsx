@@ -16,7 +16,15 @@ import { trackReferralConversion } from '../lib/referral'
 import { supabase } from '../lib/supabase'
 import { isLockerEligible } from '../lib/lockerEligibility'
 import { getDeliveryEligibility } from '../lib/deliveryEligibility'
-import { getDeliveryPhoneError, getPaymentInitializationBlocker, normalizePhoneNumber, resolveCheckoutDeliveryMethod } from '../lib/checkoutPayment'
+import {
+  COUNTRY_CALLING_CODES,
+  DEFAULT_COUNTRY_CALLING_CODE,
+  getDeliveryPhoneError,
+  getPaymentInitializationBlocker,
+  normalizePhoneNumber,
+  resolveCheckoutDeliveryMethod,
+  splitPhoneNumber,
+} from '../lib/checkoutPayment'
 import { MYCONVENIENCE_DELIVERY_ESTIMATE_COMPACT } from '../lib/myConvenienceDeliveryCopy'
 
 const TECHNICAL_PATTERNS = [
@@ -313,6 +321,7 @@ export default function CheckoutPage() {
   const listing = getListingById(id)
   const [deliveryMethodId, setDeliveryMethodId] = useState('locker_collection')
   const [fullName, setFullName] = useState('')
+  const [phoneCountryCode, setPhoneCountryCode] = useState(DEFAULT_COUNTRY_CALLING_CODE)
   const [phone, setPhone] = useState('')
   const [address, setAddress] = useState('')
   const [city, setCity] = useState('')
@@ -335,8 +344,10 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (savedAddress && !addressPrefilled && !address && !city && !postcode) {
+      const parsedPhone = splitPhoneNumber(savedAddress.phone || currentUser?.phone || '')
       setFullName(savedAddress.fullName || '')
-      setPhone(savedAddress.phone || currentUser?.phone || '')
+      setPhoneCountryCode(parsedPhone.countryCode)
+      setPhone(parsedPhone.localNumber)
       setAddress(savedAddress.address || '')
       setCity(savedAddress.city || '')
       setPostcode(savedAddress.postcode || '')
@@ -351,7 +362,9 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (!addressPrefilled && !phone && currentUser?.phone) {
-      setPhone(currentUser.phone)
+      const parsedPhone = splitPhoneNumber(currentUser.phone)
+      setPhoneCountryCode(parsedPhone.countryCode)
+      setPhone(parsedPhone.localNumber)
     }
   }, [addressPrefilled, phone, currentUser?.phone])
 
@@ -419,6 +432,18 @@ export default function CheckoutPage() {
 
   const clearErr = (field) => setErrors((prev) => ({ ...prev, [field]: null }))
 
+  const handlePhoneChange = (value) => {
+    if (/^\s*(\+|00)/.test(value)) {
+      const parsedPhone = splitPhoneNumber(value)
+      setPhoneCountryCode(parsedPhone.countryCode)
+      setPhone(parsedPhone.localNumber)
+    } else {
+      setPhone(value)
+    }
+    clearErr('phone')
+    resetPaymentIntentState()
+  }
+
   const handleDeliveryChange = (methodId) => {
     if (methodId === 'locker_collection' && !listingLockerEligible) {
       setErrors(prev => ({ ...prev, deliveryMethod: deliveryEligibility.buyerMessage }))
@@ -435,7 +460,7 @@ export default function CheckoutPage() {
     if (isLocker) {
       if (!listingLockerEligible) e.deliveryMethod = deliveryEligibility.buyerMessage
     }
-    const phoneError = getDeliveryPhoneError(phone)
+    const phoneError = getDeliveryPhoneError(phone, phoneCountryCode)
     if (phoneError) e.phone = phoneError
     if (!address.trim()) e.address = 'Enter your street address'
     if (!city.trim()) e.city = 'Enter your city or town'
@@ -493,6 +518,7 @@ export default function CheckoutPage() {
           city,
           postcode,
           phone,
+          phoneCountryCode,
         })
 
     if (blocker) {
@@ -510,8 +536,10 @@ export default function CheckoutPage() {
     setHasAttemptedPaymentIntent(true)
     setClientSecret(null)
     setAddressConfirmed(false)
-    const normalizedPhone = normalizePhoneNumber(phone)
-    setPhone(normalizedPhone)
+    const normalizedPhone = normalizePhoneNumber(phone, phoneCountryCode)
+    const parsedPhone = splitPhoneNumber(normalizedPhone)
+    setPhoneCountryCode(parsedPhone.countryCode)
+    setPhone(parsedPhone.localNumber)
 
     if (saveAddressChecked) {
       persistAddress({
@@ -580,7 +608,7 @@ export default function CheckoutPage() {
 
     const deliverySnapshot = {
       buyerFullName: fullName,
-      buyerPhone: normalizePhoneNumber(phone),
+      buyerPhone: normalizePhoneNumber(phone, phoneCountryCode),
       buyerCity: city,
       buyerPostcode: postcode,
       deliveryNotes,
@@ -644,6 +672,7 @@ export default function CheckoutPage() {
       city,
       postcode,
       phone,
+      phoneCountryCode,
     })
 
     if (blocker) return
@@ -674,6 +703,7 @@ export default function CheckoutPage() {
     city,
     postcode,
     phone,
+    phoneCountryCode,
   ]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const stripeAppearance = {
@@ -747,22 +777,35 @@ export default function CheckoutPage() {
                   </div>
 
                   <div className="flex-1">
-                    <input
-                      ref={phoneInputRef}
-                      type="tel"
-                      inputMode="tel"
-                      value={phone}
-                      onChange={(e) => {
-                        setPhone(e.target.value)
-                        clearErr('phone')
-                        resetPaymentIntentState()
-                      }}
-                      placeholder="Phone number"
-                      disabled={addressConfirmed}
-                      className={`w-full border rounded-xl px-4 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-white dark:bg-[#26322f] ${
-                        errors.phone ? 'border-red-400' : 'border-sib-stone dark:border-[rgba(242,238,231,0.10)]'
-                      } focus:border-sib-primary focus:ring-1 focus:ring-sib-primary/20 disabled:bg-sib-sand dark:disabled:bg-[#26322f] disabled:opacity-70`}
-                    />
+                    <div className={`flex border rounded-xl overflow-hidden bg-white dark:bg-[#26322f] ${
+                      errors.phone ? 'border-red-400' : 'border-sib-stone dark:border-[rgba(242,238,231,0.10)]'
+                    } focus-within:border-sib-primary focus-within:ring-1 focus-within:ring-sib-primary/20 disabled:bg-sib-sand`}>
+                      <select
+                        value={phoneCountryCode}
+                        onChange={(e) => {
+                          setPhoneCountryCode(e.target.value)
+                          clearErr('phone')
+                          resetPaymentIntentState()
+                        }}
+                        disabled={addressConfirmed}
+                        aria-label="Country calling code"
+                        className="w-[5.6rem] border-0 border-r border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-transparent px-2 py-3 text-xs font-bold text-sib-text dark:text-[#f4efe7] outline-none disabled:opacity-70"
+                      >
+                        {COUNTRY_CALLING_CODES.map(({ country, code }) => (
+                          <option key={code} value={code}>{country} {code}</option>
+                        ))}
+                      </select>
+                      <input
+                        ref={phoneInputRef}
+                        type="tel"
+                        inputMode="tel"
+                        value={phone}
+                        onChange={(e) => handlePhoneChange(e.target.value)}
+                        placeholder="Phone number"
+                        disabled={addressConfirmed}
+                        className="min-w-0 flex-1 border-0 px-3 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-transparent disabled:opacity-70"
+                      />
+                    </div>
                     <p className="mt-1 text-[11px] leading-snug text-sib-muted dark:text-[#aeb8b4]">
                       Delivery driver may contact you about your delivery. We only use this for delivery purposes.
                     </p>

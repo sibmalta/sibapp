@@ -27,28 +27,78 @@ export function buildPaymentIntentPayload({
   return payload
 }
 
-export function normalizePhoneNumber(value = '') {
+export const COUNTRY_CALLING_CODES = [
+  { country: 'Malta', code: '+356' },
+  { country: 'United Kingdom', code: '+44' },
+  { country: 'Italy', code: '+39' },
+  { country: 'Ireland', code: '+353' },
+  { country: 'Germany', code: '+49' },
+  { country: 'France', code: '+33' },
+]
+
+export const DEFAULT_COUNTRY_CALLING_CODE = '+356'
+
+function normalizeCallingCode(value = DEFAULT_COUNTRY_CALLING_CODE) {
+  const digits = String(value || '').replace(/[^\d]/g, '')
+  return digits ? `+${digits}` : DEFAULT_COUNTRY_CALLING_CODE
+}
+
+function shouldStripTrunkZero(countryCode) {
+  return ['+33', '+353', '+44', '+49'].includes(normalizeCallingCode(countryCode))
+}
+
+export function normalizePhoneNumber(value = '', countryCode = DEFAULT_COUNTRY_CALLING_CODE) {
   const compact = String(value || '').trim().replace(/[\s().-]/g, '')
   if (!compact) return ''
   if (/^00\d{6,15}$/.test(compact)) return `+${compact.slice(2)}`
-  if (/^00356\d{8}$/.test(compact)) return `+356${compact.slice(5)}`
-  if (/^356\d{8}$/.test(compact)) return `+${compact}`
-  if (/^\d{8}$/.test(compact)) return `+356${compact}`
-  return compact
+  if (/^\+\d+$/.test(compact)) return compact
+
+  const code = normalizeCallingCode(countryCode)
+  const codeDigits = code.slice(1)
+  if (compact.startsWith(codeDigits) && compact.length > codeDigits.length) {
+    return `+${compact}`
+  }
+
+  const local = shouldStripTrunkZero(code) ? compact.replace(/^0+/, '') : compact
+  return local ? `${code}${local}` : ''
 }
 
-export function isValidPhoneNumber(value = '') {
+export function getLocalPhoneNumber(value = '', countryCode = DEFAULT_COUNTRY_CALLING_CODE) {
+  const normalized = normalizePhoneNumber(value, countryCode)
+  const code = normalizeCallingCode(countryCode)
+  if (!normalized || !normalized.startsWith(code)) return String(value || '').trim()
+  return normalized.slice(code.length)
+}
+
+export function splitPhoneNumber(value = '') {
   const normalized = normalizePhoneNumber(value)
+  const match = COUNTRY_CALLING_CODES
+    .slice()
+    .sort((a, b) => b.code.length - a.code.length)
+    .find(({ code }) => normalized.startsWith(code))
+
+  if (!match) {
+    return { countryCode: DEFAULT_COUNTRY_CALLING_CODE, localNumber: String(value || '').trim() }
+  }
+
+  return {
+    countryCode: match.code,
+    localNumber: normalized.slice(match.code.length),
+  }
+}
+
+export function isValidPhoneNumber(value = '', countryCode = DEFAULT_COUNTRY_CALLING_CODE) {
+  const normalized = normalizePhoneNumber(value, countryCode)
   if (!normalized) return false
-  if (!/^\+?\d+$/.test(normalized)) return false
+  if (!/^\+\d+$/.test(normalized)) return false
 
   const digits = normalized.replace(/^\+/, '')
   return digits.length >= 7 && digits.length <= 15
 }
 
-export function getDeliveryPhoneError(value = '') {
+export function getDeliveryPhoneError(value = '', countryCode = DEFAULT_COUNTRY_CALLING_CODE) {
   if (!String(value || '').trim()) return 'Enter a phone number for delivery.'
-  if (!isValidPhoneNumber(value)) return 'Enter a valid phone number.'
+  if (!isValidPhoneNumber(value, countryCode)) return 'Enter a valid phone number.'
   return ''
 }
 
@@ -68,6 +118,7 @@ export function getPaymentInitializationBlocker({
   city = '',
   postcode = '',
   phone = '',
+  phoneCountryCode = DEFAULT_COUNTRY_CALLING_CODE,
 } = {}) {
   if (!stripeConfigured) return 'Online payments are still being set up.'
   if (!currentUser?.id) return 'Please log in before continuing to payment.'
@@ -83,7 +134,7 @@ export function getPaymentInitializationBlocker({
   if (isLocker) {
     if (!lockerEligible) return SIB_EXPRESS_UNAVAILABLE_MESSAGE
   }
-  const phoneError = getDeliveryPhoneError(phone)
+  const phoneError = getDeliveryPhoneError(phone, phoneCountryCode)
   if (phoneError) return `${phoneError.replace(/\.$/, '')} before continuing to payment.`
   if (!String(address).trim()) return 'Enter your street address before continuing to payment.'
   if (!String(city).trim()) return 'Enter your city or town before continuing to payment.'
