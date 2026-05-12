@@ -273,6 +273,12 @@ export async function resetInvalidStripeConnectAccount(accessToken) {
   )
 }
 
+export async function resetStripeConnectAccountMapping(accessToken) {
+  const result = await resetInvalidStripeConnectAccount(accessToken)
+  console.info('Stripe account mapping reset. Next payout setup will create a new individual transfers-only account.')
+  return result
+}
+
 export async function createTransfer(params, accessToken) {
   return callEdgeFunction('create-transfer', params, accessToken)
 }

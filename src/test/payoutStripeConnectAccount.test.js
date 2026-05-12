@@ -41,6 +41,38 @@ describe('Stripe Connect seller account setup', () => {
     expect(stripeConnect).toContain('external_account_collection')
   })
 
+  it('clears only the connected account mapping and onboarding flags for reset testing', () => {
+    const stripeConnect = read('supabase/functions/stripe-connect/index.ts')
+    const stripeClient = read('src/lib/stripe.js')
+    const payoutSettings = read('src/pages/PayoutSettingsPage.jsx')
+
+    expect(stripeConnect).toContain("mode === 'reset_invalid_account'")
+    expect(stripeConnect).toContain("confirmation !== 'RESET_STRIPE_ACCOUNT'")
+    expect(stripeConnect).toContain('stripe_account_id: null')
+    expect(stripeConnect).toContain('details_submitted: false')
+    expect(stripeConnect).toContain('stripe_onboarding_complete: false')
+    expect(stripeConnect).toContain('charges_enabled: false')
+    expect(stripeConnect).toContain('payouts_enabled: false')
+    expect(stripeConnect).toContain('Stripe account mapping reset. Next payout setup will create a new individual transfers-only account.')
+    expect(stripeConnect).not.toContain('.from(\'orders\')')
+    expect(stripeConnect).not.toContain('.from(\'payouts\')')
+    expect(stripeClient).toContain('resetStripeConnectAccountMapping')
+    expect(payoutSettings).toContain('currentUser?.isAdmin || import.meta.env.DEV')
+    expect(payoutSettings).toContain('Reset Stripe account mapping')
+    expect(payoutSettings).toContain('Orders, payouts, balances, and profile data stay intact.')
+  })
+
+  it('creates a fresh individual transfers-only account after the reset clears the old mapping', () => {
+    const stripeConnect = read('supabase/functions/stripe-connect/index.ts')
+
+    expect(stripeConnect).toContain('let accountId = profile?.stripe_account_id || null')
+    expect(stripeConnect).toContain('if (!accountId) {')
+    expect(stripeConnect).toContain('createConnectedAccountForUser(supabase, stripe, userId, userEmail)')
+    expect(stripeConnect).toContain("business_type: 'individual'")
+    expect(stripeConnect).toContain('transfers: { requested: true }')
+    expect(stripeConnect).not.toContain('card_payments: { requested: true }')
+  })
+
   it('keeps legacy account creation fallbacks individual-only too', () => {
     const createAccountLink = read('supabase/functions/create-account-link/index.ts')
     const createConnectedAccount = read('supabase/functions/create-connected-account/index.ts')

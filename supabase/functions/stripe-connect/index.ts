@@ -251,6 +251,11 @@ async function clearStoredStripeAccount(
       stripe_status_updated_at: new Date().toISOString(),
     })
     .eq('id', userId)
+
+  console.info('Stripe account mapping reset. Next payout setup will create a new individual transfers-only account.', {
+    userId,
+    reason,
+  })
 }
 
 async function createConnectedAccountForUser(

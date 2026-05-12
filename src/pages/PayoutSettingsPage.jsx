@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, CheckCircle, Loader2 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { useAuth } from '../lib/auth-context'
-import { getStripeConnectStatus } from '../lib/stripe'
+import { getStripeConnectStatus, resetStripeConnectAccountMapping } from '../lib/stripe'
 
 export default function PayoutSettingsPage() {
   const navigate = useNavigate()
@@ -15,6 +15,8 @@ export default function PayoutSettingsPage() {
   const [detailsSubmitted, setDetailsSubmitted] = useState(!!currentUser?.detailsSubmitted)
   const [chargesEnabled, setChargesEnabled] = useState(!!currentUser?.chargesEnabled)
   const [payoutsEnabled, setPayoutsEnabled] = useState(!!currentUser?.payoutsEnabled)
+  const [resetting, setResetting] = useState(false)
+  const [resetMessage, setResetMessage] = useState('')
 
   useEffect(() => {
     if (!currentUser) navigate('/auth')
@@ -65,6 +67,29 @@ export default function PayoutSettingsPage() {
   const routeToPayoutSetup = () => {
     console.info('routing_to_payout_setup')
     navigate('/payout-setup')
+  }
+
+  const canResetStripeMapping = Boolean(currentUser?.isAdmin || import.meta.env.DEV)
+
+  const handleResetStripeMapping = async () => {
+    if (!session?.access_token || !canResetStripeMapping) return
+
+    setResetting(true)
+    setResetMessage('')
+    try {
+      await resetStripeConnectAccountMapping(session.access_token)
+      await refreshCurrentProfile?.()
+      setStripeAccountId(null)
+      setDetailsSubmitted(false)
+      setChargesEnabled(false)
+      setPayoutsEnabled(false)
+      setResetMessage('Stripe account mapping reset. Next payout setup will create a new individual transfers-only account.')
+    } catch (err) {
+      console.error('[payout-settings] Failed to reset Stripe mapping:', err)
+      setResetMessage(err?.message || 'Could not reset Stripe account mapping.')
+    } finally {
+      setResetting(false)
+    }
   }
 
   if (!currentUser) return null
@@ -127,6 +152,33 @@ export default function PayoutSettingsPage() {
         <p className="text-[11px] text-gray-400 dark:text-[#aeb8b4] leading-relaxed pt-2">
           Payments are handled by Stripe. Sib does not store your card or banking details.
         </p>
+
+        {canResetStripeMapping && (
+          <div className="rounded-2xl border border-dashed border-orange-200 bg-orange-50/60 p-4 dark:border-sib-primary/30 dark:bg-[#26322f]">
+            <p className="text-xs font-bold text-sib-text dark:text-[#f4efe7]">Dev/admin Stripe reset</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-sib-muted dark:text-[#aeb8b4]">
+              Clears only this seller's stored Stripe account mapping and onboarding flags. Orders, payouts, balances, and profile data stay intact.
+            </p>
+            {stripeAccountId && (
+              <p className="mt-2 break-all text-[11px] font-semibold text-sib-muted dark:text-[#aeb8b4]">
+                Current account: {stripeAccountId}
+              </p>
+            )}
+            {resetMessage && (
+              <p className="mt-2 text-[11px] font-semibold text-sib-primary dark:text-[#e8751a]">
+                {resetMessage}
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={handleResetStripeMapping}
+              disabled={resetting || !session?.access_token}
+              className="mt-3 inline-flex min-h-10 w-full items-center justify-center rounded-full border border-orange-200 bg-white px-4 py-2 text-xs font-bold text-sib-text transition hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-[rgba(242,238,231,0.10)] dark:bg-[#202b28] dark:text-[#f4efe7] dark:hover:bg-[#30403c]"
+            >
+              {resetting ? 'Resetting...' : 'Reset Stripe account mapping'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
