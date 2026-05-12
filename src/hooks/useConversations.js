@@ -6,6 +6,7 @@ import {
   markConversationRead as dbMarkConversationRead,
   upsertConversation,
 } from '../lib/db/conversations'
+import { requireVerifiedEmail } from '../lib/emailVerification'
 
 function loadFromStorage(key, fallback) {
   try {
@@ -122,6 +123,7 @@ export function useConversations(currentUser, seedConversations = []) {
 
   const createConversation = useCallback((otherUserId, listingId = null, explicitId = null) => {
     if (!currentUser?.id || !otherUserId) return null
+    if (!requireVerifiedEmail(currentUser).ok) return null
 
     const existing = conversations.find(c =>
       c.participants.includes(currentUser.id) &&
@@ -152,6 +154,7 @@ export function useConversations(currentUser, seedConversations = []) {
 
   const createConversationForUsers = useCallback((userAId, userBId, listingId = null, explicitId = null) => {
     if (!userAId || !userBId) return null
+    if (currentUser?.id && [userAId, userBId].includes(currentUser.id) && !requireVerifiedEmail(currentUser).ok) return null
 
     const existing = conversations.find(c =>
       c.participants.includes(userAId) &&
@@ -190,6 +193,10 @@ export function useConversations(currentUser, seedConversations = []) {
   } = {}) => {
     if (!buyerId || !sellerId) {
       return { conversation: null, error: { message: 'Buyer and seller are required to open chat.' }, created: false }
+    }
+    if (currentUser?.id && [buyerId, sellerId].includes(currentUser.id)) {
+      const gate = requireVerifiedEmail(currentUser)
+      if (!gate.ok) return { conversation: null, error: { message: gate.error }, created: false }
     }
 
     const existing = findExistingOrderConversation(conversations, { buyerId, sellerId, listingId, orderId })
@@ -232,6 +239,9 @@ export function useConversations(currentUser, seedConversations = []) {
   }, [])
 
   const addMessage = useCallback(async (conversationId, message) => {
+    const gate = requireVerifiedEmail(currentUser)
+    if (!gate.ok) return { data: null, error: { message: gate.error } }
+
     const knownConversation = conversations.find(c => c.id === conversationId)
     const conversation = knownConversation || message.conversation || null
     if (!conversation) return { data: null, error: { message: 'Conversation not found' } }

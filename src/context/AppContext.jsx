@@ -49,6 +49,7 @@ import {
   buildDropoffConfirmedSystemMessage,
   buildOrderCompletedSystemMessage,
 } from '../lib/orderSystemMessages'
+import { isEmailVerified, requireVerifiedEmail as getEmailVerificationGate, EMAIL_VERIFICATION_REQUIRED_MESSAGE } from '../lib/emailVerification'
 
 const AppContext = createContext(null)
 
@@ -160,6 +161,7 @@ function buildAppUser(authUser) {
     isAdmin: meta.isAdmin || (meta.username || '').toLowerCase() === 'sibadmin',
     sales: meta.sales ?? 0,
     location: meta.location || 'Malta',
+    emailVerified: isEmailVerified(authUser),
   }
 }
 
@@ -267,7 +269,7 @@ export function AppProvider({ children }) {
     upsertDeliverySheetRow,
     createDropoffScanLog,
     refreshLogisticsDeliverySheet,
-  } = useOrdersHook()
+  } = useOrdersHook(currentUser)
 
   const [reviews, setReviews] = useState(() => loadFromStorage('sib_reviews', SEED_REVIEWS))
   const [payoutProfiles, setPayoutProfiles] = useState(() => loadFromStorage('sib_payoutProfiles', {}))
@@ -619,8 +621,23 @@ export function AppProvider({ children }) {
 
   // Delegate to DB-backed hooks
   const updateProfile = dbUpdateProfile
-  const createListing = dbCreateListing
-  const updateListing = dbUpdateListing
+  const requireVerifiedMarketplaceAction = useCallback(() => {
+    const gate = getEmailVerificationGate(currentUser)
+    if (!gate.ok) showToast(gate.error || EMAIL_VERIFICATION_REQUIRED_MESSAGE, 'error')
+    return gate
+  }, [currentUser, showToast])
+
+  const createListing = useCallback(async (...args) => {
+    const gate = requireVerifiedMarketplaceAction()
+    if (!gate.ok) throw new Error(gate.error)
+    return dbCreateListing(...args)
+  }, [dbCreateListing, requireVerifiedMarketplaceAction])
+
+  const updateListing = useCallback(async (...args) => {
+    const gate = requireVerifiedMarketplaceAction()
+    if (!gate.ok) throw new Error(gate.error)
+    return dbUpdateListing(...args)
+  }, [dbUpdateListing, requireVerifiedMarketplaceAction])
   const deleteListing = dbDeleteListing
   const toggleLike    = dbToggleLike
   const boostListing   = dbBoostListing
@@ -683,6 +700,9 @@ export function AppProvider({ children }) {
 
   // ── Notification helpers (must be before placeOrder which depends on it) ──
   const placeOrder = useCallback(async (listingId, deliveryMethod, address, overridePrice, deliveryInfo, deliverySnapshot, stripePaymentIntentId = null, opts = {}) => {
+    const gate = requireVerifiedMarketplaceAction()
+    if (!gate.ok) return null
+
     const listing = listings.find(l => l.id === listingId)
     if (!listing) return null
     const acceptedOffer = opts.offerId ? offers.find(o => o.id === opts.offerId) : null
@@ -838,7 +858,7 @@ export function AppProvider({ children }) {
     })
 
     return savedOrder
-  }, [currentUser, listings, users, orders, offers, addNotification, dbCreateOrder, dbCreateShipment, dbMarkSold, ensureMaltaPostShipment, sendSellerDropoffInstructions, showToast])
+  }, [currentUser, listings, users, orders, offers, addNotification, dbCreateOrder, dbCreateShipment, dbMarkSold, ensureMaltaPostShipment, sendSellerDropoffInstructions, showToast, requireVerifiedMarketplaceAction])
 
   const getOrCreateConversation = useCallback((otherUserId, listingId) => {
     return createConversation(otherUserId, listingId)
@@ -926,6 +946,9 @@ export function AppProvider({ children }) {
 
   // sendMessage(convId, senderId, text, flagged?)
   const sendMessage = useCallback(async (conversationId, senderIdOrText, textArg, flagged = false) => {
+    const gate = requireVerifiedMarketplaceAction()
+    if (!gate.ok) return { error: new Error(gate.error) }
+
     const text = textArg !== undefined ? textArg : senderIdOrText
     const analysis = analyseMessage(text)
     if (analysis.flagged) {
@@ -1062,7 +1085,7 @@ export function AppProvider({ children }) {
       sendSuspiciousActivityEmail(currentUser.email, currentUser.name, 'Your message was flagged for containing contact information. Please use Sib messaging to stay protected.')
     }
     return { message: messageResult?.data || newMsg }
-  }, [addNotification, conversations, currentUser, dbAddMessage, ensureUserById, listings, showToast, users])
+  }, [addNotification, conversations, currentUser, dbAddMessage, ensureUserById, listings, showToast, users, requireVerifiedMarketplaceAction])
 
   // Mark all messages from other participants as read in a conversation
   const markConversationRead = useCallback((conversationId) => {
@@ -1359,6 +1382,9 @@ export function AppProvider({ children }) {
 
   const createOffer = useCallback(async (listingId, price) => {
     if (!currentUser) return { error: 'Login required.' }
+    const gate = requireVerifiedMarketplaceAction()
+    if (!gate.ok) return { error: gate.error }
+
     const listing = listings.find(l => l.id === listingId)
     if (!listing) return { error: 'Listing not found.' }
     if (listing.sellerId === currentUser.id) return { error: 'Cannot offer on your own listing.' }
@@ -1480,7 +1506,7 @@ export function AppProvider({ children }) {
     })
 
     return { offer: savedOffer, conversationId: conversation.id }
-  }, [currentUser, listings, offers, users, addNotification, getOrCreateConversationForUsers, addConversationEvent, dbCreateOffer, refreshOffers, ensureUserById])
+  }, [currentUser, listings, offers, users, addNotification, getOrCreateConversationForUsers, addConversationEvent, dbCreateOffer, refreshOffers, ensureUserById, requireVerifiedMarketplaceAction])
 
   const acceptOffer = useCallback(async (offerId) => {
     const now = new Date()
@@ -2756,6 +2782,11 @@ export function AppProvider({ children }) {
 
   // ── Admin: add message to dispute ────────────────────────────────
   const addDisputeMessage = useCallback(async (disputeId, message, options = {}) => {
+    if (!options.fromAdmin && options.senderRole !== 'system') {
+      const gate = requireVerifiedMarketplaceAction()
+      if (!gate.ok) return { ok: false, error: gate.error }
+    }
+
     const dispute = disputes.find(d => d.id === disputeId)
     if (!dispute) return { ok: false, error: 'Dispute not found' }
     const trimmed = String(message || '').trim()
@@ -2815,7 +2846,7 @@ export function AppProvider({ children }) {
       }
     }
     return { ok: true, message: data }
-  }, [currentUser?.id, disputes, dbCreateDisputeMessage, orders, showToast, users])
+  }, [currentUser?.id, disputes, dbCreateDisputeMessage, orders, showToast, users, requireVerifiedMarketplaceAction])
 
   // ──────────────────────────────────────────────────────────────────
 

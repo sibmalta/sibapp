@@ -155,7 +155,13 @@ async function authenticate(req: Request, action: string) {
   if (!supabaseUrl || !anonKey || !token) return { user: null, error: 'Missing auth configuration or token.', code: 'unauthorized', status: 401 }
   const authClient = createClient(supabaseUrl, anonKey)
   const { data, error } = await authClient.auth.getUser(token)
-  return { user: data?.user || null, error: error?.message || null, code: error ? 'unauthorized' : '', status: error ? 401 : 200 }
+  if (error || !data?.user) {
+    return { user: null, error: error?.message || null, code: 'unauthorized', status: 401 }
+  }
+  if (!data.user.email_confirmed_at && !data.user.confirmed_at && data.user.user_metadata?.email_verified !== true) {
+    return { user: null, error: 'Please verify your email to continue.', code: 'email_not_verified', status: 403 }
+  }
+  return { user: data.user, error: null, code: '', status: 200 }
 }
 
 function serviceClient() {

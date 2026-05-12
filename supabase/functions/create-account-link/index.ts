@@ -189,6 +189,12 @@ Deno.serve(async (req) => {
     }
     const payloadBase64 = userToken.split('.')[1]
     const payload = JSON.parse(atob(payloadBase64))
+    if (!payload.email_confirmed_at && payload.email_verified !== true) {
+      return new Response(
+        JSON.stringify({ error: 'Please verify your email to continue.' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
     const userId = payload.sub
     const userEmail = payload.email
 

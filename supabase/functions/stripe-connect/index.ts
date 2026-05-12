@@ -191,6 +191,9 @@ function parseUserToken(req: Request) {
   try {
     const payloadBase64 = userToken.split('.')[1]
     const payload = JSON.parse(atob(payloadBase64))
+    if (!payload.email_confirmed_at && payload.email_verified !== true) {
+      return { error: 'Please verify your email to continue.' }
+    }
     return {
       userId: payload.sub as string,
       userEmail: payload.email as string,

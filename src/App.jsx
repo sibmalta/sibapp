@@ -7,6 +7,7 @@ import ScrollToTop from './components/ScrollToTop'
 import Toast from './components/Toast'
 import PackagePreparationModal from './components/PackagePreparationModal'
 import { PayoutErrorBoundary } from './components/AppErrorBoundary'
+import EmailVerificationRequired from './components/EmailVerificationRequired'
 import { useAuth } from './lib/auth-context'
 
 
@@ -69,6 +70,12 @@ function RecoveryRedirector() {
 }
 
 function AppRoutes() {
+  const verified = (element) => (
+    <EmailVerificationRequired>
+      {element}
+    </EmailVerificationRequired>
+  )
+
   return (
     <>
       <RecoveryRedirector />
@@ -85,22 +92,22 @@ function AppRoutes() {
           <Route path="browse" element={<BrowsePage />} />
           <Route path="listing/:id" element={<ListingPage />} />
           <Route path="item/:id" element={<ListingPage />} />
-          <Route path="sell" element={<SellPage />} />
-          <Route path="sell/edit/:listingId" element={<SellPage />} />
-          <Route path="checkout/:id" element={<CheckoutPage />} />
-          <Route path="orders" element={<OrdersPage />} />
-          <Route path="orders/:id" element={<OrderDetailPage />} />
-          <Route path="dropoff" element={<SellerDropoffPage />} />
-          <Route path="messages" element={<ChatListPage />} />
-          <Route path="messages/dispute/:disputeId" element={<ChatPage />} />
-          <Route path="messages/:id" element={<ChatPage />} />
+          <Route path="sell" element={verified(<SellPage />)} />
+          <Route path="sell/edit/:listingId" element={verified(<SellPage />)} />
+          <Route path="checkout/:id" element={verified(<CheckoutPage />)} />
+          <Route path="orders" element={verified(<OrdersPage />)} />
+          <Route path="orders/:id" element={verified(<OrderDetailPage />)} />
+          <Route path="dropoff" element={verified(<SellerDropoffPage />)} />
+          <Route path="messages" element={verified(<ChatListPage />)} />
+          <Route path="messages/dispute/:disputeId" element={verified(<ChatPage />)} />
+          <Route path="messages/:id" element={verified(<ChatPage />)} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="profile/:username" element={<ProfilePage />} />
           <Route path="profile/edit" element={<EditProfilePage />} />
           <Route path="reviews/:username" element={<ReviewsPage />} />
-          <Route path="seller" element={<SellerDashboardPage />} />
-          <Route path="payout-setup" element={<PayoutErrorBoundary><PayoutSetupPage /></PayoutErrorBoundary>} />
-          <Route path="seller/payout-settings" element={<PayoutErrorBoundary><PayoutSettingsPage /></PayoutErrorBoundary>} />
+          <Route path="seller" element={verified(<SellerDashboardPage />)} />
+          <Route path="payout-setup" element={verified(<PayoutErrorBoundary><PayoutSetupPage /></PayoutErrorBoundary>)} />
+          <Route path="seller/payout-settings" element={verified(<PayoutErrorBoundary><PayoutSettingsPage /></PayoutErrorBoundary>)} />
           <Route path="admin" element={<AdminPage />} />
           <Route path="admin/scan-dropoff" element={<AdminScanDropoffPage />} />
           <Route path="scan-dropoff" element={<AdminScanDropoffPage />} />
@@ -120,10 +127,10 @@ function AppRoutes() {
           <Route path="faq" element={<FAQPage />} />
           <Route path="contact" element={<ContactPage />} />
           <Route path="support" element={<SupportAssistantPage />} />
-          <Route path="offers" element={<OffersPage />} />
+          <Route path="offers" element={verified(<OffersPage />)} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="bundle" element={<BundlePage />} />
-          <Route path="bundle/checkout" element={<BundleCheckoutPage />} />
+          <Route path="bundle/checkout" element={verified(<BundleCheckoutPage />)} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

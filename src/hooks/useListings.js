@@ -32,6 +32,7 @@ import {
 import { uploadListingImage, dataUrlToFile } from '../lib/storage'
 import { classifyListing, backfillStyleTags } from '../lib/styleClassifier'
 import { classifyCollection, backfillCollectionTags } from '../lib/collectionClassifier'
+import { requireVerifiedEmail } from '../lib/emailVerification'
 
 const SUPABASE_ENABLED = true // flip to false to force localStorage-only mode
 const SESSION_EXPIRED_MESSAGE = 'Your session expired. Please log in again to publish your listing.'
@@ -184,6 +185,8 @@ export function useListings(localListings, localLikes, currentUser) {
   // ── Create listing ─────────────────────────────────────────────────────────
   const createListing = useCallback(async (formData, imageFiles = []) => {
     if (!currentUser) throw new Error('Must be logged in to create a listing')
+    const gate = requireVerifiedEmail(currentUser)
+    if (!gate.ok) throw new Error(gate.error)
 
     // Upload images to Storage when available
     let imageUrls = formData.images || [] // may already contain dataURLs from SellPage
@@ -255,6 +258,8 @@ export function useListings(localListings, localLikes, currentUser) {
 
   const updateListing = useCallback(async (listingId, formData, imageFiles = []) => {
     if (!currentUser) throw new Error('Must be logged in to edit a listing')
+    const gate = requireVerifiedEmail(currentUser)
+    if (!gate.ok) throw new Error(gate.error)
 
     let imageUrls = formData.images || []
     let filesToUpload = imageFiles

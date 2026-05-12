@@ -79,6 +79,10 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: 'Invalid or expired token.' }, 401)
       }
 
+      if (!authUser.email_confirmed_at && !authUser.confirmed_at && authUser.user_metadata?.email_verified !== true) {
+        return jsonResponse({ error: 'Please verify your email to continue.' }, 403)
+      }
+
       user = authUser
     }
 

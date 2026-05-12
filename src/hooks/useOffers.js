@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useSupabase } from '../lib/useSupabase'
 import { fetchUserOffers, insertOffer, updateOffer } from '../lib/db/offers'
+import { requireVerifiedEmail } from '../lib/emailVerification'
 
 function loadFromStorage(key, fallback) {
   try {
@@ -70,6 +71,9 @@ export function useOffers(currentUser) {
   }, [currentUser?.id, isAuthenticated, refreshOffers, supabase])
 
   const createOffer = useCallback(async (offer) => {
+    const gate = requireVerifiedEmail(currentUser)
+    if (!gate.ok) return { data: null, error: { message: gate.error } }
+
     if (!isAuthenticated) {
       setOffers(prev => sortOffers([offer, ...prev]))
       return { data: offer, error: null }
@@ -87,9 +91,12 @@ export function useOffers(currentUser) {
     }
     setOffers(prev => sortOffers(prev.some(o => o.id === data.id) ? prev : [data, ...prev]))
     return { data, error: null }
-  }, [isAuthenticated, withAuthRetry])
+  }, [currentUser, isAuthenticated, withAuthRetry])
 
   const patchOffer = useCallback(async (offerId, updates, options = {}) => {
+    const gate = requireVerifiedEmail(currentUser)
+    if (!gate.ok) return { data: null, error: { message: gate.error } }
+
     if (!isAuthenticated) {
       setOffers(prev => prev.map(o => o.id === offerId ? { ...o, ...updates } : o))
       return { data: { id: offerId, ...updates }, error: null }
@@ -105,7 +112,7 @@ export function useOffers(currentUser) {
     }
     setOffers(prev => sortOffers(prev.map(o => o.id === offerId ? data : o)))
     return { data, error: null }
-  }, [isAuthenticated, withAuthRetry])
+  }, [currentUser, isAuthenticated, withAuthRetry])
 
   return {
     offers,

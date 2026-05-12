@@ -20,6 +20,7 @@ import {
   insertDisputeMessage,
   openDisputeCase,
 } from '../lib/disputes'
+import { requireVerifiedEmail } from '../lib/emailVerification'
 
 const ORDERS_FETCH_TIMEOUT_MS = 8000
 const AUTH_LOOKUP_TIMEOUT_MS = 3000
@@ -32,7 +33,7 @@ function withTimeout(promise, timeoutMs, label) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId))
 }
 
-export function useOrders() {
+export function useOrders(currentUser = null) {
   const { supabase, withAuthRetry } = useSupabase()
 
   const [orders, setOrders] = useState([])
@@ -62,9 +63,17 @@ export function useOrders() {
     return { ok: true }
   }, [dbAvailable])
 
+  const requireVerifiedWrite = useCallback(() => {
+    const gate = requireVerifiedEmail(currentUser)
+    if (!gate.ok) return { ok: false, reason: gate.error }
+    return { ok: true }
+  }, [currentUser])
+
   const createOrder = useCallback(async (orderData) => {
     const check = requireDb()
     if (!check.ok) return { data: null, error: { message: check.reason } }
+    const verified = requireVerifiedWrite()
+    if (!verified.ok) return { data: null, error: { message: verified.reason } }
 
     const { data, error } = await withAuthRetry((client) => insertOrder(client, orderData))
     if (error) {
@@ -74,7 +83,7 @@ export function useOrders() {
     markDbOk()
     setOrders(prev => [data, ...prev])
     return { data, error: null }
-  }, [withAuthRetry, requireDb, markDbOk])
+  }, [withAuthRetry, requireDb, markDbOk, requireVerifiedWrite])
 
   const patchOrder = useCallback(async (orderId, updates) => {
     const check = requireDb()
@@ -93,6 +102,8 @@ export function useOrders() {
   const createDispute = useCallback(async (disputeData) => {
     const check = requireDb()
     if (!check.ok) return { data: null, error: { message: check.reason } }
+    const verified = requireVerifiedWrite()
+    if (!verified.ok) return { data: null, error: { message: verified.reason } }
 
     const { data, error, status, statusText } = await withAuthRetry((client) => insertDispute(client, disputeData))
     if (error) {
@@ -107,7 +118,7 @@ export function useOrders() {
     markDbOk()
     setDisputes(prev => [data, ...prev])
     return { data, error: null, status, statusText }
-  }, [withAuthRetry, requireDb, markDbOk])
+  }, [withAuthRetry, requireDb, markDbOk, requireVerifiedWrite])
 
   const patchDispute = useCallback(async (disputeId, updates) => {
     const check = requireDb()
@@ -126,6 +137,8 @@ export function useOrders() {
   const createDisputeMessage = useCallback(async (message) => {
     const check = requireDb()
     if (!check.ok) return { data: null, error: { message: check.reason } }
+    const verified = requireVerifiedWrite()
+    if (!verified.ok) return { data: null, error: { message: verified.reason } }
 
     const { data, error } = await withAuthRetry((client) => insertDisputeMessage(client, message))
     if (error) {
@@ -135,11 +148,13 @@ export function useOrders() {
     markDbOk()
     setDisputeMessages(prev => [...prev, data])
     return { data, error: null }
-  }, [withAuthRetry, requireDb, markDbOk])
+  }, [withAuthRetry, requireDb, markDbOk, requireVerifiedWrite])
 
   const createPayout = useCallback(async (payoutData) => {
     const check = requireDb()
     if (!check.ok) return { data: null, error: { message: check.reason } }
+    const verified = requireVerifiedWrite()
+    if (!verified.ok) return { data: null, error: { message: verified.reason } }
 
     const { data, error } = await withAuthRetry((client) => insertPayout(client, payoutData))
     if (error) {
@@ -149,7 +164,7 @@ export function useOrders() {
     markDbOk()
     setPayouts(prev => [data, ...prev])
     return { data, error: null }
-  }, [withAuthRetry, requireDb, markDbOk])
+  }, [withAuthRetry, requireDb, markDbOk, requireVerifiedWrite])
 
   const patchPayout = useCallback(async (payoutId, updates) => {
     const check = requireDb()
@@ -168,6 +183,8 @@ export function useOrders() {
   const createShipment = useCallback(async (shipmentData) => {
     const check = requireDb()
     if (!check.ok) return { data: null, error: { message: check.reason } }
+    const verified = requireVerifiedWrite()
+    if (!verified.ok) return { data: null, error: { message: verified.reason } }
 
     const { data, error } = await withAuthRetry((client) => insertShipment(client, shipmentData))
     if (error) {
@@ -177,7 +194,7 @@ export function useOrders() {
     markDbOk()
     setShipments(prev => [data, ...prev])
     return { data, error: null }
-  }, [withAuthRetry, requireDb, markDbOk])
+  }, [withAuthRetry, requireDb, markDbOk, requireVerifiedWrite])
 
   const patchShipment = useCallback(async (shipmentId, updates) => {
     const check = requireDb()
@@ -342,6 +359,8 @@ export function useOrders() {
   const createDisputeCase = useCallback(async (payload) => {
     const check = requireDb()
     if (!check.ok) return { data: null, error: { message: check.reason } }
+    const verified = requireVerifiedWrite()
+    if (!verified.ok) return { data: null, error: { message: verified.reason } }
 
     const { data, error } = await withAuthRetry((client) => openDisputeCase(client, payload))
     if (error) {
@@ -352,7 +371,7 @@ export function useOrders() {
     await refreshDisputes()
     await refreshDisputeMessages()
     return { data, error: null }
-  }, [withAuthRetry, requireDb, markDbOk, refreshDisputes, refreshDisputeMessages])
+  }, [withAuthRetry, requireDb, markDbOk, refreshDisputes, refreshDisputeMessages, requireVerifiedWrite])
 
   const refreshPayouts = useCallback(async () => {
     if (dbAvailable === false) return

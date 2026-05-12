@@ -211,6 +211,10 @@ function isValidPaymentIntentClientSecret(value: unknown): value is string {
   return typeof value === 'string' && /^pi_[^_]+_secret_.+/.test(value)
 }
 
+function isAuthUserEmailVerified(user: { email_confirmed_at?: string | null; confirmed_at?: string | null; user_metadata?: Record<string, unknown> } | null | undefined) {
+  return Boolean(user?.email_confirmed_at || user?.confirmed_at || user?.user_metadata?.email_verified === true)
+}
+
 async function authenticateUser(req: Request) {
   logStep('auth_verification', 'started')
   const token = getBearerToken(req)
@@ -258,6 +262,18 @@ async function authenticateUser(req: Request) {
         'Invalid or expired token. Please log in again and retry checkout.',
         401,
         'invalid_or_expired_token',
+        'auth_verification',
+      )),
+    }
+  }
+
+  if (!isAuthUserEmailVerified(data.user)) {
+    return {
+      user: null,
+      error: errorResponse(new CheckoutError(
+        'Please verify your email to continue.',
+        403,
+        'email_not_verified',
         'auth_verification',
       )),
     }
