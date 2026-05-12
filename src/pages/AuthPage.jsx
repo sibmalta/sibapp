@@ -4,6 +4,8 @@ import { useApp } from '../context/AppContext'
 import { useAuth } from '../lib/auth-context'
 import { supabase } from '../lib/supabase'
 import { moderateUsername, moderateContent } from '../lib/moderation'
+import { checkUsernameAvailability } from '../lib/db/profiles'
+import { normalizeUsernameInput, validateUsername } from '../lib/username'
 
 export default function AuthPage() {
   const { showToast, currentUser } = useApp()
@@ -66,11 +68,11 @@ export default function AuthPage() {
   const validate = () => {
     const e = {}
     if (mode === 'register' && !form.name.trim()) e.name = 'Required'
-    if (mode === 'register' && !form.username.trim()) e.username = 'Required'
-    if (mode === 'register' && form.username && !/^[a-z0-9._]+$/.test(form.username)) e.username = 'Only lowercase letters, numbers, . and _'
+    const usernameValidation = validateUsername(form.username)
+    if (mode === 'register' && !usernameValidation.valid) e.username = usernameValidation.error
     // Moderation: check username for profanity / impersonation
     if (mode === 'register' && form.username && !e.username) {
-      const usernameCheck = moderateUsername(form.username)
+      const usernameCheck = moderateUsername(usernameValidation.username)
       if (usernameCheck.blocked) e.username = usernameCheck.reason
     }
     // Moderation: check display name
@@ -130,9 +132,20 @@ export default function AuthPage() {
         setSuccess(true)
         showToast('Welcome back!')
       } else {
+        const usernameCheck = await checkUsernameAvailability(supabase, form.username)
+        if (usernameCheck.error) {
+          console.error('Username availability check failed:', usernameCheck.error)
+          setErrors({ username: 'Could not check username availability. Please try again.' })
+          return
+        }
+        if (!usernameCheck.available) {
+          setErrors({ username: usernameCheck.reason || 'Username is already taken' })
+          return
+        }
+
         const result = await signUp(form.email.trim(), form.password, {
           name: form.name.trim(),
-          username: form.username.trim().toLowerCase(),
+          username: usernameCheck.username,
           location: form.location.trim() || 'Malta',
           accepted_terms: true,
           is_over_18: true,
@@ -150,6 +163,17 @@ export default function AuthPage() {
         setErrors({ email: 'Invalid email/username or password' })
       } else if (msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('already been registered')) {
         setErrors({ email: 'Email already registered' })
+      } else if (msg.toLowerCase().includes('username_already_taken')) {
+        setErrors({ username: 'Username is already taken' })
+      } else if (msg.toLowerCase().includes('invalid_username')) {
+        setErrors({ username: 'Only lowercase letters, numbers, . and _' })
+      } else if (mode === 'register' && msg.toLowerCase().includes('database error saving new user')) {
+        const usernameCheck = await checkUsernameAvailability(supabase, form.username)
+        if (!usernameCheck.available) {
+          setErrors({ username: 'Username is already taken' })
+        } else {
+          setErrors({ email: msg })
+        }
       } else if (msg.toLowerCase().includes('rate') || msg.toLowerCase().includes('too many')) {
         setErrors({ email: 'Too many attempts. Please wait a moment.' })
       } else {
@@ -318,7 +342,7 @@ export default function AuthPage() {
                     <span className="pl-4 pr-1 text-sm text-sib-muted select-none">@</span>
                     <input
                       value={form.username}
-                      onChange={e => set('username', e.target.value.toLowerCase().replace(/\s/g, ''))}
+                      onChange={e => set('username', normalizeUsernameInput(e.target.value))}
                       placeholder="username"
                       autoCapitalize="none"
                       autoCorrect="off"

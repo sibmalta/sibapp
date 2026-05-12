@@ -8,6 +8,7 @@
  * so the app is safe to use before the migration has been applied.
  */
 import { normalizeSellerBadges } from '../sellerBadges'
+import { normalizeUsernameInput, validateUsername } from '../username'
 
 // ── Shape helpers ────────────────────────────────────────────────────────────
 
@@ -106,12 +107,44 @@ export async function fetchProfileById(supabase, userId) {
 
 /** Fetch a single profile by username. */
 export async function fetchProfileByUsername(supabase, username) {
+  const normalized = normalizeUsernameInput(username)
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
-    .eq('username', username)
+    .eq('username', normalized)
     .single()
   return { data: rowToUser(data), error }
+}
+
+/** Check username availability before signup. Uses the DB RPC when deployed. */
+export async function checkUsernameAvailability(supabase, username) {
+  const validation = validateUsername(username)
+  if (!validation.valid) {
+    return { available: false, username: validation.username, error: null, reason: validation.error }
+  }
+
+  const rpcResult = await supabase
+    .rpc?.('is_username_available', { p_username: validation.username })
+
+  if (rpcResult && !rpcResult.error && typeof rpcResult.data === 'boolean') {
+    return { available: rpcResult.data, username: validation.username, error: null }
+  }
+
+  if (rpcResult?.error) {
+    console.warn('Username availability RPC unavailable, falling back to direct lookup:', rpcResult.error)
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, username')
+    .eq('username', validation.username)
+    .limit(1)
+
+  if (error) {
+    return { available: false, username: validation.username, error }
+  }
+
+  return { available: (data || []).length === 0, username: validation.username, error: null }
 }
 
 /** Fetch all profiles (admin use / user search). */
