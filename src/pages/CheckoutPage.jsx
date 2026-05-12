@@ -777,7 +777,7 @@ export default function CheckoutPage() {
                   </div>
 
                   <div className="flex-1">
-                    <div className={`flex border rounded-xl overflow-hidden bg-white dark:bg-[#26322f] ${
+                    <div className={`grid grid-cols-[6.5rem_minmax(0,1fr)] border rounded-xl overflow-hidden bg-white dark:bg-[#26322f] ${
                       errors.phone ? 'border-red-400' : 'border-sib-stone dark:border-[rgba(242,238,231,0.10)]'
                     } focus-within:border-sib-primary focus-within:ring-1 focus-within:ring-sib-primary/20 disabled:bg-sib-sand`}>
                       <select
@@ -789,10 +789,10 @@ export default function CheckoutPage() {
                         }}
                         disabled={addressConfirmed}
                         aria-label="Country calling code"
-                        className="w-[5.6rem] border-0 border-r border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-transparent px-2 py-3 text-xs font-bold text-sib-text dark:text-[#f4efe7] outline-none disabled:opacity-70"
+                        className="h-full w-full border-0 border-r border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-transparent px-2 py-3 text-xs font-bold text-sib-text dark:text-[#f4efe7] outline-none disabled:opacity-70"
                       >
                         {COUNTRY_CALLING_CODES.map(({ country, code }) => (
-                          <option key={code} value={code}>{country} {code}</option>
+                          <option key={`${country}-${code}`} value={code.replace(/[^\d+]/g, '')}>{country} {code}</option>
                         ))}
                       </select>
                       <input
@@ -803,7 +803,8 @@ export default function CheckoutPage() {
                         onChange={(e) => handlePhoneChange(e.target.value)}
                         placeholder="Phone number"
                         disabled={addressConfirmed}
-                        className="min-w-0 flex-1 border-0 px-3 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-transparent disabled:opacity-70"
+                        data-testid="checkout-phone-input"
+                        className="block min-w-0 w-full border-0 px-3 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-transparent disabled:opacity-70"
                       />
                     </div>
                     <p className="mt-1 text-[11px] leading-snug text-sib-muted dark:text-[#aeb8b4]">

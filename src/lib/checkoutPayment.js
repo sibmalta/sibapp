@@ -1,3 +1,5 @@
+import { CALLING_CODE_OPTIONS, COUNTRY_CALLING_CODES } from './countryCallingCodes'
+
 export const LEGACY_HOME_DELIVERY_UNAVAILABLE_MESSAGE = 'This delivery method is no longer available.'
 export const SIB_EXPRESS_UNAVAILABLE_MESSAGE = 'Sib delivery for larger items is coming soon.'
 
@@ -27,16 +29,8 @@ export function buildPaymentIntentPayload({
   return payload
 }
 
-export const COUNTRY_CALLING_CODES = [
-  { country: 'Malta', code: '+356' },
-  { country: 'United Kingdom', code: '+44' },
-  { country: 'Italy', code: '+39' },
-  { country: 'Ireland', code: '+353' },
-  { country: 'Germany', code: '+49' },
-  { country: 'France', code: '+33' },
-]
-
 export const DEFAULT_COUNTRY_CALLING_CODE = '+356'
+export { COUNTRY_CALLING_CODES }
 
 function normalizeCallingCode(value = DEFAULT_COUNTRY_CALLING_CODE) {
   const digits = String(value || '').replace(/[^\d]/g, '')
@@ -72,18 +66,18 @@ export function getLocalPhoneNumber(value = '', countryCode = DEFAULT_COUNTRY_CA
 
 export function splitPhoneNumber(value = '') {
   const normalized = normalizePhoneNumber(value)
-  const match = COUNTRY_CALLING_CODES
+  const match = CALLING_CODE_OPTIONS
     .slice()
-    .sort((a, b) => b.code.length - a.code.length)
-    .find(({ code }) => normalized.startsWith(code))
+    .sort((a, b) => b.digits.length - a.digits.length)
+    .find(({ value }) => normalized.startsWith(value))
 
   if (!match) {
     return { countryCode: DEFAULT_COUNTRY_CALLING_CODE, localNumber: String(value || '').trim() }
   }
 
   return {
-    countryCode: match.code,
-    localNumber: normalized.slice(match.code.length),
+    countryCode: match.value,
+    localNumber: normalized.slice(match.value.length),
   }
 }
 

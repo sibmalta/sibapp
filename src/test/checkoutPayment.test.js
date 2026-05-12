@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildPaymentIntentPayload,
+  COUNTRY_CALLING_CODES,
   getDeliveryPhoneError,
   getPaymentInitializationBlocker,
   isValidPhoneNumber,
@@ -146,6 +147,21 @@ describe('checkout payment helpers', () => {
     expect(isValidPhoneNumber('')).toBe(false)
     expect(isValidPhoneNumber('call me')).toBe(false)
     expect(isValidPhoneNumber('@@@123')).toBe(false)
+  })
+
+  it('keeps Malta first while supporting a broad country calling code list', () => {
+    expect(COUNTRY_CALLING_CODES[0]).toMatchObject({ country: 'Malta', code: '+356' })
+    expect(COUNTRY_CALLING_CODES).toEqual(expect.arrayContaining([
+      expect.objectContaining({ country: 'United Kingdom', code: '+44' }),
+      expect.objectContaining({ country: 'Italy', code: '+39' }),
+      expect.objectContaining({ country: 'United States', code: '+1' }),
+      expect.objectContaining({ country: 'Australia', code: '+61' }),
+      expect.objectContaining({ country: 'India', code: '+91' }),
+      expect.objectContaining({ country: 'Philippines', code: '+63' }),
+      expect.objectContaining({ country: 'France', code: '+33' }),
+      expect.objectContaining({ country: 'Germany', code: '+49' }),
+    ]))
+    expect(COUNTRY_CALLING_CODES.length).toBeGreaterThan(150)
   })
 
   it('does not require buyers to select a MYConvenience location for drop-off delivery', () => {

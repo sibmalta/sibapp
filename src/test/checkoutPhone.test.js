@@ -40,13 +40,29 @@ describe('checkout delivery phone UX', () => {
   it('renders country code selectors on single and bundle checkout', () => {
     const checkout = readFileSync(resolve(root, 'src/pages/CheckoutPage.jsx'), 'utf8')
     const bundleCheckout = readFileSync(resolve(root, 'src/pages/BundleCheckoutPage.jsx'), 'utf8')
-    const helpers = readFileSync(resolve(root, 'src/lib/checkoutPayment.js'), 'utf8')
+    const countries = readFileSync(resolve(root, 'src/lib/countryCallingCodes.js'), 'utf8')
 
     expect(checkout).toContain('COUNTRY_CALLING_CODES.map')
     expect(bundleCheckout).toContain('COUNTRY_CALLING_CODES.map')
-    expect(helpers).toContain("{ country: 'Malta', code: '+356' }")
-    expect(helpers).toContain("{ country: 'United Kingdom', code: '+44' }")
-    expect(helpers).toContain("{ country: 'Italy', code: '+39' }")
+    expect(countries).toContain("{ country: 'Malta', code: '+356'")
+    expect(countries).toContain("{ country: 'United Kingdom', code: '+44'")
+    expect(countries).toContain("{ country: 'Italy', code: '+39'")
+    expect(countries).toContain("{ country: 'United States', code: '+1'")
+    expect(countries).toContain("{ country: 'Australia', code: '+61'")
+    expect(countries).toContain("{ country: 'India', code: '+91'")
+    expect(countries).toContain("{ country: 'Philippines', code: '+63'")
+  })
+
+  it('keeps phone inputs focusable and editable beside the selector', () => {
+    const checkout = readFileSync(resolve(root, 'src/pages/CheckoutPage.jsx'), 'utf8')
+    const bundleCheckout = readFileSync(resolve(root, 'src/pages/BundleCheckoutPage.jsx'), 'utf8')
+
+    expect(checkout).toContain('data-testid="checkout-phone-input"')
+    expect(bundleCheckout).toContain('data-testid="bundle-checkout-phone-input"')
+    expect(checkout).toContain('grid grid-cols-[6.5rem_minmax(0,1fr)]')
+    expect(bundleCheckout).toContain('grid grid-cols-[6.5rem_minmax(0,1fr)]')
+    expect(`${checkout}\n${bundleCheckout}`).not.toContain('pointer-events-none')
+    expect(`${checkout}\n${bundleCheckout}`).not.toContain('z-10')
   })
 
   it('does not show old Malta-only phone wording', () => {
