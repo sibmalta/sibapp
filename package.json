@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "import:myconvenience": "node scripts/import-myconvenience-stores.mjs"
   },
   "dependencies": {
     "@stripe/connect-js": "^3.4.3",

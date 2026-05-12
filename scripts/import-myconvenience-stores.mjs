@@ -57,17 +57,25 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
 
 const csv = await fs.readFile(csvPath, 'utf8')
 const rows = parseCsv(csv)
-const storeCodes = new Set(rows.map(row => row.store_code))
-const activePins = rows.filter(row => row.active !== 'false').map(row => row.store_pin)
+const normalizedRows = rows.map(row => ({
+  ...row,
+  store_code: String(row.store_code || '').trim().toUpperCase(),
+  store_pin: String(row.store_pin || '').trim(),
+}))
+const storeCodes = new Set(normalizedRows.map(row => row.store_code))
+const activePins = normalizedRows.filter(row => row.active !== 'false').map(row => row.store_pin)
 
-if (storeCodes.size !== rows.length) {
+if (storeCodes.size !== normalizedRows.length) {
   throw new Error('Duplicate store_code found in import CSV')
+}
+if (activePins.some(pin => !pin)) {
+  throw new Error('Every active MYConvenience store must have a store_pin in the private CSV')
 }
 if (new Set(activePins).size !== activePins.length) {
   throw new Error('Duplicate active store PIN found in import CSV')
 }
 
-for (const row of rows) {
+for (const row of normalizedRows) {
   const { error } = await supabase.rpc('upsert_myconvenience_store', {
     p_store_code: row.store_code,
     p_name: row.name,
@@ -86,4 +94,4 @@ for (const row of rows) {
   }
 }
 
-console.log(`Imported ${rows.length} MYConvenience stores from ${csvPath}`)
+console.log(`Imported ${normalizedRows.length} MYConvenience stores from ${csvPath}`)

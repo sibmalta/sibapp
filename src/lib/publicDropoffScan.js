@@ -15,6 +15,22 @@ export function sanitizePublicStore(row = {}) {
   }
 }
 
+export function sanitizeStoreDiagnostic(row = {}) {
+  return {
+    storeCode: row.store_code || row.storeCode || '',
+    name: row.name || '',
+    locality: row.locality || '',
+    pickupZone: row.pickup_zone || row.pickupZone || '',
+    active: Boolean(row.active),
+    hasPinHash: Boolean(row.has_pin_hash || row.hasPinHash),
+    updatedAt: row.updated_at || row.updatedAt || null,
+  }
+}
+
+function normalizeStorePin(storePin) {
+  return String(storePin ?? '').trim()
+}
+
 function normalizeScanPayload({ orderId, token, code } = {}) {
   return {
     p_order_id: String(orderId || '').trim(),
@@ -27,13 +43,13 @@ function normalizeConfirmPayload(payload = {}) {
   const base = normalizeScanPayload(payload)
   return {
     ...base,
-    p_store_pin: String(payload.storePin || '').trim() || null,
+    p_store_pin: normalizeStorePin(payload.storePin) || null,
   }
 }
 
 function normalizeStorePinPayload({ storePin } = {}) {
   return {
-    p_store_pin: String(storePin || '').trim(),
+    p_store_pin: normalizeStorePin(storePin),
   }
 }
 
@@ -95,6 +111,14 @@ export async function identifyPublicDropoffStoreByPin(payload) {
   return {
     data: data?.valid ? sanitizePublicStore(data.store || {}) : null,
     error: error || (data?.valid === false ? { message: data.message || 'Invalid store PIN' } : null),
+  }
+}
+
+export async function listMyConvenienceStoreDiagnostics() {
+  const { data, error } = await supabase.rpc('admin_myconvenience_store_diagnostics')
+  return {
+    data: Array.isArray(data) ? data.map(sanitizeStoreDiagnostic) : [],
+    error,
   }
 }
 

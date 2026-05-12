@@ -2,11 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { CheckCircle, Loader2, Package, ShieldCheck, XCircle } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
+import { useApp } from '../context/AppContext'
 import {
   confirmPublicDropoffScan,
   getPublicDropoffScan,
   getPublicDropoffScanState,
   identifyPublicDropoffStoreByPin,
+  listMyConvenienceStoreDiagnostics,
 } from '../lib/publicDropoffScan'
 
 function formatDate(value) {
@@ -51,6 +53,7 @@ function StatusNotice({ scanState, result }) {
 }
 
 export default function AdminScanDropoffPage() {
+  const { currentUser } = useApp() || {}
   const [searchParams] = useSearchParams()
   const [scan, setScan] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -60,6 +63,9 @@ export default function AdminScanDropoffPage() {
   const [verifiedStore, setVerifiedStore] = useState(null)
   const [verifyingPin, setVerifyingPin] = useState(false)
   const [pinError, setPinError] = useState('')
+  const [diagnosticRows, setDiagnosticRows] = useState([])
+  const [diagnosticError, setDiagnosticError] = useState('')
+  const [loadingDiagnostics, setLoadingDiagnostics] = useState(false)
   const wrongPinMessage = 'Invalid store PIN. Please check the PIN and try again.'
   const verifyIssueMessage = 'We could not verify the store right now. Please try again.'
 
@@ -159,6 +165,25 @@ export default function AdminScanDropoffPage() {
     }
   }
 
+  const handleLoadDiagnostics = async () => {
+    setLoadingDiagnostics(true)
+    setDiagnosticError('')
+    try {
+      const { data, error } = await listMyConvenienceStoreDiagnostics()
+      if (error) {
+        setDiagnosticRows([])
+        setDiagnosticError(error.message || 'Could not load MYConvenience stores.')
+        return
+      }
+      setDiagnosticRows(data || [])
+    } catch (error) {
+      setDiagnosticRows([])
+      setDiagnosticError(error?.message || 'Could not load MYConvenience stores.')
+    } finally {
+      setLoadingDiagnostics(false)
+    }
+  }
+
   const scanState = getPublicDropoffScanState(scan)
   const canConfirm = Boolean(scanState.canConfirm && verifiedStore && storePin.trim())
   const confirmed = Boolean(scanState.confirmed)
@@ -168,6 +193,7 @@ export default function AdminScanDropoffPage() {
   const pageTitle = confirmed
     ? (scan?.confirmedNow ? 'Parcel confirmed' : 'Parcel already confirmed')
     : 'MYConvenience parcel scan'
+  const canShowDiagnostics = Boolean(import.meta.env.DEV || currentUser?.isAdmin)
 
   return (
     <div className="pb-10">
@@ -291,6 +317,61 @@ export default function AdminScanDropoffPage() {
             </div>
           )}
         </div>
+
+        {canShowDiagnostics && (
+          <div className="mt-4 rounded-3xl border border-sib-stone bg-white p-4 shadow-sm dark:border-[rgba(242,238,231,0.10)] dark:bg-[#202b28]">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-black text-sib-text dark:text-[#f4efe7]">MYConvenience store diagnostic</p>
+                <p className="mt-1 text-xs font-semibold text-sib-muted dark:text-[#aeb8b4]">
+                  Lists imported stores and whether a PIN hash exists. PIN hashes are never shown.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleLoadDiagnostics}
+                disabled={loadingDiagnostics}
+                className="rounded-xl border border-sib-primary/20 px-3 py-2 text-xs font-black text-sib-primary transition disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {loadingDiagnostics ? 'Checking...' : 'Run diagnostic'}
+              </button>
+            </div>
+
+            {diagnosticError && (
+              <p className="mt-3 rounded-xl border border-red-100 bg-red-50 p-3 text-xs font-semibold text-red-700 dark:border-red-500/20 dark:bg-[#362322] dark:text-red-200">
+                {diagnosticError}
+              </p>
+            )}
+
+            {diagnosticRows.length > 0 && (
+              <div className="mt-3 max-h-80 overflow-auto rounded-2xl border border-sib-stone dark:border-[rgba(242,238,231,0.10)]">
+                <table className="min-w-full divide-y divide-sib-stone text-left text-xs dark:divide-[rgba(242,238,231,0.10)]">
+                  <thead className="bg-sib-sand text-sib-muted dark:bg-[#26322f] dark:text-[#aeb8b4]">
+                    <tr>
+                      <th className="px-3 py-2 font-black">Code</th>
+                      <th className="px-3 py-2 font-black">Store</th>
+                      <th className="px-3 py-2 font-black">Status</th>
+                      <th className="px-3 py-2 font-black">PIN hash</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-sib-stone dark:divide-[rgba(242,238,231,0.10)]">
+                    {diagnosticRows.map(store => (
+                      <tr key={store.storeCode}>
+                        <td className="whitespace-nowrap px-3 py-2 font-bold text-sib-text dark:text-[#f4efe7]">{store.storeCode}</td>
+                        <td className="px-3 py-2 text-sib-muted dark:text-[#aeb8b4]">
+                          <span className="font-semibold text-sib-text dark:text-[#f4efe7]">{store.name}</span>
+                          {store.locality ? <span className="block">{store.locality}</span> : null}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2 font-semibold text-sib-muted dark:text-[#aeb8b4]">{store.active ? 'Active' : 'Inactive'}</td>
+                        <td className="whitespace-nowrap px-3 py-2 font-semibold text-sib-muted dark:text-[#aeb8b4]">{store.hasPinHash ? 'Present' : 'Missing'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
