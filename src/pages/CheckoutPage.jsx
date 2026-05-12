@@ -441,7 +441,6 @@ export default function CheckoutPage() {
       setPhone(value)
     }
     clearErr('phone')
-    resetPaymentIntentState()
   }
 
   const handleDeliveryChange = (methodId) => {
@@ -702,8 +701,6 @@ export default function CheckoutPage() {
     address,
     city,
     postcode,
-    phone,
-    phoneCountryCode,
   ]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const stripeAppearance = {
@@ -785,9 +782,7 @@ export default function CheckoutPage() {
                         onChange={(e) => {
                           setPhoneCountryCode(e.target.value)
                           clearErr('phone')
-                          resetPaymentIntentState()
                         }}
-                        disabled={addressConfirmed}
                         aria-label="Country calling code"
                         className="h-full w-full border-0 border-r border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-transparent px-2 py-3 text-xs font-bold text-sib-text dark:text-[#f4efe7] outline-none disabled:opacity-70"
                       >
@@ -802,7 +797,6 @@ export default function CheckoutPage() {
                         value={phone}
                         onChange={(e) => handlePhoneChange(e.target.value)}
                         placeholder="Phone number"
-                        disabled={addressConfirmed}
                         data-testid="checkout-phone-input"
                         className="block min-w-0 w-full border-0 px-3 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-transparent disabled:opacity-70"
                       />

@@ -42,6 +42,8 @@ describe('checkout delivery phone UX', () => {
     const bundleCheckout = readFileSync(resolve(root, 'src/pages/BundleCheckoutPage.jsx'), 'utf8')
     const countries = readFileSync(resolve(root, 'src/lib/countryCallingCodes.js'), 'utf8')
 
+    expect(checkout).toContain('useState(DEFAULT_COUNTRY_CALLING_CODE)')
+    expect(bundleCheckout).toContain('useState(DEFAULT_COUNTRY_CALLING_CODE)')
     expect(checkout).toContain('COUNTRY_CALLING_CODES.map')
     expect(bundleCheckout).toContain('COUNTRY_CALLING_CODES.map')
     expect(countries).toContain("{ country: 'Malta', code: '+356'")
@@ -51,6 +53,33 @@ describe('checkout delivery phone UX', () => {
     expect(countries).toContain("{ country: 'Australia', code: '+61'")
     expect(countries).toContain("{ country: 'India', code: '+91'")
     expect(countries).toContain("{ country: 'Philippines', code: '+63'")
+  })
+
+  it('keeps phone country and number editable after payment renders', () => {
+    const checkout = readFileSync(resolve(root, 'src/pages/CheckoutPage.jsx'), 'utf8')
+    const bundleCheckout = readFileSync(resolve(root, 'src/pages/BundleCheckoutPage.jsx'), 'utf8')
+
+    const checkoutPhoneBlock = checkout.match(/<select[\s\S]*?data-testid="checkout-phone-input"[\s\S]*?\/>/)?.[0] || ''
+    const bundlePhoneBlock = bundleCheckout.match(/<select[\s\S]*?data-testid="bundle-checkout-phone-input"[\s\S]*?\/>/)?.[0] || ''
+
+    expect(checkoutPhoneBlock).not.toContain('disabled={addressConfirmed}')
+    expect(bundlePhoneBlock).not.toContain('disabled={addressConfirmed}')
+  })
+
+  it('does not reset payment state or focus payment when phone country changes', () => {
+    const checkout = readFileSync(resolve(root, 'src/pages/CheckoutPage.jsx'), 'utf8')
+    const bundleCheckout = readFileSync(resolve(root, 'src/pages/BundleCheckoutPage.jsx'), 'utf8')
+
+    const checkoutCountryBlock = checkout.match(/<select[\s\S]*?aria-label="Country calling code"[\s\S]*?<\/select>/)?.[0] || ''
+    const bundleCountryBlock = bundleCheckout.match(/<select[\s\S]*?aria-label="Country calling code"[\s\S]*?<\/select>/)?.[0] || ''
+
+    expect(checkoutCountryBlock).toContain('setPhoneCountryCode(e.target.value)')
+    expect(bundleCountryBlock).toContain('setPhoneCountryCode(e.target.value)')
+    expect(`${checkoutCountryBlock}\n${bundleCountryBlock}`).not.toContain('resetPaymentIntentState')
+    expect(`${checkoutCountryBlock}\n${bundleCountryBlock}`).not.toContain('setAddressConfirmed(false)')
+    expect(`${checkoutCountryBlock}\n${bundleCountryBlock}`).not.toContain('setClientSecret(null)')
+    expect(`${checkout}\n${bundleCheckout}`).not.toContain('scrollIntoView')
+    expect(`${checkout}\n${bundleCheckout}`).not.toContain('autoFocus')
   })
 
   it('keeps phone inputs focusable and editable beside the selector', () => {

@@ -9,6 +9,7 @@ import {
   resolveCheckoutDeliveryMethod,
   runPaymentIntentInitialization,
   shouldInitializePaymentIntent,
+  splitPhoneNumber,
 } from '../lib/checkoutPayment'
 import { shouldMountStripeElements } from '../pages/CheckoutPage'
 
@@ -147,6 +148,14 @@ describe('checkout payment helpers', () => {
     expect(isValidPhoneNumber('')).toBe(false)
     expect(isValidPhoneNumber('call me')).toBe(false)
     expect(isValidPhoneNumber('@@@123')).toBe(false)
+  })
+
+  it('splits saved phone numbers with Malta as the safe default', () => {
+    expect(splitPhoneNumber('')).toEqual({ countryCode: '+356', localNumber: '' })
+    expect(splitPhoneNumber('99123456')).toEqual({ countryCode: '+356', localNumber: '99123456' })
+    expect(splitPhoneNumber('+356 99 123 456')).toEqual({ countryCode: '+356', localNumber: '99123456' })
+    expect(splitPhoneNumber('+44 7960 729294')).toEqual({ countryCode: '+44', localNumber: '7960729294' })
+    expect(splitPhoneNumber('+39 06 6988 1')).toEqual({ countryCode: '+39', localNumber: '0669881' })
   })
 
   it('keeps Malta first while supporting a broad country calling code list', () => {

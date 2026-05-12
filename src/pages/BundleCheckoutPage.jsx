@@ -343,8 +343,6 @@ export default function BundleCheckoutPage() {
       setPhone(value)
     }
     clearErr('phone')
-    setAddressConfirmed(false)
-    setClientSecret(null)
   }
 
   const handleDeliveryChange = (methodId) => {
@@ -569,8 +567,7 @@ export default function BundleCheckoutPage() {
                     <div className={`grid grid-cols-[6.5rem_minmax(0,1fr)] border rounded-xl overflow-hidden bg-white dark:bg-[#26322f] ${errors.phone ? 'border-red-400' : 'border-sib-stone dark:border-[rgba(242,238,231,0.10)]'} focus-within:border-sib-primary focus-within:ring-1 focus-within:ring-sib-primary/20`}>
                       <select
                         value={phoneCountryCode}
-                        onChange={e => { setPhoneCountryCode(e.target.value); clearErr('phone'); setAddressConfirmed(false); setClientSecret(null) }}
-                        disabled={addressConfirmed}
+                        onChange={e => { setPhoneCountryCode(e.target.value); clearErr('phone') }}
                         aria-label="Country calling code"
                         className="h-full w-full border-0 border-r border-sib-stone dark:border-[rgba(242,238,231,0.10)] bg-transparent px-2 py-3 text-xs font-bold text-sib-text dark:text-[#f4efe7] outline-none disabled:opacity-70"
                       >
@@ -578,7 +575,7 @@ export default function BundleCheckoutPage() {
                           <option key={`${country}-${code}`} value={code.replace(/[^\d+]/g, '')}>{country} {code}</option>
                         ))}
                       </select>
-                      <input ref={phoneInputRef} type="tel" inputMode="tel" value={phone} onChange={e => handlePhoneChange(e.target.value)} placeholder="Phone number" disabled={addressConfirmed}
+                      <input ref={phoneInputRef} type="tel" inputMode="tel" value={phone} onChange={e => handlePhoneChange(e.target.value)} placeholder="Phone number"
                         data-testid="bundle-checkout-phone-input"
                         className="block min-w-0 w-full border-0 px-3 py-3 text-sm outline-none text-sib-text dark:text-[#f4efe7] placeholder-sib-muted dark:placeholder:text-[#aeb8b4] bg-transparent disabled:opacity-70" />
                     </div>
