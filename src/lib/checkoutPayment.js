@@ -27,25 +27,33 @@ export function buildPaymentIntentPayload({
   return payload
 }
 
-export function normalizeMaltaPhoneNumber(value = '') {
-  const compact = String(value || '').trim().replace(/[\s()-]/g, '')
+export function normalizePhoneNumber(value = '') {
+  const compact = String(value || '').trim().replace(/[\s().-]/g, '')
   if (!compact) return ''
+  if (/^00\d{6,15}$/.test(compact)) return `+${compact.slice(2)}`
   if (/^00356\d{8}$/.test(compact)) return `+356${compact.slice(5)}`
   if (/^356\d{8}$/.test(compact)) return `+${compact}`
   if (/^\d{8}$/.test(compact)) return `+356${compact}`
   return compact
 }
 
-export function isValidMaltaPhoneNumber(value = '') {
-  const normalized = normalizeMaltaPhoneNumber(value)
-  return /^\+356[279]\d{7}$/.test(normalized)
+export function isValidPhoneNumber(value = '') {
+  const normalized = normalizePhoneNumber(value)
+  if (!normalized) return false
+  if (!/^\+?\d+$/.test(normalized)) return false
+
+  const digits = normalized.replace(/^\+/, '')
+  return digits.length >= 7 && digits.length <= 15
 }
 
 export function getDeliveryPhoneError(value = '') {
   if (!String(value || '').trim()) return 'Enter a phone number for delivery.'
-  if (!isValidMaltaPhoneNumber(value)) return 'Enter a valid Malta phone number.'
+  if (!isValidPhoneNumber(value)) return 'Enter a valid phone number.'
   return ''
 }
+
+export const normalizeMaltaPhoneNumber = normalizePhoneNumber
+export const isValidMaltaPhoneNumber = isValidPhoneNumber
 
 export function getPaymentInitializationBlocker({
   stripeConfigured = true,

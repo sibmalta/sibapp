@@ -12,7 +12,7 @@ import useSavedAddress from '../hooks/useSavedAddress'
 import { useSupabase } from '../lib/useSupabase'
 import { trackReferralConversion, getActiveReferral } from '../lib/referral'
 import { isLockerEligible } from '../lib/lockerEligibility'
-import { getDeliveryPhoneError, normalizeMaltaPhoneNumber, resolveCheckoutDeliveryMethod } from '../lib/checkoutPayment'
+import { getDeliveryPhoneError, normalizePhoneNumber, resolveCheckoutDeliveryMethod } from '../lib/checkoutPayment'
 
 /* ── Friendly error mapping (mirrors CheckoutPage) ──────── */
 const TECHNICAL_PATTERNS = [
@@ -373,7 +373,7 @@ export default function BundleCheckoutPage() {
     }
     setCreatingIntent(true)
     setIntentError('')
-    const normalizedPhone = normalizeMaltaPhoneNumber(phone)
+    const normalizedPhone = normalizePhoneNumber(phone)
     setPhone(normalizedPhone)
 
     // Save address for next time if checkbox is checked
@@ -423,7 +423,7 @@ export default function BundleCheckoutPage() {
     }
     const deliverySnapshot = {
       buyerFullName: fullName,
-      buyerPhone: normalizeMaltaPhoneNumber(phone),
+      buyerPhone: normalizePhoneNumber(phone),
       buyerCity: city,
       buyerPostcode: postcode,
       deliveryNotes,

@@ -3,8 +3,8 @@ import {
   buildPaymentIntentPayload,
   getDeliveryPhoneError,
   getPaymentInitializationBlocker,
-  isValidMaltaPhoneNumber,
-  normalizeMaltaPhoneNumber,
+  isValidPhoneNumber,
+  normalizePhoneNumber,
   resolveCheckoutDeliveryMethod,
   runPaymentIntentInitialization,
   shouldInitializePaymentIntent,
@@ -109,7 +109,7 @@ describe('checkout payment helpers', () => {
     })).toBe('Enter your street address before continuing to payment.')
   })
 
-  it('requires a valid Malta phone number before payment initialization', () => {
+  it('requires a valid phone number before payment initialization', () => {
     const baseState = {
       stripeConfigured: true,
       currentUser: { id: 'buyer_123' },
@@ -125,17 +125,24 @@ describe('checkout payment helpers', () => {
     }
 
     expect(getPaymentInitializationBlocker(baseState)).toBe('Enter a phone number for delivery before continuing to payment.')
-    expect(getPaymentInitializationBlocker({ ...baseState, phone: '123' })).toBe('Enter a valid Malta phone number before continuing to payment.')
+    expect(getPaymentInitializationBlocker({ ...baseState, phone: '123' })).toBe('Enter a valid phone number before continuing to payment.')
     expect(getPaymentInitializationBlocker({ ...baseState, phone: '+356 99 123 456' })).toBe('')
+    expect(getPaymentInitializationBlocker({ ...baseState, phone: '+44 7700 900123' })).toBe('')
     expect(getDeliveryPhoneError('+356 99 123 456')).toBe('')
   })
 
-  it('normalizes and validates Malta-friendly phone numbers', () => {
-    expect(normalizeMaltaPhoneNumber('99 123 456')).toBe('+35699123456')
-    expect(normalizeMaltaPhoneNumber('35699123456')).toBe('+35699123456')
-    expect(normalizeMaltaPhoneNumber('0035699123456')).toBe('+35699123456')
-    expect(isValidMaltaPhoneNumber('+356 99 123 456')).toBe(true)
-    expect(isValidMaltaPhoneNumber('+44 7700 900123')).toBe(false)
+  it('normalizes and validates international phone numbers', () => {
+    expect(normalizePhoneNumber('99 123 456')).toBe('+35699123456')
+    expect(normalizePhoneNumber('35699123456')).toBe('+35699123456')
+    expect(normalizePhoneNumber('0035699123456')).toBe('+35699123456')
+    expect(normalizePhoneNumber('+44 (7700) 900-123')).toBe('+447700900123')
+    expect(normalizePhoneNumber('+39 06 6988 1')).toBe('+390669881')
+    expect(isValidPhoneNumber('+356 99 123 456')).toBe(true)
+    expect(isValidPhoneNumber('+44 7700 900123')).toBe(true)
+    expect(isValidPhoneNumber('+44 (7700) 900-123')).toBe(true)
+    expect(isValidPhoneNumber('')).toBe(false)
+    expect(isValidPhoneNumber('call me')).toBe(false)
+    expect(isValidPhoneNumber('@@@123')).toBe(false)
   })
 
   it('does not require buyers to select a MYConvenience location for drop-off delivery', () => {

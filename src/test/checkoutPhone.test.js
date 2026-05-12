@@ -21,10 +21,10 @@ describe('checkout delivery phone UX', () => {
 
     expect(checkout).toContain('getDeliveryPhoneError(phone)')
     expect(checkout).toContain('phoneInputRef.current?.focus()')
-    expect(checkout).toContain('buyerPhone: normalizeMaltaPhoneNumber(phone)')
+    expect(checkout).toContain('buyerPhone: normalizePhoneNumber(phone)')
     expect(bundleCheckout).toContain('getDeliveryPhoneError(phone)')
     expect(bundleCheckout).toContain('phoneInputRef.current?.focus()')
-    expect(bundleCheckout).toContain('buyerPhone: normalizeMaltaPhoneNumber(phone)')
+    expect(bundleCheckout).toContain('buyerPhone: normalizePhoneNumber(phone)')
   })
 
   it('prefills checkout phone from saved address or profile phone', () => {
@@ -35,5 +35,14 @@ describe('checkout delivery phone UX', () => {
     expect(checkout).toContain('setPhone(currentUser.phone)')
     expect(bundleCheckout).toContain("setPhone(savedAddress.phone || currentUser?.phone || '')")
     expect(bundleCheckout).toContain('setPhone(currentUser.phone)')
+  })
+
+  it('does not show old Malta-only phone wording', () => {
+    const checkoutHelpers = readFileSync(resolve(root, 'src/lib/checkoutPayment.js'), 'utf8')
+    const checkout = readFileSync(resolve(root, 'src/pages/CheckoutPage.jsx'), 'utf8')
+    const bundleCheckout = readFileSync(resolve(root, 'src/pages/BundleCheckoutPage.jsx'), 'utf8')
+
+    expect(`${checkoutHelpers}\n${checkout}\n${bundleCheckout}`).not.toContain('Enter a valid Malta phone number')
+    expect(checkoutHelpers).toContain('Enter a valid phone number.')
   })
 })

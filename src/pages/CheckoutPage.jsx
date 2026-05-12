@@ -16,7 +16,7 @@ import { trackReferralConversion } from '../lib/referral'
 import { supabase } from '../lib/supabase'
 import { isLockerEligible } from '../lib/lockerEligibility'
 import { getDeliveryEligibility } from '../lib/deliveryEligibility'
-import { getDeliveryPhoneError, getPaymentInitializationBlocker, normalizeMaltaPhoneNumber, resolveCheckoutDeliveryMethod } from '../lib/checkoutPayment'
+import { getDeliveryPhoneError, getPaymentInitializationBlocker, normalizePhoneNumber, resolveCheckoutDeliveryMethod } from '../lib/checkoutPayment'
 import { MYCONVENIENCE_DELIVERY_ESTIMATE_COMPACT } from '../lib/myConvenienceDeliveryCopy'
 
 const TECHNICAL_PATTERNS = [
@@ -510,7 +510,7 @@ export default function CheckoutPage() {
     setHasAttemptedPaymentIntent(true)
     setClientSecret(null)
     setAddressConfirmed(false)
-    const normalizedPhone = normalizeMaltaPhoneNumber(phone)
+    const normalizedPhone = normalizePhoneNumber(phone)
     setPhone(normalizedPhone)
 
     if (saveAddressChecked) {
@@ -580,7 +580,7 @@ export default function CheckoutPage() {
 
     const deliverySnapshot = {
       buyerFullName: fullName,
-      buyerPhone: normalizeMaltaPhoneNumber(phone),
+      buyerPhone: normalizePhoneNumber(phone),
       buyerCity: city,
       buyerPostcode: postcode,
       deliveryNotes,
