@@ -1,6 +1,11 @@
 import React from 'react'
 import { Box, Info } from 'lucide-react'
 import { getFulfilmentPrice } from '../lib/fulfilment'
+import {
+  MYCONVENIENCE_DELIVERY_ESTIMATE_BULLETS,
+  MYCONVENIENCE_DELIVERY_ESTIMATE_INTRO,
+  MYCONVENIENCE_DELIVERY_ESTIMATE_TITLE,
+} from '../lib/myConvenienceDeliveryCopy'
 
 /**
  * Delivery selector.
@@ -25,7 +30,6 @@ export default function DeliveryMethodSelector({
       name: 'Delivery to your door',
       description: 'Seller drops off at MYConvenience. Sib arranges delivery to your door.',
       price: getFulfilmentPrice('locker'),
-      estimatedDays: 'same day if the seller drops off before 12pm, or next day if dropped off after 12pm',
       icon: Box,
       helpText: "You'll receive updates as your order moves through delivery.",
     }] : []),
@@ -86,9 +90,15 @@ export default function DeliveryMethodSelector({
                     <p className="mt-1 text-xs leading-snug text-sib-muted dark:text-[#aeb8b4]">
                       Seller drops off at MYConvenience. Sib arranges delivery to your door with tracking, secure checkout, and buyer protection.
                     </p>
-                    <p className="mt-2 text-xs font-semibold leading-snug text-sib-text dark:text-[#f4efe7]">
-                      Estimated delivery: same day if the seller drops off before 12pm, or next day if dropped off after 12pm.
-                    </p>
+                    <div className="mt-2 space-y-1 text-xs leading-snug text-sib-muted dark:text-[#aeb8b4]">
+                      <p className="font-semibold text-sib-text dark:text-[#f4efe7]">{MYCONVENIENCE_DELIVERY_ESTIMATE_TITLE}</p>
+                      <p>{MYCONVENIENCE_DELIVERY_ESTIMATE_INTRO}</p>
+                      <ul className="space-y-0.5">
+                        {MYCONVENIENCE_DELIVERY_ESTIMATE_BULLETS.map(line => (
+                          <li key={line}>• {line}</li>
+                        ))}
+                      </ul>
+                    </div>
                   </div>
 
                   {method.helpText && (

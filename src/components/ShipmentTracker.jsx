@@ -2,6 +2,12 @@ import React from 'react'
 import {
   Clock, Package, Truck, CheckCircle, XCircle, RotateCcw,
 } from 'lucide-react'
+import {
+  MYCONVENIENCE_DELIVERY_ESTIMATE_BULLETS,
+  MYCONVENIENCE_DELIVERY_ESTIMATE_INTRO,
+  MYCONVENIENCE_DELIVERY_ESTIMATE_TITLE,
+  getMyConvenienceDeliveryAttemptLabel,
+} from '../lib/myConvenienceDeliveryCopy'
 
 const MYCONVENIENCE_DELIVERY_STEPS = [
   {
@@ -81,19 +87,8 @@ function getDeliveryStepKey(status) {
 }
 
 export function getMyConvenienceDeliveryEstimateLabel(value) {
-  if (!value) return null
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return null
-
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Europe/Malta',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).formatToParts(date)
-  const hour = Number(parts.find(part => part.type === 'hour')?.value)
-  if (Number.isNaN(hour)) return null
-  return `Estimated delivery: ${hour < 12 ? 'same day' : 'next day'}`
+  const attemptLabel = getMyConvenienceDeliveryAttemptLabel(value)
+  return attemptLabel ? `${MYCONVENIENCE_DELIVERY_ESTIMATE_TITLE}: ${attemptLabel}` : null
 }
 
 export default function ShipmentTracker({ shipment }) {
@@ -200,8 +195,14 @@ export default function ShipmentTracker({ shipment }) {
         )}
 
         {deliveryEstimate && (
-          <div className="p-3 rounded-xl bg-sib-sand dark:bg-[#26322f] transition-colors">
+          <div className="space-y-1 p-3 rounded-xl bg-sib-sand dark:bg-[#26322f] transition-colors">
             <p className="text-xs font-semibold text-sib-text dark:text-[#f4efe7]">{deliveryEstimate}</p>
+            <p className="text-[11px] leading-snug text-sib-muted dark:text-[#aeb8b4]">{MYCONVENIENCE_DELIVERY_ESTIMATE_INTRO}</p>
+            <ul className="space-y-0.5 text-[11px] leading-snug text-sib-muted dark:text-[#aeb8b4]">
+              {MYCONVENIENCE_DELIVERY_ESTIMATE_BULLETS.map(line => (
+                <li key={line}>• {line}</li>
+              ))}
+            </ul>
           </div>
         )}
 

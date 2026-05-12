@@ -18,6 +18,11 @@ import { logActivity } from '../lib/activityTracker'
 import { trackReferralClick, setActiveReferral, getActiveReferral, buildShareableLink } from '../lib/referral'
 import { isLockerEligible } from '../lib/lockerEligibility'
 import { getDeliveryEligibility } from '../lib/deliveryEligibility'
+import {
+  MYCONVENIENCE_DELIVERY_ESTIMATE_BULLETS,
+  MYCONVENIENCE_DELIVERY_ESTIMATE_INTRO,
+  MYCONVENIENCE_DELIVERY_ESTIMATE_TITLE,
+} from '../lib/myConvenienceDeliveryCopy'
 
 const NEW_SELLER_RECENT_DAYS = 90
 
@@ -103,9 +108,13 @@ export function ListingDeliveryCard({ listing }) {
         </div>
         {lockerEligible ? (
           <div className="mt-2 space-y-1 text-xs text-sib-muted dark:text-[#aeb8b4]">
-            <p className="font-semibold text-sib-text dark:text-[#f4efe7]">Estimated delivery</p>
-            <p>Same day if dropped off before 12pm</p>
-            <p>Next day after 12pm</p>
+            <p className="font-semibold text-sib-text dark:text-[#f4efe7]">{MYCONVENIENCE_DELIVERY_ESTIMATE_TITLE}</p>
+            <p>{MYCONVENIENCE_DELIVERY_ESTIMATE_INTRO}</p>
+            <ul className="space-y-0.5">
+              {MYCONVENIENCE_DELIVERY_ESTIMATE_BULLETS.map(line => (
+                <li key={line}>• {line}</li>
+              ))}
+            </ul>
             <p className="pt-1 text-[11px] font-medium text-green-700 dark:text-green-300">
               Tracked delivery, secure checkout, and buyer protection included.
             </p>

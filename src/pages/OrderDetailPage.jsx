@@ -17,6 +17,12 @@ import { isOrderPaidForDropoff, shouldShowSellerDropoffQr } from '../lib/sellerD
 import { getParcelLabelDetails } from '../lib/parcelLabel'
 import { getDisputeMessagesForDispute, getEvidenceSenderRole, isActiveDisputeStatus } from '../lib/disputes'
 import { uploadSupportAttachments } from '../lib/supportTickets'
+import {
+  MYCONVENIENCE_DELIVERY_ESTIMATE_BULLETS,
+  MYCONVENIENCE_DELIVERY_ESTIMATE_COMPACT,
+  MYCONVENIENCE_DELIVERY_ESTIMATE_INTRO,
+  MYCONVENIENCE_DELIVERY_ESTIMATE_TITLE,
+} from '../lib/myConvenienceDeliveryCopy'
 
 function formatCountdown(ms) {
   if (ms <= 0) return '00:00:00'
@@ -538,9 +544,14 @@ export default function OrderDetailPage() {
               <p className="mb-4 text-sm font-semibold text-blue-800 dark:text-blue-100">
                 Show this QR code at MYConvenience.
               </p>
-              <div className="mb-3 grid gap-2 text-xs font-semibold text-blue-800 dark:text-blue-100 sm:grid-cols-2">
-                <p className="rounded-xl bg-white/70 px-3 py-2 dark:bg-[#26322f]/80">Drop off before 12:00pm for same-day delivery.</p>
-                <p className="rounded-xl bg-white/70 px-3 py-2 dark:bg-[#26322f]/80">Drop-offs after 12:00pm are delivered the next working day.</p>
+              <div className="mb-3 space-y-2 rounded-xl bg-white/70 px-3 py-2 text-xs font-semibold text-blue-800 dark:bg-[#26322f]/80 dark:text-blue-100">
+                <p className="font-black">{MYCONVENIENCE_DELIVERY_ESTIMATE_TITLE}</p>
+                <p>{MYCONVENIENCE_DELIVERY_ESTIMATE_INTRO}</p>
+                <ul className="space-y-0.5">
+                  {MYCONVENIENCE_DELIVERY_ESTIMATE_BULLETS.map(line => (
+                    <li key={line}>• {line}</li>
+                  ))}
+                </ul>
               </div>
               <p className="mb-3 text-xs font-semibold text-blue-800 dark:text-blue-100">
                 Write these clearly on the outside of the parcel before handing it to MYConvenience.
@@ -637,7 +648,7 @@ export default function OrderDetailPage() {
             )}
             {estDelivery && shipment.status !== 'delivered' && shipment.status !== 'failed_delivery' && shipment.status !== 'returned' && (
               <p className="text-xs text-sib-muted dark:text-[#aeb8b4] mt-2 text-center">
-                {myConvenienceDeliveryEstimate || `Estimated delivery: ${estDelivery.toLocaleDateString('en-MT', { weekday: 'short', day: 'numeric', month: 'short' })}`}
+                {myConvenienceDeliveryEstimate || MYCONVENIENCE_DELIVERY_ESTIMATE_COMPACT}
               </p>
             )}
           </div>

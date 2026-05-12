@@ -35,7 +35,7 @@ describe('ShipmentTracker', () => {
   })
 
   it('renders same-day and next-day MYConvenience estimates from Malta drop-off time', () => {
-    expect(getMyConvenienceDeliveryEstimateLabel('2026-05-09T09:30:00+02:00')).toBe('Estimated delivery: same day')
-    expect(getMyConvenienceDeliveryEstimateLabel('2026-05-09T12:30:00+02:00')).toBe('Estimated delivery: next day')
+    expect(getMyConvenienceDeliveryEstimateLabel('2026-05-09T09:30:00+02:00')).toBe('Estimated delivery: same-day delivery attempt')
+    expect(getMyConvenienceDeliveryEstimateLabel('2026-05-09T12:30:00+02:00')).toBe('Estimated delivery: next-day delivery attempt')
   })
 })

@@ -17,6 +17,7 @@ import { supabase } from '../lib/supabase'
 import { isLockerEligible } from '../lib/lockerEligibility'
 import { getDeliveryEligibility } from '../lib/deliveryEligibility'
 import { getDeliveryPhoneError, getPaymentInitializationBlocker, normalizeMaltaPhoneNumber, resolveCheckoutDeliveryMethod } from '../lib/checkoutPayment'
+import { MYCONVENIENCE_DELIVERY_ESTIMATE_COMPACT } from '../lib/myConvenienceDeliveryCopy'
 
 const TECHNICAL_PATTERNS = [
   /failed to fetch/i,
@@ -687,7 +688,7 @@ export default function CheckoutPage() {
   const deliveryLabel = isLocker ? 'Delivery to your door' : getFulfilmentMethodLabel(deliveryMethodId)
 
   const estimatedDays = isLocker
-    ? 'same day if seller drops off before 12pm, or next day if dropped off after 12pm'
+    ? MYCONVENIENCE_DELIVERY_ESTIMATE_COMPACT
     : '2-3 working days'
 
 
@@ -880,7 +881,7 @@ export default function CheckoutPage() {
                   </span>
                   <span>€{fees.deliveryFee.toFixed(2)}</span>
                 </div>
-                <div className="text-xs text-sib-muted dark:text-[#aeb8b4] mt-0.5 pl-[22px]">est. {estimatedDays}</div>
+                <div className="text-xs text-sib-muted dark:text-[#aeb8b4] mt-0.5 pl-[22px]">{estimatedDays}</div>
                 <div className="flex justify-between font-bold text-sib-text dark:text-[#f4efe7] pt-2 border-t border-sib-stone dark:border-[rgba(242,238,231,0.10)]">
                   <span>Total</span>
                   <span className="text-sib-primary text-lg">€{fees.total.toFixed(2)}</span>
@@ -1050,7 +1051,7 @@ export default function CheckoutPage() {
                     </span>
                     <span>€{fees.deliveryFee.toFixed(2)}</span>
                   </div>
-                  <div className="text-xs text-sib-muted dark:text-[#aeb8b4] mt-0.5 pl-[22px]">est. {estimatedDays}</div>
+                  <div className="text-xs text-sib-muted dark:text-[#aeb8b4] mt-0.5 pl-[22px]">{estimatedDays}</div>
                   <div className="flex justify-between font-bold text-sib-text dark:text-[#f4efe7] pt-3 border-t border-sib-stone dark:border-[rgba(242,238,231,0.10)] mt-2">
                     <span>Total</span>
                     <span className="text-sib-primary text-xl">€{fees.total.toFixed(2)}</span>

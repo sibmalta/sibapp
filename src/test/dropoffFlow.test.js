@@ -424,6 +424,7 @@ describe('seller drop-off flow', () => {
     const sellPage = readFileSync(resolve(root, 'src/pages/SellPage.jsx'), 'utf8')
     const listingPage = readFileSync(resolve(root, 'src/pages/ListingPage.jsx'), 'utf8')
     const detail = readFileSync(resolve(root, 'src/pages/OrderDetailPage.jsx'), 'utf8')
+    const deliveryCopy = readFileSync(resolve(root, 'src/lib/myConvenienceDeliveryCopy.js'), 'utf8')
     const dropoffPage = readFileSync(resolve(root, 'src/pages/SellerDropoffPage.jsx'), 'utf8')
 
     expect(prompt).toContain('View drop-off QRs')
@@ -449,10 +450,14 @@ describe('seller drop-off flow', () => {
 
   it('keeps the seller drop-off detail screen focused on QR-only store scan instructions', () => {
     const detail = readFileSync(resolve(root, 'src/pages/OrderDetailPage.jsx'), 'utf8')
+    const deliveryCopy = readFileSync(resolve(root, 'src/lib/myConvenienceDeliveryCopy.js'), 'utf8')
 
     expect(detail).toContain('Show this QR code at MYConvenience.')
-    expect(detail).toContain('Drop off before 12:00pm for same-day delivery.')
-    expect(detail).toContain('Drop-offs after 12:00pm are delivered the next working day.')
+    expect(detail).toContain('MYCONVENIENCE_DELIVERY_ESTIMATE_INTRO')
+    expect(detail).toContain('MYCONVENIENCE_DELIVERY_ESTIMATE_BULLETS')
+    expect(deliveryCopy).toContain('Delivery timing starts once the seller drops off the parcel at MYConvenience.')
+    expect(deliveryCopy).toContain('Dropped off before 12pm → same-day delivery attempt')
+    expect(deliveryCopy).toContain('Dropped off after 12pm → next-day delivery attempt')
     expect(detail).toContain('REQUIRED: Write on parcel')
     expect(detail).toContain('Required for delivery — parcels without this may be delayed')
     expect(detail).toContain('Parcels without these details may be delayed or returned.')

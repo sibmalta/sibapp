@@ -28,14 +28,14 @@ describe('order lifecycle system messages', () => {
       senderId: 'system',
       orderId: order.id,
       title: 'Parcel dropped off',
-      text: 'Your parcel is awaiting courier collection. Expected delivery: Today',
+      text: 'Your parcel is awaiting courier collection. Estimated delivery: same-day delivery attempt',
       read: true,
       notUserGenerated: true,
       replyable: false,
       editable: false,
       deletable: false,
     })
-    expect(message.lines).toEqual(['Your parcel is awaiting courier collection.', 'Expected delivery: Today'])
+    expect(message.lines).toEqual(['Your parcel is awaiting courier collection.', 'Estimated delivery: same-day delivery attempt'])
   })
 
   it('creates a next-working-day drop-off timeline message after noon', () => {
@@ -46,7 +46,7 @@ describe('order lifecycle system messages', () => {
     })
 
     expect(message.title).toBe('Parcel dropped off')
-    expect(message.lines).toEqual(['Your parcel will be delivered next working day.'])
+    expect(message.lines).toEqual(['Estimated delivery: next-day delivery attempt'])
     expect(message.deliveryTiming).toBe('next_day')
   })
 

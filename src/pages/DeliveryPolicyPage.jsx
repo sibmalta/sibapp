@@ -2,6 +2,11 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import { Truck, AlertTriangle, Clock, MapPin, Package } from 'lucide-react'
 import PolicyLayout, { PolicySection, PolicyBullets, PolicyCallout } from '../components/PolicyLayout'
+import {
+  MYCONVENIENCE_DELIVERY_ESTIMATE_BULLETS,
+  MYCONVENIENCE_DELIVERY_ESTIMATE_INTRO,
+  MYCONVENIENCE_DELIVERY_ESTIMATE_TITLE,
+} from '../lib/myConvenienceDeliveryCopy'
 
 export default function DeliveryPolicyPage() {
   return (
@@ -51,12 +56,18 @@ export default function DeliveryPolicyPage() {
         <div className="flex items-start gap-3 p-4 rounded-2xl bg-sib-warm border border-sib-stone">
           <Clock size={18} className="text-sib-primary flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-semibold text-sib-text">Estimated delivery windows</p>
+            <p className="text-sm font-semibold text-sib-text">{MYCONVENIENCE_DELIVERY_ESTIMATE_TITLE}</p>
             <p className="text-xs text-sib-muted mt-1 leading-relaxed">
-              Delivery estimates shown at checkout are based on current operational capacity and
-              logistics planning. These are estimates only and may be affected by factors such as
-              weather, public holidays, volume, or zone availability. Sib does not guarantee
-              specific delivery dates or times.
+              {MYCONVENIENCE_DELIVERY_ESTIMATE_INTRO}
+            </p>
+            <ul className="mt-2 space-y-1 text-xs text-sib-muted leading-relaxed">
+              {MYCONVENIENCE_DELIVERY_ESTIMATE_BULLETS.map(line => (
+                <li key={line}>• {line}</li>
+              ))}
+            </ul>
+            <p className="text-xs text-sib-muted mt-2 leading-relaxed">
+              These are estimates only and may be affected by factors such as weather, public holidays,
+              volume, or zone availability. Sib does not guarantee specific delivery dates or times.
             </p>
           </div>
         </div>

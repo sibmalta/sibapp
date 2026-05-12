@@ -1,4 +1,5 @@
 import { getCourierDeliveryTiming } from './courierDeliveryTiming'
+import { getMyConvenienceDeliveryAttemptLabel } from './myConvenienceDeliveryCopy'
 
 export const ORDER_SYSTEM_EVENT_TYPES = {
   DROPOFF_CONFIRMED: 'dropoff_confirmed',
@@ -38,9 +39,10 @@ function baseSystemEvent({ eventType, title, lines = [], timestamp, order, listi
 
 export function buildDropoffConfirmedSystemMessage({ order, timestamp, deliveryTiming }) {
   const timing = normalizeTiming(deliveryTiming, timestamp)
+  const attemptLabel = getMyConvenienceDeliveryAttemptLabel(timing)
   const lines = timing === 'same_day'
-    ? ['Your parcel is awaiting courier collection.', 'Expected delivery: Today']
-    : ['Your parcel will be delivered next working day.']
+    ? ['Your parcel is awaiting courier collection.', `Estimated delivery: ${attemptLabel}`]
+    : [`Estimated delivery: ${attemptLabel}`]
 
   return baseSystemEvent({
     eventType: ORDER_SYSTEM_EVENT_TYPES.DROPOFF_CONFIRMED,

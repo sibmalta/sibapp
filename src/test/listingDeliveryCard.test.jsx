@@ -11,8 +11,9 @@ describe('ListingDeliveryCard', () => {
     expect(screen.getByText('Delivery fee €3.50')).toBeInTheDocument()
     expect(screen.getByText('Seller drops off at MYConvenience. Sib arranges delivery to your door.')).toBeInTheDocument()
     expect(screen.getByText('Estimated delivery')).toBeInTheDocument()
-    expect(screen.getByText('Same day if dropped off before 12pm')).toBeInTheDocument()
-    expect(screen.getByText('Next day after 12pm')).toBeInTheDocument()
+    expect(screen.getByText('Delivery timing starts once the seller drops off the parcel at MYConvenience.')).toBeInTheDocument()
+    expect(screen.getByText('• Dropped off before 12pm → same-day delivery attempt')).toBeInTheDocument()
+    expect(screen.getByText('• Dropped off after 12pm → next-day delivery attempt')).toBeInTheDocument()
     expect(screen.getByText('Tracked delivery, secure checkout, and buyer protection included.')).toBeInTheDocument()
   })
 
