@@ -1,6 +1,6 @@
 import React from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import OrdersPage from '../pages/OrdersPage'
 
@@ -54,7 +54,10 @@ function renderOrdersPage(appOverrides = {}, initialEntries = ['/orders']) {
 
   return render(
     <MemoryRouter initialEntries={initialEntries}>
-      <OrdersPage />
+      <Routes>
+        <Route path="/orders" element={<OrdersPage />} />
+        <Route path="/dropoff" element={<div>Drop-off QR route</div>} />
+      </Routes>
     </MemoryRouter>
   )
 }
@@ -96,59 +99,11 @@ describe('OrdersPage timeout fallback', () => {
     expect(mockApp.refreshShipments).toHaveBeenCalledTimes(2)
   })
 
-  it('renders pending seller drop-off orders from sellerDropoff=pending', () => {
-    const pendingOrder = {
-      id: 'order-1',
-      sellerId: 'user-1',
-      buyerId: 'buyer-1',
-      listingId: 'listing-1',
-      paidAt: '2026-05-10T10:00:00.000Z',
-      status: 'paid',
-      trackingStatus: 'paid',
-      itemPrice: 24,
-      totalPrice: 27.5,
-      createdAt: '2026-05-10T10:00:00.000Z',
-      fulfilmentMethod: 'dropoff',
-    }
-    const shipment = {
-      orderId: 'order-1',
-      status: 'awaiting_shipment',
-      fulfilmentMethod: 'dropoff',
-    }
-
-    renderOrdersPage({
-      ordersLoading: false,
-      getUserSales: vi.fn(() => [pendingOrder]),
-      getListingById: vi.fn(() => ({ title: 'Blue jacket', images: [] })),
-      getUserById: vi.fn(() => ({ username: 'buyer-one' })),
-      getShipmentByOrderId: vi.fn((orderId) => orderId === 'order-1' ? shipment : null),
-    }, ['/orders?sellerDropoff=pending'])
-
-    expect(screen.getByRole('button', { name: /sales/i })).toHaveClass('border-sib-primary')
-    expect(screen.getByText('Blue jacket')).toBeInTheDocument()
-    expect(screen.getByText(/Drop off your parcel at MYConvenience/i)).toBeInTheDocument()
-  })
-
-  it('renders an empty pending drop-off state', () => {
-    renderOrdersPage({
-      ordersLoading: false,
-      getUserSales: vi.fn(() => []),
-    }, ['/orders?sellerDropoff=pending'])
-
-    expect(screen.queryByText('Loading orders...')).not.toBeInTheDocument()
-    expect(screen.getByText('No parcels awaiting drop-off')).toBeInTheDocument()
-  })
-
-  it('shows the drop-off orders error after timeout for sellerDropoff=pending', async () => {
+  it('redirects legacy sellerDropoff=pending links away from the generic orders loader', () => {
     renderOrdersPage({}, ['/orders?sellerDropoff=pending'])
 
-    expect(screen.getByText('Loading orders...')).toBeInTheDocument()
-
-    await act(async () => {
-      vi.advanceTimersByTime(8000)
-    })
-
+    expect(screen.getByText('Drop-off QR route')).toBeInTheDocument()
     expect(screen.queryByText('Loading orders...')).not.toBeInTheDocument()
-    expect(screen.getByText('We couldn’t load your drop-off orders. Try again.')).toBeInTheDocument()
+    expect(screen.queryByText('We couldn’t load your drop-off orders. Try again.')).not.toBeInTheDocument()
   })
 })

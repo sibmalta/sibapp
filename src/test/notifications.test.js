@@ -304,12 +304,28 @@ describe('notification idempotency', () => {
     expect(notification.metadata.orderIds).toEqual(['order-1', 'order-2', 'order-3', 'order-4'])
   })
 
-  it('routes grouped drop-off notification clicks to the pending seller drop-off orders view', () => {
+  it('routes grouped drop-off notification clicks to the dedicated seller drop-off QR view', () => {
     expect(resolveNotificationTarget({
       id: 'grouped-dropoff-1',
       type: GROUPED_DROPOFF_REMINDER_TYPE,
       title: 'Multiple Sib parcels ready for drop-off',
       message: 'You have 4 orders awaiting MYConvenience drop-off.',
+    })).toBe(GROUPED_DROPOFF_REMINDER_ROUTE)
+    expect(GROUPED_DROPOFF_REMINDER_ROUTE).toBe('/dropoff?status=pending')
+    expect(GROUPED_DROPOFF_REMINDER_ROUTE).not.toBe('/orders?sellerDropoff=pending')
+  })
+
+  it('normalizes legacy grouped drop-off notification targets to the dedicated QR route', () => {
+    expect(resolveNotificationTarget({
+      id: 'legacy-grouped-dropoff-1',
+      type: GROUPED_DROPOFF_REMINDER_TYPE,
+      actionTarget: '/orders?sellerDropoff=pending',
+    })).toBe(GROUPED_DROPOFF_REMINDER_ROUTE)
+
+    expect(resolveNotificationTarget({
+      id: 'legacy-grouped-dropoff-2',
+      type: 'unknown',
+      actionTarget: '/orders?sellerDropoff=pending',
     })).toBe(GROUPED_DROPOFF_REMINDER_ROUTE)
   })
 

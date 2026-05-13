@@ -2,9 +2,11 @@ import React, { useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Bell, Tag, Package, CheckCircle, XCircle, ArrowRightLeft, ShieldCheck, AlertTriangle, ChevronRight, PackagePlus, Truck, MessageSquare } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+import { GROUPED_DROPOFF_REMINDER_ROUTE, GROUPED_DROPOFF_REMINDER_TYPE } from '../lib/dropoffReminderGuard'
 
 const SELLER_SHIPMENT_QUEUE = '/orders?tab=selling&shipment=awaiting_shipment'
 const SELLER_DASHBOARD = '/seller'
+const LEGACY_GROUPED_DROPOFF_ROUTE = '/orders?sellerDropoff=pending'
 
 function firstValue(...values) {
   return values.find(value => value !== undefined && value !== null && String(value).trim() !== '')
@@ -110,7 +112,7 @@ const NOTIF_CONFIG = {
   shipped:              { icon: Package,         color: 'bg-sib-sand text-sib-muted dark:bg-[#26322f] dark:text-[#aeb8b4]', linkFn: (n) => orderTarget(n) },
   ship_reminder:        { icon: Truck,           color: 'bg-orange-50 text-sib-primary dark:bg-[#26322f] dark:text-[#e8751a]', linkFn: (n) => orderTarget(n, SELLER_SHIPMENT_QUEUE) },
   dropoff_reminder:     { icon: Truck,           color: 'bg-orange-50 text-sib-primary dark:bg-[#26322f] dark:text-[#e8751a]', linkFn: (n) => orderTarget(n, SELLER_SHIPMENT_QUEUE) },
-  dropoff_reminder_group: { icon: Truck,          color: 'bg-orange-50 text-sib-primary dark:bg-[#26322f] dark:text-[#e8751a]', link: '/orders?sellerDropoff=pending' },
+  [GROUPED_DROPOFF_REMINDER_TYPE]: { icon: Truck, color: 'bg-orange-50 text-sib-primary dark:bg-[#26322f] dark:text-[#e8751a]', link: GROUPED_DROPOFF_REMINDER_ROUTE },
   bundle_sold:          { icon: PackagePlus,     color: 'bg-orange-50 text-sib-primary dark:bg-[#26322f] dark:text-[#e8751a]', linkFn: (n) => orderTarget(n, SELLER_SHIPMENT_QUEUE) },
   overdue_warning:      { icon: AlertTriangle,  color: 'bg-amber-50 text-amber-600 dark:bg-[#26322f] dark:text-amber-300',  linkFn: (n) => orderTarget(n, SELLER_SHIPMENT_QUEUE) },
   order_cancelled:      { icon: XCircle,        color: 'bg-red-50 text-red-600 dark:bg-[#26322f] dark:text-red-300',      linkFn: (n) => orderTarget(n) },
@@ -122,9 +124,15 @@ const NOTIF_CONFIG = {
 
 const DEFAULT_CONFIG = { icon: Bell, color: 'bg-sib-sand text-sib-muted', link: '/notifications' }
 
+function normalizeNotificationTarget(target) {
+  if (target === LEGACY_GROUPED_DROPOFF_ROUTE) return GROUPED_DROPOFF_REMINDER_ROUTE
+  return target
+}
+
 export function resolveNotificationTarget(notif) {
-  if (notif.actionTarget && notif.actionTarget !== '/') return notif.actionTarget
-  if (notif.targetPath && notif.targetPath !== '/') return notif.targetPath
+  if (notif.type === GROUPED_DROPOFF_REMINDER_TYPE) return GROUPED_DROPOFF_REMINDER_ROUTE
+  if (notif.actionTarget && notif.actionTarget !== '/') return normalizeNotificationTarget(notif.actionTarget)
+  if (notif.targetPath && notif.targetPath !== '/') return normalizeNotificationTarget(notif.targetPath)
   const cfg = NOTIF_CONFIG[notif.type] || DEFAULT_CONFIG
   if (String(notif.type || '').startsWith('dispute_')) {
     return cfg.linkFn ? cfg.linkFn(notif) : cfg.link

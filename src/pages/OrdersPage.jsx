@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { Package, RefreshCw, ShoppingBag, Truck } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { useAuth } from '../lib/auth-context'
@@ -186,6 +186,7 @@ export default function OrdersPage() {
   }, [authLoading, currentUser, navigate])
 
   useEffect(() => {
+    if (sellerDropoffFilter === 'pending') return
     if (!authLoading && currentUser && !loadedOrdersRef.current) {
       loadedOrdersRef.current = true
       setLoadTimedOut(false)
@@ -194,9 +195,10 @@ export default function OrdersPage() {
       refreshOrders()
       refreshShipments()
     }
-  }, [authLoading, currentUser?.id, refreshOrders, refreshShipments])
+  }, [authLoading, currentUser?.id, refreshOrders, refreshShipments, sellerDropoffFilter])
 
   useEffect(() => {
+    if (sellerDropoffFilter === 'pending') return undefined
     if (!(authLoading || profilesLoading || ordersLoading || shipmentsLoading)) {
       setLoadTimedOut(false)
       return undefined
@@ -224,7 +226,7 @@ export default function OrdersPage() {
       setLoadTimedOut(true)
     }, ORDERS_PAGE_TIMEOUT_MS)
     return () => clearTimeout(id)
-  }, [authLoading, profilesLoading, ordersLoading, shipmentsLoading, currentUser?.id, ordersDbAvailable, ordersDbError])
+  }, [authLoading, profilesLoading, ordersLoading, shipmentsLoading, currentUser?.id, ordersDbAvailable, ordersDbError, sellerDropoffFilter])
 
   const retryOrdersLoad = () => {
     loadedOrdersRef.current = false
@@ -232,6 +234,10 @@ export default function OrdersPage() {
     console.info('orders_load_start', { source: 'OrdersPageRetry', authUserId: currentUser?.id || null })
     refreshOrders()
     refreshShipments()
+  }
+
+  if (sellerDropoffFilter === 'pending') {
+    return <Navigate to="/dropoff?status=pending" replace />
   }
 
   if (loadTimedOut || ordersDbAvailable === false || ordersDbError) {

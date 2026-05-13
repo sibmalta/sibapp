@@ -1,6 +1,6 @@
 export const DROPOFF_REMINDER_WINDOW_MS = 24 * 60 * 60 * 1000
 export const GROUPED_DROPOFF_REMINDER_WINDOW_MS = 6 * 60 * 60 * 1000
-export const GROUPED_DROPOFF_REMINDER_ROUTE = '/orders?sellerDropoff=pending'
+export const GROUPED_DROPOFF_REMINDER_ROUTE = '/dropoff?status=pending'
 export const GROUPED_DROPOFF_REMINDER_TYPE = 'dropoff_reminder_group'
 
 export function getDropoffReminderKey(shipment = {}, order = {}) {

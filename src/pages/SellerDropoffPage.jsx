@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { AlertTriangle, CheckCircle, MapPin, Package, QrCode, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { useApp } from '../context/AppContext'
@@ -41,8 +42,14 @@ export default function SellerDropoffPage() {
     refreshOrders,
     refreshShipments,
   } = useApp()
-  const [activeTab, setActiveTab] = useState('pending')
+  const [searchParams] = useSearchParams()
+  const initialStatus = searchParams.get('status') === 'confirmed' ? 'confirmed' : 'pending'
+  const [activeTab, setActiveTab] = useState(initialStatus)
   const [activeQrOrderId, setActiveQrOrderId] = useState(null)
+
+  useEffect(() => {
+    setActiveTab(searchParams.get('status') === 'confirmed' ? 'confirmed' : 'pending')
+  }, [searchParams])
 
   useEffect(() => {
     if (!currentUser?.id) return

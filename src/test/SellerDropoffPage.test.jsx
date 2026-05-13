@@ -13,9 +13,9 @@ vi.mock('../context/AppContext', () => ({
   useApp: () => mockApp,
 }))
 
-function renderPage() {
+function renderPage(initialEntries = ['/dropoff']) {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={initialEntries}>
       <SellerDropoffPage />
     </MemoryRouter>,
   )
@@ -205,6 +205,28 @@ describe('SellerDropoffPage', () => {
     expect(screen.getByText('No parcels waiting for drop-off.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('tab', { name: /Confirmed/ }))
     expect(screen.getByText('No confirmed drop-offs yet.')).toBeInTheDocument()
+  })
+
+  it('renders pending parcels from the dedicated grouped notification route', () => {
+    mockApp.orders = [
+      {
+        id: 'order_1',
+        orderRef: 'SIB-1001',
+        sellerId: 'seller_1',
+        buyerId: 'buyer_1',
+        listingId: 'listing_1',
+        paymentStatus: 'paid',
+        trackingStatus: 'awaiting_delivery',
+        dropoffScanToken: 'token-order-1',
+      },
+    ]
+
+    renderPage(['/dropoff?status=pending'])
+
+    expect(screen.getByRole('tab', { name: /Pending/ })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByTestId('pending-dropoff-card')).toBeInTheDocument()
+    expect(screen.getAllByText('SIB-1001').length).toBeGreaterThan(0)
+    expect(screen.getByRole('button', { name: /Show QR/ })).toBeInTheDocument()
   })
 
   it('keeps mobile drop-off cards compact without removing required fields', () => {
