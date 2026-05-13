@@ -3,26 +3,48 @@ import { PackageCheck, QrCode, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 import { getPendingSellerDropoffOrders } from '../lib/sellerDropoffPrompt'
+import { GROUPED_DROPOFF_REMINDER_WINDOW_MS } from '../lib/dropoffReminderGuard'
 
-const REMIND_LATER_MS = 12 * 60 * 60 * 1000
+const INDIVIDUAL_REMIND_LATER_MS = 24 * 60 * 60 * 1000
+const GROUPED_REMIND_LATER_MS = GROUPED_DROPOFF_REMINDER_WINDOW_MS
 
 function reminderKey(userId, orderId) {
   return `sib_dropoff_prompt_snooze:${userId}:${orderId}`
 }
 
-function isSnoozed(userId, orderId) {
+function groupedReminderKey(userId) {
+  return `sib_dropoff_prompt_snooze:${userId}:grouped`
+}
+
+function isStorageSnoozed(key) {
   try {
-    const until = Number(localStorage.getItem(reminderKey(userId, orderId)) || 0)
+    const until = Number(localStorage.getItem(key) || 0)
     return Number.isFinite(until) && until > Date.now()
   } catch {
     return false
   }
 }
 
-function snooze(userId, orderId) {
+function isSnoozed(userId, orderId) {
+  return isStorageSnoozed(reminderKey(userId, orderId))
+}
+
+function isGroupedSnoozed(userId) {
+  return isStorageSnoozed(groupedReminderKey(userId))
+}
+
+function snoozeKey(key, durationMs) {
   try {
-    localStorage.setItem(reminderKey(userId, orderId), String(Date.now() + REMIND_LATER_MS))
+    localStorage.setItem(key, String(Date.now() + durationMs))
   } catch {}
+}
+
+function snoozeOrder(userId, orderId) {
+  snoozeKey(reminderKey(userId, orderId), INDIVIDUAL_REMIND_LATER_MS)
+}
+
+function snoozeGrouped(userId) {
+  snoozeKey(groupedReminderKey(userId), GROUPED_REMIND_LATER_MS)
 }
 
 export default function SellerDropoffPrompt() {
@@ -32,6 +54,7 @@ export default function SellerDropoffPrompt() {
     shipments,
     refreshOrders,
     refreshShipments,
+    showToast,
   } = useApp()
   const navigate = useNavigate()
   const [snoozeVersion, setSnoozeVersion] = useState(0)
@@ -42,13 +65,18 @@ export default function SellerDropoffPrompt() {
     refreshShipments?.()
   }, [currentUser?.id, refreshOrders, refreshShipments])
 
-  const pendingOrders = useMemo(() => {
+  const rawPendingOrders = useMemo(() => {
     return getPendingSellerDropoffOrders({
       orders,
       shipments,
       currentUserId: currentUser?.id,
-    }).filter(order => !isSnoozed(currentUser?.id, order.id))
-  }, [orders, shipments, currentUser?.id, snoozeVersion])
+    })
+  }, [orders, shipments, currentUser?.id])
+
+  const pendingOrders = useMemo(() => {
+    if (isGroupedSnoozed(currentUser?.id)) return []
+    return rawPendingOrders.filter(order => !isSnoozed(currentUser?.id, order.id))
+  }, [rawPendingOrders, currentUser?.id, snoozeVersion])
 
   const order = pendingOrders[0]
   if (!currentUser || !order) return null
@@ -62,8 +90,13 @@ export default function SellerDropoffPrompt() {
   }
 
   const handleRemindLater = () => {
-    snooze(currentUser.id, order.id)
+    if (pendingOrders.length > 1 || rawPendingOrders.length > 1) {
+      snoozeGrouped(currentUser.id)
+    } else {
+      snoozeOrder(currentUser.id, order.id)
+    }
     setSnoozeVersion(version => version + 1)
+    showToast?.("We'll remind you later.")
   }
 
   return (
