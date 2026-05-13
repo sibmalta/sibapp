@@ -192,14 +192,18 @@ export default function OrdersPage() {
       setLoadTimedOut(false)
       console.info('orders_load_start', { source: 'OrdersPage', authUserId: currentUser.id, profileId: currentUser.id })
       console.info('[OrdersPage] loading start', { authUserId: currentUser.id, profileId: currentUser.id })
-      refreshOrders()
-      refreshShipments()
+      Promise.resolve(refreshOrders()).catch(error => {
+        console.error('orders_load_error', { source: 'OrdersPage', message: error?.message || String(error) })
+      })
+      Promise.resolve(refreshShipments()).catch(error => {
+        console.error('shipments_load_error', { source: 'OrdersPage', message: error?.message || String(error) })
+      })
     }
   }, [authLoading, currentUser?.id, refreshOrders, refreshShipments, sellerDropoffFilter])
 
   useEffect(() => {
     if (sellerDropoffFilter === 'pending') return undefined
-    if (!(authLoading || profilesLoading || ordersLoading || shipmentsLoading)) {
+    if (!(authLoading || profilesLoading || ordersLoading)) {
       setLoadTimedOut(false)
       return undefined
     }
@@ -228,12 +232,40 @@ export default function OrdersPage() {
     return () => clearTimeout(id)
   }, [authLoading, profilesLoading, ordersLoading, shipmentsLoading, currentUser?.id, ordersDbAvailable, ordersDbError, sellerDropoffFilter])
 
+  useEffect(() => {
+    console.info('orders_page_loading_state', {
+      authLoading,
+      profilesLoading,
+      ordersLoading,
+      shipmentsLoading,
+      criticalLoading: authLoading || profilesLoading || ordersLoading,
+      optionalShipmentsLoading: shipmentsLoading,
+      loadTimedOut,
+      ordersDbAvailable,
+      hasOrdersDbError: Boolean(ordersDbError),
+      sellerDropoffFilter,
+    })
+  }, [authLoading, profilesLoading, ordersLoading, shipmentsLoading, loadTimedOut, ordersDbAvailable, ordersDbError, sellerDropoffFilter])
+
+  useEffect(() => {
+    if (sellerDropoffFilter === 'pending') {
+      console.info('orders_redirect_legacy_seller_dropoff', {
+        from: '/orders?sellerDropoff=pending',
+        to: '/dropoff?status=pending',
+      })
+    }
+  }, [sellerDropoffFilter])
+
   const retryOrdersLoad = () => {
     loadedOrdersRef.current = false
     setLoadTimedOut(false)
     console.info('orders_load_start', { source: 'OrdersPageRetry', authUserId: currentUser?.id || null })
-    refreshOrders()
-    refreshShipments()
+    Promise.resolve(refreshOrders()).catch(error => {
+      console.error('orders_load_error', { source: 'OrdersPageRetry', message: error?.message || String(error) })
+    })
+    Promise.resolve(refreshShipments()).catch(error => {
+      console.error('shipments_load_error', { source: 'OrdersPageRetry', message: error?.message || String(error) })
+    })
   }
 
   if (sellerDropoffFilter === 'pending') {
@@ -270,7 +302,7 @@ export default function OrdersPage() {
     )
   }
 
-  if (authLoading || profilesLoading || ordersLoading || shipmentsLoading) {
+  if (authLoading || profilesLoading || ordersLoading) {
     return (
       <div>
         <PageHeader title="Orders" />

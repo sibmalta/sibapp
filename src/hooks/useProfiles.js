@@ -22,7 +22,16 @@ import { uploadAvatar, dataUrlToFile } from '../lib/storage'
 import { SEED_USERS as FALLBACK_SEED_USERS } from '../data/seedData'
 
 const SUPABASE_ENABLED = true
+const PROFILE_FETCH_TIMEOUT_MS = 8000
 const PROFILE_SESSION_EXPIRED_MESSAGE = 'Your session expired. Please log in again to update your profile.'
+
+function withTimeout(promise, timeoutMs, label) {
+  let timeoutId
+  const timeout = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(`${label} timed out`)), timeoutMs)
+  })
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId))
+}
 
 function isSessionExpiredError(error) {
   const message = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase()
@@ -64,17 +73,35 @@ export function useProfiles(localUsers, currentUser) {
     fetchedRef.current = true
 
     async function load() {
-      const { data, error } = await fetchAllProfiles(supabase)
-      if (!error && data) {
-        // DB reachable — use DB as single source of truth (even if empty)
-        setDbAvailable(true)
-        setUsers(data)
-      } else if (error) {
-        console.warn('[useProfiles] Supabase unavailable, using localStorage:', error.message)
+      const startedAt = Date.now()
+      console.info('profiles_load_start')
+      try {
+        const { data, error } = await withTimeout(fetchAllProfiles(supabase), PROFILE_FETCH_TIMEOUT_MS, 'profiles fetch')
+        if (!error && data) {
+          setDbAvailable(true)
+          setUsers(data)
+          console.info('profiles_load_success', { totalProfiles: data.length, durationMs: Date.now() - startedAt })
+        } else if (error) {
+          console.error('profiles_load_error', {
+            message: error.message,
+            code: error.code || null,
+            status: error.status || null,
+          })
+          console.warn('[useProfiles] Supabase unavailable, using localStorage:', error.message)
+          setDbAvailable(false)
+          setUsers(localUsers)
+        }
+      } catch (error) {
+        const isTimeout = /timed out/i.test(error?.message || '')
+        console.error(isTimeout ? 'profiles_load_timeout' : 'profiles_load_error', {
+          message: error?.message || String(error),
+        })
         setDbAvailable(false)
         setUsers(localUsers)
+      } finally {
+        console.info('profiles_loading_false', { durationMs: Date.now() - startedAt })
+        setLoading(false)
       }
-      setLoading(false)
     }
     load()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps

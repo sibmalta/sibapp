@@ -106,4 +106,76 @@ describe('OrdersPage timeout fallback', () => {
     expect(screen.queryByText('Loading orders...')).not.toBeInTheDocument()
     expect(screen.queryByText('We couldn’t load your drop-off orders. Try again.')).not.toBeInTheDocument()
   })
+  it('renders orders while optional shipment enrichment is still loading', () => {
+    renderOrdersPage({
+      ordersLoading: false,
+      shipmentsLoading: true,
+      getUserOrders: vi.fn(() => [{
+        id: 'order-1',
+        buyerId: 'user-1',
+        sellerId: 'seller-1',
+        listingId: 'listing-1',
+        listingTitle: 'Blue jacket',
+        totalPrice: 24,
+        trackingStatus: 'paid',
+        createdAt: '2026-05-01T10:00:00Z',
+      }]),
+      getListingById: vi.fn(() => ({ id: 'listing-1', title: 'Blue jacket', images: [] })),
+      getUserById: vi.fn(() => ({ id: 'seller-1', username: 'seller' })),
+      getShipmentByOrderId: vi.fn(() => null),
+    })
+
+    expect(screen.queryByText('Loading orders...')).not.toBeInTheDocument()
+    expect(screen.getByText('Blue jacket')).toBeInTheDocument()
+  })
+
+  it('times out if profile enrichment never resolves', async () => {
+    renderOrdersPage({
+      ordersLoading: false,
+      profilesLoading: true,
+    })
+
+    expect(screen.getByText('Loading orders...')).toBeInTheDocument()
+
+    await act(async () => {
+      vi.advanceTimersByTime(8000)
+    })
+
+    expect(screen.queryByText('Loading orders...')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument()
+  })
+
+  it('surfaces RLS denied order errors instead of staying on the spinner', () => {
+    renderOrdersPage({
+      ordersLoading: false,
+      ordersDbError: 'permission denied for table orders',
+    })
+
+    expect(screen.queryByText('Loading orders...')).not.toBeInTheDocument()
+    expect(screen.getByText('permission denied for table orders')).toBeInTheDocument()
+  })
+
+  it('notification shipment deep-links do not wait for optional shipment loading', () => {
+    renderOrdersPage({
+      ordersLoading: false,
+      shipmentsLoading: true,
+      getUserSales: vi.fn(() => [{
+        id: 'order-2',
+        buyerId: 'buyer-1',
+        sellerId: 'user-1',
+        listingId: 'listing-2',
+        listingTitle: 'Green shoes',
+        itemPrice: 18,
+        fulfilmentMethod: 'delivery',
+        trackingStatus: 'paid',
+        createdAt: '2026-05-01T10:00:00Z',
+      }]),
+      getListingById: vi.fn(() => ({ id: 'listing-2', title: 'Green shoes', images: [] })),
+      getUserById: vi.fn(() => ({ id: 'buyer-1', username: 'buyer' })),
+      getShipmentByOrderId: vi.fn(() => ({ orderId: 'order-2', status: 'awaiting_shipment', fulfilmentMethod: 'delivery' })),
+    }, ['/orders?tab=selling&shipment=awaiting_shipment'])
+
+    expect(screen.queryByText('Loading orders...')).not.toBeInTheDocument()
+    expect(screen.getByText('Green shoes')).toBeInTheDocument()
+  })
 })

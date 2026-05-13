@@ -686,7 +686,15 @@ export function AppProvider({ children }) {
         trackingNumber: result.shipment?.trackingNumber || null,
         alreadyCreated: !!result.alreadyCreated,
       })
-      await Promise.all([refreshOrders(), refreshShipments()])
+      const refreshResults = await Promise.allSettled([refreshOrders(), refreshShipments()])
+      refreshResults.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          console.error('[maltapost] post-shipment refresh failed', {
+            refresh: index === 0 ? 'orders' : 'shipments',
+            message: result.reason?.message || String(result.reason),
+          })
+        }
+      })
       return result
     } catch (error) {
       console.error('[maltapost] shipment create unexpected failure', {
@@ -3148,7 +3156,15 @@ export function AppProvider({ children }) {
     const { error: sheetError } = await upsertDeliverySheetRow(sheetRow)
     if (sheetError) return { data, error: sheetError, payload: shipmentPayload }
 
-    await Promise.all([refreshShipments(), refreshLogisticsDeliverySheet()])
+    const refreshResults = await Promise.allSettled([refreshShipments(), refreshLogisticsDeliverySheet()])
+    refreshResults.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        console.error('[dropoff] post-confirmation refresh failed', {
+          refresh: index === 0 ? 'shipments' : 'logisticsDeliverySheet',
+          message: result.reason?.message || String(result.reason),
+        })
+      }
+    })
     return { data, error: null, duplicate, payload: shipmentPayload }
   }, [orders, shipments, users, listings, dbCreateShipment, dbPatchShipment, upsertDeliverySheetRow, refreshShipments, refreshLogisticsDeliverySheet])
 

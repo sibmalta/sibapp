@@ -10,13 +10,22 @@ describe('orders loading reliability', () => {
 
     expect(hook).toContain('ORDERS_FETCH_TIMEOUT_MS')
     expect(hook).toContain('AUTH_LOOKUP_TIMEOUT_MS')
+    expect(hook).toContain('RELATED_FETCH_TIMEOUT_MS')
     expect(hook).toContain("withTimeout(fetchAllOrders(supabase), ORDERS_FETCH_TIMEOUT_MS, 'orders fetch')")
+    expect(hook).toContain("withTimeout(fetchAllShipments(supabase), RELATED_FETCH_TIMEOUT_MS, 'shipments fetch')")
+    expect(hook).toContain("withTimeout(fetchAllDisputes(supabase), RELATED_FETCH_TIMEOUT_MS, 'disputes fetch')")
     expect(hook).toContain('finally')
     expect(hook).toContain('setOrdersLoading(false)')
+    expect(hook).toContain('setShipmentsLoading(false)')
+    expect(hook).toContain('setDisputesLoading(false)')
     expect(hook).toContain("console.info('orders_load_start'")
     expect(hook).toContain("console.info('orders_load_success'")
+    expect(hook).toContain("console.info('shipments_load_start'")
+    expect(hook).toContain("console.info('shipments_load_success'")
     expect(hook).toContain("console.error(isTimeout ? 'orders_load_timeout' : 'orders_load_error'")
+    expect(hook).toContain("logRelatedLoadError('shipments', error)")
     expect(hook).toContain("console.info('orders_loading_false'")
+    expect(hook).toContain("console.info('shipments_loading_false'")
     expect(hook).toContain('buyerOrders')
     expect(hook).toContain('sellerOrders')
   })
@@ -31,6 +40,9 @@ describe('orders loading reliability', () => {
     expect(page).toContain('Retry')
     expect(page).toContain('ordersDbError')
     expect(page).toContain('ordersDbAvailable === false')
+    expect(page).toContain('criticalLoading: authLoading || profilesLoading || ordersLoading')
+    expect(page).toContain("console.info('orders_redirect_legacy_seller_dropoff'")
+    expect(page).toContain('Promise.resolve(refreshShipments()).catch')
   })
 
   it('still renders the empty state when loading resolves with no orders', () => {
@@ -41,5 +53,29 @@ describe('orders loading reliability', () => {
     expect(page).toContain('No parcels awaiting drop-off')
     expect(page).toContain('Browse and buy something you love.')
     expect(page).toContain('Seller sales will appear here after checkout.')
+  })
+
+  it('does not treat shipment enrichment as a critical orders page dependency', () => {
+    const page = readFileSync(resolve(root, 'src/pages/OrdersPage.jsx'), 'utf8')
+
+    expect(page).toContain('if (authLoading || profilesLoading || ordersLoading)')
+    expect(page).not.toContain('if (authLoading || profilesLoading || ordersLoading || shipmentsLoading)')
+  })
+
+  it('bounds profile loading because OrdersPage waits for profiles', () => {
+    const hook = readFileSync(resolve(root, 'src/hooks/useProfiles.js'), 'utf8')
+
+    expect(hook).toContain('PROFILE_FETCH_TIMEOUT_MS = 8000')
+    expect(hook).toContain("withTimeout(fetchAllProfiles(supabase), PROFILE_FETCH_TIMEOUT_MS, 'profiles fetch')")
+    expect(hook).toContain("console.info('profiles_load_start'")
+    expect(hook).toContain("console.info('profiles_loading_false'")
+    expect(hook).toContain('setLoading(false)')
+  })
+
+  it('uses allSettled for independent post-order refreshes', () => {
+    const appContext = readFileSync(resolve(root, 'src/context/AppContext.jsx'), 'utf8')
+
+    expect(appContext).toContain('Promise.allSettled([refreshOrders(), refreshShipments()])')
+    expect(appContext).toContain('Promise.allSettled([refreshShipments(), refreshLogisticsDeliverySheet()])')
   })
 })
