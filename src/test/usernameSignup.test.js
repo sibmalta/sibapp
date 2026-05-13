@@ -68,7 +68,7 @@ describe('signup username handling', () => {
 
   it('uses a strict database trigger for concurrent duplicate signups and profile retries', () => {
     const migration = readFileSync(
-      resolve(process.cwd(), 'supabase/migrations/20260512103000_strict_signup_usernames.sql'),
+      resolve(process.cwd(), 'supabase/migrations/supabasemigrations20260512104500_strict_signup_usernames.sql'),
       'utf8'
     )
 

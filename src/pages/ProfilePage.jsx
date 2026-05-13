@@ -347,7 +347,7 @@ const activeListings = userListings.filter(l => l.status === 'active')
               </span>
               <span className="inline-flex items-center gap-1.5 text-[11px] text-sib-muted dark:text-[#aeb8b4]">
                 <Truck size={11} className="text-sib-primary" />
-                <span>Collected within 1–2 days</span>
+                <span>Tracked delivery available</span>
               </span>
               <span className="inline-flex items-center gap-1.5 text-[11px] text-sib-muted dark:text-[#aeb8b4]">
                 <MessageCircle size={11} className="text-sib-primary" />
