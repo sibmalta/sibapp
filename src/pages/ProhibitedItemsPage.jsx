@@ -33,6 +33,12 @@ const CATEGORIES = [
     examples: ['Prescription medication', 'Alcohol and tobacco products', 'Adult content'],
     color: 'orange',
   },
+  {
+    title: 'Live animals',
+    description: 'Live animals are prohibited on Sib. Pets listings are for accessories and supplies only.',
+    examples: ['Dogs, cats, birds, reptiles, fish, or any other live animal'],
+    color: 'red',
+  },
 ]
 
 export default function ProhibitedItemsPage() {

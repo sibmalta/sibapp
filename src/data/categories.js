@@ -193,6 +193,25 @@ const CATEGORY_TREE = [
     attributes: ['brand', 'condition', 'age_group'],
     filters: ['condition', 'price', 'age_group'],
   },
+  {
+    id: 'pets',
+    label: 'Pets',
+    slug: 'pets',
+    icon: 'paw-print',
+    deliveryEligible: true,
+    subcategories: [
+      { id: 'pet_accessories', label: 'Pet accessories' },
+      { id: 'pet_beds', label: 'Pet beds' },
+      { id: 'pet_carriers', label: 'Pet carriers' },
+      { id: 'pet_clothing', label: 'Pet clothing' },
+      { id: 'bowls_feeders', label: 'Bowls & feeders' },
+      { id: 'pet_toys', label: 'Toys' },
+      { id: 'pet_grooming', label: 'Grooming' },
+      { id: 'other_pets', label: 'Other' },
+    ],
+    attributes: ['brand', 'condition'],
+    filters: ['condition', 'price', 'brand'],
+  },
 ]
 
 /* ── Derived helpers ─────────────────────────────────────────── */

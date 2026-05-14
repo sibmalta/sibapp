@@ -196,9 +196,10 @@ export default function CategoryBento({ categories, images, focalPoints = {}, co
           <div>{tile('furniture', 'medium')}</div>
         </div>
 
-        {/* Block 3: Toys + Kids */}
-        <div className="grid grid-cols-2 gap-3" style={{ height: '170px' }}>
+        {/* Block 3: Toys + Pets + Kids */}
+        <div className="grid grid-cols-3 gap-3" style={{ height: '170px' }}>
           <div>{tile('toys', 'standard')}</div>
+          <div>{tile('pets', 'standard')}</div>
           <div>{tile('kids', 'standard')}</div>
         </div>
       </div>

@@ -3,7 +3,7 @@
  *
  * NOTE: This file is not actively imported by any component. It exists solely as
  * a safety net for any future code that references the old MOCK_* names.
- * The canonical data lives in seedData.js (33 items across 8 categories).
+ * The canonical data lives in seedData.js.
  */
 import { SEED_USERS, SEED_LISTINGS } from './seedData'
 

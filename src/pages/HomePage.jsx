@@ -23,6 +23,7 @@ const CATEGORY_IMAGES = {
   home:        'https://images.unsplash.com/photo-1616046229478-9901c5536a45?w=600&h=600&fit=crop&q=75',
   furniture:   'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800&h=500&fit=crop&crop=center&q=75',
   toys:        'https://images.unsplash.com/photo-1558060370-d644479cb6f7?w=600&h=600&fit=crop&crop=center&q=75',
+  pets:        'https://images.unsplash.com/photo-1601758063541-d2f50b4aafb2?w=600&h=600&fit=crop&crop=center&q=75',
   kids:        'https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?w=600&h=600&fit=crop&q=75',
 }
 
@@ -35,6 +36,7 @@ const CATEGORY_FOCAL = {
   home:        'center center',
   furniture:   'center 60%',
   toys:        'center center',
+  pets:        'center center',
   kids:        'center 35%',
 }
 
