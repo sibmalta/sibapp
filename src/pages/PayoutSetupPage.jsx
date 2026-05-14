@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Banknote, CheckCircle, Loader2, ShieldCheck, Sparkles } from 'lucide-react'
 import { loadConnectAndInitialize } from '@stripe/connect-js'
@@ -7,6 +7,8 @@ import { useApp } from '../context/AppContext'
 import { useAuth } from '../lib/auth-context'
 import { createStripeConnectAccountSession, startStripeConnect } from '../lib/stripe'
 import { getSellerPendingPayoutSummary } from '../lib/pendingPayouts'
+import { isEmailVerified } from '../lib/emailVerification'
+import EmailVerificationRequired from '../components/EmailVerificationRequired'
 
 function formatMoney(value = 0) {
   return `€${Number(value || 0).toFixed(2)}`
@@ -28,6 +30,8 @@ function getReturnUrl() {
   return `${window.location.origin}/seller/payout-settings`
 }
 
+const EMBEDDED_FALLBACK_MESSAGE = 'You can continue using Stripe\'s secure setup window.'
+
 function getEmbeddedFailureReason(error, fallbackReason = 'account_session_creation_failed') {
   const message = error?.message || String(error || '')
   if (/incompatible|cannot create account session|not eligible|account_invalid|resource_missing/i.test(message)) {
@@ -38,6 +42,7 @@ function getEmbeddedFailureReason(error, fallbackReason = 'account_session_creat
 
 function formatEmbeddedFailure(reason, detail) {
   const labels = {
+    email_not_verified: 'Please verify your email to continue.',
     missing_publishable_key: 'Missing VITE_STRIPE_PUBLISHABLE_KEY.',
     account_session_creation_failed: 'Stripe account session creation failed.',
     account_session_missing_client_secret: 'Stripe account session returned no client secret.',
@@ -51,7 +56,7 @@ function formatEmbeddedFailure(reason, detail) {
 export default function PayoutSetupPage() {
   const navigate = useNavigate()
   const { currentUser, getUserSales, refreshCurrentProfile, showToast } = useApp()
-  const { session } = useAuth()
+  const { session, user: authUser } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [embeddedStarted, setEmbeddedStarted] = useState(false)
@@ -65,10 +70,21 @@ export default function PayoutSetupPage() {
   }, [currentUser?.id, getUserSales])
 
   const waitingAmount = pendingSummary?.totalAmount || 0
+  const emailVerified = isEmailVerified(authUser || currentUser)
+
+  useEffect(() => {
+    console.info('payout_setup_email_verified', emailVerified)
+  }, [emailVerified])
 
   const handleContinue = async () => {
     if (!session?.access_token) {
       navigate('/auth', { state: { from: '/payout-setup' } })
+      return
+    }
+
+    if (!emailVerified) {
+      console.info('payout_setup_email_verified', false)
+      console.warn('payout_setup_embedded_failed', { reason: 'email_not_verified' })
       return
     }
 
@@ -82,8 +98,9 @@ export default function PayoutSetupPage() {
       }
       console.error('[payout-setup] embedded_fallback_triggered', failure)
       console.error('embedded_onboarding_render_failed', failure)
+      console.error('payout_setup_embedded_failed', failure)
       setEmbeddedFailure(failure)
-      setError(formatEmbeddedFailure(failure.reason))
+      setError(EMBEDDED_FALLBACK_MESSAGE)
       setHostedFallbackReady(true)
       return
     }
@@ -95,6 +112,7 @@ export default function PayoutSetupPage() {
     try {
       console.info('starting_stripe_onboarding')
       console.info('embedded_onboarding_render_start')
+      console.info('payout_setup_embedded_start')
       const instance = loadConnectAndInitialize({
         publishableKey: stripePublishableKey,
         fetchClientSecret: async () => {
@@ -110,8 +128,9 @@ export default function PayoutSetupPage() {
             }
             console.error('[payout-setup] embedded_fallback_triggered', failure)
             console.error('embedded_onboarding_render_failed', failure)
+            console.error('payout_setup_embedded_failed', failure)
             setEmbeddedFailure(failure)
-            setError(formatEmbeddedFailure(reason, failure.detail))
+            setError(EMBEDDED_FALLBACK_MESSAGE)
             setHostedFallbackReady(true)
             throw err
           }
@@ -127,8 +146,9 @@ export default function PayoutSetupPage() {
               responseKeys: sessionResult ? Object.keys(sessionResult) : [],
             })
             console.error('embedded_onboarding_render_failed', failure)
+            console.error('payout_setup_embedded_failed', failure)
             setEmbeddedFailure(failure)
-            setError(formatEmbeddedFailure(failure.reason))
+            setError(EMBEDDED_FALLBACK_MESSAGE)
             setHostedFallbackReady(true)
             throw new Error('No embedded setup session returned.')
           }
@@ -155,8 +175,9 @@ export default function PayoutSetupPage() {
       }
       console.error('[payout-setup] embedded_fallback_triggered', failure)
       console.error('embedded_onboarding_render_failed', failure)
+      console.error('payout_setup_embedded_failed', failure)
       setEmbeddedFailure(failure)
-      setError(formatEmbeddedFailure(failure.reason, failure.detail))
+      setError(EMBEDDED_FALLBACK_MESSAGE)
       setHostedFallbackReady(true)
       showToast?.('Could not open embedded setup. Secure Stripe setup is still available.', 'error')
     } finally {
@@ -193,6 +214,29 @@ export default function PayoutSetupPage() {
   }
 
   if (!currentUser) return null
+
+  if (!emailVerified) {
+    return (
+      <div className="min-h-screen bg-sib-bg pb-24 text-sib-text dark:bg-[#18211f] dark:text-[#f4efe7]">
+        <header className="sticky top-0 z-30 border-b border-sib-stone/60 bg-white/95 px-3 py-2.5 backdrop-blur dark:border-[rgba(242,238,231,0.10)] dark:bg-[#131918]/95">
+          <div className="mx-auto flex max-w-xl items-center gap-3">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-sib-sand text-sib-text dark:bg-[#26322f] dark:text-[#f4efe7]"
+              aria-label="Go back"
+            >
+              <ArrowLeft size={18} />
+            </button>
+            <p className="text-sm font-bold">Receive earnings</p>
+          </div>
+        </header>
+        <EmailVerificationRequired>
+          <span />
+        </EmailVerificationRequired>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-sib-bg pb-24 text-sib-text dark:bg-[#18211f] dark:text-[#f4efe7]">
@@ -234,8 +278,10 @@ export default function PayoutSetupPage() {
                     }
                     console.error('[payout-setup] embedded_fallback_triggered', failure)
                     console.error('embedded_onboarding_render_failed', failure)
+                    console.error('payout_setup_embedded_failed', failure)
                     setEmbeddedFailure(failure)
-                    setError(formatEmbeddedFailure(failure.reason, failure.detail))
+                    setError(EMBEDDED_FALLBACK_MESSAGE)
+                    setHostedFallbackReady(true)
                   }}
                 />
               </ConnectComponentsProvider>

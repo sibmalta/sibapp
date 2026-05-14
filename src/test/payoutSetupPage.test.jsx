@@ -9,6 +9,7 @@ import { createStripeConnectAccountSession, startStripeConnect } from '../lib/st
 import { loadConnectAndInitialize } from '@stripe/connect-js'
 
 let mockApp
+let mockAuth
 const mockNavigate = vi.fn()
 const root = resolve(__dirname, '..', '..')
 
@@ -17,7 +18,7 @@ vi.mock('../context/AppContext', () => ({
 }))
 
 vi.mock('../lib/auth-context', () => ({
-  useAuth: () => ({ session: { access_token: 'header.payload.signature' } }),
+  useAuth: () => mockAuth,
 }))
 
 vi.mock('../lib/stripe', () => ({
@@ -50,7 +51,7 @@ vi.mock('react-router-dom', async () => {
 
 function renderPage(overrides = {}) {
   mockApp = {
-    currentUser: { id: 'seller-1' },
+    currentUser: { id: 'seller-1', email_confirmed_at: '2026-05-14T08:00:00Z' },
     getUserSales: vi.fn(() => []),
     refreshCurrentProfile: vi.fn(),
     showToast: vi.fn(),
@@ -67,6 +68,12 @@ function renderPage(overrides = {}) {
 describe('PayoutSetupPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockAuth = {
+      session: { access_token: 'header.payload.signature' },
+      user: { id: 'seller-1', email: 'seller@sib.test', email_confirmed_at: '2026-05-14T08:00:00Z' },
+      loading: false,
+      resendVerification: vi.fn(),
+    }
     vi.stubEnv('VITE_STRIPE_PUBLISHABLE_KEY', 'pk_test_sib')
     loadConnectAndInitialize.mockImplementation(() => ({ create: vi.fn(), update: vi.fn(), logout: vi.fn() }))
   })
@@ -127,6 +134,24 @@ describe('PayoutSetupPage', () => {
     expect(window.location.href).toBe(originalHref)
     expect(window.location.href).not.toContain('connect.stripe.com')
     openSpy.mockRestore()
+  })
+
+  it('gates unverified users before Stripe embedded onboarding is initialized', () => {
+    mockAuth = {
+      ...mockAuth,
+      user: { id: 'seller-1', email: 'seller@sib.test' },
+      resendVerification: vi.fn(),
+    }
+    renderPage({
+      currentUser: { id: 'seller-1', email: 'seller@sib.test' },
+    })
+
+    expect(screen.getByText('Verify your email')).toBeInTheDocument()
+    expect(screen.getByText('Please verify your email to continue.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Continue securely/i })).not.toBeInTheDocument()
+    expect(createStripeConnectAccountSession).not.toHaveBeenCalled()
+    expect(loadConnectAndInitialize).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('embedded-onboarding')).not.toBeInTheDocument()
   })
 
   it('labels missing embedded account session client secrets clearly', async () => {
@@ -195,7 +220,9 @@ describe('PayoutSetupPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Trigger embedded error/i }))
 
     expect(await screen.findByText(/Debug reason: embedded_component_render_error/)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Open secure Stripe setup/i })).not.toBeInTheDocument()
+    expect(screen.getByText("You can continue using Stripe's secure setup window.")).toBeInTheDocument()
+    expect(screen.queryByText(/verify your email/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Open secure Stripe setup/i })).toBeInTheDocument()
   })
 
   it('wires payout prompts through the intro page before Stripe', () => {
@@ -225,6 +252,10 @@ describe('PayoutSetupPage', () => {
     expect(payoutSetup).toContain('embedded_onboarding_render_start')
     expect(payoutSetup).toContain('embedded_onboarding_render_success')
     expect(payoutSetup).toContain('embedded_onboarding_render_failed')
+    expect(payoutSetup).toContain('payout_setup_email_verified')
+    expect(payoutSetup).toContain('payout_setup_embedded_start')
+    expect(payoutSetup).toContain('payout_setup_embedded_failed')
+    expect(payoutSetup).toContain('email_not_verified')
     expect(payoutSetup).toContain('window.location.assign')
     expect(payoutSetup).not.toContain('window.open')
     expect(payoutSetup).toContain('startStripeConnect')
