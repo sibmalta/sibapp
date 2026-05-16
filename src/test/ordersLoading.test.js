@@ -19,6 +19,7 @@ describe('orders loading reliability', () => {
     expect(hook).toContain('setShipmentsLoading(false)')
     expect(hook).toContain('setDisputesLoading(false)')
     expect(hook).toContain("console.info('orders_load_start'")
+    expect(hook).toContain("source: 'retry_after_db_unavailable'")
     expect(hook).toContain("console.info('orders_load_success'")
     expect(hook).toContain("console.info('shipments_load_start'")
     expect(hook).toContain("console.info('shipments_load_success'")
@@ -43,6 +44,16 @@ describe('orders loading reliability', () => {
     expect(page).toContain('criticalLoading: authLoading || profilesLoading || ordersLoading')
     expect(page).toContain("console.info('orders_redirect_legacy_seller_dropoff'")
     expect(page).toContain('Promise.resolve(refreshShipments()).catch')
+  })
+
+  it('logs raw Supabase order query failures at the data layer', () => {
+    const ordersDb = readFileSync(resolve(root, 'src/lib/db/orders.js'), 'utf8')
+
+    expect(ordersDb).toContain("console.error('[orders] fetchAllOrders query failed:'")
+    expect(ordersDb).toContain('details: error.details')
+    expect(ordersDb).toContain('hint: error.hint')
+    expect(ordersDb).toContain('error,')
+    expect(ordersDb).toContain("console.error('[orders] fetchAllOrders threw:'")
   })
 
   it('still renders the empty state when loading resolves with no orders', () => {

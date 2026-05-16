@@ -272,7 +272,18 @@ export async function fetchAllOrders(supabase) {
       .select('*')
       .order('created_at', { ascending: false })
       .limit(500)
-    if (error) return { data: null, error }
+    if (error) {
+      console.error('[orders] fetchAllOrders query failed:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        status: error.status,
+        statusText: error.statusText,
+        error,
+      })
+      return { data: null, error }
+    }
     const rows = data || []
     const listingIds = [...new Set(rows.map(row => row?.listing_id).filter(Boolean))]
     let listingsById = new Map()
@@ -284,7 +295,15 @@ export async function fetchAllOrders(supabase) {
         .in('id', listingIds)
 
       if (listingsError) {
-        console.warn('[orders] Unable to enrich orders with listing images:', listingsError.message)
+        console.warn('[orders] Unable to enrich orders with listing images:', {
+          message: listingsError.message,
+          code: listingsError.code,
+          details: listingsError.details,
+          hint: listingsError.hint,
+          status: listingsError.status,
+          statusText: listingsError.statusText,
+          error: listingsError,
+        })
       } else {
         listingsById = new Map((listingsData || []).map(listing => [listing.id, listing]))
       }
@@ -298,7 +317,13 @@ export async function fetchAllOrders(supabase) {
       error: null,
     }
   } catch (e) {
-    return { data: null, error: { message: e.message } }
+    console.error('[orders] fetchAllOrders threw:', {
+      message: e?.message || String(e),
+      code: e?.code,
+      stack: e?.stack,
+      error: e,
+    })
+    return { data: null, error: { message: e?.message || String(e), code: e?.code || null } }
   }
 }
 

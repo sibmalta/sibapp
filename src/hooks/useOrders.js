@@ -260,9 +260,9 @@ export function useOrders(currentUser = null) {
 
   const refreshOrders = useCallback(async () => {
     if (dbAvailable === false) {
-      console.info('orders_loading_false', { reason: 'db_unavailable' })
-      setOrdersLoading(false)
-      return
+      console.info('orders_load_start', { source: 'retry_after_db_unavailable' })
+      setDbAvailable(null)
+      setDbError(null)
     }
     setOrdersLoading(true)
     const startedAt = Date.now()
