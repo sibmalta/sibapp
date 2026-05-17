@@ -172,6 +172,7 @@ export default function OrdersPage() {
 
   useEffect(() => {
     document.title = 'Your orders | Sib'
+    console.info('orders_page_mount')
   }, [])
 
   useEffect(() => {
@@ -203,7 +204,7 @@ export default function OrdersPage() {
 
   useEffect(() => {
     if (sellerDropoffFilter === 'pending') return undefined
-    if (!(authLoading || profilesLoading || ordersLoading)) {
+    if (!(authLoading || ordersLoading)) {
       setLoadTimedOut(false)
       return undefined
     }
@@ -238,8 +239,9 @@ export default function OrdersPage() {
       profilesLoading,
       ordersLoading,
       shipmentsLoading,
-      criticalLoading: authLoading || profilesLoading || ordersLoading,
+      criticalLoading: authLoading || ordersLoading,
       optionalShipmentsLoading: shipmentsLoading,
+      optionalProfilesLoading: profilesLoading,
       loadTimedOut,
       ordersDbAvailable,
       hasOrdersDbError: Boolean(ordersDbError),
@@ -302,7 +304,13 @@ export default function OrdersPage() {
     )
   }
 
-  if (authLoading || profilesLoading || ordersLoading) {
+  if (authLoading || ordersLoading) {
+    console.info('route_blocked_by', {
+      route: 'orders',
+      authLoading,
+      ordersLoading,
+      profilesLoading,
+    })
     return (
       <div>
         <PageHeader title="Orders" />

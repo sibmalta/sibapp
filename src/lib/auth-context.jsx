@@ -165,6 +165,7 @@ export function AuthProvider({ children }) {
   // ── Init: check hash callback or restore session ──
   useEffect(() => {
     let cancelled = false;
+    console.info('auth_init_start');
 
     async function init() {
       try {
@@ -257,7 +258,10 @@ export function AuthProvider({ children }) {
         syncSupabaseAuthSession(null).catch(() => {});
       }
 
-      if (!cancelled) setLoading(false);
+      if (!cancelled) {
+        console.info('auth_ready');
+        setLoading(false);
+      }
     }
 
     init();

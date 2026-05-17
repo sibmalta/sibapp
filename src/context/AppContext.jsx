@@ -168,6 +168,10 @@ function buildAppUser(authUser) {
 export function AppProvider({ children }) {
   const { user: authUser, session: authSession, loading: authLoading, signOut: authSignOut } = useAuth()
 
+  useEffect(() => {
+    console.info('app_context_init_start')
+  }, [])
+
   // Derive currentUser from Supabase auth — single source of truth
   const authAppUser = useMemo(() => buildAppUser(authUser), [authUser])
 
@@ -200,6 +204,24 @@ export function AppProvider({ children }) {
     const profileUser = users.find(u => u.id === authAppUser.id)
     return profileUser ? { ...authAppUser, ...profileUser } : authAppUser
   }, [authAppUser, users])
+
+  useEffect(() => {
+    if (!authLoading) {
+      console.info('app_context_init_complete', {
+        authReady: true,
+        hasAuthUser: Boolean(authUser?.id),
+        hasCurrentUser: Boolean(currentUser?.id),
+        profilesLoading,
+      })
+    }
+  }, [authLoading, authUser?.id, currentUser?.id, profilesLoading])
+
+  useEffect(() => {
+    console.info('loading_state_changed', {
+      authLoading,
+      profilesLoading,
+    })
+  }, [authLoading, profilesLoading])
 
   const {
     conversations,

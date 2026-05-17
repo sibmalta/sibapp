@@ -5,7 +5,7 @@
  * Admin/order tables are intentionally lazy-loaded. Marketplace pages should
  * not pay for heavy admin queries during initial app boot.
  */
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { useSupabase } from '../lib/useSupabase'
 import {
   fetchAllOrders, insertOrder, updateOrder,
@@ -61,6 +61,24 @@ export function useOrders(currentUser = null) {
   const [payoutsLoading, setPayoutsLoading] = useState(false)
   const [shipmentsLoading, setShipmentsLoading] = useState(false)
   const [logisticsDeliverySheetLoading, setLogisticsDeliverySheetLoading] = useState(false)
+  const refreshInFlightRef = useRef(new Map())
+
+  const runDedupedRefresh = useCallback((resource, loader) => {
+    const existing = refreshInFlightRef.current.get(resource)
+    if (existing) {
+      console.info('refresh_skipped_duplicate', { resource })
+      return existing
+    }
+
+    const promise = Promise.resolve()
+      .then(loader)
+      .finally(() => {
+        refreshInFlightRef.current.delete(resource)
+      })
+
+    refreshInFlightRef.current.set(resource, promise)
+    return promise
+  }, [])
 
   const markDbOk = useCallback(() => {
     setDbAvailable(true)
@@ -258,7 +276,7 @@ export function useOrders(currentUser = null) {
     return { data, error: null }
   }, [withAuthRetry, requireDb, markDbOk])
 
-  const refreshOrders = useCallback(async () => {
+  const refreshOrders = useCallback(() => runDedupedRefresh('orders', async () => {
     if (dbAvailable === false) {
       console.info('orders_load_start', { source: 'retry_after_db_unavailable' })
       setDbAvailable(null)
@@ -333,9 +351,9 @@ export function useOrders(currentUser = null) {
       })
       setOrdersLoading(false)
     }
-  }, [supabase, dbAvailable, markDbOk])
+  }), [supabase, dbAvailable, markDbOk, runDedupedRefresh])
 
-  const refreshDisputes = useCallback(async () => {
+  const refreshDisputes = useCallback(() => runDedupedRefresh('disputes', async () => {
     if (dbAvailable === false) {
       console.info('disputes_loading_false', { reason: 'db_unavailable' })
       setDisputesLoading(false)
@@ -360,9 +378,9 @@ export function useOrders(currentUser = null) {
       console.info('disputes_loading_false', { durationMs: Date.now() - startedAt })
       setDisputesLoading(false)
     }
-  }, [supabase, dbAvailable, markDbOk])
+  }), [supabase, dbAvailable, markDbOk, runDedupedRefresh])
 
-  const refreshDisputeMessages = useCallback(async () => {
+  const refreshDisputeMessages = useCallback(() => runDedupedRefresh('dispute_messages', async () => {
     if (dbAvailable === false) {
       console.info('dispute_messages_loading_false', { reason: 'db_unavailable' })
       setDisputeMessagesLoading(false)
@@ -387,7 +405,7 @@ export function useOrders(currentUser = null) {
       console.info('dispute_messages_loading_false', { durationMs: Date.now() - startedAt })
       setDisputeMessagesLoading(false)
     }
-  }, [supabase, dbAvailable, markDbOk])
+  }), [supabase, dbAvailable, markDbOk, runDedupedRefresh])
 
   const createDisputeCase = useCallback(async (payload) => {
     const check = requireDb()
@@ -406,7 +424,7 @@ export function useOrders(currentUser = null) {
     return { data, error: null }
   }, [withAuthRetry, requireDb, markDbOk, refreshDisputes, refreshDisputeMessages, requireVerifiedWrite])
 
-  const refreshPayouts = useCallback(async () => {
+  const refreshPayouts = useCallback(() => runDedupedRefresh('payouts', async () => {
     if (dbAvailable === false) {
       console.info('payouts_loading_false', { reason: 'db_unavailable' })
       setPayoutsLoading(false)
@@ -431,9 +449,9 @@ export function useOrders(currentUser = null) {
       console.info('payouts_loading_false', { durationMs: Date.now() - startedAt })
       setPayoutsLoading(false)
     }
-  }, [supabase, dbAvailable, markDbOk])
+  }), [supabase, dbAvailable, markDbOk, runDedupedRefresh])
 
-  const refreshShipments = useCallback(async () => {
+  const refreshShipments = useCallback(() => runDedupedRefresh('shipments', async () => {
     if (dbAvailable === false) {
       console.info('shipments_loading_false', { reason: 'db_unavailable' })
       setShipmentsLoading(false)
@@ -458,9 +476,9 @@ export function useOrders(currentUser = null) {
       console.info('shipments_loading_false', { durationMs: Date.now() - startedAt })
       setShipmentsLoading(false)
     }
-  }, [supabase, dbAvailable, markDbOk])
+  }), [supabase, dbAvailable, markDbOk, runDedupedRefresh])
 
-  const refreshLogisticsDeliverySheet = useCallback(async () => {
+  const refreshLogisticsDeliverySheet = useCallback(() => runDedupedRefresh('logistics_delivery_sheet', async () => {
     if (dbAvailable === false) {
       console.info('logistics_delivery_sheet_loading_false', { reason: 'db_unavailable' })
       setLogisticsDeliverySheetLoading(false)
@@ -485,7 +503,7 @@ export function useOrders(currentUser = null) {
       console.info('logistics_delivery_sheet_loading_false', { durationMs: Date.now() - startedAt })
       setLogisticsDeliverySheetLoading(false)
     }
-  }, [supabase, dbAvailable, markDbOk])
+  }), [supabase, dbAvailable, markDbOk, runDedupedRefresh])
 
   return {
     orders,

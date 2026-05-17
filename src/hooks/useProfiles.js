@@ -66,6 +66,7 @@ export function useProfiles(localUsers, currentUser) {
   const [dbAvailable, setDbAvailable] = useState(false)
   const [loading, setLoading] = useState(true)
   const fetchedRef = useRef(false)
+  const currentProfileRefreshRef = useRef(null)
 
   // ── Initial load ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -75,14 +76,22 @@ export function useProfiles(localUsers, currentUser) {
     async function load() {
       const startedAt = Date.now()
       console.info('profiles_load_start')
+      console.info('profile_fetch_start', { source: 'initial_profiles' })
       try {
         const { data, error } = await withTimeout(fetchAllProfiles(supabase), PROFILE_FETCH_TIMEOUT_MS, 'profiles fetch')
         if (!error && data) {
           setDbAvailable(true)
           setUsers(data)
           console.info('profiles_load_success', { totalProfiles: data.length, durationMs: Date.now() - startedAt })
+          console.info('profile_fetch_success', { source: 'initial_profiles', totalProfiles: data.length, durationMs: Date.now() - startedAt })
         } else if (error) {
           console.error('profiles_load_error', {
+            message: error.message,
+            code: error.code || null,
+            status: error.status || null,
+          })
+          console.error('profile_fetch_error', {
+            source: 'initial_profiles',
             message: error.message,
             code: error.code || null,
             status: error.status || null,
@@ -94,6 +103,10 @@ export function useProfiles(localUsers, currentUser) {
       } catch (error) {
         const isTimeout = /timed out/i.test(error?.message || '')
         console.error(isTimeout ? 'profiles_load_timeout' : 'profiles_load_error', {
+          message: error?.message || String(error),
+        })
+        console.error(isTimeout ? 'profile_fetch_timeout' : 'profile_fetch_error', {
+          source: 'initial_profiles',
           message: error?.message || String(error),
         })
         setDbAvailable(false)
@@ -114,10 +127,43 @@ export function useProfiles(localUsers, currentUser) {
   // ── Refresh current user's own profile from DB ─────────────────────────────
   const refreshCurrentProfile = useCallback(async () => {
     if (!dbAvailable || !currentUser?.id) return
-    const { data, error } = await fetchProfileById(supabase, currentUser.id)
-    if (!error && data) {
-      setUsers(prev => prev.map(u => u.id === data.id ? { ...u, ...data } : u))
+    if (currentProfileRefreshRef.current) {
+      console.info('refresh_skipped_duplicate', { resource: 'current_profile' })
+      return currentProfileRefreshRef.current
     }
+
+    const promise = (async () => {
+      console.info('profile_fetch_start', { source: 'refresh_current_profile', userId: currentUser.id })
+      try {
+        const { data, error } = await withTimeout(fetchProfileById(supabase, currentUser.id), PROFILE_FETCH_TIMEOUT_MS, 'current profile fetch')
+        if (error) {
+          console.error('profile_fetch_error', {
+            source: 'refresh_current_profile',
+            userId: currentUser.id,
+            message: error.message,
+            code: error.code || null,
+            status: error.status || null,
+          })
+          return
+        }
+        if (data) {
+          setUsers(prev => prev.map(u => u.id === data.id ? { ...u, ...data } : u))
+          console.info('profile_fetch_success', { source: 'refresh_current_profile', userId: currentUser.id })
+        }
+      } catch (error) {
+        const isTimeout = /timed out/i.test(error?.message || '')
+        console.error(isTimeout ? 'profile_fetch_timeout' : 'profile_fetch_error', {
+          source: 'refresh_current_profile',
+          userId: currentUser.id,
+          message: error?.message || String(error),
+        })
+      } finally {
+        currentProfileRefreshRef.current = null
+      }
+    })()
+
+    currentProfileRefreshRef.current = promise
+    return promise
   }, [supabase, currentUser?.id, dbAvailable])
 
   const ensureUserById = useCallback(async (userId) => {

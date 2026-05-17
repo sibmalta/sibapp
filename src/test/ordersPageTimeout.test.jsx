@@ -129,20 +129,14 @@ describe('OrdersPage timeout fallback', () => {
     expect(screen.getByText('Blue jacket')).toBeInTheDocument()
   })
 
-  it('times out if profile enrichment never resolves', async () => {
+  it('does not block the orders route on profile enrichment', async () => {
     renderOrdersPage({
       ordersLoading: false,
       profilesLoading: true,
     })
 
-    expect(screen.getByText('Loading orders...')).toBeInTheDocument()
-
-    await act(async () => {
-      vi.advanceTimersByTime(8000)
-    })
-
     expect(screen.queryByText('Loading orders...')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument()
+    expect(screen.getByText('No purchases yet')).toBeInTheDocument()
   })
 
   it('surfaces RLS denied order errors instead of staying on the spinner', () => {

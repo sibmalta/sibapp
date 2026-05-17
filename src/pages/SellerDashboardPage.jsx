@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Wallet, Package, Clock, CheckCircle, AlertCircle,
@@ -69,12 +69,18 @@ export default function SellerDashboardPage() {
   const [filter, setFilter] = useState('all')
   const [escrowOpen, setEscrowOpen] = useState(false)
 
-  if (!currentUser) {
-    navigate('/auth')
-    return null
-  }
+  useEffect(() => {
+    console.info('seller_dashboard_mount')
+  }, [])
 
-  const sales = getUserSales(currentUser.id)
+  useEffect(() => {
+    if (!currentUser) {
+      console.info('route_blocked_by', { route: 'seller_dashboard', reason: 'missing_current_user' })
+      navigate('/auth', { replace: true })
+    }
+  }, [currentUser, navigate])
+
+  const sales = currentUser ? getUserSales(currentUser.id) : []
   const nextPayout = useMemo(() => getNextPayoutDay(), [])
   const hasStripeAccount = !!currentUser?.stripeAccountId
   const stripeReady = !!currentUser?.detailsSubmitted && !!currentUser?.chargesEnabled && !!currentUser?.payoutsEnabled
@@ -84,14 +90,14 @@ export default function SellerDashboardPage() {
   const heldAmount = sales
     .filter(o => o.payoutStatus === 'held' || o.payoutStatus === 'buyer_protection_hold' || o.payoutStatus === 'blocked_seller_setup')
     .reduce((sum, o) => sum + (o.sellerPayout || o.itemPrice || 0), 0)
-  const pendingPayoutSummary = useMemo(
-    () => getSellerPendingPayoutSummary(sales, currentUser.id),
-    [sales, currentUser.id],
-  )
-  const canWithdraw = pendingPayoutSummary.totalAmount > 0 || availableAmount > 0
   const availableAmount = sales
     .filter(o => o.payoutStatus === 'available')
     .reduce((sum, o) => sum + (o.sellerPayout || o.itemPrice || 0), 0)
+  const pendingPayoutSummary = useMemo(
+    () => getSellerPendingPayoutSummary(sales, currentUser?.id),
+    [sales, currentUser?.id],
+  )
+  const canWithdraw = pendingPayoutSummary.totalAmount > 0 || availableAmount > 0
   const releasedAmount = sales
     .filter(o => o.payoutStatus === 'released')
     .reduce((sum, o) => sum + (o.sellerPayout || o.itemPrice || 0), 0)
@@ -111,6 +117,14 @@ export default function SellerDashboardPage() {
   const routeToPayoutSetup = () => {
     console.info('routing_to_payout_setup')
     navigate('/payout-setup')
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-white px-6 text-center text-sm text-sib-muted dark:bg-[#18211f] dark:text-[#aeb8b4]">
+        Preparing seller dashboard...
+      </div>
+    )
   }
 
   return (

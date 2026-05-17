@@ -11,6 +11,8 @@ describe('orders loading reliability', () => {
     expect(hook).toContain('ORDERS_FETCH_TIMEOUT_MS')
     expect(hook).toContain('AUTH_LOOKUP_TIMEOUT_MS')
     expect(hook).toContain('RELATED_FETCH_TIMEOUT_MS')
+    expect(hook).toContain('refreshInFlightRef')
+    expect(hook).toContain("console.info('refresh_skipped_duplicate'")
     expect(hook).toContain("withTimeout(fetchAllOrders(supabase), ORDERS_FETCH_TIMEOUT_MS, 'orders fetch')")
     expect(hook).toContain("withTimeout(fetchAllShipments(supabase), RELATED_FETCH_TIMEOUT_MS, 'shipments fetch')")
     expect(hook).toContain("withTimeout(fetchAllDisputes(supabase), RELATED_FETCH_TIMEOUT_MS, 'disputes fetch')")
@@ -41,7 +43,9 @@ describe('orders loading reliability', () => {
     expect(page).toContain('Retry')
     expect(page).toContain('ordersDbError')
     expect(page).toContain('ordersDbAvailable === false')
-    expect(page).toContain('criticalLoading: authLoading || profilesLoading || ordersLoading')
+    expect(page).toContain('criticalLoading: authLoading || ordersLoading')
+    expect(page).toContain('optionalProfilesLoading: profilesLoading')
+    expect(page).toContain("console.info('route_blocked_by'")
     expect(page).toContain("console.info('orders_redirect_legacy_seller_dropoff'")
     expect(page).toContain('Promise.resolve(refreshShipments()).catch')
   })
@@ -69,8 +73,9 @@ describe('orders loading reliability', () => {
   it('does not treat shipment enrichment as a critical orders page dependency', () => {
     const page = readFileSync(resolve(root, 'src/pages/OrdersPage.jsx'), 'utf8')
 
-    expect(page).toContain('if (authLoading || profilesLoading || ordersLoading)')
+    expect(page).toContain('if (authLoading || ordersLoading)')
     expect(page).not.toContain('if (authLoading || profilesLoading || ordersLoading || shipmentsLoading)')
+    expect(page).not.toContain('if (authLoading || profilesLoading || ordersLoading)')
   })
 
   it('bounds profile loading because OrdersPage waits for profiles', () => {
@@ -78,6 +83,9 @@ describe('orders loading reliability', () => {
 
     expect(hook).toContain('PROFILE_FETCH_TIMEOUT_MS = 8000')
     expect(hook).toContain("withTimeout(fetchAllProfiles(supabase), PROFILE_FETCH_TIMEOUT_MS, 'profiles fetch')")
+    expect(hook).toContain("withTimeout(fetchProfileById(supabase, currentUser.id), PROFILE_FETCH_TIMEOUT_MS, 'current profile fetch')")
+    expect(hook).toContain("console.info('profile_fetch_start'")
+    expect(hook).toContain("console.info('refresh_skipped_duplicate', { resource: 'current_profile' })")
     expect(hook).toContain("console.info('profiles_load_start'")
     expect(hook).toContain("console.info('profiles_loading_false'")
     expect(hook).toContain('setLoading(false)')
@@ -88,5 +96,8 @@ describe('orders loading reliability', () => {
 
     expect(appContext).toContain('Promise.allSettled([refreshOrders(), refreshShipments()])')
     expect(appContext).toContain('Promise.allSettled([refreshShipments(), refreshLogisticsDeliverySheet()])')
+    expect(appContext).toContain("console.info('app_context_init_start'")
+    expect(appContext).toContain("console.info('app_context_init_complete'")
+    expect(appContext).toContain("console.info('loading_state_changed'")
   })
 })
